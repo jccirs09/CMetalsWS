@@ -11,6 +11,15 @@
     <MudNavLink Href="auth" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Lock">Auth Required</MudNavLink>
     <AuthorizeView>
         <Authorized>
+            <MudNavGroup Text="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Title="System Panel">
+                <MudNavLink Href="/users" Icon="@Icons.Material.Filled.Person">Users</MudNavLink>
+                <MudNavLink Href="/branches" Icon="@Icons.Material.Filled.LocationCity">Branches</MudNavLink>
+                <MudNavLink Href="/roles" Icon="@Icons.Material.Filled.Security">Roles</MudNavLink>
+                <MudNavLink Href="/machines" Icon="@Icons.Material.Filled.Build">Machines</MudNavLink>
+                <MudNavLink Href="/trucks" Icon="@Icons.Material.Filled.LocalShipping">Trucks</MudNavLink>
+                <MudNavLink Href="/workorders" Icon="@Icons.Material.Filled.Assignment">Work Orders</MudNavLink>
+                <MudNavLink Href="/pickinglists" Icon="@Icons.Material.Filled.ListAlt">Picking Lists</MudNavLink>
+            </MudNavGroup>
             <MudNavLink Href="Account/Manage" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">@context.User.Identity?.Name</MudNavLink>
             <form action="Account/Logout" method="post">
                 <AntiforgeryToken />

@@ -6,7 +6,7 @@ namespace CMetalsWS.Components.Layout
     public partial class MainLayout : LayoutComponentBase
     {
         private bool _isDarkMode = false;
-
+        private bool _drawerOpen = true;
         private readonly MudTheme _customTheme = new()
         {
             PaletteLight = new PaletteLight

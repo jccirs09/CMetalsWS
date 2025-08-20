@@ -1,33 +1,47 @@
 ﻿@inherits LayoutComponentBase
 
+<!-- Theme provider with dark mode support -->
 <MudThemeProvider Theme="@_customTheme" @bind-IsDarkMode="_isDarkMode" />
+
+<!-- Providers for popovers, dialogs, snackbars -->
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
+
+<!-- Main layout structure -->
 <MudLayout>
+    <!-- App Bar -->
     <MudAppBar Elevation="1">
-        <MudStaticNavDrawerToggle DrawerId="nav-drawer" Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" />
+        <!-- Toggle button tied to the nav drawer -->
+        <MudStaticNavDrawerToggle DrawerId="nav-drawer"
+                                  Icon="@Icons.Material.Filled.Menu"
+                                  Color="Color.Inherit"
+                                  Edge="Edge.Start" />
         <MudText Typo="Typo.h5" Class="ml-3">Application</MudText>
         <MudSpacer />
-        <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End" />
+        <!-- Additional icon (e.g., options) -->
+        <MudIconButton Icon="@Icons.Material.Filled.MoreVert"
+                       Color="Color.Inherit"
+                       Edge="Edge.End" />
     </MudAppBar>
-    <MudDrawer id="nav-drawer" @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+
+    <!-- Side navigation drawer with collapsible Admin menu -->
+    <MudDrawer id="nav-drawer"
+               @bind-Open="_drawerOpen"
+               ClipMode="DrawerClipMode.Always"
+               Elevation="2">
         <NavMenu />
     </MudDrawer>
+
+    <!-- Main content area with padding (accounting for AppBar height) -->
     <MudMainContent Class="pt-16 pa-4">
         @Body
     </MudMainContent>
 </MudLayout>
 
-
+<!-- Blazor error UI -->
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
-
-@code {
-    private bool _drawerOpen = true;
-}
-
-
