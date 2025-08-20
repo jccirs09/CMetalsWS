@@ -1,0 +1,99 @@
+﻿@page "/branches"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using MudBlazor
+
+@inject BranchService BranchService
+@inject IDialogService DialogService
+
+<MudPaper Class="p-4">
+    <MudText Typo="Typo.h5">Branches</MudText>
+    <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" OnClick="AddBranch">Add Branch</MudButton>
+    <MudTable Items="branches" Hover="true">
+        <HeaderContent>
+            <MudTh>Code</MudTh>
+            <MudTh>Name</MudTh>
+            <MudTh>City</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Code">@context.Code</MudTd>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="City">@context.City</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditBranch(context))"></MudIconButton>
+                <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteBranch(context))"></MudIconButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<Branch> branches = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        branches = await BranchService.GetBranchesAsync();
+    }
+
+    private async Task AddBranch()
+    {
+        var parameters = new DialogParameters
+        {
+            ["Model"] = new Branch(),
+            ["IsEdit"] = false,
+            ["Title"] = "Add Branch"
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialogRef = DialogService.Show<BranchDialog>("Add Branch", parameters, options);
+        var result = await dialogRef.Result;
+        if (result.Data is Branch saved)
+        {
+            await BranchService.AddBranchAsync(saved);
+            branches = await BranchService.GetBranchesAsync();
+        }
+    }
+
+    private async Task EditBranch(Branch branch)
+    {
+        var clone = new Branch
+        {
+            Id = branch.Id,
+            Code = branch.Code,
+            Name = branch.Name,
+            AddressLine = branch.AddressLine,
+            City = branch.City,
+            Province = branch.Province,
+            Country = branch.Country,
+            PostalCode = branch.PostalCode
+        };
+        var parameters = new DialogParameters
+        {
+            ["Model"] = clone,
+            ["IsEdit"] = true,
+            ["Title"] = "Edit Branch"
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialogRef = DialogService.Show<BranchDialog>("Edit Branch", parameters, options);
+        var result = await dialogRef.Result;
+        if (result.Data is Branch updated)
+        {
+            updated.Id = branch.Id;
+            await BranchService.UpdateBranchAsync(updated);
+            branches = await BranchService.GetBranchesAsync();
+        }
+    }
+
+    private async Task DeleteBranch(Branch branch)
+    {
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Delete Confirmation",
+            $"Are you sure you want to delete branch '{branch.Name}'?",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirm == true)
+        {
+            await BranchService.DeleteBranchAsync(branch.Id);
+            branches = await BranchService.GetBranchesAsync();
+        }
+    }
+}

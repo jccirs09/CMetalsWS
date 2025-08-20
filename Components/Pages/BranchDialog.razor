@@ -1,0 +1,133 @@
+﻿@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@Title</MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudForm Model="@Model" @ref="branchForm">
+                <MudStack Spacing="2">
+                    <MudTextField @bind-Value="Model.Code" Label="Code" Required="true"></MudTextField>
+                    <MudTextField @bind-Value="Model.Name" Label="Name" Required="true"></MudTextField>
+                    <MudTextField @bind-Value="Model.AddressLine" Label="Address"></MudTextField>
+                    <MudTextField @bind-Value="Model.City" Label="City"></MudTextField>
+
+                    <!-- Country dropdown -->
+                    <MudSelect T="string" Label="Country"
+                               Value="Model.Country"
+                               ValueChanged="OnCountryChanged"
+                               Required="true">
+                        @foreach (var country in Countries)
+                        {
+                            <MudSelectItem Value="@country">@country</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <!-- Province/State dropdown -->
+                    <MudSelect T="string" Label="@RegionLabel"
+                               @bind-Value="Model.Province" Required="true">
+                        @foreach (var region in Regions)
+                        {
+                            <MudSelectItem Value="@region">@region</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudTextField @bind-Value="Model.PostalCode" Label="Postal Code"></MudTextField>
+                </MudStack>
+            </MudForm>
+        </MudPaper>
+    </DialogContent>
+
+    <DialogActions>
+        <MudSpacer />
+        <MudButton Color="Color.Secondary" Variant="Variant.Outlined" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public Branch Model { get; set; } = new();
+    [Parameter] public bool IsEdit { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+
+    private MudForm branchForm;
+
+    [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
+
+    // Country list
+    private List<string> Countries = new() { "Canada", "USA" };
+
+    // Dynamically populated region list (provinces or states)
+    private List<string> Regions = new();
+
+    // Mapping of countries to their provinces/states
+    private readonly Dictionary<string, List<string>> RegionMap = new()
+    {
+        { "Canada", new List<string>
+            {
+                "BC", "AB", "SK", "MB", "ON", "QC", "NB", "NS", "PE", "NL", "YT", "NT", "NU"
+            }
+        },
+        { "USA", new List<string>
+            {
+                "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware",
+                "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky",
+                "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi",
+                "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico",
+                "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania",
+                "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont",
+                "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"
+            }
+        }
+    };
+
+    // Display label for the province/state dropdown based on the selected country
+    private string RegionLabel => Model.Country == "USA" ? "State" : "Province";
+
+    protected override void OnInitialized()
+    {
+        // Initialize region list based on the initial country, if any
+        if (!string.IsNullOrWhiteSpace(Model.Country) && RegionMap.ContainsKey(Model.Country))
+        {
+            Regions = new List<string>(RegionMap[Model.Country]);
+        }
+        else
+        {
+            Regions = new List<string>();
+        }
+    }
+
+    private void OnCountryChanged(string value)
+    {
+        Model.Country = value;
+
+        if (!string.IsNullOrWhiteSpace(value) && RegionMap.ContainsKey(value))
+        {
+            Regions = new List<string>(RegionMap[value]);
+        }
+        else
+        {
+            Regions = new List<string>();
+        }
+
+        // Clear the province/state selection when changing country
+        Model.Province = string.Empty;
+    }
+
+    private async Task Save()
+    {
+        await branchForm.Validate();
+        if (branchForm.IsValid)
+        {
+            Dialog.Close(DialogResult.Ok(Model));
+        }
+    }
+
+    private void Cancel()
+    {
+        Dialog.Cancel();
+    }
+}
