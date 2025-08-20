@@ -24,7 +24,10 @@
                     </MudSelect>
 
                     <!-- Roles multi-select -->
-                    <MudSelect T="string" Label="Roles" @bind-SelectedValues="SelectedRolesInternal" MultiSelection="true">
+                    <MudSelect T="string"
+                               Label="Roles"
+                               MultiSelection="true"
+                               @bind-SelectedValues="_selectedRolesList">
                         @foreach (var role in Roles)
                         {
                             <MudSelectItem Value="@role.Name">@role.Name</MudSelectItem>
@@ -53,7 +56,7 @@
     [Parameter] public string Title { get; set; } = "";
     [Parameter] public List<ApplicationRole> Roles { get; set; } = new();
     [Parameter] public List<Branch> Branches { get; set; } = new();
-    [Parameter] public IEnumerable<string> SelectedRoles { get; set; } = new List<string>();
+    [Parameter] public IEnumerable<string> SelectedRoles { get; set; } = Enumerable.Empty<string>();
 
     private MudForm form;
     private string Password { get; set; } = "";
@@ -61,10 +64,12 @@
 
     [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
 
-    private IEnumerable<string> SelectedRolesInternal
+    // store selected roles locally in a list
+    private List<string> _selectedRolesList = new();
+
+    protected override void OnParametersSet()
     {
-        get => SelectedRoles;
-        set => SelectedRoles = value;
+        _selectedRolesList = SelectedRoles?.ToList() ?? new List<string>();
     }
 
     private async Task Save()
@@ -75,11 +80,11 @@
         if (!IsEdit)
         {
             if (Password != ConfirmPassword) return;
-            Dialog.Close(DialogResult.Ok<(ApplicationUser, string?, IEnumerable<string>)>((UserModel, Password, SelectedRolesInternal)));
+            Dialog.Close(DialogResult.Ok<(ApplicationUser, string?, IEnumerable<string>)>((UserModel, Password, _selectedRolesList)));
         }
         else
         {
-            Dialog.Close(DialogResult.Ok<(ApplicationUser, string?, IEnumerable<string>)>((UserModel, null, SelectedRolesInternal)));
+            Dialog.Close(DialogResult.Ok<(ApplicationUser, string?, IEnumerable<string>)>((UserModel, null, _selectedRolesList)));
         }
     }
 

@@ -52,7 +52,6 @@ using (var scope = app.Services.CreateScope())
     var seeder = scope.ServiceProvider.GetRequiredService<IdentityDataSeeder>();
     await seeder.SeedAsync();
 }
-
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

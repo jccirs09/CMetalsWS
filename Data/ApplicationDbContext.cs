@@ -70,6 +70,18 @@ namespace CMetalsWS.Data
                 .HasMany(p => p.Items)
                 .WithOne(i => i.PickingList!)
                 .HasForeignKey(i => i.PickingListId);
+            builder.Entity<PickingListItem>()
+                .Property(p => p.Quantity)
+                .HasColumnType("decimal(18,2)");
+            builder.Entity<WorkOrderItem>()
+                .Property(w => w.Quantity)
+                .HasColumnType("decimal(18,2)");
+            builder.Entity<Truck>()
+                .Property(t => t.CapacityWeight)
+                .HasColumnType("decimal(18,2)");
+            builder.Entity<Truck>()
+                .Property(t => t.CapacityVolume)
+                .HasColumnType("decimal(18,2)");
         }
     }
 }
