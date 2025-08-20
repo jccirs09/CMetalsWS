@@ -3,48 +3,139 @@
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">@Title</MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" />
+            <MudText Typo="Typo.h6">@Title</MudText>
+        </MudStack>
     </TitleContent>
+
     <DialogContent>
         <MudPaper Class="pa-4" Elevation="0">
             <MudForm Model="@UserModel" @ref="form">
-                <MudStack Spacing="2">
-                    <MudTextField @bind-Value="UserModel.UserName" Label="User Name" Required="true"></MudTextField>
-                    <MudTextField @bind-Value="UserModel.Email" Label="Email" Required="true"></MudTextField>
-                    <MudTextField @bind-Value="UserModel.FirstName" Label="First Name"></MudTextField>
-                    <MudTextField @bind-Value="UserModel.LastName" Label="Last Name"></MudTextField>
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2">Account</MudText>
+                    </MudItem>
 
-                    <!-- Branch dropdown -->
-                    <MudSelect T="int?" Label="Branch" @bind-Value="UserModel.BranchId">
-                        <MudSelectItem Value="@((int?)null)" Disabled="true">Select Branch</MudSelectItem>
-                        @foreach (var b in Branches)
-                        {
-                            <MudSelectItem Value="@b.Id">@b.Name</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="UserModel.UserName"
+                                      Label="User Name"
+                                      Required="true"
+                                      RequiredError="User name is required"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Badge"
+                                      Class="mb-2" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="UserModel.Email"
+                                      Label="Email"
+                                      Required="true"
+                                      RequiredError="Email is required"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Email"
+                                      InputType="InputType.Email"
+                                      Class="mb-2" />
+                    </MudItem>                    
 
-                    <!-- Single role select -->
-                    <MudSelect T="string" Label="Role" @bind-Value="_selectedRole">
-                        <MudSelectItem Value="@((int?)null)" Disabled="true">Select Role</MudSelectItem>
-                        @foreach (var role in Roles)
-                        {
-                            <MudSelectItem Value="@role.Name">@role.Name</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudItem xs="12">
+                        <MudDivider Class="my-2" />
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2">Profile</MudText>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="UserModel.FirstName"
+                                      Label="First Name"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Person"
+                                      Class="mb-2" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="UserModel.LastName"
+                                      Label="Last Name"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.PersonOutline"
+                                      Class="mb-2" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="int?" Label="Branch"
+                                   @bind-Value="UserModel.BranchId"
+                                   Clearable="true"
+                                   Class="mb-2">
+                            <MudSelectItem T="int?" Value="@((int?)null)" Disabled="true">Select Branch</MudSelectItem>
+                            @foreach (var b in Branches)
+                            {
+                                <MudSelectItem T="int?" Value="@((int?)b.Id)">@b.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="string" Label="Role"
+                                   @bind-Value="_selectedRole"
+                                   Clearable="true"
+                                   Class="mb-2">
+                            <MudSelectItem T="string" Value="@((string)null)" Disabled="true">Select Role</MudSelectItem>
+                            @foreach (var role in Roles)
+                            {
+                                <MudSelectItem T="string" Value="@role.Name">@role.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
 
                     @if (!IsEdit)
                     {
-                        <MudTextField T="string" Label="Password" @bind-Value="Password" InputType="InputType.Password" Required="true"></MudTextField>
-                        <MudTextField T="string" Label="Confirm Password" @bind-Value="ConfirmPassword" InputType="InputType.Password" Required="true"></MudTextField>
+                        <MudItem xs="12">
+                            <MudDivider Class="my-2" />
+                        </MudItem>
+
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.subtitle2">Credentials</MudText>
+                        </MudItem>
+
+                        <MudItem xs="12" sm="6">
+                            <MudTextField T="string"
+                                          Label="Password"
+                                          @bind-Value="Password"
+                                          InputType="InputType.Password"
+                                          Required="true"
+                                          RequiredError="Password is required"
+                                          Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Lock"
+                                          Class="mb-2" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField T="string"
+                                          Label="Confirm Password"
+                                          @bind-Value="ConfirmPassword"
+                                          InputType="InputType.Password"
+                                          Required="true"
+                                          RequiredError="Confirm password is required"
+                                          Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Lock"
+                                          Class="mb-2" />
+                        </MudItem>
                     }
-                </MudStack>
+                    @if (!IsEdit)
+                    {
+                        <MudItem xs="12">
+                            <MudSwitch T="bool" Checked="true" Disabled="true">
+                                Email will be marked as verified
+                            </MudSwitch>
+                        </MudItem>
+                    }
+                </MudGrid>
             </MudForm>
         </MudPaper>
     </DialogContent>
+
     <DialogActions>
         <MudSpacer />
-        <MudButton Color="Color.Secondary" Variant="Variant.Outlined" OnClick="Cancel">Cancel</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save">Save</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Save</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -56,12 +147,12 @@
     [Parameter] public List<Branch> Branches { get; set; } = new();
     [Parameter] public IEnumerable<string> SelectedRoles { get; set; } = Enumerable.Empty<string>();
 
-    private MudForm form;
+    private MudForm form = default!;
     private string Password { get; set; } = "";
     private string ConfirmPassword { get; set; } = "";
+
     [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
 
-    // single role selection
     private string? _selectedRole;
 
     protected override void OnParametersSet()
@@ -74,19 +165,18 @@
         await form.Validate();
         if (!form.IsValid) return;
 
-        var rolesToReturn = string.IsNullOrWhiteSpace(_selectedRole)
-            ? Enumerable.Empty<string>()
-            : new[] { _selectedRole };
-
         if (!IsEdit)
         {
             if (Password != ConfirmPassword) return;
-            Dialog.Close(DialogResult.Ok<(ApplicationUser, string?, IEnumerable<string>)>((UserModel, Password, rolesToReturn)));
+            UserModel.EmailConfirmed = true;
         }
-        else
-        {
-            Dialog.Close(DialogResult.Ok<(ApplicationUser, string?, IEnumerable<string>)>((UserModel, null, rolesToReturn)));
-        }
+
+        var rolesToReturn = string.IsNullOrWhiteSpace(_selectedRole)
+            ? Array.Empty<string>()
+            : new[] { _selectedRole };
+
+        var payload = new UserDialogResult(UserModel, IsEdit ? null : Password, rolesToReturn);
+        Dialog.Close(DialogResult.Ok<UserDialogResult>(payload));
     }
 
     private void Cancel() => Dialog.Cancel();

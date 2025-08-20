@@ -53,7 +53,7 @@ namespace CMetalsWS.Services
                 adminUser = new ApplicationUser
                 {
                     UserName = "admin",
-                    Email = "admin@example.com",
+                    Email = "admin@scheduler.com",
                     EmailConfirmed = true
                 };
                 var createUserResult = await _userManager.CreateAsync(adminUser, "Admin123!");

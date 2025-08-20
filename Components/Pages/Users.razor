@@ -23,10 +23,10 @@
             <MudTd DataLabel="User Name">@context.UserName</MudTd>
             <MudTd DataLabel="Email">@context.Email</MudTd>
             <MudTd DataLabel="Branch">@context.Branch?.Name</MudTd>
-            <MudTd DataLabel="Roles">@string.Join(", ", roleDict[context.Id])</MudTd>
+            <MudTd DataLabel="Roles">@string.Join(", ", roleDict.TryGetValue(context.Id, out var r) ? r : new List<string>())</MudTd>
             <MudTd DataLabel="Actions">
-                <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditUser(context))"></MudIconButton>
-                <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteUser(context))"></MudIconButton>
+                <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditUser(context))" />
+                <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteUser(context))" />
             </MudTd>
         </RowTemplate>
     </MudTable>
@@ -34,7 +34,7 @@
 
 @code {
     private List<ApplicationUser> users = new();
-    private Dictionary<string, List<string>> roleDict = new();
+    private readonly Dictionary<string, List<string>> roleDict = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -50,12 +50,14 @@
             var roles = await UserService.GetRolesForUserAsync(user);
             roleDict[user.Id] = roles;
         }
+        StateHasChanged();
     }
 
     private async Task AddUser()
     {
         var branches = await BranchService.GetBranchesAsync();
         var roles = UserService.GetAllRoles();
+
         var parameters = new DialogParameters
         {
             ["UserModel"] = new ApplicationUser(),
@@ -64,17 +66,17 @@
             ["IsEdit"] = false,
             ["Title"] = "Add User"
         };
+
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dialogRef = DialogService.Show<UserDialog>("Add User", parameters, options);
         var result = await dialogRef.Result;
-        if (result.Data is (ApplicationUser newUser, string password, IEnumerable<string> selectedRoles))
+
+        if (result.Data is UserDialogResult dto)
         {
-            var res = await UserService.CreateUserAsync(newUser, password, selectedRoles);
-            if (res.Succeeded)
-            {
+            var create = await UserService.CreateUserAsync(dto.User, dto.Password ?? string.Empty, dto.Roles);
+            if (create.Succeeded)
                 await LoadUsersAsync();
-            }
-            // handle errors if needed
+            // optionally handle errors with a snackbar
         }
     }
 
@@ -83,6 +85,7 @@
         var branches = await BranchService.GetBranchesAsync();
         var allRoles = UserService.GetAllRoles();
         var userRoles = await UserService.GetRolesForUserAsync(user);
+
         var clone = new ApplicationUser
         {
             Id = user.Id,
@@ -92,6 +95,7 @@
             LastName = user.LastName,
             BranchId = user.BranchId
         };
+
         var parameters = new DialogParameters
         {
             ["UserModel"] = clone,
@@ -101,19 +105,25 @@
             ["IsEdit"] = true,
             ["Title"] = "Edit User"
         };
+
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dialogRef = DialogService.Show<UserDialog>("Edit User", parameters, options);
         var result = await dialogRef.Result;
-        if (result.Data is (ApplicationUser updatedUser, string _, IEnumerable<string> selectedRoles))
+
+        if (result.Data is UserDialogResult dto)
         {
-            await UserService.UpdateUserAsync(updatedUser, selectedRoles);
+            await UserService.UpdateUserAsync(dto.User, dto.Roles);
             await LoadUsersAsync();
         }
     }
 
     private async Task DeleteUser(ApplicationUser user)
     {
-        bool? confirm = await DialogService.ShowMessageBox("Delete Confirmation", $"Delete user '{user.UserName}'?", yesText: "Delete", cancelText: "Cancel");
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Delete Confirmation",
+            $"Delete user '{user.UserName}'?",
+            yesText: "Delete", cancelText: "Cancel");
+
         if (confirm == true)
         {
             await UserService.DeleteUserAsync(user.Id);
