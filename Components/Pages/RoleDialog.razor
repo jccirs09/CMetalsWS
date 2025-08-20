@@ -1,0 +1,46 @@
+﻿@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@Title</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudForm Model="@Model" @ref="form">
+                <MudStack Spacing="2">
+                    <MudTextField @bind-Value="Model.Name" Label="Role Name" Required="true"></MudTextField>
+                    <MudTextField @bind-Value="Model.Description" Label="Description"></MudTextField>
+                </MudStack>
+            </MudForm>
+        </MudPaper>
+    </DialogContent>
+    <DialogActions>
+        <MudSpacer />
+        <MudButton Color="Color.Secondary" Variant="Variant.Outlined" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public ApplicationRole Model { get; set; } = new();
+    [Parameter] public bool IsEdit { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+
+    private MudForm form;
+    [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
+
+    private async Task Save()
+    {
+        await form.Validate();
+        if (form.IsValid)
+        {
+            Dialog.Close(DialogResult.Ok(Model));
+        }
+    }
+
+    private void Cancel()
+    {
+        Dialog.Cancel();
+    }
+}

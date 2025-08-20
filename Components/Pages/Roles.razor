@@ -1,0 +1,85 @@
+﻿@page "/roles"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using MudBlazor
+@attribute [Authorize(Roles = "Admin")]
+
+@inject RoleService RoleService
+@inject IDialogService DialogService
+
+<MudPaper Class="p-4">
+    <MudText Typo="Typo.h5">Roles</MudText>
+    <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRole">Add Role</MudButton>
+    <MudTable Items="roles" Hover="true">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Description</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Description">@context.Description</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditRole(context))"></MudIconButton>
+                <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteRole(context))"></MudIconButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<ApplicationRole> roles = new();
+
+    protected override void OnInitialized()
+    {
+        roles = RoleService.GetRoles();
+    }
+
+    private async Task AddRole()
+    {
+        var parameters = new DialogParameters
+        {
+            ["Model"] = new ApplicationRole(),
+            ["IsEdit"] = false,
+            ["Title"] = "Add Role"
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialogRef = DialogService.Show<RoleDialog>("Add Role", parameters, options);
+        var result = await dialogRef.Result;
+        if (result.Data is ApplicationRole saved)
+        {
+            await RoleService.CreateRoleAsync(saved);
+            roles = RoleService.GetRoles();
+        }
+    }
+
+    private async Task EditRole(ApplicationRole role)
+    {
+        var clone = new ApplicationRole { Id = role.Id, Name = role.Name, Description = role.Description };
+        var parameters = new DialogParameters
+        {
+            ["Model"] = clone,
+            ["IsEdit"] = true,
+            ["Title"] = "Edit Role"
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialogRef = DialogService.Show<RoleDialog>("Edit Role", parameters, options);
+        var result = await dialogRef.Result;
+        if (result.Data is ApplicationRole updated)
+        {
+            updated.Id = role.Id;
+            await RoleService.UpdateRoleAsync(updated);
+            roles = RoleService.GetRoles();
+        }
+    }
+
+    private async Task DeleteRole(ApplicationRole role)
+    {
+        bool? confirm = await DialogService.ShowMessageBox("Delete Confirmation", $"Delete role '{role.Name}'?", yesText: "Delete", cancelText: "Cancel");
+        if (confirm == true)
+        {
+            await RoleService.DeleteRoleAsync(role.Id);
+            roles = RoleService.GetRoles();
+        }
+    }
+}
