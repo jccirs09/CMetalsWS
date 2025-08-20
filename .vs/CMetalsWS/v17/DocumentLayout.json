@@ -32,7 +32,7 @@
               "RelativeDocumentMoniker": "Components\\Pages\\UserDialog.razor",
               "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\UserDialog.razor",
               "RelativeToolTip": "Components\\Pages\\UserDialog.razor",
-              "ViewState": "AgIAAAIAAAAAAAAAAAAAABEAAABYAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAB4AAABYAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
               "WhenOpened": "2025-08-20T06:30:23.346Z",
               "EditorCaption": ""
@@ -47,8 +47,7 @@
               "RelativeToolTip": "Program.cs",
               "ViewState": "AgIAAA8AAAAAAAAAAAAAADUAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-20T06:20:21.094Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-20T06:20:21.094Z"
             },
             {
               "$type": "Document",
@@ -60,8 +59,7 @@
               "RelativeToolTip": "Services\\IdentityDataSeeder.cs",
               "ViewState": "AgIAABYAAAAAAAAAAAAgwDcAAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-20T06:09:33.076Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-20T06:09:33.076Z"
             }
           ]
         }
