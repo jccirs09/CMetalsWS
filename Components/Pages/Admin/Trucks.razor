@@ -1,0 +1,174 @@
+﻿@page "/trucks"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using CMetalsWS.Security
+@using MudBlazor
+@attribute [Authorize(Policy = CMetalsWS.Security.Permissions.Trucks.View)]
+
+@inject TruckService TruckService
+@inject BranchService BranchService
+@inject UserService UserService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudPaper Class="p-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h5">Trucks</MudText>
+        <AuthorizeView Policy="@Permissions.Trucks.Add">
+            <Authorized>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" OnClick="AddTruck">
+                    Add Truck
+                </MudButton>
+            </Authorized>
+        </AuthorizeView>
+    </MudStack>
+
+    <MudTable Items="items" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Identifier</MudTh>
+            <MudTh>Branch</MudTh>
+            <MudTh>Driver</MudTh>
+            <MudTh class="text-right">Capacity Weight</MudTh>
+            <MudTh class="text-right">Capacity Volume</MudTh>
+            <MudTh>Active</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Identifier">@context.Identifier</MudTd>
+            <MudTd DataLabel="Branch">@context.Branch?.Name</MudTd>
+            <MudTd DataLabel="Driver">@($"{context.Driver?.FirstName} {context.Driver?.LastName}".Trim())</MudTd>
+            <MudTd DataLabel="Capacity Weight" Class="text-right">@context.CapacityWeight.ToString("N2")</MudTd>
+            <MudTd DataLabel="Capacity Volume" Class="text-right">@context.CapacityVolume.ToString("N2")</MudTd>
+            <MudTd DataLabel="Active">
+                <MudIcon Icon="@(context.IsActive? Icons.Material.Filled.CheckCircle : Icons.Material.Outlined.RadioButtonUnchecked)" Color="@(context.IsActive? Color.Success: Color.Default)" />
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                <AuthorizeView Policy="@Permissions.Trucks.Edit">
+                    <Authorized Context="authEdit">
+                        <MudIconButton Color="Color.Info"
+                                       Icon="@Icons.Material.Filled.Edit"
+                                       Title="Edit"
+                                       OnClick="@(async () => await EditTruck(context))" />
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Policy="@Permissions.Trucks.Delete">
+                    <Authorized Context="authDelete">
+                        <MudIconButton Color="Color.Error"
+                                       Icon="@Icons.Material.Filled.Delete"
+                                       Title="Delete"
+                                       OnClick="@(async () => await DeleteTruck(context))" />
+                    </Authorized>
+                </AuthorizeView>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<Truck> items = new();
+    private List<ApplicationUser> drivers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        items = await TruckService.GetTrucksAsync();
+        await LoadDriversAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadDriversAsync()
+    {
+        drivers = new();
+        var allUsers = await UserService.GetUsersAsync();
+        foreach (var u in allUsers)
+        {
+            var roles = await UserService.GetRolesForUserAsync(u);
+            if (roles.Contains("Driver"))
+                drivers.Add(u);
+        }
+    }
+
+    private async Task AddTruck()
+    {
+        var branches = await BranchService.GetBranchesAsync();
+
+        var parameters = new DialogParameters
+        {
+            ["Model"] = new Truck { IsActive = true },
+            ["Branches"] = branches,
+            ["Drivers"] = drivers,
+            ["IsEdit"] = false,
+            ["Title"] = "Add Truck"
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
+        var dialogRef = DialogService.Show<TruckDialog>("Add Truck", parameters, options);
+        var result = await dialogRef.Result;
+        if (result.Canceled) return;
+
+        var model = result.Data as Truck;
+        if (model != null)
+        {
+            await TruckService.CreateAsync(model);
+            Snackbar.Add("Truck created.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task EditTruck(Truck item)
+    {
+        var branches = await BranchService.GetBranchesAsync();
+
+        var clone = new Truck
+        {
+            Id = item.Id,
+            Name = item.Name,
+            Identifier = item.Identifier,
+            Description = item.Description,
+            BranchId = item.BranchId,
+            CapacityWeight = item.CapacityWeight,
+            CapacityVolume = item.CapacityVolume,
+            IsActive = item.IsActive,
+            DriverId = item.DriverId
+        };
+
+        var parameters = new DialogParameters
+        {
+            ["Model"] = clone,
+            ["Branches"] = branches,
+            ["Drivers"] = drivers,
+            ["IsEdit"] = true,
+            ["Title"] = "Edit Truck"
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
+        var dialogRef = DialogService.Show<TruckDialog>("Edit Truck", parameters, options);
+        var result = await dialogRef.Result;
+        if (result.Canceled) return;
+
+        var model = result.Data as Truck;
+        if (model != null)
+        {
+            await TruckService.UpdateAsync(model);
+            Snackbar.Add("Truck updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeleteTruck(Truck item)
+    {
+        bool? confirm = await DialogService.ShowMessageBox("Delete Confirmation", $"Delete truck '{item.Name}'?", yesText: "Delete", cancelText: "Cancel");
+        if (confirm == true)
+        {
+            await TruckService.DeleteAsync(item.Id);
+            Snackbar.Add("Truck deleted.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+}

@@ -144,7 +144,7 @@ namespace CMetalsWS.Migrations
 
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Country")
                         .HasColumnType("nvarchar(max)");
@@ -160,9 +160,6 @@ namespace CMetalsWS.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
 
                     b.ToTable("Branches");
                 });
@@ -180,7 +177,7 @@ namespace CMetalsWS.Migrations
 
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
@@ -196,9 +193,6 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("BranchId");
 
-                    b.HasIndex("Code")
-                        .IsUnique();
-
                     b.ToTable("Machines");
                 });
 
@@ -213,18 +207,28 @@ namespace CMetalsWS.Migrations
                     b.Property<int>("BranchId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("CustomerName")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
-                    b.Property<string>("PickingListNumber")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime?>("ScheduledDate")
+                    b.Property<DateTime>("OrderDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("SalesOrderNumber")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime?>("ShipDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ShipToAddress")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("ShippingMethod")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -236,7 +240,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("BranchId");
 
-                    b.HasIndex("PickingListNumber")
+                    b.HasIndex("SalesOrderNumber")
                         .IsUnique();
 
                     b.HasIndex("TruckId");
@@ -252,25 +256,49 @@ namespace CMetalsWS.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Description")
+                    b.Property<string>("ItemDescription")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
-                    b.Property<string>("ItemCode")
+                    b.Property<string>("ItemId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<decimal?>("Length")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MachineId")
+                        .HasColumnType("int");
 
                     b.Property<int>("PickingListId")
                         .HasColumnType("int");
 
                     b.Property<decimal>("Quantity")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<string>("Unit")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<decimal?>("Weight")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("Width")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MachineId");
 
                     b.HasIndex("PickingListId");
 
@@ -289,18 +317,41 @@ namespace CMetalsWS.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("CapacityVolume")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("CapacityWeight")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("DriverId")
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Identifier")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("BranchId");
+
+                    b.HasIndex("DriverId");
+
+                    b.HasIndex("Identifier")
+                        .IsUnique();
 
                     b.ToTable("Trucks");
                 });
@@ -330,16 +381,13 @@ namespace CMetalsWS.Migrations
 
                     b.Property<string>("WorkOrderNumber")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("BranchId");
 
                     b.HasIndex("MachineId");
-
-                    b.HasIndex("WorkOrderNumber")
-                        .IsUnique();
 
                     b.ToTable("WorkOrders");
                 });
@@ -361,7 +409,8 @@ namespace CMetalsWS.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Quantity")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<string>("Unit")
                         .IsRequired()
@@ -497,7 +546,7 @@ namespace CMetalsWS.Migrations
                     b.HasOne("CMetalsWS.Data.Branch", "Branch")
                         .WithMany("Machines")
                         .HasForeignKey("BranchId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Branch");
@@ -508,12 +557,13 @@ namespace CMetalsWS.Migrations
                     b.HasOne("CMetalsWS.Data.Branch", "Branch")
                         .WithMany("PickingLists")
                         .HasForeignKey("BranchId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("CMetalsWS.Data.Truck", "Truck")
-                        .WithMany("AssignedPickings")
-                        .HasForeignKey("TruckId");
+                        .WithMany()
+                        .HasForeignKey("TruckId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Branch");
 
@@ -522,11 +572,18 @@ namespace CMetalsWS.Migrations
 
             modelBuilder.Entity("CMetalsWS.Data.PickingListItem", b =>
                 {
+                    b.HasOne("CMetalsWS.Data.Machine", "Machine")
+                        .WithMany()
+                        .HasForeignKey("MachineId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("CMetalsWS.Data.PickingList", "PickingList")
                         .WithMany("Items")
                         .HasForeignKey("PickingListId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Machine");
 
                     b.Navigation("PickingList");
                 });
@@ -536,10 +593,17 @@ namespace CMetalsWS.Migrations
                     b.HasOne("CMetalsWS.Data.Branch", "Branch")
                         .WithMany("Trucks")
                         .HasForeignKey("BranchId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("CMetalsWS.Data.ApplicationUser", "Driver")
+                        .WithMany()
+                        .HasForeignKey("DriverId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Branch");
+
+                    b.Navigation("Driver");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.WorkOrder", b =>
@@ -642,11 +706,6 @@ namespace CMetalsWS.Migrations
             modelBuilder.Entity("CMetalsWS.Data.PickingList", b =>
                 {
                     b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("CMetalsWS.Data.Truck", b =>
-                {
-                    b.Navigation("AssignedPickings");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.WorkOrder", b =>

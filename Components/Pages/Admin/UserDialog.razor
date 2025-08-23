@@ -11,6 +11,11 @@
 
     <DialogContent>
         <MudPaper Class="pa-4" Elevation="0">
+            @if (!string.IsNullOrWhiteSpace(_errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@_errorMessage</MudAlert>
+            }
+
             <MudForm Model="@UserModel" @ref="form">
                 <MudGrid Spacing="2">
                     <MudItem xs="12">
@@ -35,7 +40,16 @@
                                       AdornmentIcon="@Icons.Material.Filled.Email"
                                       InputType="InputType.Email"
                                       Class="mb-2" />
-                    </MudItem>                    
+                    </MudItem>
+
+                    @if (!IsEdit)
+                    {
+                        <MudItem xs="12">
+                            <MudSwitch T="bool" Checked="true" Disabled="true">
+                                Email will be marked as verified
+                            </MudSwitch>
+                        </MudItem>
+                    }
 
                     <MudItem xs="12">
                         <MudDivider Class="my-2" />
@@ -114,17 +128,12 @@
                                           InputType="InputType.Password"
                                           Required="true"
                                           RequiredError="Confirm password is required"
+                                          Error="@_confirmError"
+                                          ErrorText="@_confirmErrorText"
+                                          OnBlur="@(_ => ValidateConfirm())"
                                           Adornment="Adornment.Start"
                                           AdornmentIcon="@Icons.Material.Filled.Lock"
                                           Class="mb-2" />
-                        </MudItem>
-                    }
-                    @if (!IsEdit)
-                    {
-                        <MudItem xs="12">
-                            <MudSwitch T="bool" Checked="true" Disabled="true">
-                                Email will be marked as verified
-                            </MudSwitch>
                         </MudItem>
                     }
                 </MudGrid>
@@ -134,8 +143,14 @@
 
     <DialogActions>
         <MudSpacer />
-        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Save</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Disabled="@_saving" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="Save">
+            @if (_saving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Save
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -154,29 +169,66 @@
     [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
 
     private string? _selectedRole;
+    private bool _saving = false;
+    private string? _errorMessage;
+    private bool _confirmError;
+    private string _confirmErrorText = "";
 
     protected override void OnParametersSet()
     {
         _selectedRole = SelectedRoles?.FirstOrDefault();
     }
 
-    private async Task Save()
+    private void ValidateConfirm()
     {
-        await form.Validate();
-        if (!form.IsValid) return;
-
         if (!IsEdit)
         {
-            if (Password != ConfirmPassword) return;
-            UserModel.EmailConfirmed = true;
+            _confirmError = Password != ConfirmPassword;
+            _confirmErrorText = _confirmError ? "Passwords do not match" : "";
         }
+    }
 
-        var rolesToReturn = string.IsNullOrWhiteSpace(_selectedRole)
-            ? Array.Empty<string>()
-            : new[] { _selectedRole };
+    private async Task Save()
+    {
+        _errorMessage = null;
+        _saving = true;
+        try
+        {
+            await form.Validate();
+            if (!form.IsValid)
+            {
+                _saving = false;
+                return;
+            }
 
-        var payload = new UserDialogResult(UserModel, IsEdit ? null : Password, rolesToReturn);
-        Dialog.Close(DialogResult.Ok<UserDialogResult>(payload));
+            if (!IsEdit)
+            {
+                ValidateConfirm();
+                if (_confirmError)
+                {
+                    _saving = false;
+                    return;
+                }
+
+                UserModel.EmailConfirmed = true;
+            }
+
+            var rolesToReturn = string.IsNullOrWhiteSpace(_selectedRole)
+                ? Array.Empty<string>()
+                : new[] { _selectedRole };
+
+            var payload = new UserDialogResult(UserModel, IsEdit ? null : Password, rolesToReturn);
+            Dialog.Close(DialogResult.Ok<UserDialogResult>(payload));
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+            StateHasChanged();
+        }
     }
 
     private void Cancel() => Dialog.Cancel();

@@ -14,74 +14,95 @@ namespace CMetalsWS.Data
         public DbSet<Branch> Branches => Set<Branch>();
         public DbSet<Machine> Machines => Set<Machine>();
         public DbSet<Truck> Trucks => Set<Truck>();
-        public DbSet<WorkOrder> WorkOrders => Set<WorkOrder>();
-        public DbSet<WorkOrderItem> WorkOrderItems => Set<WorkOrderItem>();
         public DbSet<PickingList> PickingLists => Set<PickingList>();
         public DbSet<PickingListItem> PickingListItems => Set<PickingListItem>();
+        public DbSet<WorkOrder> WorkOrders => Set<WorkOrder>();
+        public DbSet<WorkOrderItem> WorkOrderItems => Set<WorkOrderItem>();
 
-        protected override void OnModelCreating(ModelBuilder builder)
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            base.OnModelCreating(builder);
+            base.OnModelCreating(modelBuilder);
 
-            // Example constraints and relationships
-            builder.Entity<Branch>()
-                .HasIndex(b => b.Code)
+            // Machine -> Branch
+            modelBuilder.Entity<Machine>()
+                .HasOne(m => m.Branch)
+                .WithMany(b => b.Machines) // point to Branch.Machines
+                .HasForeignKey(m => m.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Truck -> Branch
+            modelBuilder.Entity<Truck>()
+                .HasOne(t => t.Branch)
+                .WithMany(b => b.Trucks) // point to Branch.Trucks
+                .HasForeignKey(t => t.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Truck -> Driver (AspNetUsers)
+            modelBuilder.Entity<Truck>()
+                .HasOne(t => t.Driver)
+                .WithMany()
+                .HasForeignKey(t => t.DriverId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // PickingList unique SO number
+            modelBuilder.Entity<PickingList>()
+                .HasIndex(p => p.SalesOrderNumber)
                 .IsUnique();
 
-            builder.Entity<Machine>()
-                .HasIndex(m => m.Code)
-                .IsUnique();
+            // PickingList -> Branch
+            modelBuilder.Entity<PickingList>()
+                .HasOne(p => p.Branch)
+                .WithMany(b => b.PickingLists) // point to Branch.PickingLists
+                .HasForeignKey(p => p.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            builder.Entity<PickingList>()
-                .HasIndex(p => p.PickingListNumber)
-                .IsUnique();
+            // PickingList -> Truck
+            modelBuilder.Entity<PickingList>()
+                .HasOne(p => p.Truck)
+                .WithMany()
+                .HasForeignKey(p => p.TruckId)
+                .OnDelete(DeleteBehavior.SetNull);
 
-            builder.Entity<WorkOrder>()
-                .HasIndex(w => w.WorkOrderNumber)
-                .IsUnique();
+            // Date types
+            modelBuilder.Entity<PickingList>()
+                .Property(p => p.OrderDate)
+                .HasColumnType("datetime2");
+            modelBuilder.Entity<PickingList>()
+                .Property(p => p.ShipDate)
+                .HasColumnType("datetime2");
 
-            // Define one‑to‑many relationships
-            builder.Entity<Branch>()
-                .HasMany(b => b.Machines)
-                .WithOne(m => m.Branch!)
-                .HasForeignKey(m => m.BranchId);
+            // PickingListItem -> PickingList
+            modelBuilder.Entity<PickingListItem>()
+                .HasOne(i => i.PickingList)
+                .WithMany(p => p.Items)
+                .HasForeignKey(i => i.PickingListId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-            builder.Entity<Branch>()
-                .HasMany(b => b.Trucks)
-                .WithOne(t => t.Branch!)
-                .HasForeignKey(t => t.BranchId);
+            // PickingListItem -> Machine
+            modelBuilder.Entity<PickingListItem>()
+                .HasOne(i => i.Machine)
+                .WithMany()
+                .HasForeignKey(i => i.MachineId)
+                .OnDelete(DeleteBehavior.SetNull);
 
-            builder.Entity<Branch>()
-                .HasMany(b => b.WorkOrders)
-                .WithOne(w => w.Branch!)
-                .HasForeignKey(w => w.BranchId);
+            // Numeric precisions
+            modelBuilder.Entity<PickingListItem>()
+                .Property(i => i.Quantity).HasPrecision(18, 3);
+            modelBuilder.Entity<PickingListItem>()
+                .Property(i => i.Width).HasPrecision(18, 3);
+            modelBuilder.Entity<PickingListItem>()
+                .Property(i => i.Length).HasPrecision(18, 3);
+            modelBuilder.Entity<PickingListItem>()
+                .Property(i => i.Weight).HasPrecision(18, 3);
 
-            builder.Entity<Branch>()
-                .HasMany(b => b.PickingLists)
-                .WithOne(p => p.Branch!)
-                .HasForeignKey(p => p.BranchId);
+            modelBuilder.Entity<Truck>()
+                .Property(t => t.CapacityWeight).HasPrecision(18, 2);
+            modelBuilder.Entity<Truck>()
+                .Property(t => t.CapacityVolume).HasPrecision(18, 2);
 
-            builder.Entity<WorkOrder>()
-                .HasMany(w => w.Items)
-                .WithOne(i => i.WorkOrder!)
-                .HasForeignKey(i => i.WorkOrderId);
-
-            builder.Entity<PickingList>()
-                .HasMany(p => p.Items)
-                .WithOne(i => i.PickingList!)
-                .HasForeignKey(i => i.PickingListId);
-            builder.Entity<PickingListItem>()
-                .Property(p => p.Quantity)
-                .HasColumnType("decimal(18,2)");
-            builder.Entity<WorkOrderItem>()
-                .Property(w => w.Quantity)
-                .HasColumnType("decimal(18,2)");
-            builder.Entity<Truck>()
-                .Property(t => t.CapacityWeight)
-                .HasColumnType("decimal(18,2)");
-            builder.Entity<Truck>()
-                .Property(t => t.CapacityVolume)
-                .HasColumnType("decimal(18,2)");
+            // WorkOrder numeric precision (to remove EF warning)
+            modelBuilder.Entity<WorkOrderItem>()
+                .Property(w => w.Quantity).HasPrecision(18, 3);
         }
     }
 }

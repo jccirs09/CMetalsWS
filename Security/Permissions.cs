@@ -1,4 +1,6 @@
-﻿namespace CMetalsWS.Security
+﻿using System.Collections.Generic;
+
+namespace CMetalsWS.Security
 {
     public static class Permissions
     {

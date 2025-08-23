@@ -1,30 +1,10 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\",
+  "WorkspaceRootPath": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\routes.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\routes.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\app.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\app.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\layout\\mainlayout.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\layout\\mainlayout.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\cmetalsws.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:cmetalsws.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\layout\\navmenu.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\layout\\navmenu.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\security\\permissions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:security\\permissions.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\operations\\pickinglist\\pickinglistdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\pickinglist\\pickinglistdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     }
   ],
   "DocumentGroupContainers": [
@@ -39,79 +19,14 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "Routes.razor",
-              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Routes.razor",
-              "RelativeDocumentMoniker": "Components\\Routes.razor",
-              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Routes.razor",
-              "RelativeToolTip": "Components\\Routes.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAAAAAAAAAAAA==",
+              "Title": "PickingListDialog.razor",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Pickinglist\\PickingListDialog.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\Pickinglist\\PickingListDialog.razor",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Pickinglist\\PickingListDialog.razor",
+              "RelativeToolTip": "Components\\Pages\\Operations\\Pickinglist\\PickingListDialog.razor",
+              "ViewState": "AgIAANAAAAAAAAAAAAAAAAMBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-20T19:58:44.153Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "App.razor",
-              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\App.razor",
-              "RelativeDocumentMoniker": "Components\\App.razor",
-              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\App.razor",
-              "RelativeToolTip": "Components\\App.razor",
-              "ViewState": "AgIAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-20T19:58:36.976Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "CMetalsWS",
-              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\CMetalsWS.csproj",
-              "RelativeDocumentMoniker": "CMetalsWS.csproj",
-              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\CMetalsWS.csproj",
-              "RelativeToolTip": "CMetalsWS.csproj",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
-              "WhenOpened": "2025-08-20T19:57:21.114Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "MainLayout.razor",
-              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Layout\\MainLayout.razor",
-              "RelativeDocumentMoniker": "Components\\Layout\\MainLayout.razor",
-              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Layout\\MainLayout.razor",
-              "RelativeToolTip": "Components\\Layout\\MainLayout.razor",
-              "ViewState": "AgIAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-20T19:57:12.948Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "NavMenu.razor",
-              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Layout\\NavMenu.razor",
-              "RelativeDocumentMoniker": "Components\\Layout\\NavMenu.razor",
-              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Layout\\NavMenu.razor",
-              "RelativeToolTip": "Components\\Layout\\NavMenu.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-20T19:56:51.782Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "Permissions.cs",
-              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Security\\Permissions.cs",
-              "RelativeDocumentMoniker": "Security\\Permissions.cs",
-              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Security\\Permissions.cs",
-              "RelativeToolTip": "Security\\Permissions.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAEoAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-20T18:50:16.429Z",
+              "WhenOpened": "2025-08-23T06:53:25.69Z",
               "EditorCaption": ""
             }
           ]

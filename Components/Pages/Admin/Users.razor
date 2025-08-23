@@ -1,0 +1,180 @@
+﻿@page "/users"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using CMetalsWS.Security
+@using MudBlazor
+@attribute [Authorize(Policy = CMetalsWS.Security.Permissions.Users.View)]
+
+@inject UserService UserService
+@inject BranchService BranchService
+@inject RoleService RoleService
+@inject IDialogService DialogService
+
+<MudPaper Class="p-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h5">Users</MudText>
+
+        <AuthorizeView Policy="@Permissions.Users.Add">
+            <Authorized>
+                <MudButton Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="AddUser">
+                    Add User
+                </MudButton>
+            </Authorized>
+        </AuthorizeView>
+    </MudStack>
+
+    <MudTable Items="users" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>User Name</MudTh>
+            <MudTh>Email</MudTh>
+            <MudTh>Branch</MudTh>
+            <MudTh>Roles</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="User Name">@context.UserName</MudTd>
+            <MudTd DataLabel="Email">@context.Email</MudTd>
+            <MudTd DataLabel="Branch">@context.Branch?.Name</MudTd>
+            <MudTd DataLabel="Roles">@string.Join(", ", roleDict.TryGetValue(context.Id, out var r) ? r : new List<string>())</MudTd>
+            <MudTd DataLabel="Actions">
+                <AuthorizeView Policy="@Permissions.Users.Edit">
+                    <Authorized Context="authEdit">
+                        <MudIconButton Color="Color.Info"
+                                       Icon="@Icons.Material.Filled.Edit"
+                                       Title="Edit"
+                                       OnClick="@(() => EditUser(context))" />
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Policy="@Permissions.Users.Delete">
+                    <Authorized Context="authDelete">
+                        <MudIconButton Color="Color.Error"
+                                       Icon="@Icons.Material.Filled.Delete"
+                                       Title="Delete"
+                                       OnClick="@(() => DeleteUser(context))" />
+                    </Authorized>
+                </AuthorizeView>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<ApplicationUser> users = new();
+    private readonly Dictionary<string, List<string>> roleDict = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsersAsync();
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        users = await UserService.GetUsersAsync();
+        roleDict.Clear();
+        foreach (var u in users)
+            roleDict[u.Id] = await UserService.GetRolesForUserAsync(u);
+        StateHasChanged();
+    }
+
+    private async Task AddUser()
+    {
+        var branches = await BranchService.GetBranchesAsync();
+        var roles = RoleService.GetRoles();
+
+        var parameters = new DialogParameters
+        {
+            ["UserModel"] = new ApplicationUser(),
+            ["Branches"] = branches,
+            ["Roles"] = roles,
+            ["SelectedRoles"] = Enumerable.Empty<string>(),
+            ["IsEdit"] = false,
+            ["Title"] = "Add User"
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialogRef = DialogService.Show<UserDialog>("Add User", parameters, options);
+        var result = await dialogRef.Result;
+
+        if (!result.Canceled)
+        {
+            var dto = result.Data as UserDialogResult;
+            if (dto != null)
+            {
+                var create = await UserService.CreateUserAsync(dto.User, dto.Password ?? string.Empty, dto.Roles);
+                if (create.Succeeded)
+                    await LoadUsersAsync();
+            }
+        }
+    }
+
+    private async Task EditUser(ApplicationUser user)
+    {
+        var branches = await BranchService.GetBranchesAsync();
+        var roles = RoleService.GetRoles();
+        var userRoles = await UserService.GetRolesForUserAsync(user);
+
+        var clone = new ApplicationUser
+        {
+            Id = user.Id,
+            UserName = user.UserName,
+            Email = user.Email,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            BranchId = user.BranchId
+        };
+
+        var parameters = new DialogParameters
+        {
+            ["UserModel"] = clone,
+            ["Branches"] = branches,
+            ["Roles"] = roles,
+            ["SelectedRoles"] = userRoles,
+            ["IsEdit"] = true,
+            ["Title"] = "Edit User"
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialogRef = DialogService.Show<UserDialog>("Edit User", parameters, options);
+        var result = await dialogRef.Result;
+
+        if (!result.Canceled)
+        {
+            var dto = result.Data as UserDialogResult;
+            if (dto != null)
+            {
+                await UserService.UpdateUserAsync(dto.User, dto.Roles);
+                await LoadUsersAsync();
+            }
+        }
+    }
+
+    private async Task DeleteUser(ApplicationUser user)
+    {
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Delete Confirmation",
+            $"Delete user '{user.UserName}'?",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (confirm == true)
+        {
+            await UserService.DeleteUserAsync(user.Id);
+            await LoadUsersAsync();
+        }
+    }
+}

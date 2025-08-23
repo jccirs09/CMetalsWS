@@ -1,6 +1,7 @@
-﻿using CMetalsWS.Data;
+﻿using System.Security.Claims;
+using CMetalsWS.Data;
+using CMetalsWS.Security;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace CMetalsWS.Services
@@ -26,52 +27,102 @@ namespace CMetalsWS.Services
 
         public async Task SeedAsync()
         {
-            // Make sure the database exists. EnsureCreatedAsync is idempotent.
             await _context.Database.EnsureCreatedAsync();
 
+            // Create roles
             string[] roles = { "Admin", "Planner", "Supervisor", "Manager", "Operator", "Driver" };
-            foreach (var roleName in roles)
+            foreach (var r in roles)
             {
-                // Look up role by name and create if not found
-                var existingRole = await _roleManager.FindByNameAsync(roleName);
-                if (existingRole == null)
+                if (!await _roleManager.RoleExistsAsync(r))
+                    await _roleManager.CreateAsync(new ApplicationRole { Name = r });
+            }
+
+            // Permission maps
+            var all = Permissions.All().ToList();
+
+            var manager = new[]
+            {
+                Permissions.Users.View,
+                Permissions.Roles.View,
+                Permissions.Branches.View, Permissions.Branches.Add, Permissions.Branches.Edit,
+                Permissions.Machines.View, Permissions.Machines.Add, Permissions.Machines.Edit,
+                Permissions.Trucks.View, Permissions.Trucks.Add, Permissions.Trucks.Edit,
+                Permissions.WorkOrders.View, Permissions.WorkOrders.Add, Permissions.WorkOrders.Edit,
+                Permissions.PickingLists.View, Permissions.PickingLists.Add, Permissions.PickingLists.Edit
+            };
+
+            var planner = new[]
+            {
+                Permissions.WorkOrders.View, Permissions.WorkOrders.Add, Permissions.WorkOrders.Edit,
+                Permissions.PickingLists.View, Permissions.PickingLists.Add, Permissions.PickingLists.Edit
+            };
+
+            var supervisor = new[]
+            {
+                Permissions.WorkOrders.View, Permissions.WorkOrders.Edit,
+                Permissions.PickingLists.View, Permissions.PickingLists.Edit
+            };
+
+            var oper = new[]
+            {
+                Permissions.WorkOrders.View,
+                Permissions.PickingLists.View
+            };
+
+            var driver = new[]
+            {
+                Permissions.PickingLists.View
+            };
+
+            var map = new Dictionary<string, IEnumerable<string>>
+            {
+                ["Admin"] = all,
+                ["Manager"] = manager,
+                ["Planner"] = planner,
+                ["Supervisor"] = supervisor,
+                ["Operator"] = oper,
+                ["Driver"] = driver
+            };
+
+            // Apply permission claims to each role
+            foreach (var kv in map)
+            {
+                var role = await _roleManager.FindByNameAsync(kv.Key);
+                if (role is null) continue;
+
+                var existing = await _roleManager.GetClaimsAsync(role);
+                var existingPerms = existing
+                    .Where(c => c.Type == Permissions.ClaimType)
+                    .Select(c => c.Value)
+                    .ToHashSet();
+
+                foreach (var perm in kv.Value.Distinct())
                 {
-                    var role = new ApplicationRole { Name = roleName, NormalizedName = roleName.ToUpper() };
-                    var result = await _roleManager.CreateAsync(role);
-                    if (!result.Succeeded)
-                    {
-                        _logger.LogError("Failed to create role {Role}. Errors: {Errors}", roleName,
-                            string.Join(", ", result.Errors.Select(e => e.Description)));
-                    }
+                    if (!existingPerms.Contains(perm))
+                        await _roleManager.AddClaimAsync(role, new Claim(Permissions.ClaimType, perm));
                 }
             }
 
-            // Create admin user if it doesn’t already exist
-            var adminUser = await _userManager.FindByNameAsync("admin");
-            if (adminUser == null)
+            // Seed admin user
+            var adminEmail = "admin@example.com";
+            var admin = await _userManager.FindByEmailAsync(adminEmail);
+            if (admin is null)
             {
-                adminUser = new ApplicationUser
+                admin = new ApplicationUser
                 {
                     UserName = "admin",
-                    Email = "admin@scheduler.com",
+                    Email = adminEmail,
                     EmailConfirmed = true
                 };
-                var createUserResult = await _userManager.CreateAsync(adminUser, "Admin123!");
-                if (!createUserResult.Succeeded)
+
+                var created = await _userManager.CreateAsync(admin, "Admin123!");
+                if (!created.Succeeded)
                 {
-                    _logger.LogError("Failed to create admin user. Errors: {Errors}",
-                        string.Join(", ", createUserResult.Errors.Select(e => e.Description)));
+                    _logger.LogError("Admin create failed: {E}", string.Join(", ", created.Errors.Select(e => e.Description)));
+                    return;
                 }
-                else
-                {
-                    // Assign the Admin role
-                    var addRoleResult = await _userManager.AddToRoleAsync(adminUser, "Admin");
-                    if (!addRoleResult.Succeeded)
-                    {
-                        _logger.LogError("Failed to add admin user to Admin role. Errors: {Errors}",
-                            string.Join(", ", addRoleResult.Errors.Select(e => e.Description)));
-                    }
-                }
+
+                await _userManager.AddToRoleAsync(admin, "Admin");
             }
         }
     }

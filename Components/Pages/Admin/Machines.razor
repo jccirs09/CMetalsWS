@@ -1,0 +1,142 @@
+﻿@page "/machines"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using CMetalsWS.Security
+@using MudBlazor
+@attribute [Authorize(Policy = CMetalsWS.Security.Permissions.Machines.View)]
+
+@inject MachineService MachineService
+@inject BranchService BranchService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudPaper Class="p-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h5">Machines</MudText>
+        <AuthorizeView Policy="@Permissions.Machines.Add">
+            <Authorized>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" OnClick="AddMachine">
+                    Add Machine
+                </MudButton>
+            </Authorized>
+        </AuthorizeView>
+    </MudStack>
+
+    <MudTable Items="items" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Code</MudTh>
+            <MudTh>Name</MudTh>
+            <MudTh>Branch</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Code">@context.Code</MudTd>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Branch">@context.Branch?.Name</MudTd>
+            <MudTd DataLabel="Actions">
+                <AuthorizeView Policy="@Permissions.Machines.Edit">
+                    <Authorized Context="authEdit">
+                        <MudIconButton Color="Color.Info"
+                                       Icon="@Icons.Material.Filled.Edit"
+                                       Title="Edit"
+                                       OnClick="@(async () => await EditMachine(context))" />
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Policy="@Permissions.Machines.Delete">
+                    <Authorized Context="authDelete">
+                        <MudIconButton Color="Color.Error"
+                                       Icon="@Icons.Material.Filled.Delete"
+                                       Title="Delete"
+                                       OnClick="@(async () => await DeleteMachine(context))" />
+                    </Authorized>
+                </AuthorizeView>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<Machine> items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        items = await MachineService.GetMachinesAsync();
+        StateHasChanged();
+    }
+
+    private async Task AddMachine()
+    {
+        var branches = await BranchService.GetBranchesAsync();
+
+        var parameters = new DialogParameters
+        {
+            ["Model"] = new Machine(),
+            ["Branches"] = branches,
+            ["IsEdit"] = false,
+            ["Title"] = "Add Machine"
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
+        var dialogRef = DialogService.Show<MachineDialog>("Add Machine", parameters, options);
+        var result = await dialogRef.Result;
+        if (result.Canceled) return;
+
+        var model = result.Data as Machine;
+        if (model != null)
+        {
+            await MachineService.CreateAsync(model);
+            Snackbar.Add("Machine created.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task EditMachine(Machine item)
+    {
+        var branches = await BranchService.GetBranchesAsync();
+        var clone = new Machine
+        {
+            Id = item.Id,
+            Code = item.Code,
+            Name = item.Name,
+            Description = item.Description,
+            BranchId = item.BranchId
+        };
+
+        var parameters = new DialogParameters
+        {
+            ["Model"] = clone,
+            ["Branches"] = branches,
+            ["IsEdit"] = true,
+            ["Title"] = "Edit Machine"
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
+        var dialogRef = DialogService.Show<MachineDialog>("Edit Machine", parameters, options);
+        var result = await dialogRef.Result;
+        if (result.Canceled) return;
+
+        var model = result.Data as Machine;
+        if (model != null)
+        {
+            await MachineService.UpdateAsync(model);
+            Snackbar.Add("Machine updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeleteMachine(Machine item)
+    {
+        bool? confirm = await DialogService.ShowMessageBox("Delete Confirmation", $"Delete machine '{item.Name}'?", yesText: "Delete", cancelText: "Cancel");
+        if (confirm == true)
+        {
+            await MachineService.DeleteAsync(item.Id);
+            Snackbar.Add("Machine deleted.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+}

@@ -1,25 +1,58 @@
 ﻿@implements IDisposable
+@using CMetalsWS.Security
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Routing
 
 @inject NavigationManager NavigationManager
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthStateProvider
 
 <MudNavMenu>
     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
     <MudNavLink Href="auth" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Lock">Auth Required</MudNavLink>
-    <AuthorizeView Roles="Admin">
-        <Authorized>
-            <MudNavGroup Text="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Title="System Panel">
+
+    @if (canUsers || canBranches || canRoles || canMachines || canTrucks)
+    {
+        <MudNavGroup Text="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Title="System Panel">
+            @if (canUsers)
+            {
                 <MudNavLink Href="/users" Icon="@Icons.Material.Filled.Person">Users</MudNavLink>
+            }
+            @if (canBranches)
+            {
                 <MudNavLink Href="/branches" Icon="@Icons.Material.Filled.LocationCity">Branches</MudNavLink>
+            }
+            @if (canRoles)
+            {
                 <MudNavLink Href="/roles" Icon="@Icons.Material.Filled.Security">Roles</MudNavLink>
+            }
+            @if (canMachines)
+            {
                 <MudNavLink Href="/machines" Icon="@Icons.Material.Filled.Build">Machines</MudNavLink>
+            }
+            @if (canTrucks)
+            {
                 <MudNavLink Href="/trucks" Icon="@Icons.Material.Filled.LocalShipping">Trucks</MudNavLink>
+            }
+        </MudNavGroup>
+    }
+
+    @if (canWorkOrders || canPickingLists)
+    {
+        <MudNavGroup Text="Operations" Icon="@Icons.Material.Filled.DashboardCustomize" Title="Operations">
+            @if (canWorkOrders)
+            {
                 <MudNavLink Href="/workorders" Icon="@Icons.Material.Filled.Assignment">Work Orders</MudNavLink>
-                <MudNavLink Href="/pickinglists" Icon="@Icons.Material.Filled.ListAlt">Picking Lists</MudNavLink>
-            </MudNavGroup>
-        </Authorized>
-    </AuthorizeView>
+            }
+            @if (canPickingLists)
+            {
+                <MudNavLink Href="/picking-lists" Icon="@Icons.Material.Filled.Inventory2">Picking Lists</MudNavLink>
+            }
+        </MudNavGroup>
+    }
+
     <AuthorizeView>
-        <Authorized>            
+        <Authorized>
             <MudNavLink Href="Account/Manage" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">@context.User.Identity?.Name</MudNavLink>
             <form action="Account/Logout" method="post">
                 <AntiforgeryToken />
@@ -29,25 +62,48 @@
                 </button>
             </form>
         </Authorized>
-        <NotAuthorized>            
+        <NotAuthorized>
             <MudNavLink Href="Account/Login" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Password">Login</MudNavLink>
         </NotAuthorized>
     </AuthorizeView>
 </MudNavMenu>
 
-
 @code {
     private string? currentUrl;
 
-    protected override void OnInitialized()
+    // permission flags
+    private bool canUsers;
+    private bool canBranches;
+    private bool canRoles;
+    private bool canMachines;
+    private bool canTrucks;
+    private bool canWorkOrders;
+    private bool canPickingLists;
+
+    protected override async Task OnInitializedAsync()
     {
         currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
         NavigationManager.LocationChanged += OnLocationChanged;
+        await ComputePermissionsAsync();
     }
 
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    private async Task ComputePermissionsAsync()
+    {
+        var user = (await AuthStateProvider.GetAuthenticationStateAsync()).User;
+
+        canUsers = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Users.View)).Succeeded;
+        canBranches = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Branches.View)).Succeeded;
+        canRoles = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Roles.View)).Succeeded;
+        canMachines = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Machines.View)).Succeeded;
+        canTrucks = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Trucks.View)).Succeeded;
+        canWorkOrders = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.WorkOrders.View)).Succeeded;
+        canPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.View)).Succeeded;
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        await ComputePermissionsAsync();
         StateHasChanged();
     }
 
@@ -56,4 +112,3 @@
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
-

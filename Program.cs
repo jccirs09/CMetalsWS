@@ -1,6 +1,7 @@
 using CMetalsWS.Components;
 using CMetalsWS.Components.Account;
 using CMetalsWS.Data;
+using CMetalsWS.Security;
 using CMetalsWS.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -9,50 +10,85 @@ using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add MudBlazor services
+// MudBlazor
 builder.Services.AddMudServices();
 
-// Add services to the container.
+// Razor Components (Blazor Server)
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+.AddInteractiveServerComponents(options => { options.DetailedErrors = true; });
 
+// Identity + AuthN plumbing for Razor Components
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 
 builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultScheme = IdentityConstants.ApplicationScheme;
-        options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
-    })
-    .AddIdentityCookies();
+{
+    options.DefaultScheme = IdentityConstants.ApplicationScheme;
+    options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
+})
+.AddIdentityCookies();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+// EF Core
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
-    .AddRoles<ApplicationRole>()
-    .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddSignInManager()
-    .AddDefaultTokenProviders();
+// IdentityCore with Roles
+builder.Services.AddIdentityCore<ApplicationUser>(options =>
+{
+    options.SignIn.RequireConfirmedAccount = true;
+})
+.AddRoles<ApplicationRole>()
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddSignInManager()
+.AddDefaultTokenProviders();
 
+// Claims principal factory to load role permission claims into the user
+builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, AppClaimsPrincipalFactory>();
+
+// Refresh claims quickly after role/permission changes
+builder.Services.Configure<SecurityStampValidatorOptions>(o =>
+{
+    o.ValidationInterval = TimeSpan.FromMinutes(1);
+});
+
+// Policy-based authorization for fine-grained permissions
+builder.Services.AddAuthorization(options =>
+{
+    foreach (var perm in Permissions.All())
+    {
+        options.AddPolicy(perm, policy =>
+        {
+            policy.RequireAuthenticatedUser();
+            policy.RequireClaim(Permissions.ClaimType, perm);
+        });
+    }
+});
+
+// App services
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 builder.Services.AddScoped<BranchService>();
 builder.Services.AddScoped<RoleService>();
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<MachineService>();
+builder.Services.AddScoped<TruckService>();
+builder.Services.AddScoped<PickingListService>();
 builder.Services.AddTransient<IdentityDataSeeder>();
 
 var app = builder.Build();
 
+// Seed roles, permission claims, and admin user
 using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<IdentityDataSeeder>();
     await seeder.SeedAsync();
 }
-// Configure the HTTP request pipeline.
+
+// Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
@@ -60,21 +96,22 @@ if (app.Environment.IsDevelopment())
 else
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
 
+// Authentication/Authorization for endpoints that may use policies
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+.AddInteractiveServerRenderMode();
 
-// Add additional endpoints required by the Identity /Account Razor components.
+// Identity /Account endpoints for Razor Components
 app.MapAdditionalIdentityEndpoints();
-
 
 app.Run();

@@ -1,0 +1,79 @@
+﻿@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudIcon Icon="@Icons.Material.Filled.ViewList" />
+            <MudText Typo="Typo.h6">@Title</MudText>
+        </MudStack>
+    </TitleContent>
+
+    <DialogContent>
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudForm Model="@Item" @ref="form">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="3">
+                        <MudNumericField T="int" @bind-Value="Item.LineNumber" Label="Line Number" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudTextField @bind-Value="Item.ItemId" Label="Item ID" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="Item.ItemDescription" Label="Description" Required="true" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="3">
+                        <MudNumericField T="decimal" @bind-Value="Item.Quantity" Label="Quantity" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudTextField @bind-Value="Item.Unit" Label="Unit" />
+                    </MudItem>
+                    <MudItem xs="12" sm="2">
+                        <MudNumericField T="decimal?" @bind-Value="Item.Width" Label="Width" />
+                    </MudItem>
+                    <MudItem xs="12" sm="2">
+                        <MudNumericField T="decimal?" @bind-Value="Item.Length" Label="Length" />
+                    </MudItem>
+                    <MudItem xs="12" sm="2">
+                        <MudNumericField T="decimal?" @bind-Value="Item.Weight" Label="Weight" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="int?" Label="Machine" @bind-Value="Item.MachineId" Clearable="true">
+                            <MudSelectItem T="int?" Value="@((int?)null)" Disabled="true">Unassigned</MudSelectItem>
+                            @foreach (var m in Machines)
+                            {
+                                <MudSelectItem T="int?" Value="@((int?)m.Id)">@m.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+            </MudForm>
+        </MudPaper>
+    </DialogContent>
+
+    <DialogActions>
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public PickingListItem Item { get; set; } = new();
+    [Parameter] public List<Machine> Machines { get; set; } = new();
+    [Parameter] public string Title { get; set; } = "Line Item";
+
+    private MudForm form = default!;
+    [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
+
+    private async Task Save()
+    {
+        await form.Validate();
+        if (!form.IsValid) return;
+        Dialog.Close(DialogResult.Ok(Item));
+    }
+
+    private void Cancel() => Dialog.Cancel();
+}
