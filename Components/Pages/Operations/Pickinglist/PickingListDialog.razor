@@ -22,7 +22,10 @@
                     <MudItem xs="12" sm="4">
                         @if (LockBranch)
                         {
-                            <MudTextField Value="@(CurrentBranch?.Name ?? "My Branch")" Label="Branch" ReadOnly="true" Disabled="true" />
+                            <MudTextField Value="@(CurrentBranch?.Name ?? "My Branch")"
+                                          Label="Branch"
+                                          ReadOnly="true"
+                                          Disabled="true" />
                         }
                         else
                         {
@@ -42,9 +45,11 @@
                     <MudItem xs="12" sm="6">
                         <MudTextField @bind-Value="Model.ShipToAddress" Label="Ship To Address" Lines="2" />
                     </MudItem>
+
                     <MudItem xs="12" sm="3">
                         <MudTextField @bind-Value="Model.ShippingMethod" Label="Shipping Method" />
                     </MudItem>
+
                     <MudItem xs="12" sm="3">
                         <MudSelect T="int?" Label="Truck" @bind-Value="Model.TruckId" Clearable="true">
                             <MudSelectItem T="int?" Value="@((int?)null)" Disabled="true">Unassigned</MudSelectItem>
@@ -58,9 +63,11 @@
                     <MudItem xs="12" sm="3">
                         <MudDatePicker @bind-Date="OrderDateValue" Label="Order Date" Required="true" />
                     </MudItem>
+
                     <MudItem xs="12" sm="3">
                         <MudDatePicker @bind-Date="ShipDateValue" Label="Ship Date" />
                     </MudItem>
+
                     <MudItem xs="12" sm="3">
                         <MudSelect T="PickingListStatus" Label="Status" @bind-Value="Model.Status">
                             @foreach (var s in Enum.GetValues<PickingListStatus>())
@@ -80,10 +87,12 @@
                         <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled">
                             @TotalWeight.ToString("N3")
                         </MudChip>
-                        @if (IsEdit)
-                        {
-                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="AddItem">Add Line</MudButton>
-                        }
+                        <MudButton Variant="Variant.Outlined"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   Disabled="@(!CanAddOrEdit)"
+                                   OnClick="AddItem">
+                            Add Line
+                        </MudButton>
                     </MudStack>
                 </MudStack>
 
@@ -99,7 +108,7 @@
                         <MudTh class="text-right">Weight</MudTh>
                         <MudTh>Status</MudTh>
                         <MudTh>Machine</MudTh>
-                        @if (IsEdit)
+                        @if (CanAddOrEdit)
                         {
                             <MudTh>Actions</MudTh>
                         }
@@ -115,11 +124,15 @@
                         <MudTd DataLabel="Weight" Class="text-right">@context.Weight?.ToString("N3")</MudTd>
                         <MudTd DataLabel="Status">@context.Status</MudTd>
                         <MudTd DataLabel="Machine">@Machines.FirstOrDefault(m => m.Id == context.MachineId)?.Name</MudTd>
-                        @if (IsEdit)
+                        @if (CanAddOrEdit)
                         {
                             <MudTd DataLabel="Actions">
-                                <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(async () => await EditItem(context))" />
-                                <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => RemoveItem(context))" />
+                                <MudIconButton Color="Color.Info"
+                                               Icon="@Icons.Material.Filled.Edit"
+                                               OnClick="@(async () => await EditItem(context))" />
+                                <MudIconButton Color="Color.Error"
+                                               Icon="@Icons.Material.Filled.Delete"
+                                               OnClick="@(() => RemoveItem(context))" />
                             </MudTd>
                         }
                     </RowTemplate>
@@ -154,10 +167,16 @@
     private MudForm form = default!;
     [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
 
+    // Visible for New (Model.Id == 0) and Edit, disabled only for true view-only
+    private bool CanAddOrEdit => IsEdit || (Model?.Id ?? 0) == 0;
+
     protected override void OnParametersSet()
     {
         if (LockBranch && CurrentBranch != null)
             Model.BranchId = CurrentBranch.Id;
+
+        // Ensure Items is never null
+        Model.Items ??= new List<PickingListItem>();
     }
 
     private DateTime? OrderDateValue
@@ -176,11 +195,13 @@
 
     private async Task AddItem()
     {
+        if (!CanAddOrEdit) return;
+
         var parameters = new DialogParameters
         {
             ["Item"] = new PickingListItem
             {
-                LineNumber = (Model.Items.Any() ? Model.Items.Max(i => i.LineNumber) : 0) + 10,
+                LineNumber = (Model.Items.Any() ? Model.Items.Max(i => i.LineNumber) : 0) + 1,
                 Unit = "EA",
                 Status = PickingLineStatus.Pending
             },
@@ -203,6 +224,8 @@
 
     private async Task EditItem(PickingListItem src)
     {
+        if (!CanAddOrEdit) return;
+
         var clone = new PickingListItem
         {
             Id = src.Id,
@@ -251,6 +274,7 @@
 
     private void RemoveItem(PickingListItem item)
     {
+        if (!CanAddOrEdit) return;
         Model.Items.Remove(item);
         StateHasChanged();
     }
