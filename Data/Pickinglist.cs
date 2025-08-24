@@ -67,6 +67,7 @@ namespace CMetalsWS.Data
         [Precision(18, 3)]
         public decimal? Weight { get; set; }
 
+        public PickingLineStatus Status { get; set; } = PickingLineStatus.Pending;
         public int? MachineId { get; set; }
         public Machine? Machine { get; set; }
     }

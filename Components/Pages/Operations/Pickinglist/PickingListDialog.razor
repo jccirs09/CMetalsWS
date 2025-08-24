@@ -80,7 +80,10 @@
                         <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled">
                             @TotalWeight.ToString("N3")
                         </MudChip>
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="AddItem">Add Line</MudButton>
+                        @if (IsEdit)
+                        {
+                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="AddItem">Add Line</MudButton>
+                        }
                     </MudStack>
                 </MudStack>
 
@@ -94,8 +97,12 @@
                         <MudTh class="text-right">Width</MudTh>
                         <MudTh class="text-right">Length</MudTh>
                         <MudTh class="text-right">Weight</MudTh>
+                        <MudTh>Status</MudTh>
                         <MudTh>Machine</MudTh>
-                        <MudTh>Actions</MudTh>
+                        @if (IsEdit)
+                        {
+                            <MudTh>Actions</MudTh>
+                        }
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Line">@context.LineNumber</MudTd>
@@ -106,11 +113,15 @@
                         <MudTd DataLabel="Width" Class="text-right">@context.Width?.ToString("N3")</MudTd>
                         <MudTd DataLabel="Length" Class="text-right">@context.Length?.ToString("N3")</MudTd>
                         <MudTd DataLabel="Weight" Class="text-right">@context.Weight?.ToString("N3")</MudTd>
+                        <MudTd DataLabel="Status">@context.Status</MudTd>
                         <MudTd DataLabel="Machine">@Machines.FirstOrDefault(m => m.Id == context.MachineId)?.Name</MudTd>
-                        <MudTd DataLabel="Actions">
-                            <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(async () => await EditItem(context))" />
-                            <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => RemoveItem(context))" />
-                        </MudTd>
+                        @if (IsEdit)
+                        {
+                            <MudTd DataLabel="Actions">
+                                <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(async () => await EditItem(context))" />
+                                <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => RemoveItem(context))" />
+                            </MudTd>
+                        }
                     </RowTemplate>
                 </MudTable>
 
@@ -161,7 +172,6 @@
         set => Model.ShipDate = value;
     }
 
-    // If Weight is per-unit, change to (i.Weight ?? 0m) * i.Quantity
     private decimal TotalWeight => Model?.Items?.Sum(i => i.Weight ?? 0m) ?? 0m;
 
     private async Task AddItem()
@@ -171,7 +181,8 @@
             ["Item"] = new PickingListItem
             {
                 LineNumber = (Model.Items.Any() ? Model.Items.Max(i => i.LineNumber) : 0) + 10,
-                Unit = "EA"
+                Unit = "EA",
+                Status = PickingLineStatus.Pending
             },
             ["Machines"] = Machines,
             ["Title"] = "Add Line"
@@ -182,8 +193,7 @@
         var res = await dlg.Result;
         if (res.Canceled) return;
 
-        var item = res.Data as PickingListItem;
-        if (item != null)
+        if (res.Data is PickingListItem item)
         {
             item.Id = 0;
             Model.Items.Add(item);
@@ -205,7 +215,8 @@
             Width = src.Width,
             Length = src.Length,
             Weight = src.Weight,
-            MachineId = src.MachineId
+            MachineId = src.MachineId,
+            Status = src.Status
         };
 
         var parameters = new DialogParameters
@@ -220,8 +231,7 @@
         var res = await dlg.Result;
         if (res.Canceled) return;
 
-        var updated = res.Data as PickingListItem;
-        if (updated != null)
+        if (res.Data is PickingListItem updated)
         {
             var target = Model.Items.First(i => i.Id == src.Id);
             target.LineNumber = updated.LineNumber;
@@ -233,6 +243,7 @@
             target.Length = updated.Length;
             target.Weight = updated.Weight;
             target.MachineId = updated.MachineId;
+            target.Status = updated.Status;
 
             StateHasChanged();
         }

@@ -3,44 +3,32 @@
   "WorkspaceRootPath": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\operations\\itemrelations.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\itemrelations.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\operations\\pickinglist\\pickinglistdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\pickinglist\\pickinglistdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\operations\\pickinglist\\pickinglistitemdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\pickinglist\\pickinglistitemdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\services\\itemrelationshipservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\itemrelationshipservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\operations\\pickinglist\\pickinglists.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\pickinglist\\pickinglists.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\data\\pickinglist.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\pickinglist.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\data\\applicationdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\applicationdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\data\\itemrelationship.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\itemrelationship.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\data\\enumerations.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\enumerations.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\operations\\inventory\\inventory.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\inventory\\inventory.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\migrations\\20250824062742_addmachinecategory.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:migrations\\20250824062742_addmachinecategory.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\admin\\branchdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\admin\\branchdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\services\\inventoryservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\inventoryservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\_imports.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\_imports.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\services\\pickinglistitemservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\pickinglistitemservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -50,136 +38,97 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 6,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "ItemRelations.razor",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\ItemRelations.razor",
-              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\ItemRelations.razor",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\ItemRelations.razor",
-              "RelativeToolTip": "Components\\Pages\\Operations\\ItemRelations.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAACEAAAAzAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-24T09:48:56.607Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "ItemRelationshipService.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\ItemRelationshipService.cs",
-              "RelativeDocumentMoniker": "Services\\ItemRelationshipService.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\ItemRelationshipService.cs",
-              "RelativeToolTip": "Services\\ItemRelationshipService.cs",
-              "ViewState": "AgIAABEAAAAAAAAAAAAYwE0AAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-24T09:48:19.531Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
               "Title": "ApplicationDbContext.cs",
               "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\ApplicationDbContext.cs",
               "RelativeDocumentMoniker": "Data\\ApplicationDbContext.cs",
               "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\ApplicationDbContext.cs",
               "RelativeToolTip": "Data\\ApplicationDbContext.cs",
-              "ViewState": "AgIAADoAAAAAAAAAAAAYwFAAAAAyAAAAAAAAAA==",
+              "ViewState": "AgIAAD8AAAAAAAAAAAAIwF0AAAA7AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-24T09:47:18.05Z",
+              "WhenOpened": "2025-08-24T12:17:47.948Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "ItemRelationship.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\ItemRelationship.cs",
-              "RelativeDocumentMoniker": "Data\\ItemRelationship.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\ItemRelationship.cs",
-              "RelativeToolTip": "Data\\ItemRelationship.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAAAAAAAAAAAA==",
+              "DocumentIndex": 3,
+              "Title": "Pickinglist.cs",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\Pickinglist.cs",
+              "RelativeDocumentMoniker": "Data\\Pickinglist.cs",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\Pickinglist.cs",
+              "RelativeToolTip": "Data\\Pickinglist.cs",
+              "ViewState": "AgIAACEAAAAAAAAAAAAkwB8AAAAnAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-24T09:47:05.495Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 7,
-              "Title": "BranchDialog.razor",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Admin\\BranchDialog.razor",
-              "RelativeDocumentMoniker": "Components\\Pages\\Admin\\BranchDialog.razor",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Admin\\BranchDialog.razor",
-              "RelativeToolTip": "Components\\Pages\\Admin\\BranchDialog.razor",
-              "ViewState": "AgIAABgAAAAAAAAAAAAlwDcAAAAUAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-24T07:38:35.168Z",
+              "WhenOpened": "2025-08-24T12:14:01.664Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 6,
-              "Title": "20250824062742_addmachinecategory.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Migrations\\20250824062742_addmachinecategory.cs",
-              "RelativeDocumentMoniker": "Migrations\\20250824062742_addmachinecategory.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Migrations\\20250824062742_addmachinecategory.cs",
-              "RelativeToolTip": "Migrations\\20250824062742_addmachinecategory.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAqwAcAAAAZAAAAAAAAAA==",
+              "Title": "PickingListItemService.cs",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\PickingListItemService.cs",
+              "RelativeDocumentMoniker": "Services\\PickingListItemService.cs",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\PickingListItemService.cs",
+              "RelativeToolTip": "Services\\PickingListItemService.cs",
+              "ViewState": "AgIAAAgAAAAAAAAAAIAxwBwAAAApAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-24T07:36:26.397Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "Program.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Program.cs",
-              "RelativeDocumentMoniker": "Program.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Program.cs",
-              "RelativeToolTip": "Program.cs",
-              "ViewState": "AgIAADAAAAAAAAAAAAAnwEgAAABYAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-24T07:34:59.087Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 8,
-              "Title": "InventoryService.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\InventoryService.cs",
-              "RelativeDocumentMoniker": "Services\\InventoryService.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\InventoryService.cs",
-              "RelativeToolTip": "Services\\InventoryService.cs",
-              "ViewState": "AgIAAAgAAAAAAAAAAAAxwDIAAAAxAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-24T07:26:08.083Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 9,
-              "Title": "_Imports.razor",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\_Imports.razor",
-              "RelativeDocumentMoniker": "Components\\_Imports.razor",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\_Imports.razor",
-              "RelativeToolTip": "Components\\_Imports.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAWAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-24T07:25:14.781Z",
+              "WhenOpened": "2025-08-24T12:04:28.748Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 5,
-              "Title": "Inventory.razor",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Inventory\\Inventory.razor",
-              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\Inventory\\Inventory.razor",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Inventory\\Inventory.razor",
-              "RelativeToolTip": "Components\\Pages\\Operations\\Inventory\\Inventory.razor",
-              "ViewState": "AgIAAEsBAAAAAAAAAAAAAEsBAAAAAAAAAAAAAA==",
+              "Title": "Enumerations.cs",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\Enumerations.cs",
+              "RelativeDocumentMoniker": "Data\\Enumerations.cs",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\Enumerations.cs",
+              "RelativeToolTip": "Data\\Enumerations.cs",
+              "ViewState": "AgIAAAEAAAAAAAAAAAAAABMAAAAQAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-24T11:48:07.592Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "PickingListItemDialog.razor",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Pickinglist\\PickingListItemDialog.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\Pickinglist\\PickingListItemDialog.razor",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Pickinglist\\PickingListItemDialog.razor",
+              "RelativeToolTip": "Components\\Pages\\Operations\\Pickinglist\\PickingListItemDialog.razor",
+              "ViewState": "AgIAAA8AAAAAAAAAAAAAAAkAAAATAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-24T07:24:42.486Z",
+              "WhenOpened": "2025-08-24T11:47:28.838Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "PickingLists.razor",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Pickinglist\\PickingLists.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\Pickinglist\\PickingLists.razor",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Pickinglist\\PickingLists.razor",
+              "RelativeToolTip": "Components\\Pages\\Operations\\Pickinglist\\PickingLists.razor",
+              "ViewState": "AgIAAGIAAAAAAAAAAAAAAIEAAAAdAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-24T11:47:02.671Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "PickingListDialog.razor",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Pickinglist\\PickingListDialog.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\Pickinglist\\PickingListDialog.razor",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Pickinglist\\PickingListDialog.razor",
+              "RelativeToolTip": "Components\\Pages\\Operations\\Pickinglist\\PickingListDialog.razor",
+              "ViewState": "AgIAADgAAAAAAAAAAAAowGMAAAAtAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-24T11:46:54.721Z",
               "EditorCaption": ""
             }
           ]

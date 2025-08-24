@@ -3,43 +3,53 @@
 
 <MudDialog>
     <TitleContent>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-            <MudIcon Icon="@Icons.Material.Filled.ViewList" />
+        <MudStack Row AlignItems="AlignItems.Center" Spacing="1">
+            <MudIcon Icon="@Icons.Material.Filled.Inventory2" />
             <MudText Typo="Typo.h6">@Title</MudText>
         </MudStack>
     </TitleContent>
 
     <DialogContent>
         <MudPaper Class="pa-4" Elevation="0">
-            <MudForm Model="@Item" @ref="form">
+            <MudForm @ref="_form">
                 <MudGrid Spacing="2">
                     <MudItem xs="12" sm="3">
-                        <MudNumericField T="int" @bind-Value="Item.LineNumber" Label="Line Number" Required="true" />
+                        <MudTextField @bind-Value="Item.LineNumber" Label="Line" ReadOnly="true" />
                     </MudItem>
-                    <MudItem xs="12" sm="3">
-                        <MudTextField @bind-Value="Item.ItemId" Label="Item ID" Required="true" />
+                    <MudItem xs="12" sm="4">
+                        <MudTextField @bind-Value="Item.ItemId" Label="Item ID" />
                     </MudItem>
-                    <MudItem xs="12" sm="6">
-                        <MudTextField @bind-Value="Item.ItemDescription" Label="Description" Required="true" />
+                    <MudItem xs="12" sm="8">
+                        <MudTextField @bind-Value="Item.ItemDescription" Label="Description" Lines="2" />
                     </MudItem>
 
                     <MudItem xs="12" sm="3">
-                        <MudNumericField T="decimal" @bind-Value="Item.Quantity" Label="Quantity" Required="true" />
+                        <MudNumericField T="decimal" @bind-Value="Item.Quantity" Label="Qty" />
                     </MudItem>
                     <MudItem xs="12" sm="3">
                         <MudTextField @bind-Value="Item.Unit" Label="Unit" />
                     </MudItem>
-                    <MudItem xs="12" sm="2">
+                    <MudItem xs="12" sm="3">
                         <MudNumericField T="decimal?" @bind-Value="Item.Width" Label="Width" />
                     </MudItem>
-                    <MudItem xs="12" sm="2">
+                    <MudItem xs="12" sm="3">
                         <MudNumericField T="decimal?" @bind-Value="Item.Length" Label="Length" />
                     </MudItem>
-                    <MudItem xs="12" sm="2">
+                    <MudItem xs="12" sm="3">
                         <MudNumericField T="decimal?" @bind-Value="Item.Weight" Label="Weight" />
                     </MudItem>
 
-                    <MudItem xs="12" sm="6">
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="PickingLineStatus" Label="Line Status" @bind-Value="Item.Status">
+                            @foreach (var s in Enum.GetValues<PickingLineStatus>())
+                            {
+                                <MudSelectItem T="PickingLineStatus" Value="s">@s</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <!-- Always enabled: can assign machine at any status -->
+                    <MudItem xs="12" sm="5">
                         <MudSelect T="int?" Label="Machine" @bind-Value="Item.MachineId" Clearable="true">
                             <MudSelectItem T="int?" Value="@((int?)null)" Disabled="true">Unassigned</MudSelectItem>
                             @foreach (var m in Machines)
@@ -61,17 +71,22 @@
 </MudDialog>
 
 @code {
+    [Parameter] public string Title { get; set; } = "Line Item";
     [Parameter] public PickingListItem Item { get; set; } = new();
     [Parameter] public List<Machine> Machines { get; set; } = new();
-    [Parameter] public string Title { get; set; } = "Line Item";
 
-    private MudForm form = default!;
     [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
+    private MudForm _form = default!;
 
     private async Task Save()
     {
-        await form.Validate();
-        if (!form.IsValid) return;
+        await _form.Validate();
+        if (!_form.IsValid) return;
+
+        // Optional: auto-bump to AssignedProduction when selecting a machine from Unassigned
+        // if (Item.MachineId.HasValue && Item.Status == PickingListItemStatus.Unassigned)
+        //     Item.Status = PickingListItemStatus.AssignedProduction;
+
         Dialog.Close(DialogResult.Ok(Item));
     }
 

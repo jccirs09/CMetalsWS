@@ -28,14 +28,14 @@ namespace CMetalsWS.Data
             // Machine -> Branch
             modelBuilder.Entity<Machine>()
                 .HasOne(m => m.Branch)
-                .WithMany(b => b.Machines) // point to Branch.Machines
+                .WithMany(b => b.Machines)
                 .HasForeignKey(m => m.BranchId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Truck -> Branch
             modelBuilder.Entity<Truck>()
                 .HasOne(t => t.Branch)
-                .WithMany(b => b.Trucks) // point to Branch.Trucks
+                .WithMany(b => b.Trucks)
                 .HasForeignKey(t => t.BranchId)
                 .OnDelete(DeleteBehavior.Restrict);
 
@@ -54,7 +54,7 @@ namespace CMetalsWS.Data
             // PickingList -> Branch
             modelBuilder.Entity<PickingList>()
                 .HasOne(p => p.Branch)
-                .WithMany(b => b.PickingLists) // point to Branch.PickingLists
+                .WithMany(b => b.PickingLists)
                 .HasForeignKey(p => p.BranchId)
                 .OnDelete(DeleteBehavior.Restrict);
 
@@ -87,6 +87,13 @@ namespace CMetalsWS.Data
                 .HasForeignKey(i => i.MachineId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // NEW: PickingListItem.Status enum stored as int with default Pending
+            modelBuilder.Entity<PickingListItem>()
+                .Property(i => i.Status)
+                .HasConversion<int>()
+                .HasDefaultValue(PickingLineStatus.Pending);
+
+            // ItemRelationship
             modelBuilder.Entity<ItemRelationship>(e =>
             {
                 e.ToTable("ItemRelationship");
@@ -97,21 +104,15 @@ namespace CMetalsWS.Data
             });
 
             // Numeric precisions
-            modelBuilder.Entity<PickingListItem>()
-                .Property(i => i.Quantity).HasPrecision(18, 3);
-            modelBuilder.Entity<PickingListItem>()
-                .Property(i => i.Width).HasPrecision(18, 3);
-            modelBuilder.Entity<PickingListItem>()
-                .Property(i => i.Length).HasPrecision(18, 3);
-            modelBuilder.Entity<PickingListItem>()
-                .Property(i => i.Weight).HasPrecision(18, 3);
+            modelBuilder.Entity<PickingListItem>().Property(i => i.Quantity).HasPrecision(18, 3);
+            modelBuilder.Entity<PickingListItem>().Property(i => i.Width).HasPrecision(18, 3);
+            modelBuilder.Entity<PickingListItem>().Property(i => i.Length).HasPrecision(18, 3);
+            modelBuilder.Entity<PickingListItem>().Property(i => i.Weight).HasPrecision(18, 3);
 
-            modelBuilder.Entity<Truck>()
-                .Property(t => t.CapacityWeight).HasPrecision(18, 2);
-            modelBuilder.Entity<Truck>()
-                .Property(t => t.CapacityVolume).HasPrecision(18, 2);
+            modelBuilder.Entity<Truck>().Property(t => t.CapacityWeight).HasPrecision(18, 2);
+            modelBuilder.Entity<Truck>().Property(t => t.CapacityVolume).HasPrecision(18, 2);
 
-            // NEW: InventoryItem mapping
+            // InventoryItem mapping
             modelBuilder.Entity<InventoryItem>()
                 .HasOne(i => i.Branch)
                 .WithMany()
@@ -126,7 +127,7 @@ namespace CMetalsWS.Data
             modelBuilder.Entity<InventoryItem>().Property(p => p.Length).HasPrecision(18, 3);
             modelBuilder.Entity<InventoryItem>().Property(p => p.Weight).HasPrecision(18, 3);
 
-            // WorkOrder numeric precision (to remove EF warning)
+            // WorkOrder numeric precision
             modelBuilder.Entity<WorkOrderItem>()
                 .Property(w => w.Quantity).HasPrecision(18, 3);
         }

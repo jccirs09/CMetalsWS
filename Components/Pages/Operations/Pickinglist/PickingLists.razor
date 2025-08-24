@@ -19,7 +19,7 @@
 <MudPaper Class="p-4">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
         <MudText Typo="Typo.h5">Picking Lists</MudText>
-        <AuthorizeView Policy="@Permissions.PickingLists.Add">
+        <AuthorizeView Policy="@Permissions.PickingLists.Add" Context="authAdd">
             <Authorized>
                 <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" OnClick="Add">
                     New
@@ -58,13 +58,13 @@
             <MudTd DataLabel="Truck">@context.Truck?.Name</MudTd>
             <MudTd DataLabel="Total Weight" Class="text-right">@GetTotalWeight(context).ToString("N3")</MudTd>
             <MudTd DataLabel="Actions">
-                <AuthorizeView Policy="@Permissions.PickingLists.Edit">
-                    <Authorized Context="authEdit">
+                <AuthorizeView Policy="@Permissions.PickingLists.Edit" Context="authEdit">
+                    <Authorized>
                         <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" Title="Edit" OnClick="@(async () => await Edit(context))" />
                     </Authorized>
                 </AuthorizeView>
-                <AuthorizeView Policy="@Permissions.PickingLists.Delete">
-                    <Authorized Context="authDelete">
+                <AuthorizeView Policy="@Permissions.PickingLists.Delete" Context="authDelete">
+                    <Authorized>
                         <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" Title="Delete" OnClick="@(async () => await Delete(context))" />
                     </Authorized>
                 </AuthorizeView>
@@ -106,7 +106,6 @@
         StateHasChanged();
     }
 
-    // Click SO number -> open dialog as "details". We ignore the result (no save).
     private async Task View(PickingList src)
     {
         var branches = await BranchService.GetBranchesAsync();
@@ -128,7 +127,7 @@
             ["Branches"] = branches,
             ["Trucks"] = trucks,
             ["Machines"] = machines,
-            ["IsEdit"] = false,
+            ["IsEdit"] = true,
             ["Title"] = "Sales Order Details",
             ["LockBranch"] = !isAdmin,
             ["CurrentBranch"] = userBranch
@@ -136,7 +135,7 @@
 
         var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseOnEscapeKey = true };
         var dialogRef = DialogService.Show<PickingListDialog>("Sales Order Details", parameters, options);
-        await dialogRef.Result; // ignore result (view-only behavior)
+        await dialogRef.Result;
     }
 
     private async Task Add()
@@ -176,8 +175,7 @@
         var result = await dialogRef.Result;
         if (result.Canceled) return;
 
-        var saved = result.Data as PickingList;
-        if (saved != null)
+        if (result.Data is PickingList saved)
         {
             await PickingListService.CreateAsync(saved);
             Snackbar.Add("Picking list created.", Severity.Success);
@@ -223,8 +221,7 @@
         var result = await dialogRef.Result;
         if (result.Canceled) return;
 
-        var updated = result.Data as PickingList;
-        if (updated != null)
+        if (result.Data is PickingList updated)
         {
             if (!isAdmin && userBranchId.HasValue)
                 updated.BranchId = userBranchId.Value;
@@ -252,7 +249,6 @@
         }
     }
 
-    // Sum of line weights. If your Weight is per-unit, change to (i.Weight ?? 0) * i.Quantity.
     private decimal GetTotalWeight(PickingList pl)
         => pl?.Items?.Sum(i => i.Weight ?? 0m) ?? 0m;
 
@@ -281,7 +277,8 @@
                 Width = i.Width,
                 Length = i.Length,
                 Weight = i.Weight,
-                MachineId = i.MachineId
+                MachineId = i.MachineId,
+                Status = i.Status                // <-- carry status
             }).OrderBy(i => i.LineNumber).ToList()
         };
 }
