@@ -22,6 +22,12 @@
                     <MudItem xs="12">
                         <MudTextField @bind-Value="Model.Description" Label="Description" Lines="3" />
                     </MudItem>
+                    <MudSelect T="string" Label="Category" @bind-Value="Model.Category" Dense="true" Clearable="true">
+                        @foreach (var c in _categories)
+                        {
+                            <MudSelectItem Value="@c">@c</MudSelectItem>
+                        }
+                    </MudSelect>
                     <MudItem xs="12" sm="6">
                         <MudSelect T="int" Label="Branch" @bind-Value="Model.BranchId">
                             @foreach (var b in Branches)
@@ -49,6 +55,8 @@
     [Parameter] public List<Branch> Branches { get; set; } = new();
 
     private MudForm form = default!;
+    private readonly string[] _categories = new[] { "CTL", "SLITTER", "SHEET", "COIL" };
+
 
     [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
 

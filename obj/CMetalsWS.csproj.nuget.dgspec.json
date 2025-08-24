@@ -51,6 +51,10 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
+            "ClosedXML": {
+              "target": "Package",
+              "version": "[0.105.0, )"
+            },
             "Extensions.MudBlazor.StaticInput": {
               "target": "Package",
               "version": "[3.*, )"
@@ -70,6 +74,10 @@
             "Microsoft.EntityFrameworkCore.Tools": {
               "target": "Package",
               "version": "[9.*, )"
+            },
+            "MiniExcel": {
+              "target": "Package",
+              "version": "[1.41.3, )"
             },
             "MudBlazor": {
               "target": "Package",

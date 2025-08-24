@@ -77,6 +77,8 @@ builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<MachineService>();
 builder.Services.AddScoped<TruckService>();
 builder.Services.AddScoped<PickingListService>();
+builder.Services.AddScoped<InventoryService>();
+builder.Services.AddScoped<ItemRelationshipService>();
 builder.Services.AddTransient<IdentityDataSeeder>();
 
 var app = builder.Build();

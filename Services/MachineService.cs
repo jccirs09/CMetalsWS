@@ -34,7 +34,12 @@ namespace CMetalsWS.Services
 
         public async Task UpdateAsync(Machine model)
         {
-            _db.Machines.Update(model);
+            var local = _db.Machines.Local.FirstOrDefault(x => x.Id == model.Id);
+            if (local is not null)
+                _db.Entry(local).State = EntityState.Detached;
+
+            _db.Attach(model);
+            _db.Entry(model).State = EntityState.Modified;
             await _db.SaveChangesAsync();
         }
 

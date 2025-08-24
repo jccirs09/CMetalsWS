@@ -1,0 +1,105 @@
+﻿@page "/operations/item-relations"
+@using CMetalsWS.Services
+@inject ItemRelationshipService RelService
+@inject ISnackbar Snackbar
+
+<PageTitle>Item Relationships</PageTitle>
+
+<MudPaper Class="p-4">
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.h5">Coil → Sheet Relationships</MudText>
+
+        <MudStack Row Spacing="2" AlignItems="AlignItems.Center">
+            <MudTextField @bind-Value="_parentId" Label="Parent (Coil) ItemId" Immediate="true" />
+            <MudButton Variant="Variant.Filled" OnClick="LoadAsync">Load</MudButton>
+        </MudStack>
+
+        @if (_loaded)
+        {
+            <MudText Typo="Typo.subtitle2">
+                Parent Description: @(_parentDesc ?? "— not found —")
+            </MudText>
+
+            <MudDivider Class="my-2" />
+
+            <MudText Typo="Typo.subtitle2">Children (Sheets)</MudText>
+
+            <MudTable Items="_children" Dense="true" Hover="true" Bordered="true">
+                <HeaderContent>
+                    <MudTh>Child ItemId</MudTh>
+                    <MudTh>Description</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.childId</MudTd>
+                    <MudTd>@context.childDesc</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                       OnClick="@(() => DeleteAsync(context.relId))" />
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Color="Color.Secondary">No children found.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+
+            <MudStack Row Spacing="2" Class="mt-3" AlignItems="AlignItems.Center">
+                <MudTextField @bind-Value="_newChildId" Label="Add Child ItemId" Immediate="true" />
+                <MudButton Variant="Variant.Outlined" OnClick="AddAsync">Add</MudButton>
+            </MudStack>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    private string _parentId = "";
+    private string? _parentDesc;
+    private bool _loaded;
+    private string _newChildId = "";
+    private List<(int relId, string childId, string? childDesc)> _children = new();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            var (desc, kids) = await RelService.GetAsync(_parentId);
+            _parentDesc = desc;
+            _children = kids;
+            _loaded = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Load failed: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task AddAsync()
+    {
+        try
+        {
+            await RelService.AddChildAsync(_parentId, _newChildId);
+            _newChildId = "";
+            await LoadAsync();
+            Snackbar.Add("Child added.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Add failed: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteAsync(int relId)
+    {
+        try
+        {
+            await RelService.RemoveAsync(relId);
+            await LoadAsync();
+            Snackbar.Add("Child removed.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Delete failed: {ex.Message}", Severity.Error);
+        }
+    }
+}

@@ -26,12 +26,14 @@
         <HeaderContent>
             <MudTh>Code</MudTh>
             <MudTh>Name</MudTh>
+            <MudTh>Category</MudTh>
             <MudTh>Branch</MudTh>
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Code">@context.Code</MudTd>
             <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Category">@context.Category</MudTd>
             <MudTd DataLabel="Branch">@context.Branch?.Name</MudTd>
             <MudTd DataLabel="Actions">
                 <AuthorizeView Policy="@Permissions.Machines.Edit">
@@ -104,6 +106,7 @@
             Code = item.Code,
             Name = item.Name,
             Description = item.Description,
+            Category = item.Category,
             BranchId = item.BranchId
         };
 

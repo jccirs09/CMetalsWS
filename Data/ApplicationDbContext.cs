@@ -18,6 +18,8 @@ namespace CMetalsWS.Data
         public DbSet<PickingListItem> PickingListItems => Set<PickingListItem>();
         public DbSet<WorkOrder> WorkOrders => Set<WorkOrder>();
         public DbSet<WorkOrderItem> WorkOrderItems => Set<WorkOrderItem>();
+        public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
+        public DbSet<ItemRelationship> ItemRelationships => Set<ItemRelationship>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -85,6 +87,15 @@ namespace CMetalsWS.Data
                 .HasForeignKey(i => i.MachineId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<ItemRelationship>(e =>
+            {
+                e.ToTable("ItemRelationship");
+                e.Property(x => x.ParentItemId).HasMaxLength(128).IsRequired();
+                e.Property(x => x.ChildItemId).HasMaxLength(128).IsRequired();
+                e.Property(x => x.Relation).HasMaxLength(32).HasDefaultValue("CoilToSheet");
+                e.HasIndex(x => new { x.ParentItemId, x.ChildItemId, x.Relation }).IsUnique();
+            });
+
             // Numeric precisions
             modelBuilder.Entity<PickingListItem>()
                 .Property(i => i.Quantity).HasPrecision(18, 3);
@@ -99,6 +110,21 @@ namespace CMetalsWS.Data
                 .Property(t => t.CapacityWeight).HasPrecision(18, 2);
             modelBuilder.Entity<Truck>()
                 .Property(t => t.CapacityVolume).HasPrecision(18, 2);
+
+            // NEW: InventoryItem mapping
+            modelBuilder.Entity<InventoryItem>()
+                .HasOne(i => i.Branch)
+                .WithMany()
+                .HasForeignKey(i => i.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<InventoryItem>()
+                .HasIndex(i => new { i.ItemId, i.TagNumber, i.BranchId })
+                .IsUnique();
+
+            modelBuilder.Entity<InventoryItem>().Property(p => p.Width).HasPrecision(18, 3);
+            modelBuilder.Entity<InventoryItem>().Property(p => p.Length).HasPrecision(18, 3);
+            modelBuilder.Entity<InventoryItem>().Property(p => p.Weight).HasPrecision(18, 3);
 
             // WorkOrder numeric precision (to remove EF warning)
             modelBuilder.Entity<WorkOrderItem>()

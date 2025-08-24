@@ -1,0 +1,331 @@
+﻿@page "/operations/inventory"
+@using System.Globalization
+@using System.Text
+@using Microsoft.AspNetCore.Components.Forms
+@using MiniExcelLibs
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@inject InventoryService InventoryService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Inventory Import</PageTitle>
+
+<MudPaper Class="p-4">
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.h5">Import Inventory</MudText>
+
+        <MudStack Row Spacing="2" AlignItems="AlignItems.Center">
+            <!-- Click or drag & drop -->
+            <div style="position:relative">
+                <MudPaper Class="px-4 py-3 d-flex align-center"
+                          Outlined="true"
+                          Style="border:2px dashed var(--mud-palette-primary); min-width: 320px;">
+                    <MudIcon Icon="@Icons.Material.Filled.UploadFile" Class="mr-2" />
+                    <MudText>Select or drop .xlsx / .xls / .csv</MudText>
+                </MudPaper>
+                <InputFile OnChange="OnFilesChanged"
+                           accept=".xlsx,.xls,.csv"
+                           style="position:absolute; inset:0; opacity:0; cursor:pointer;" />
+            </div>
+
+            <MudButton Variant="Variant.Outlined"
+                       Disabled="@(!_preview.Any())"
+                       OnClick="SaveAsync">
+                Save to Database
+            </MudButton>
+
+            <MudChip T="string" Variant="Variant.Outlined" Class="ml-4">
+                Branch: @_branchIdDisplay
+            </MudChip>
+            <MudText Class="ml-4" Color="Color.Secondary">@_status</MudText>
+        </MudStack>
+
+        <MudDivider Class="my-2" />
+
+        <MudTable Items="_preview" Dense="true" Hover="true" Bordered="true">
+            <HeaderContent>
+                <MudTh>ItemId</MudTh>
+                <MudTh>Description</MudTh>
+                <MudTh>Tag Number</MudTh>
+                <MudTh Width="110px">Width</MudTh>
+                <MudTh Width="110px">Length</MudTh>
+                <MudTh Width="110px">Weight</MudTh>
+                <MudTh>Location</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.ItemId</MudTd>
+                <MudTd>@context.Description</MudTd>
+                <MudTd>@context.TagNumber</MudTd>
+                <MudTd>@context.Width</MudTd>
+                <MudTd>@context.Length</MudTd>
+                <MudTd>@context.Weight</MudTd>
+                <MudTd>@context.Location</MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Color="Color.Secondary">No rows loaded. Choose a file.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private readonly List<InventoryRow> _preview = new();
+    private string? _status;
+    private int _branchId;
+    private string _branchIdDisplay = "—";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(auth.User);
+        _branchId = user?.BranchId ?? 0;
+        _branchIdDisplay = _branchId > 0 ? _branchId.ToString(CultureInfo.InvariantCulture) : "Not Set";
+    }
+
+    private async Task OnFilesChanged(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            _status = null;
+
+            if (e is null || e.FileCount == 0)
+            {
+                Snackbar.Add("Selection cancelled.", Severity.Info);
+                return;
+            }
+
+            var file = e.GetMultipleFiles(1).FirstOrDefault();
+            if (file is null)
+            {
+                Snackbar.Add("No file selected.", Severity.Warning);
+                return;
+            }
+
+            var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+            if (ext is not (".xlsx" or ".xls" or ".csv"))
+            {
+                Snackbar.Add("Please select .xlsx/.xls/.csv.", Severity.Warning);
+                return;
+            }
+
+            const long maxAllowed = 100 * 1024 * 1024;
+            await using var upload = file.OpenReadStream(maxAllowed);
+
+            // Copy to seekable buffer
+            using var ms = new MemoryStream();
+            await upload.CopyToAsync(ms);
+
+            List<InventoryRow> rows;
+
+            if (ext == ".csv")
+            {
+                ms.Position = 0;
+                var csv = await ReadAllAsync(ms);
+                rows = ParseCsv(csv);
+            }
+            else
+            {
+                ms.Position = 0;
+                rows = TryParseExcel(ms);
+            }
+
+            if (rows.Count == 0)
+            {
+                Snackbar.Add("No rows found. Make sure the first row contains headers.", Severity.Warning);
+                return;
+            }
+
+            _preview.Clear();
+            _preview.AddRange(rows);
+            _status = $"Loaded {_preview.Count} rows from {file.Name}";
+            Snackbar.Add(_status, Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            var msg = ex.Message;
+            if (msg.Contains("Object un-ignore properties count can't be 0", StringComparison.OrdinalIgnoreCase))
+                msg = "No usable headers were found. Ensure row 1 has column names like ItemId, Description, Tag Number, Width, Length, Weight, Location (or a Size column).";
+            Snackbar.Add($"Import failed: {msg}", Severity.Error);
+        }
+        finally
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_branchId <= 0)
+        {
+            Snackbar.Add("Your BranchId is not set.", Severity.Warning);
+            return;
+        }
+        if (!_preview.Any())
+        {
+            Snackbar.Add("Nothing to save.", Severity.Info);
+            return;
+        }
+
+        try
+        {
+            var entities = _preview.Select(r => new InventoryItem
+            {
+                BranchId = _branchId,
+                ItemId = r.ItemId ?? "",
+                Description = r.Description,
+                TagNumber = r.TagNumber,
+                Width = r.Width,
+                Length = r.Length,
+                Weight = r.Weight,
+                Location = r.Location
+            }).ToList();
+
+            var (inserted, updated) = await InventoryService.UpsertAsync(entities);
+            Snackbar.Add($"Saved. Inserted: {inserted}, Updated: {updated}.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Save failed: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ---------- Parsing helpers ----------
+
+    // Use the non-generic MiniExcel API to avoid object-mapping path
+    private static List<InventoryRow> TryParseExcel(Stream stream)
+    {
+        var result = new List<InventoryRow>();
+
+        // MiniExcel returns IEnumerable<IDictionary<string, object>>
+        foreach (var row in MiniExcel.Query(stream, useHeaderRow: true))
+        {
+            if (row is not IDictionary<string, object?> dict) continue;
+            result.Add(FromDynamic(dict));
+        }
+        return result;
+    }
+
+    private static async Task<string> ReadAllAsync(Stream s)
+    {
+        using var sr = new StreamReader(s, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
+        return await sr.ReadToEndAsync();
+    }
+
+    private static List<InventoryRow> ParseCsv(string csv)
+    {
+        var rows = new List<InventoryRow>();
+        using var sr = new StringReader(csv);
+        var headerLine = sr.ReadLine();
+        if (headerLine is null) return rows;
+
+        var headers = SplitCsvLine(headerLine).Select(h => h.Trim()).ToList();
+        string? line;
+        while ((line = sr.ReadLine()) is not null)
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            var cols = SplitCsvLine(line);
+            var dict = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < headers.Count && i < cols.Count; i++)
+                dict[headers[i]] = cols[i];
+
+            rows.Add(FromDynamic(dict));
+        }
+        return rows;
+    }
+
+    private static List<string> SplitCsvLine(string line)
+    {
+        var res = new List<string>();
+        var sb = new StringBuilder();
+        bool inQuotes = false;
+
+        for (int i = 0; i < line.Length; i++)
+        {
+            var c = line[i];
+            if (c == '\"')
+            {
+                if (inQuotes && i + 1 < line.Length && line[i + 1] == '\"') { sb.Append('\"'); i++; }
+                else inQuotes = !inQuotes;
+            }
+            else if (c == ',' && !inQuotes)
+            {
+                res.Add(sb.ToString()); sb.Clear();
+            }
+            else sb.Append(c);
+        }
+        res.Add(sb.ToString());
+        return res;
+    }
+
+    private static InventoryRow FromDynamic(IDictionary<string, object?> dict)
+    {
+        string GetS(params string[] names)
+        {
+            foreach (var n in names)
+                if (dict.Keys.FirstOrDefault(k => string.Equals(k?.ToString(), n, StringComparison.OrdinalIgnoreCase)) is { } key
+                    && dict[key] is { } v && !string.IsNullOrWhiteSpace(v.ToString()))
+                    return v!.ToString()!.Trim();
+            return "";
+        }
+        decimal? GetD(params string[] names)
+        {
+            var s = GetS(names);
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) return d;
+            if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.CurrentCulture, out d)) return d;
+            return null;
+        }
+
+        var row = new InventoryRow
+        {
+            ItemId = GetS("ItemId", "Item ID", "ItemCode", "Item"),
+            Description = GetS("Description", "Desc"),
+            TagNumber = GetS("Tag Number", "TagNumber", "Tag"),
+            Width = GetD("Width"),
+            Length = GetD("Length"),
+            Weight = GetD("Weight"),
+            Location = GetS("Location", "Bin")
+        };
+
+        if (row.Width is null)
+        {
+            var size = GetS("Size");
+            (row.Width, row.Length) = ParseSize(size);
+        }
+        if (row.Width is null) row.Width = 48m;
+
+        return row;
+    }
+
+    private static (decimal? width, decimal? length) ParseSize(string? size)
+    {
+        if (string.IsNullOrWhiteSpace(size)) return (null, null);
+        var cleaned = size.Replace("\"", "").Replace("in", "", StringComparison.OrdinalIgnoreCase);
+        var parts = cleaned.Split(new[] { 'x', 'X', '×', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+        decimal? ToDec(string s)
+        {
+            if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) return d;
+            if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.CurrentCulture, out d)) return d;
+            return null;
+        }
+
+        if (parts.Length == 1) return (ToDec(parts[0]), null);
+        if (parts.Length >= 2) return (ToDec(parts[0]), ToDec(parts[1]));
+        return (null, null);
+    }
+
+    private sealed class InventoryRow
+    {
+        public string? ItemId { get; set; }
+        public string? Description { get; set; }
+        public string? TagNumber { get; set; }
+        public decimal? Width { get; set; }
+        public decimal? Length { get; set; }
+        public decimal? Weight { get; set; }
+        public string? Location { get; set; }
+    }
+}

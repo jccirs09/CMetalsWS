@@ -1,4 +1,5 @@
 ﻿using Microsoft.Data.SqlClient;
+using System.ComponentModel.DataAnnotations;
 
 namespace CMetalsWS.Data
 {
@@ -13,6 +14,7 @@ namespace CMetalsWS.Data
         public int BranchId { get; set; }
         public Branch? Branch { get; set; }
 
-        public ICollection<WorkOrder> WorkOrders { get; set; } = new List<WorkOrder>();
+        [MaxLength(64)]
+        public string? Category { get; set; }
     }
 }
