@@ -1,0 +1,167 @@
+﻿@page "/work-orders"
+
+@inject WorkOrderService WorkOrderService
+@inject MachineService MachineService
+@inject BranchService BranchService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject IHubContext<ScheduleHub> HubContext
+
+<MudPaper Class="pa-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudText Typo="Typo.h5">Work Orders</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Add">New Work Order</MudButton>
+    </MudStack>
+
+    <MudTable Items="_workOrders" Hover="true" Dense="true" Class="mt-4">
+        <HeaderContent>
+            <MudTh>Number</MudTh>
+            <MudTh>Tag</MudTh>
+            <MudTh>Machine</MudTh>
+            <MudTh>Category</MudTh>
+            <MudTh>Due Date</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.WorkOrderNumber</MudTd>
+            <MudTd>@context.TagNumber</MudTd>
+            <MudTd>@context.Machine?.Name</MudTd>
+            <MudTd>@context.MachineCategory</MudTd>
+            <MudTd>@context.DueDate.ToString("yyyy-MM-dd")</MudTd>
+            <MudTd>@context.Status</MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Text" OnClick="@(() => View(context))">View</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<WorkOrder> _workOrders = new();
+    private bool _isAdmin;
+    private int? _branchId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAdmin = user.IsInRole("Admin");
+        var appUser = await UserManager.GetUserAsync(user);
+        _branchId = appUser?.BranchId;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _workOrders = await WorkOrderService.GetAsync(_isAdmin ? null : _branchId);
+    }
+
+    private async Task Add()
+    {
+        var machines = await MachineService.GetMachinesAsync();
+        var branches = await BranchService.GetBranchesAsync();
+        if (!_isAdmin && _branchId.HasValue)
+        {
+            machines = machines.Where(m => m.BranchId == _branchId.Value).ToList();
+            branches = branches.Where(b => b.Id == _branchId.Value).ToList();
+        }
+        var model = new WorkOrder
+        {
+            BranchId = _branchId ?? 0,
+            DueDate = DateTime.UtcNow.Date.AddDays(1),
+            MachineCategory = MachineCategory.Slitter
+        };
+        var parameters = new DialogParameters
+        {
+            ["Model"] = model,
+            ["Machines"] = machines,
+            ["Branches"] = branches,
+            ["IsEdit"] = false,
+            ["Title"] = "New Work Order"
+        };
+        var dlg = DialogService.Show<WorkOrderDialog>("New Work Order", parameters, new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseOnEscapeKey = true });
+        var res = await dlg.Result;
+        if (!res.Canceled && res.Data is WorkOrder saved)
+        {
+            var userId = (await UserManager.GetUserAsync((await AuthStateProvider.GetAuthenticationStateAsync()).User))?.Id ?? "";
+            await WorkOrderService.CreateAsync(saved, userId);
+            Snackbar.Add("Work order created.", Severity.Success);
+            await LoadAsync();
+            await HubContext.Clients.All.SendAsync("WorkOrderUpdated", saved.Id);
+        }
+    }
+
+    private async Task View(WorkOrder order)
+    {
+        var machines = await MachineService.GetMachinesAsync();
+        var branches = await BranchService.GetBranchesAsync();
+        if (!_isAdmin && _branchId.HasValue)
+        {
+            machines = machines.Where(m => m.BranchId == _branchId.Value).ToList();
+            branches = branches.Where(b => b.Id == _branchId.Value).ToList();
+        }
+
+        // Clone for editing
+        var model = new WorkOrder
+        {
+            Id = order.Id,
+            WorkOrderNumber = order.WorkOrderNumber,
+            TagNumber = order.TagNumber,
+            BranchId = order.BranchId,
+            MachineId = order.MachineId,
+            MachineCategory = order.MachineCategory,
+            DueDate = order.DueDate,
+            Instructions = order.Instructions,
+            Status = order.Status,
+            CreatedBy = order.CreatedBy,
+            CreatedDate = order.CreatedDate,
+            LastUpdatedBy = order.LastUpdatedBy,
+            LastUpdatedDate = order.LastUpdatedDate,
+            ScheduledStartDate = order.ScheduledStartDate,
+            ScheduledEndDate = order.ScheduledEndDate,
+            Items = order.Items.Select(i => new WorkOrderItem
+            {
+                Id = i.Id,
+                WorkOrderId = order.Id,
+                PickingListItemId = i.PickingListItemId,
+                ItemCode = i.ItemCode,
+                Description = i.Description,
+                SalesOrderNumber = i.SalesOrderNumber,
+                CustomerName = i.CustomerName,
+                OrderQuantity = i.OrderQuantity,
+                OrderWeight = i.OrderWeight,
+                Width = i.Width,
+                Length = i.Length,
+                Weight = i.Weight,
+                ProducedQuantity = i.ProducedQuantity,
+                ProducedWeight = i.ProducedWeight,
+                Unit = i.Unit,
+                Location = i.Location,
+                MachineCategory = i.MachineCategory
+            }).ToList()
+        };
+
+        var parameters = new DialogParameters
+        {
+            ["Model"] = model,
+            ["Machines"] = machines,
+            ["Branches"] = branches,
+            ["IsEdit"] = true,
+            ["Title"] = "Work Order Details"
+        };
+        var dlg = DialogService.Show<WorkOrderDialog>("Work Order Details", parameters, new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseOnEscapeKey = true });
+        var res = await dlg.Result;
+        if (!res.Canceled && res.Data is WorkOrder updated)
+        {
+            var userId = (await UserManager.GetUserAsync((await AuthStateProvider.GetAuthenticationStateAsync()).User))?.Id ?? "";
+            await WorkOrderService.UpdateAsync(updated, userId);
+            Snackbar.Add("Work order updated.", Severity.Success);
+            await LoadAsync();
+            await HubContext.Clients.All.SendAsync("WorkOrderUpdated", updated.Id);
+        }
+    }
+}

@@ -1,0 +1,123 @@
+﻿@page "/schedule/ctl"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using CMetalsWS.Hubs
+@using Heron.MudCalendar
+@using MudBlazor
+@using Microsoft.AspNetCore.SignalR
+
+@inject WorkOrderService WorkOrderService
+@inject MachineService MachineService
+@inject BranchService BranchService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IHubContext<ScheduleHub> HubContext
+@inject NavigationManager NavigationManager
+
+@implements IAsyncDisposable
+
+<MudPaper Class="pa-4">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h5">CTL Schedule</MudText>
+
+        <MudSelect T="int" Label="Machine" @bind-Value="_selectedMachineId">
+            @foreach (var m in _machines)
+            {
+                <MudSelectItem Value="m.Id">@m.Name</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudTabs>
+            <MudTabPanel Text="Day">
+                <MudCalendar T="CalendarItem" Items="_items" View="View.Day" />
+            </MudTabPanel>
+            <MudTabPanel Text="Week">
+                <MudCalendar T="CalendarItem" Items="_items" View="View.Week" />
+            </MudTabPanel>
+            <MudTabPanel Text="Month">
+                <MudCalendar T="CalendarItem" Items="_items" View="View.Month" />
+            </MudTabPanel>
+        </MudTabs>
+
+        <MudDivider />
+
+        <MudText Typo="Typo.h6">Unscheduled CTL Work Orders</MudText>
+        <MudList T="WorkOrder" Dense="true">
+            @foreach (var wo in _unscheduled)
+            {
+                <MudListItem>
+                    <MudListItemText>@wo.WorkOrderNumber - @wo.TagNumber - Due: @wo.DueDate.ToString("yyyy-MM-dd")</MudListItemText>
+                </MudListItem>
+            }
+        </MudList>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private List<Machine> _machines = new();
+    private List<WorkOrder> _all = new();
+    private List<WorkOrder> _unscheduled = new();
+    private int _selectedMachineId;
+    private List<CalendarItem> _items = new();
+    private HubConnection? _hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var branches = await BranchService.GetBranchesAsync();
+        int? branchId = user.IsInRole("Admin") ? null : branches.FirstOrDefault()?.Id;
+
+        _machines = (await MachineService.GetMachinesAsync())
+            .Where(m => m.Category == MachineCategory.CTL && (!branchId.HasValue || m.BranchId == branchId.Value))
+            .ToList();
+
+        if (_machines.Any())
+            _selectedMachineId = _machines.First().Id;
+
+        await LoadWorkOrders(branchId);
+        BuildCalendarItems();
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/schedule"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<int>("WorkOrderUpdated", async (id) =>
+        {
+            await LoadWorkOrders(branchId);
+            BuildCalendarItems();
+            StateHasChanged();
+        });
+
+        await _hubConnection.StartAsync();
+    }
+
+    private async Task LoadWorkOrders(int? branchId)
+    {
+        _all = (await WorkOrderService.GetAsync(branchId))
+            .Where(w => w.MachineCategory == MachineCategory.CTL)
+            .ToList();
+
+        _unscheduled = _all.Where(w => w.ScheduledStartDate == null).ToList();
+    }
+
+    private void BuildCalendarItems()
+    {
+        var scheduled = _all.Where(w => w.ScheduledStartDate != null).ToList();
+
+        _items = scheduled.Select(w => new CalendarItem
+        {
+            Id = w.Id.ToString(),
+            Text = w.WorkOrderNumber,
+            Start = w.ScheduledStartDate!.Value,
+            End = w.ScheduledEndDate ?? w.ScheduledStartDate!.Value.AddHours(1),
+            AllDay = false
+        }).ToList();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection != null)
+            await _hubConnection.DisposeAsync();
+    }
+}

@@ -1,0 +1,193 @@
+﻿@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog Title="@Title">
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudStack Spacing="3">
+                <MudSelect T="int?" Label="Machine" @bind-Value="MachineId" Required="true">
+                    @foreach (var m in Machines)
+                    {
+                        <MudSelectItem Value="m.Id">@m.Name (@m.Category)</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSelect T="MachineCategory" Label="Category" @bind-Value="Model.MachineCategory" Disabled="true">
+                    @foreach (var cat in Enum.GetValues<MachineCategory>())
+                    {
+                        <MudSelectItem Value="cat">@cat</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudTextField Label="Tag Number" @bind-Value="Model.TagNumber" Required="true" />
+
+                <MudDatePicker Label="Due Date" @bind-Date="DueDateValue" Required="true" />
+
+                <MudTextField Label="Instructions" @bind-Value="Model.Instructions" Lines="3" />
+
+                <MudDivider />
+                <MudText Typo="Typo.h6">Line Items</MudText>
+
+                <MudTable Items="Model.Items" Hover="true" Dense="true">
+                    <HeaderContent>
+                        <MudTh>Item</MudTh>
+                        <MudTh>Description</MudTh>
+                        <MudTh>Sales Order #</MudTh>
+                        <MudTh>Customer</MudTh>
+                        <MudTh>Order Qty/Wt</MudTh>
+                        <MudTh>Width</MudTh>
+                        @if (Model.MachineCategory == MachineCategory.CTL)
+                        {
+                            <MudTh>Length</MudTh>
+                        }
+                        <MudTh>Weight</MudTh>
+                        <MudTh>Produced Qty/Wt</MudTh>
+                        <MudTh>Location</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.ItemCode</MudTd>
+                        <MudTd>@context.Description</MudTd>
+                        <MudTd>@context.SalesOrderNumber</MudTd>
+                        <MudTd>@context.CustomerName</MudTd>
+                        <MudTd>
+                            @if (Model.MachineCategory == MachineCategory.CTL)
+                            {
+                                @context.OrderQuantity
+                            }
+                            else
+                            {
+                                @context.OrderWeight
+                            }
+                        </MudTd>
+                        <MudTd>@context.Width</MudTd>
+                        @if (Model.MachineCategory == MachineCategory.CTL)
+                        {
+                            <MudTd>@context.Length</MudTd>
+                        }
+                        <MudTd>@context.Weight</MudTd>
+                        <MudTd>
+                            @if (Model.MachineCategory == MachineCategory.CTL)
+                            {
+                                @context.ProducedQuantity
+                            }
+                            else
+                            {
+                                @context.ProducedWeight
+                            }
+                        </MudTd>
+                        <MudTd>@context.Location</MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1">
+                    <MudButton Variant="Variant.Text" OnClick="AddStockLine">Add Stock Line</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="AddReturnLine">Add Return Line</MudButton>
+                </MudStack>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="OnCancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnSave">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public WorkOrderDialog MudDialog { get; set; } = default!;
+
+    [Parameter] public WorkOrder Model { get; set; } = new();
+    [Parameter] public List<Machine> Machines { get; set; } = new();
+    [Parameter] public List<Branch> Branches { get; set; } = new();
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public bool IsEdit { get; set; }
+
+    private MudForm? _form;
+
+    private int? MachineId
+    {
+        get => Model.MachineId;
+        set
+        {
+            Model.MachineId = value;
+            SyncCategoryWithMachine();
+        }
+    }
+
+    private DateTime? DueDateValue
+    {
+        get => Model.DueDate;
+        set => Model.DueDate = value ?? Model.DueDate;
+    }
+
+    protected override void OnParametersSet()
+    {
+        SyncCategoryWithMachine();
+    }
+
+    private void SyncCategoryWithMachine()
+    {
+        var machine = Machines.FirstOrDefault(m => m.Id == Model.MachineId);
+        if (machine != null)
+            Model.MachineCategory = ParseMachineCategory(machine.Category);
+    }
+
+    private static MachineCategory ParseMachineCategory(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+            return MachineCategory.Slitter;
+
+        if (Enum.TryParse<MachineCategory>(category, true, out var parsed))
+            return parsed;
+
+        switch (category.Trim().ToUpperInvariant())
+        {
+            case "CTL":
+            case "CUT-TO-LENGTH":
+            case "CUT TO LENGTH":
+                return MachineCategory.CTL;
+            case "SLITTER":
+            case "SLIT":
+                return MachineCategory.Slitter;
+            case "SHEET":
+                return MachineCategory.Sheet;
+            case "COIL":
+                return MachineCategory.Coil;
+            default:
+                return MachineCategory.Slitter;
+        }
+    }
+
+    private void OnCancel() => MudDialog.Cancel();
+
+    private async Task OnSave()
+    {
+        if (_form is null) return;
+        await _form.Validate();
+        if (!_form.IsValid) return;
+        MudDialog.Close(DialogResult.Ok(Model));
+    }
+
+    private void AddStockLine()
+    {
+        Model.Items.Add(new WorkOrderItem
+        {
+            ItemCode = string.Empty,
+            Description = string.Empty,
+            MachineCategory = Model.MachineCategory
+        });
+    }
+
+    private void AddReturnLine()
+    {
+        Model.Items.Add(new WorkOrderItem
+        {
+            ItemCode = "RETURN",
+            Description = "Return to stock",
+            OrderQuantity = 0,
+            OrderWeight = 0,
+            ProducedQuantity = 0,
+            ProducedWeight = 0,
+            MachineCategory = Model.MachineCategory
+        });
+    }
+}

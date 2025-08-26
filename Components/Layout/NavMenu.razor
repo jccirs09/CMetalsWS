@@ -52,6 +52,15 @@
         </MudNavGroup>
     }
 
+    @if (canWorkOrders)
+    {
+        <MudNavGroup Text="Schedule" Icon="@Icons.Material.Filled.EventNote" Title="Scheduling">
+            <MudNavLink Href="/schedule/ctl" Icon="@Icons.Material.Filled.CalendarToday">CTL</MudNavLink>
+            <MudNavLink Href="/schedule/slitter" Icon="@Icons.Material.Filled.CalendarViewDay">Slitter</MudNavLink>
+            <MudNavLink Href="/schedule/logistics" Icon="@Icons.Material.Filled.LocalShipping">Logistics</MudNavLink>
+        </MudNavGroup>
+    }
+
     <AuthorizeView>
         <Authorized>
             <MudNavLink Href="Account/Manage" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">@context.User.Identity?.Name</MudNavLink>

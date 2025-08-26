@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace CMetalsWS.Data
 {
     /// <summary>Represents a production or manufacturing order.</summary>
-    public class WorkOrder
+    public class WorkOrderOld
     {
         public int Id { get; set; }
         public string WorkOrderNumber { get; set; } = default!;
@@ -20,7 +20,7 @@ namespace CMetalsWS.Data
     }
 
     /// <summary>An item or step within a work order.</summary>
-    public class WorkOrderItem
+    public class WorkOrderItemOld
     {
         public int Id { get; set; }
         public int WorkOrderId { get; set; }
