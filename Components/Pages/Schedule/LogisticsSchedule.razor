@@ -16,9 +16,15 @@
             <MudText Typo="Typo.h5">Logistics Schedule</MudText>
             <MudSpacer />
             <MudToggleGroup T="CalendarView" @bind-Value="_view" Color="Color.Primary" Size="Size.Small">
-                <MudToggleGroupItem Value="CalendarView.Day"><MudIcon Icon="@Icons.Material.Filled.CalendarViewDay" /> Day</MudToggleGroupItem>
-                <MudToggleGroupItem Value="CalendarView.Week"><MudIcon Icon="@Icons.Material.Filled.CalendarViewWeek" /> Week</MudToggleGroupItem>
-                <MudToggleGroupItem Value="CalendarView.Month"><MudIcon Icon="@Icons.Material.Filled.CalendarMonth" /> Month</MudToggleGroupItem>
+                <MudToggleGroupItem Value="CalendarView.Day">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarViewDay" /> Day
+                </MudToggleGroupItem>
+                <MudToggleGroupItem Value="CalendarView.Week">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarViewWeek" /> Week
+                </MudToggleGroupItem>
+                <MudToggleGroupItem Value="CalendarView.Month">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" /> Month
+                </MudToggleGroupItem>
             </MudToggleGroup>
             <MudStack Row AlignItems="AlignItems.Center" Spacing="1">
                 <MudText>Hours</MudText>
@@ -31,20 +37,22 @@
         <MudGrid>
             <MudItem xs="12" md="9">
                 <MudCalendar T="WorkOrderCalendarItem"
-                             Items="_items"
+                             Items="_calendarItems"
                              View="_view"
                              StartHour="_startHour"
                              EndHour="_endHour"
                              OnItemDrop="OnItemDrop"
                              OnItemClick="OnItemClick">
                     <ItemContent>
+                        @* context refers to the calendar item (WorkOrderCalendarItem) *@
                         <MudStack Row AlignItems="AlignItems.Center" Spacing="1" Class="px-1">
                             <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Size="Size.Small" />
                             <MudText Typo="Typo.body2">@context.Text</MudText>
-                            @if (context.Start != default && context.End != default)
+                            @if (!string.IsNullOrWhiteSpace(context.LocationCode))
                             {
-                                <MudChip Size="Size.Small" Variant="Variant.Outlined">
-                                    Ready: @context.End.ToString("yyyy-MM-dd HH:mm")
+                                @* specify T explicitly to avoid inference error *@
+                                <MudChip T="string" Size="Size.Small" Color="@context.ChipColor" Variant="Variant.Outlined">
+                                    @context.LocationCode
                                 </MudChip>
                             }
                         </MudStack>
@@ -60,7 +68,9 @@
                         {
                             <MudListItem>
                                 <MudListItemText>
-                                    @l.LoadNumber - Truck: @(l.Truck?.Name ?? "Unassigned") - Ready: @(l.ReadyDate?.ToString("yyyy-MM-dd HH:mm") ?? "—")
+                                    @l.LoadNumber - Truck: @(l.Truck?.Name ?? "Unassigned")
+                                    -
+                                    Ready: @(l.ScheduledStart?.ToString("yyyy-MM-dd HH:mm") ?? "—")
                                 </MudListItemText>
                             </MudListItem>
                         }
@@ -72,58 +82,58 @@
 </MudPaper>
 
 @code {
-    private List<WorkOrderCalendarItem> _items = new();
+    private List<WorkOrderCalendarItem> _calendarItems = new();
     private List<Load> _unscheduledLoads = new();
     private CalendarView _view = CalendarView.Week;
     private int _startHour = 6;
     private int _endHour = 18;
-
     private HubConnection? _hub;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
-        await StartHubAsync();
+        await StartSignalR();
     }
 
     private async Task LoadData()
     {
         var all = await LoadService.GetLoadsAsync();
+        // scheduled loads (ScheduledStart != null) go onto the calendar
+        var scheduled = all.Where(l => l.ScheduledStart != null).ToList();
+        // unscheduled loads (ScheduledStart == null) appear in the side list
+        _unscheduledLoads = all.Where(l => l.ScheduledStart == null).ToList();
 
-        var scheduled = all.Where(x => x.ScheduledStart != null).ToList();
-        _unscheduledLoads = all
-            .Where(x => x.ScheduledStart == null)
-            .OrderBy(x => x.ReadyDate) // ReadyDate now recomputed from WorkOrders
-            .ToList();
-
-        _items = scheduled.Select(l => new WorkOrderCalendarItem
+        _calendarItems = scheduled.Select(l => new WorkOrderCalendarItem
         {
-            WorkOrderId = l.Id, // our own key (do not set CalendarItem.Id)
+            WorkOrderId = l.Id,
             WorkOrderNumber = l.LoadNumber,
             Text = $"{l.LoadNumber} • {(l.Truck?.Name ?? "Unassigned")}",
-            Start = l.ScheduledStart!,
-            End = l.ScheduledStart!.AddHours(1),
-            AllDay = false
+            Start = l.ScheduledStart!.Value,
+            End = l.ScheduledEnd ?? l.ScheduledStart!.Value.AddHours(1),
+            AllDay = false,
+            // location code could be computed from your customer region logic
+            LocationCode = LoadService.GetLoadRegionCode(l),
+            ChipColor = Color.Info
         }).ToList();
     }
 
     private async Task OnItemDrop(CalendarItemDropEventArgs<WorkOrderCalendarItem> e)
     {
+        // update schedule for this load
         await LoadService.ScheduleAsync(e.Item.WorkOrderId, e.NewStart, e.NewEnd);
         await LoadData();
         StateHasChanged();
-
-        if (_hub is not null)
-            await _hub.SendAsync("ScheduleChanged", e.Item.WorkOrderId);
+        if (_hub != null) await _hub.SendAsync("ScheduleChanged", e.Item.WorkOrderId);
     }
 
     private Task OnItemClick(CalendarItemClickEventArgs<WorkOrderCalendarItem> e)
     {
-        // Example: Nav.NavigateTo($"/loads/{e.Item.WorkOrderId}");
+        // optionally navigate to detail page
+        // Nav.NavigateTo($"/loads/{e.Item.WorkOrderId}");
         return Task.CompletedTask;
     }
 
-    private async Task StartHubAsync()
+    private async Task StartSignalR()
     {
         _hub = new HubConnectionBuilder()
             .WithUrl(Nav.ToAbsoluteUri("/hubs/schedule"))
@@ -141,7 +151,6 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (_hub is not null)
-            await _hub.DisposeAsync();
+        if (_hub != null) await _hub.DisposeAsync();
     }
 }

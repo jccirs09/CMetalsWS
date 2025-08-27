@@ -1,12 +1,21 @@
 ﻿using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace CMetalsWS.Services
 {
     public class PickingListItemService
     {
         private readonly ApplicationDbContext _db;
-        public PickingListItemService(ApplicationDbContext db) => _db = db;
+        private readonly PickingListService _pickingListService;
+
+        public PickingListItemService(ApplicationDbContext db, PickingListService pickingListService)
+        {
+            _db = db;
+            _pickingListService = pickingListService;
+        }
 
         public Task<PickingListItem?> GetAsync(int id) =>
             _db.Set<PickingListItem>()
@@ -15,8 +24,15 @@ namespace CMetalsWS.Services
 
         public async Task SaveAsync(PickingListItem model)
         {
-            if (model.Id == 0) _db.Add(model);
-            else _db.Update(model);
+            if (model.Id == 0)
+            {
+                model.Status = PickingLineStatus.Pending;
+                _db.Add(model);
+            }
+            else
+            {
+                _db.Update(model);
+            }
             await _db.SaveChangesAsync();
         }
 
@@ -27,6 +43,10 @@ namespace CMetalsWS.Services
             item.Status = PickingLineStatus.AssignedProduction;
             item.MachineId = machineId;
             await _db.SaveChangesAsync();
+
+            // Recalculate overall PickingListStatus to Awaiting
+            if (item.PickingListId != 0)
+                await _pickingListService.UpdatePickingListStatusAsync(item.PickingListId);
         }
 
         public async Task AssignToPullingAsync(int pickingListItemId)
@@ -36,6 +56,9 @@ namespace CMetalsWS.Services
             item.Status = PickingLineStatus.AssignedPulling;
             item.MachineId = null;
             await _db.SaveChangesAsync();
+
+            if (item.PickingListId != 0)
+                await _pickingListService.UpdatePickingListStatusAsync(item.PickingListId);
         }
     }
 }

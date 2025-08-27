@@ -97,7 +97,9 @@ namespace CMetalsWS.Services
 
         public async Task ScheduleAsync(int id, DateTime start, DateTime? end)
         {
-            var workOrder = await _db.WorkOrders.FirstOrDefaultAsync(w => w.Id == id);
+            var workOrder = await _db.WorkOrders
+                .Include(w => w.Items)
+                .FirstOrDefaultAsync(w => w.Id == id);
             if (workOrder is null) return;
 
             workOrder.ScheduledStartDate = start;
@@ -106,10 +108,27 @@ namespace CMetalsWS.Services
                 workOrder.Status = WorkOrderStatus.Pending;
 
             workOrder.LastUpdatedDate = DateTime.UtcNow;
+
+            // Mark picking lines as part of a work order
+            var lineIds = workOrder.Items
+                .Where(i => i.PickingListItemId != null)
+                .Select(i => i.PickingListItemId!.Value)
+                .ToList();
+            var plis = await _db.PickingListItems
+                .Where(p => lineIds.Contains(p.Id))
+                .ToListAsync();
+            foreach (var li in plis)
+                li.Status = PickingLineStatus.WorkOrder;
+
+            // Recalculate overall picking list status to Scheduled
+            var pickingService = new PickingListService(_db);
+            foreach (var grpId in plis.Select(p => p.PickingListId).Distinct())
+                await pickingService.UpdatePickingListStatusAsync(grpId);
+
             await _db.SaveChangesAsync();
         }
 
-       
+
 
         private async Task<string> GenerateWorkOrderNumber(int branchId)
         {
@@ -130,42 +149,42 @@ namespace CMetalsWS.Services
             workOrder.LastUpdatedBy = updatedBy;
             workOrder.LastUpdatedDate = DateTime.UtcNow;
 
-            // Update linked Picking List Items’ statuses to mirror work progress
-            var pickingIds = workOrder.Items
+            // Update picking list item line statuses
+            var lineIds = workOrder.Items
                 .Where(i => i.PickingListItemId != null)
                 .Select(i => i.PickingListItemId!.Value)
-                .Distinct()
                 .ToList();
 
-            if (pickingIds.Count > 0)
+            if (lineIds.Count > 0)
             {
                 var plis = await _db.PickingListItems
-                    .Where(p => pickingIds.Contains(p.Id))
+                    .Where(p => lineIds.Contains(p.Id))
                     .ToListAsync();
 
-                // Map WorkOrderStatus -> PickingListStatus (adjust names to your enum if needed)
+                // Map WorkOrderStatus -> PickingListStatus and LineStatus
                 foreach (var p in plis)
                 {
                     switch (status)
                     {
                         case WorkOrderStatus.InProgress:
-                            p.Status = PickingListStatus.InProgress;
+                            p.Status = PickingLineStatus.InProgress;
                             break;
                         case WorkOrderStatus.Completed:
-                            p.Status = PickingListStatus.ReadyToShip;
+                            p.Status = PickingLineStatus.Completed;
                             break;
                         case WorkOrderStatus.Canceled:
-                            p.Status = PickingListStatus.Pending;
+                            p.Status = PickingLineStatus.Canceled;
                             break;
                         default:
-                            // no change for Draft/Pending
+                            // Draft/Pending: no change
                             break;
                     }
                 }
 
-                // Optional: bump Loads’ ReadyDate affected by these picking items
-                var loadService = new LoadService(_db);
-                await loadService.RecalculateLoadsForPickingItemsAsync(pickingIds);
+                // Recalculate the overall status of each affected picking list
+                var pickingService = new PickingListService(_db);
+                foreach (var grpId in plis.Select(p => p.PickingListId).Distinct())
+                    await pickingService.UpdatePickingListStatusAsync(grpId);
             }
 
             await _db.SaveChangesAsync();

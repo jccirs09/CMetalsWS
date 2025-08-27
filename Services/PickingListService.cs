@@ -1,5 +1,8 @@
 ﻿using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace CMetalsWS.Services
 {
@@ -34,6 +37,12 @@ namespace CMetalsWS.Services
 
         public async Task CreateAsync(PickingList model)
         {
+            // Set overall status and each line status to Pending at creation.
+            model.Status = PickingListStatus.Pending;
+            foreach (var item in model.Items)
+            {
+                item.Status = PickingLineStatus.Pending;
+            }
             _db.PickingLists.Add(model);
             await _db.SaveChangesAsync();
         }
@@ -74,7 +83,8 @@ namespace CMetalsWS.Services
                         Width = item.Width,
                         Length = item.Length,
                         Weight = item.Weight,
-                        MachineId = item.MachineId
+                        MachineId = item.MachineId,
+                        Status = item.Status == 0 ? PickingLineStatus.Pending : item.Status
                     });
                 }
                 else
@@ -89,6 +99,7 @@ namespace CMetalsWS.Services
                     tgt.Length = item.Length;
                     tgt.Weight = item.Weight;
                     tgt.MachineId = item.MachineId;
+                    tgt.Status = item.Status;
                 }
             }
 
@@ -103,6 +114,57 @@ namespace CMetalsWS.Services
                 _db.PickingLists.Remove(entity);
                 await _db.SaveChangesAsync();
             }
+        }
+
+        // Update a single line’s status and optionally refresh the overall list status.
+        public async Task SetLineStatusAsync(int pickingListItemId, PickingLineStatus newStatus)
+        {
+            var item = await _db.PickingListItems
+                .Include(i => i.PickingList)
+                .FirstOrDefaultAsync(i => i.Id == pickingListItemId);
+
+            if (item == null) return;
+
+            item.Status = newStatus;
+            await _db.SaveChangesAsync();
+
+            // If all lines complete, set PickingList status to Completed
+            if (item.PickingList != null)
+            {
+                await UpdatePickingListStatusAsync(item.PickingListId);
+            }
+        }
+
+        // Recalculate PickingListStatus based on line statuses.
+        public async Task UpdatePickingListStatusAsync(int pickingListId)
+        {
+            var pl = await _db.PickingLists
+                .Include(p => p.Items)
+                .FirstOrDefaultAsync(p => p.Id == pickingListId);
+            if (pl == null) return;
+
+            if (pl.Items.All(i => i.Status == PickingLineStatus.Completed))
+            {
+                pl.Status = PickingListStatus.Completed;
+            }
+            else if (pl.Items.Any(i => i.Status == PickingLineStatus.InProgress))
+            {
+                pl.Status = PickingListStatus.InProgress;
+            }
+            else if (pl.Items.Any(i => i.Status == PickingLineStatus.WorkOrder))
+            {
+                pl.Status = PickingListStatus.Scheduled;
+            }
+            else if (pl.Items.Any(i => i.Status == PickingLineStatus.AssignedProduction || i.Status == PickingLineStatus.AssignedPulling))
+            {
+                pl.Status = PickingListStatus.Awaiting;
+            }
+            else
+            {
+                pl.Status = PickingListStatus.Pending;
+            }
+
+            await _db.SaveChangesAsync();
         }
     }
 }
