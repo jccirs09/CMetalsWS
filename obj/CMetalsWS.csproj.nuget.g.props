@@ -19,6 +19,7 @@
     <Import Project="$(NuGetPackageRoot)microsoft.codeanalysis.analyzers\3.3.4\buildTransitive\Microsoft.CodeAnalysis.Analyzers.props" Condition="Exists('$(NuGetPackageRoot)microsoft.codeanalysis.analyzers\3.3.4\buildTransitive\Microsoft.CodeAnalysis.Analyzers.props')" />
     <Import Project="$(NuGetPackageRoot)microsoft.entityframeworkcore.design\9.0.8\build\net8.0\Microsoft.EntityFrameworkCore.Design.props" Condition="Exists('$(NuGetPackageRoot)microsoft.entityframeworkcore.design\9.0.8\build\net8.0\Microsoft.EntityFrameworkCore.Design.props')" />
     <Import Project="$(NuGetPackageRoot)heron.mudcalendar\3.2.0\buildTransitive\Heron.MudCalendar.props" Condition="Exists('$(NuGetPackageRoot)heron.mudcalendar\3.2.0\buildTransitive\Heron.MudCalendar.props')" />
+    <Import Project="$(NuGetPackageRoot)heron.mudtotalcalendar\3.1.0\buildTransitive\Heron.MudTotalCalendar.props" Condition="Exists('$(NuGetPackageRoot)heron.mudtotalcalendar\3.1.0\buildTransitive\Heron.MudTotalCalendar.props')" />
     <Import Project="$(NuGetPackageRoot)extensions.mudblazor.staticinput\3.2.1\buildTransitive\Extensions.MudBlazor.StaticInput.props" Condition="Exists('$(NuGetPackageRoot)extensions.mudblazor.staticinput\3.2.1\buildTransitive\Extensions.MudBlazor.StaticInput.props')" />
   </ImportGroup>
   <PropertyGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">

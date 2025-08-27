@@ -477,6 +477,26 @@
           "buildMultiTargeting/Heron.MudCalendar.props": {}
         }
       },
+      "Heron.MudTotalCalendar/3.1.0": {
+        "type": "package",
+        "dependencies": {
+          "Heron.MudCalendar": "3.2.0",
+          "Microsoft.AspNetCore.Components.Web": "9.0.1",
+          "MudBlazor": "8.0.0"
+        },
+        "compile": {
+          "lib/net9.0/Heron.MudTotalCalendar.dll": {}
+        },
+        "runtime": {
+          "lib/net9.0/Heron.MudTotalCalendar.dll": {}
+        },
+        "build": {
+          "buildTransitive/Heron.MudTotalCalendar.props": {}
+        },
+        "buildMultiTargeting": {
+          "buildMultiTargeting/Heron.MudTotalCalendar.props": {}
+        }
+      },
       "Humanizer.Core/2.14.1": {
         "type": "package",
         "compile": {
@@ -3144,6 +3164,27 @@
         "lib/net9.0/zh/Heron.MudCalendar.resources.dll",
         "staticwebassets/Heron.MudCalendar.min.css",
         "staticwebassets/Heron.MudCalendar.min.js"
+      ]
+    },
+    "Heron.MudTotalCalendar/3.1.0": {
+      "sha512": "oyeBthhdYzDKQa1oxcv7KM8GxVs3TLCgt/XvE2UwT67cFr7ZdpPzv9v6zgKEDoPilmeNPEzH1BB3Z0TsyK5a8g==",
+      "type": "package",
+      "path": "heron.mudtotalcalendar/3.1.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE",
+        "README.md",
+        "build/Heron.MudTotalCalendar.props",
+        "build/Microsoft.AspNetCore.StaticWebAssetEndpoints.props",
+        "build/Microsoft.AspNetCore.StaticWebAssets.props",
+        "buildMultiTargeting/Heron.MudTotalCalendar.props",
+        "buildTransitive/Heron.MudTotalCalendar.props",
+        "heron.mudtotalcalendar.3.1.0.nupkg.sha512",
+        "heron.mudtotalcalendar.nuspec",
+        "lib/net8.0/Heron.MudTotalCalendar.dll",
+        "lib/net9.0/Heron.MudTotalCalendar.dll",
+        "staticwebassets/Heron.MudTotalCalendar.min.css"
       ]
     },
     "Humanizer.Core/2.14.1": {
@@ -6865,6 +6906,7 @@
       "Extensions.MudBlazor.StaticInput >= 3.*",
       "Google.Maps.RouteOptimization.V1 >= 1.2.0",
       "Heron.MudCalendar >= 3.2.0",
+      "Heron.MudTotalCalendar >= 3.1.0",
       "Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore >= 9.*",
       "Microsoft.AspNetCore.Identity.EntityFrameworkCore >= 9.*",
       "Microsoft.AspNetCore.SignalR.Client >= 9.0.8",
@@ -6940,6 +6982,10 @@
           "Heron.MudCalendar": {
             "target": "Package",
             "version": "[3.2.0, )"
+          },
+          "Heron.MudTotalCalendar": {
+            "target": "Package",
+            "version": "[3.1.0, )"
           },
           "Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore": {
             "target": "Package",

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "HiwykAdpp6I=",
+  "dgSpecHash": "u6qn0ZheGEM=",
   "success": true,
   "projectFilePath": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\CMetalsWS.csproj",
   "expectedPackageFiles": [
@@ -26,6 +26,7 @@
     "C:\\Users\\jccir\\.nuget\\packages\\grpc.net.client\\2.66.0\\grpc.net.client.2.66.0.nupkg.sha512",
     "C:\\Users\\jccir\\.nuget\\packages\\grpc.net.common\\2.66.0\\grpc.net.common.2.66.0.nupkg.sha512",
     "C:\\Users\\jccir\\.nuget\\packages\\heron.mudcalendar\\3.2.0\\heron.mudcalendar.3.2.0.nupkg.sha512",
+    "C:\\Users\\jccir\\.nuget\\packages\\heron.mudtotalcalendar\\3.1.0\\heron.mudtotalcalendar.3.1.0.nupkg.sha512",
     "C:\\Users\\jccir\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\jccir\\.nuget\\packages\\microsoft.aspnetcore.authorization\\9.0.7\\microsoft.aspnetcore.authorization.9.0.7.nupkg.sha512",
     "C:\\Users\\jccir\\.nuget\\packages\\microsoft.aspnetcore.components\\9.0.7\\microsoft.aspnetcore.components.9.0.7.nupkg.sha512",
