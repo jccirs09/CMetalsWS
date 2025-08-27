@@ -1,0 +1,99 @@
+﻿@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using MudBlazor
+@inject TruckService TruckService
+@inject WorkOrderService WorkOrderService
+
+<MudDialog Title="Load">
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudStack Spacing="3">
+                <MudTextField Label="Load Number" Value="@Model.LoadNumber" Disabled="true" />
+
+                <MudDatePicker Label="Scheduled Date" @bind-Date="Model.ScheduledDate" Required="true" />
+
+                <MudSelect T="int" Label="Truck" @bind-Value="Model.TruckId" Required="true">
+                    @foreach (var t in _trucks)
+                    {
+                        <MudSelectItem Value="t.Id">@t.Name</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSelect T="LoadStatus" Label="Status" @bind-Value="Model.Status">
+                    @foreach (var st in Enum.GetValues<LoadStatus>())
+                    {
+                        <MudSelectItem Value="st">@st</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudDivider />
+                <MudText Typo="Typo.h6">Load Items</MudText>
+                <MudTable Items="Model.Items" Hover="true" Dense="true">
+                    <HeaderContent>
+                        <MudTh>Work Order</MudTh>
+                        <MudTh>Weight</MudTh>
+                        <MudTh>Destination</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>
+                            <MudSelect T="int" @bind-Value="context.WorkOrderId">
+                                @foreach (var wo in _workOrders)
+                                {
+                                    <MudSelectItem Value="wo.Id">@wo.WorkOrderNumber</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudTd>
+                        <MudTd><MudTextField T="decimal" @bind-Value="context.Weight" /></MudTd>
+                        <MudTd><MudTextField T="string" @bind-Value="context.Destination" /></MudTd>
+                    </RowTemplate>
+                </MudTable>
+                <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1">
+                    <MudButton Variant="Variant.Text" OnClick="AddItem">Add Load Item</MudButton>
+                </MudStack>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" OnClick="Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public Load Model { get; set; } = new();
+    [Parameter] public bool IsEdit { get; set; }
+
+    private MudForm? _form;
+    private List<Truck> _trucks = new();
+    private List<WorkOrder> _workOrders = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _trucks = await TruckService.GetTrucksAsync();
+        _workOrders = await WorkOrderService.GetAsync(null);
+    }
+
+    private void AddItem()
+    {
+        Model.Items.Add(new LoadItem
+        {
+            WorkOrderId = 0,
+            Weight = 0,
+            Destination = string.Empty
+        });
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        if (_form is not null)
+        {
+            await _form.Validate();
+            if (!_form.IsValid) return;
+        }
+        MudDialog.Close(DialogResult.Ok(Model));
+    }
+}

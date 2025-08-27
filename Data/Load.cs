@@ -1,12 +1,15 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.Collections.Generic;
+
 namespace CMetalsWS.Data
 {
     public enum LoadStatus
     {
         Pending,
-        InProgress,
-        Completed,
-        Cancelled
+        Scheduled,
+        InTransit,
+        Delivered,
+        Canceled
     }
 
     public class Load
@@ -33,6 +36,3 @@ namespace CMetalsWS.Data
         public string Destination { get; set; } = default!;
     }
 }
-
-
-        

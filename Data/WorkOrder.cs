@@ -10,8 +10,7 @@ namespace CMetalsWS.Data
         Pending,
         InProgress,
         Completed,
-        Canceled,
-        Awaiting
+        Canceled
     }
 
     public class WorkOrder
@@ -52,7 +51,6 @@ namespace CMetalsWS.Data
     public class WorkOrderItem
     {
         public int Id { get; set; }
-
         public int WorkOrderId { get; set; }
         public WorkOrder? WorkOrder { get; set; }
 
@@ -71,15 +69,12 @@ namespace CMetalsWS.Data
         [MaxLength(128)]
         public string? CustomerName { get; set; }
 
-        // quantity for CTL, weight for Slitter
         public decimal? OrderQuantity { get; set; }
         public decimal? OrderWeight { get; set; }
-
         public decimal? Width { get; set; }
         public decimal? Length { get; set; }
         public decimal? Weight { get; set; }
 
-        // produced quantity for CTL, produced weight for Slitter
         public decimal? ProducedQuantity { get; set; }
         public decimal? ProducedWeight { get; set; }
 

@@ -1,0 +1,54 @@
+﻿@page "/routes"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@inject LoadService LoadService
+@inject RouteService RouteService
+
+<MudPaper Class="pa-4">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h5">Truck Routes</MudText>
+
+        <MudSelect T="int" Label="Load" @bind-Value="selectedLoadId" ValueChanged="OnLoadChanged">
+            @foreach (var load in Loads)
+            {
+                <MudSelectItem Value="load.Id">@load.LoadNumber - @load.Truck?.Name</MudSelectItem>
+            }
+        </MudSelect>
+
+        @if (CurrentRoute != null)
+        {
+            <MudTable Items="CurrentRoute" Dense="true" Hover="true">
+                <HeaderContent>
+                    <MudTh>Stop</MudTh>
+                    <MudTh>Destination</MudTh>
+                    <MudTh>Work Order</MudTh>
+                    <MudTh>Weight</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.StopNumber</MudTd>
+                    <MudTd>@context.Destination</MudTd>
+                    <MudTd>@context.WorkOrderNumber</MudTd>
+                    <MudTd>@context.Weight</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    private List<Load> Loads = new();
+    private int selectedLoadId;
+    private IEnumerable<RouteStopDto>? CurrentRoute;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Loads = await LoadService.GetLoadsAsync(null);
+    }
+
+    private void OnLoadChanged(int id)
+    {
+        selectedLoadId = id;
+        var load = Loads.FirstOrDefault(l => l.Id == id);
+        CurrentRoute = load is null ? null : RouteService.BuildRouteForLoad(load);
+    }
+}

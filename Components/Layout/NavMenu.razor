@@ -56,9 +56,11 @@
     @if (canWorkOrders)
     {
         <MudNavGroup Text="Schedule" Icon="@Icons.Material.Filled.EventNote" Title="Scheduling">
+            <MudNavLink Href="/salesorders" Icon="@Icons.Material.Filled.ListAlt">Sales Orders</MudNavLink>
             <MudNavLink Href="/schedule/ctl" Icon="@Icons.Material.Filled.CalendarToday">CTL</MudNavLink>
             <MudNavLink Href="/schedule/slitter" Icon="@Icons.Material.Filled.CalendarViewDay">Slitter</MudNavLink>
-            <MudNavLink Href="/schedule/logistics" Icon="@Icons.Material.Filled.LocalShipping">Logistics</MudNavLink>
+            <MudNavLink Href="/schedule/loads" Icon="@Icons.Material.Filled.LocalShipping">Loads</MudNavLink>
+            <MudNavLink Href="/routes" Icon="@Icons.Material.Filled.Route">Routes</MudNavLink>
         </MudNavGroup>
     }
 

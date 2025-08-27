@@ -1,18 +1,31 @@
-﻿using CMetalsWS.Data;
+﻿using System.Collections.Generic;
+using System.Linq;
+using CMetalsWS.Data;
 
-public class RouteService
+namespace CMetalsWS.Services
 {
-    public IEnumerable<RouteStopDto> BuildRouteForLoad(Load load)
+    public class RouteStopDto
     {
-        // Sort load items by destination (this is simplistic; integrate real geo API as needed)
-        return load.Items
-            .OrderBy(i => i.Destination)
-            .Select((item, index) => new RouteStopDto
-            {
-                StopNumber = index + 1,
-                Destination = item.Destination,
-                WorkOrderNumber = item.WorkOrder?.WorkOrderNumber ?? "",
-                Weight = item.Weight
-            });
+        public int StopNumber { get; set; }
+        public string Destination { get; set; } = default!;
+        public string WorkOrderNumber { get; set; } = default!;
+        public decimal Weight { get; set; }
+    }
+
+    public class RouteService
+    {
+        // Very basic route ordering; replace with actual geo distance logic later.
+        public IEnumerable<RouteStopDto> BuildRouteForLoad(Load load)
+        {
+            return load.Items
+                .OrderBy(i => i.Destination)
+                .Select((item, index) => new RouteStopDto
+                {
+                    StopNumber = index + 1,
+                    Destination = item.Destination,
+                    WorkOrderNumber = item.WorkOrder?.WorkOrderNumber ?? "",
+                    Weight = item.Weight
+                });
+        }
     }
 }

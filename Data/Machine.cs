@@ -4,13 +4,6 @@ using System.ComponentModel.DataAnnotations;
 namespace CMetalsWS.Data
 
 {
-    public enum MachineCategory
-    {
-        Slitter,
-        CTL,
-        Sheet,
-        Coil
-    }
     public class Machine
     {
         public int Id { get; set; }

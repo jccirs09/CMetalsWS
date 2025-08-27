@@ -21,6 +21,9 @@ namespace CMetalsWS.Data
         public DbSet<WorkOrderItem> WorkOrderItems => Set<WorkOrderItem>();
         public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
         public DbSet<ItemRelationship> ItemRelationships => Set<ItemRelationship>();
+        public DbSet<SalesOrder> SalesOrders { get; set; } = default!;
+        public DbSet<SalesOrderItem> SalesOrderItems { get; set; } = default!;
+        public DbSet<LoadItem> LoadItems { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -65,6 +68,20 @@ namespace CMetalsWS.Data
                 .WithMany()
                 .HasForeignKey(p => p.TruckId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // Sales order relationships
+            modelBuilder.Entity<SalesOrder>()
+                .HasMany(o => o.Items)
+                .WithOne(i => i.SalesOrder)
+                .HasForeignKey(i => i.SalesOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Load relationships
+            modelBuilder.Entity<Load>()
+                .HasMany(l => l.Items)
+                .WithOne(i => i.Load)
+                .HasForeignKey(i => i.LoadId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Date types
             modelBuilder.Entity<PickingList>()
@@ -127,10 +144,7 @@ namespace CMetalsWS.Data
             modelBuilder.Entity<InventoryItem>().Property(p => p.Width).HasPrecision(18, 3);
             modelBuilder.Entity<InventoryItem>().Property(p => p.Length).HasPrecision(18, 3);
             modelBuilder.Entity<InventoryItem>().Property(p => p.Weight).HasPrecision(18, 3);
-
-            // WorkOrder numeric precision
-            modelBuilder.Entity<WorkOrderItem>()
-                .Property(w => w.Quantity).HasPrecision(18, 3);
+            
         }
     }
 }

@@ -259,6 +259,18 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXEl0ZW1SZWxhdGlvbnMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Operations/Loads/LoadDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXExvYWRzXExvYWREaWFsb2cucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Operations/Loads/LoadSchedule.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXExvYWRzXExvYWRTY2hlZHVsZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Operations/Loads/TruckRoutes.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXExvYWRzXFRydWNrUm91dGVzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Operations/Pickinglist/PickingListDialog.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXFBpY2tpbmdsaXN0XFBpY2tpbmdMaXN0RGlhbG9nLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
@@ -269,6 +281,14 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Operations/Pickinglist/PickingLists.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXFBpY2tpbmdsaXN0XFBpY2tpbmdMaXN0cy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Operations/SalesOrder/SalesOrderDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXFNhbGVzT3JkZXJcU2FsZXNPcmRlckRpYWxvZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Operations/SalesOrder/SalesOrders.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXFNhbGVzT3JkZXJcU2FsZXNPcmRlcnMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Operations/WorkOrder/WorkOrderDialog.razor]
@@ -283,20 +303,12 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTY2hlZHVsZVxDdGxTY2hlZHVsZS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Schedule/LoadSchedule.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTY2hlZHVsZVxMb2FkU2NoZWR1bGUucmF6b3I=
-build_metadata.AdditionalFiles.CssScope = 
-
 [C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Schedule/LogisticsSchedule.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTY2hlZHVsZVxMb2dpc3RpY3NTY2hlZHVsZS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Schedule/SlitterSchedule.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTY2hlZHVsZVxTbGl0dGVyU2NoZWR1bGUucmF6b3I=
-build_metadata.AdditionalFiles.CssScope = 
-
-[C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Schedule/TruckRoutes.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTY2hlZHVsZVxUcnVja1JvdXRlcy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Weather.razor]

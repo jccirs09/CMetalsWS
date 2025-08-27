@@ -1,0 +1,131 @@
+﻿@page "/salesorders"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@inject SalesOrderService SalesOrderService
+@inject BranchService BranchService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+
+<MudPaper Class="pa-4">
+    <MudStack Row="true" AlignItems="center" Spacing="2">
+        <MudText Typo="Typo.h5">Sales Orders</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Add">New Order</MudButton>
+    </MudStack>
+
+    <MudTable Items="_orders" Hover="true" Dense="true" Class="mt-4">
+        <HeaderContent>
+            <MudTh>Order #</MudTh>
+            <MudTh>Branch</MudTh>
+            <MudTh>Created</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.OrderNumber</MudTd>
+            <MudTd>@context.Branch?.Name</MudTd>
+            <MudTd>@context.CreatedDate.ToString("yyyy-MM-dd")</MudTd>
+            <MudTd>@context.Status</MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Text" OnClick="@(() => View(context))">View</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<SalesOrder> _orders = new();
+    private bool _isAdmin;
+    private int? _branchId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAdmin = user.IsInRole("Admin");
+        var appUser = await UserManager.GetUserAsync(user);
+        _branchId = appUser?.BranchId;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _orders = await SalesOrderService.GetAsync(_isAdmin ? null : _branchId);
+    }
+
+    private async Task Add()
+    {
+        var branches = await BranchService.GetBranchesAsync();
+        if (!_isAdmin && _branchId.HasValue)
+            branches = branches.Where(b => b.Id == _branchId.Value).ToList();
+
+        var model = new SalesOrder
+        {
+            BranchId = _branchId ?? 0,
+            CreatedDate = DateTime.UtcNow,
+            Status = SalesOrderStatus.New
+        };
+
+        var parameters = new DialogParameters
+        {
+            ["Model"] = model,
+            ["Branches"] = branches,
+            ["IsEdit"] = false,
+            ["Title"] = "New Sales Order"
+        };
+
+        var result = await DialogService.Show<SalesOrderDialog>("New Sales Order", parameters, new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true }).Result;
+        if (!result.Canceled && result.Data is SalesOrder saved)
+        {
+            await SalesOrderService.CreateAsync(saved);
+            Snackbar.Add("Sales order created.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task View(SalesOrder order)
+    {
+        var branches = await BranchService.GetBranchesAsync();
+        if (!_isAdmin && _branchId.HasValue)
+            branches = branches.Where(b => b.Id == _branchId.Value).ToList();
+
+        var clone = new SalesOrder
+        {
+            Id = order.Id,
+            OrderNumber = order.OrderNumber,
+            BranchId = order.BranchId,
+            CreatedDate = order.CreatedDate,
+            Status = order.Status,
+            Items = order.Items.Select(i => new SalesOrderItem
+            {
+                Id = i.Id,
+                SalesOrderId = order.Id,
+                ItemId = i.ItemId,
+                ItemType = i.ItemType,
+                Quantity = i.Quantity,
+                Width = i.Width,
+                Length = i.Length,
+                Weight = i.Weight,
+                InStock = i.InStock
+            }).ToList()
+        };
+
+        var parameters = new DialogParameters
+        {
+            ["Model"] = clone,
+            ["Branches"] = branches,
+            ["IsEdit"] = true,
+            ["Title"] = "Sales Order Details"
+        };
+
+        var result = await DialogService.Show<SalesOrderDialog>("Sales Order Details", parameters, new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true }).Result;
+        if (!result.Canceled && result.Data is SalesOrder updated)
+        {
+            await SalesOrderService.UpdateAsync(updated);
+            Snackbar.Add("Sales order updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+}

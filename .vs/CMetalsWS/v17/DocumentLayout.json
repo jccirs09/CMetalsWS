@@ -3,52 +3,36 @@
   "WorkspaceRootPath": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\schedule\\truckroutes.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\schedule\\truckroutes.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\operations\\loads\\loaddialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\loads\\loaddialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\operations\\salesorder\\salesorderdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\salesorder\\salesorderdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\operations\\loads\\truckroutes.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\loads\\truckroutes.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\operations\\loads\\loadschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\loads\\loadschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\schedule\\slitterschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\schedule\\slitterschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\schedule\\logisticsschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\schedule\\logisticsschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\schedule\\ctlschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\schedule\\ctlschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\services\\dashboardservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\dashboardservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\data\\workorder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\workorder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\services\\truckservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\truckservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\schedule\\loadschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\schedule\\loadschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\data\\routestopdtp.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\routestopdtp.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\services\\routeservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\routeservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\data\\applicationdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\applicationdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\data\\load.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\load.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\services\\loadservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\loadservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\data\\machine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\machine.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\_imports.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\_imports.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     }
   ],
   "DocumentGroupContainers": [
@@ -58,162 +42,109 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 4,
+          "SelectedChildIndex": 7,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "CtlSchedule.razor",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\CtlSchedule.razor",
-              "RelativeDocumentMoniker": "Components\\Pages\\Schedule\\CtlSchedule.razor",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\CtlSchedule.razor",
-              "RelativeToolTip": "Components\\Pages\\Schedule\\CtlSchedule.razor",
-              "ViewState": "AgIAAB0AAAAAAAAAAAAAADwAAAAMAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-27T01:31:49.999Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
               "DocumentIndex": 2,
-              "Title": "DashboardService.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\DashboardService.cs",
-              "RelativeDocumentMoniker": "Services\\DashboardService.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\DashboardService.cs",
-              "RelativeToolTip": "Services\\DashboardService.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAACUAAAAlAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-27T01:29:53.215Z",
+              "Title": "TruckRoutes.razor",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Loads\\TruckRoutes.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\Loads\\TruckRoutes.razor",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Loads\\TruckRoutes.razor",
+              "RelativeToolTip": "Components\\Pages\\Operations\\Loads\\TruckRoutes.razor",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAA/AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-27T02:39:54.877Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 4,
-              "Title": "TruckService.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\TruckService.cs",
-              "RelativeDocumentMoniker": "Services\\TruckService.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\TruckService.cs",
-              "RelativeToolTip": "Services\\TruckService.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAADkAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-27T01:29:10.491Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "WorkOrder.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\WorkOrder.cs",
-              "RelativeDocumentMoniker": "Data\\WorkOrder.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\WorkOrder.cs",
-              "RelativeToolTip": "Data\\WorkOrder.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAqwA0AAAAQAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-27T01:28:55.128Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "TruckRoutes.razor",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\TruckRoutes.razor",
-              "RelativeDocumentMoniker": "Components\\Pages\\Schedule\\TruckRoutes.razor",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\TruckRoutes.razor",
-              "RelativeToolTip": "Components\\Pages\\Schedule\\TruckRoutes.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAhAAAAAAAAAA==",
+              "Title": "SlitterSchedule.razor",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\SlitterSchedule.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Schedule\\SlitterSchedule.razor",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\SlitterSchedule.razor",
+              "RelativeToolTip": "Components\\Pages\\Schedule\\SlitterSchedule.razor",
+              "ViewState": "AgIAAAEAAAAAAAAAAAAewBoAAAAlAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-27T01:28:11.479Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "RouteStopDtp.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\RouteStopDtp.cs",
-              "RelativeDocumentMoniker": "Data\\RouteStopDtp.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\RouteStopDtp.cs",
-              "RelativeToolTip": "Data\\RouteStopDtp.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAArAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-27T01:26:40.454Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 7,
-              "Title": "RouteService.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\RouteService.cs",
-              "RelativeDocumentMoniker": "Services\\RouteService.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\RouteService.cs",
-              "RelativeToolTip": "Services\\RouteService.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABEAAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-27T01:25:56.751Z",
+              "WhenOpened": "2025-08-27T02:29:13.695Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 5,
-              "Title": "LoadSchedule.razor",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\LoadSchedule.razor",
-              "RelativeDocumentMoniker": "Components\\Pages\\Schedule\\LoadSchedule.razor",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\LoadSchedule.razor",
-              "RelativeToolTip": "Components\\Pages\\Schedule\\LoadSchedule.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Title": "LogisticsSchedule.razor",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\LogisticsSchedule.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Schedule\\LogisticsSchedule.razor",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\LogisticsSchedule.razor",
+              "RelativeToolTip": "Components\\Pages\\Schedule\\LogisticsSchedule.razor",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAABPAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-27T01:25:20.337Z",
+              "WhenOpened": "2025-08-27T02:29:08.145Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
-              "Title": "ApplicationDbContext.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\ApplicationDbContext.cs",
-              "RelativeDocumentMoniker": "Data\\ApplicationDbContext.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\ApplicationDbContext.cs",
-              "RelativeToolTip": "Data\\ApplicationDbContext.cs",
-              "ViewState": "AgIAAAkAAAAAAAAAAAAAAB0AAAAqAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-27T01:10:27.751Z",
+              "DocumentIndex": 6,
+              "Title": "CtlSchedule.razor",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\CtlSchedule.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Schedule\\CtlSchedule.razor",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\CtlSchedule.razor",
+              "RelativeToolTip": "Components\\Pages\\Schedule\\CtlSchedule.razor",
+              "ViewState": "AgIAAAIAAAAAAAAAAAAewBoAAAAaAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-27T02:21:52.062Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
-              "Title": "LoadService.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\LoadService.cs",
-              "RelativeDocumentMoniker": "Services\\LoadService.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\LoadService.cs",
-              "RelativeToolTip": "Services\\LoadService.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAApAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-27T01:10:08.227Z",
+              "DocumentIndex": 7,
+              "Title": "_Imports.razor",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\_Imports.razor",
+              "RelativeDocumentMoniker": "Components\\_Imports.razor",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\_Imports.razor",
+              "RelativeToolTip": "Components\\_Imports.razor",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAAjAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-27T02:21:36.636Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "LoadSchedule.razor",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Loads\\LoadSchedule.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\Loads\\LoadSchedule.razor",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Loads\\LoadSchedule.razor",
+              "RelativeToolTip": "Components\\Pages\\Operations\\Loads\\LoadSchedule.razor",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAAoAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-27T02:21:20.534Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
-              "Title": "Machine.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\Machine.cs",
-              "RelativeDocumentMoniker": "Data\\Machine.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\Machine.cs",
-              "RelativeToolTip": "Data\\Machine.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAMAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-27T01:06:46.105Z",
+              "DocumentIndex": 1,
+              "Title": "SalesOrderDialog.razor",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\SalesOrder\\SalesOrderDialog.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\SalesOrder\\SalesOrderDialog.razor",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\SalesOrder\\SalesOrderDialog.razor",
+              "RelativeToolTip": "Components\\Pages\\Operations\\SalesOrder\\SalesOrderDialog.razor",
+              "ViewState": "AgIAABIAAAAAAAAAAAAAACgAAAA2AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-27T02:21:00.197Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
-              "Title": "Load.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\Load.cs",
-              "RelativeDocumentMoniker": "Data\\Load.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\Load.cs",
-              "RelativeToolTip": "Data\\Load.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABwAAAAnAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-27T01:06:11.085Z",
+              "DocumentIndex": 0,
+              "Title": "LoadDialog.razor",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Loads\\LoadDialog.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\Loads\\LoadDialog.razor",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\Loads\\LoadDialog.razor",
+              "RelativeToolTip": "Components\\Pages\\Operations\\Loads\\LoadDialog.razor",
+              "ViewState": "AgIAAB4AAAAAAAAAAAAAABUAAABUAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-08-27T02:20:54.637Z",
               "EditorCaption": ""
             }
           ]
