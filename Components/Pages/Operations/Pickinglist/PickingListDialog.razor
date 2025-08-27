@@ -2,293 +2,331 @@
 @using MudBlazor
 
 @inject IDialogService DialogService
+@inject CustomerService CustomerService
 
-<MudDialog>
-    <TitleContent>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-            <MudIcon Icon="@Icons.Material.Filled.Inventory2" />
-            <MudText Typo="Typo.h6">@Title</MudText>
-        </MudStack>
-    </TitleContent>
+<MudDialog> <TitleContent> <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1"> <MudIcon Icon="@Icons.Material.Filled.Inventory2" /> <MudText Typo="Typo.h6">@Title</MudText> </MudStack> </TitleContent>
+<DialogContent>
+    <MudPaper Class="pa-4" Elevation="0">
+        <MudForm Model="@Model" @ref="form">
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="4">
+                    <MudTextField @bind-Value="Model.SalesOrderNumber" Label="Sales Order Number" Required="true" />
+                </MudItem>
 
-    <DialogContent>
-        <MudPaper Class="pa-4" Elevation="0">
-            <MudForm Model="@Model" @ref="form">
-                <MudGrid Spacing="2">
-                    <MudItem xs="12" sm="4">
-                        <MudTextField @bind-Value="Model.SalesOrderNumber" Label="Sales Order Number" Required="true" />
-                    </MudItem>
-
-                    <MudItem xs="12" sm="4">
-                        @if (LockBranch)
-                        {
-                            <MudTextField Value="@(CurrentBranch?.Name ?? "My Branch")"
-                                          Label="Branch"
-                                          ReadOnly="true"
-                                          Disabled="true" />
-                        }
-                        else
-                        {
-                            <MudSelect T="int" Label="Branch" @bind-Value="Model.BranchId" Required="true">
-                                @foreach (var b in Branches)
-                                {
-                                    <MudSelectItem T="int" Value="b.Id">@b.Name</MudSelectItem>
-                                }
-                            </MudSelect>
-                        }
-                    </MudItem>
-
-                    <MudItem xs="12" sm="4">
-                        <MudTextField @bind-Value="Model.CustomerName" Label="Customer Name" />
-                    </MudItem>
-
-                    <MudItem xs="12" sm="6">
-                        <MudTextField @bind-Value="Model.ShipToAddress" Label="Ship To Address" Lines="2" />
-                    </MudItem>
-
-                    <MudItem xs="12" sm="3">
-                        <MudTextField @bind-Value="Model.ShippingMethod" Label="Shipping Method" />
-                    </MudItem>
-
-                    <MudItem xs="12" sm="3">
-                        <MudSelect T="int?" Label="Truck" @bind-Value="Model.TruckId" Clearable="true">
-                            <MudSelectItem T="int?" Value="@((int?)null)" Disabled="true">Unassigned</MudSelectItem>
-                            @foreach (var t in Trucks)
+                <MudItem xs="12" sm="4">
+                    @if (LockBranch)
+                    {
+                        <MudTextField Value="@(CurrentBranch?.Name ?? "My Branch")"
+                                      Label="Branch"
+                                      ReadOnly="true"
+                                      Disabled="true" />
+                    }
+                    else
+                    {
+                        <MudSelect T="int" Label="Branch" @bind-Value="Model.BranchId" Required="true">
+                            @foreach (var b in Branches)
                             {
-                                <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Name</MudSelectItem>
+                                <MudSelectItem T="int" Value="b.Id">@b.Name</MudSelectItem>
                             }
                         </MudSelect>
-                    </MudItem>
+                    }
+                </MudItem>
 
-                    <MudItem xs="12" sm="3">
-                        <MudDatePicker @bind-Date="OrderDateValue" Label="Order Date" Required="true" />
-                    </MudItem>
+                <MudItem xs="12" sm="8">
+                    <MudAutocomplete T="Customer"
+                                     Label="Customer"
+                                     ResetValueOnEmptyText="true"
+                                     ToStringFunc="c => c is null ? string.Empty : $"{c.CustomerCode} - {c.CustomerName}""
+                                     @bind-Value="_selectedCustomer"
+                                     SearchFunc="SearchCustomers"
+                                     Clearable="true"
+                                     Dense="true"
+                                     CoerceText="true"
+                                     CoerceValue="true"
+                                     ValueChanged="OnCustomerChanged" />
+                </MudItem>
 
-                    <MudItem xs="12" sm="3">
-                        <MudDatePicker @bind-Date="ShipDateValue" Label="Ship Date" />
-                    </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Model.CustomerName" Label="Customer Name" />
+                </MudItem>
 
-                    <MudItem xs="12" sm="3">
-                        <MudSelect T="PickingListStatus" Label="Status" @bind-Value="Model.Status">
-                            @foreach (var s in Enum.GetValues<PickingListStatus>())
-                            {
-                                <MudSelectItem T="PickingListStatus" Value="s">@s</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudItem>
-                </MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Model.ShipToAddress" Label="Ship To Address" Lines="2" />
+                </MudItem>
 
-                <MudDivider Class="my-4" />
+                <MudItem xs="12" sm="3">
+                    <MudTextField @bind-Value="Model.ShippingMethod" Label="Shipping Method" />
+                </MudItem>
 
-                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
-                    <MudText Typo="Typo.subtitle1">Line Items</MudText>
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                        <MudText Typo="Typo.subtitle2">Total Weight:</MudText>
-                        <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled">
-                            @TotalWeight.ToString("N3")
-                        </MudChip>
-                        <MudButton Variant="Variant.Outlined"
-                                   StartIcon="@Icons.Material.Filled.Add"
-                                   Disabled="@(!CanAddOrEdit)"
-                                   OnClick="AddItem">
-                            Add Line
-                        </MudButton>
-                    </MudStack>
-                </MudStack>
-
-                <MudTable Items="Model.Items.OrderBy(i => i.LineNumber).ToList()" Hover="true" Dense="true">
-                    <HeaderContent>
-                        <MudTh>Line</MudTh>
-                        <MudTh>Item ID</MudTh>
-                        <MudTh>Description</MudTh>
-                        <MudTh class="text-right">Qty</MudTh>
-                        <MudTh>Unit</MudTh>
-                        <MudTh class="text-right">Width</MudTh>
-                        <MudTh class="text-right">Length</MudTh>
-                        <MudTh class="text-right">Weight</MudTh>
-                        <MudTh>Status</MudTh>
-                        <MudTh>Machine</MudTh>
-                        @if (CanAddOrEdit)
+                <MudItem xs="12" sm="3">
+                    <MudSelect T="int?" Label="Truck" @bind-Value="Model.TruckId" Clearable="true">
+                        <MudSelectItem T="int?" Value="@((int?)null)" Disabled="true">Unassigned</MudSelectItem>
+                        @foreach (var t in Trucks)
                         {
-                            <MudTh>Actions</MudTh>
+                            <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Name</MudSelectItem>
                         }
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Line">@context.LineNumber</MudTd>
-                        <MudTd DataLabel="Item ID">@context.ItemId</MudTd>
-                        <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
-                        <MudTd DataLabel="Qty" Class="text-right">@context.Quantity.ToString("N3")</MudTd>
-                        <MudTd DataLabel="Unit">@context.Unit</MudTd>
-                        <MudTd DataLabel="Width" Class="text-right">@context.Width?.ToString("N3")</MudTd>
-                        <MudTd DataLabel="Length" Class="text-right">@context.Length?.ToString("N3")</MudTd>
-                        <MudTd DataLabel="Weight" Class="text-right">@context.Weight?.ToString("N3")</MudTd>
-                        <MudTd DataLabel="Status">@context.Status</MudTd>
-                        <MudTd DataLabel="Machine">@Machines.FirstOrDefault(m => m.Id == context.MachineId)?.Name</MudTd>
-                        @if (CanAddOrEdit)
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="3">
+                    <MudDatePicker @bind-Date="OrderDateValue" Label="Order Date" Required="true" />
+                </MudItem>
+
+                <MudItem xs="12" sm="3">
+                    <MudDatePicker @bind-Date="ShipDateValue" Label="Ship Date" />
+                </MudItem>
+
+                <MudItem xs="12" sm="3">
+                    <MudSelect T="PickingListStatus" Label="Status" @bind-Value="Model.Status">
+                        @foreach (var s in Enum.GetValues<PickingListStatus>())
                         {
-                            <MudTd DataLabel="Actions">
-                                <MudIconButton Color="Color.Info"
-                                               Icon="@Icons.Material.Filled.Edit"
-                                               OnClick="@(async () => await EditItem(context))" />
-                                <MudIconButton Color="Color.Error"
-                                               Icon="@Icons.Material.Filled.Delete"
-                                               OnClick="@(() => RemoveItem(context))" />
-                            </MudTd>
+                            <MudSelectItem T="PickingListStatus" Value="s">@s</MudSelectItem>
                         }
-                    </RowTemplate>
-                </MudTable>
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
 
-                <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Class="mt-2">
-                    <MudText Typo="Typo.subtitle2" Class="mr-2">Total Weight:</MudText>
-                    <MudText Typo="Typo.subtitle2" Class="font-weight-bold">@TotalWeight.ToString("N3")</MudText>
+            <MudDivider Class="my-4" />
+
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                <MudText Typo="Typo.subtitle1">Line Items</MudText>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudText Typo="Typo.subtitle2">Total Weight:</MudText>
+                    <MudChip>@TotalWeight.ToString("N3")</MudChip>
+                    <MudButton Variant="Variant.Outlined"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               Disabled="@(!CanAddOrEdit)"
+                               OnClick="AddItem">
+                        Add Line
+                    </MudButton>
                 </MudStack>
-            </MudForm>
-        </MudPaper>
-    </DialogContent>
+            </MudStack>
 
-    <DialogActions>
-        <MudSpacer />
-        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Save</MudButton>
-    </DialogActions>
+            <MudTable Items="Model.Items.OrderBy(i => i.LineNumber).ToList()" Hover="true" Dense="true">
+                <HeaderContent>
+                    <MudTh>Line</MudTh>
+                    <MudTh>Item</MudTh>
+                    <MudTh>Description</MudTh>
+                    <MudTh class="text-right">Qty</MudTh>
+                    <MudTh>Unit</MudTh>
+                    <MudTh class="text-right">Width</MudTh>
+                    <MudTh class="text-right">Length</MudTh>
+                    <MudTh class="text-right">Weight</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Machine</MudTh>
+                    @if (CanAddOrEdit)
+                    {
+                        <MudTh>Actions</MudTh>
+                    }
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Line">@context.LineNumber</MudTd>
+                    <MudTd DataLabel="Item">@context.ItemId</MudTd>
+                    <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
+                    <MudTd DataLabel="Qty" Class="text-right">@context.Quantity.ToString("N3")</MudTd>
+                    <MudTd DataLabel="Unit">@context.Unit</MudTd>
+                    <MudTd DataLabel="Width" Class="text-right">@context.Width?.ToString("N3")</MudTd>
+                    <MudTd DataLabel="Length" Class="text-right">@context.Length?.ToString("N3")</MudTd>
+                    <MudTd DataLabel="Weight" Class="text-right">@context.Weight?.ToString("N3")</MudTd>
+                    <MudTd DataLabel="Status">@context.Status</MudTd>
+                    <MudTd DataLabel="Machine">@Machines.FirstOrDefault(m => m.Id == context.MachineId)?.Name</MudTd>
+                    @if (CanAddOrEdit)
+                    {
+                        <MudTd DataLabel="Actions">
+                            <MudIconButton Color="Color.Info"
+                                           Icon="@Icons.Material.Filled.Edit"
+                                           OnClick="@(async () => await EditItem(context))" />
+                            <MudIconButton Color="Color.Error"
+                                           Icon="@Icons.Material.Filled.Delete"
+                                           OnClick="@(() => RemoveItem(context))" />
+                        </MudTd>
+                    }
+                </RowTemplate>
+            </MudTable>
+
+            <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Class="mt-2">
+                <MudText Typo="Typo.subtitle2" Class="mr-2">Total Weight:</MudText>
+                <MudText Typo="Typo.subtitle2" Class="font-weight-bold">@TotalWeight.ToString("N3")</MudText>
+            </MudStack>
+        </MudForm>
+    </MudPaper>
+</DialogContent>
+
+<DialogActions>
+    <MudSpacer />
+    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Save</MudButton>
+</DialogActions>
+
 </MudDialog>
 
 @code {
-    [Parameter] public PickingList Model { get; set; } = new();
-    [Parameter] public bool IsEdit { get; set; }
-    [Parameter] public string Title { get; set; } = "";
-    [Parameter] public List<Branch> Branches { get; set; } = new();
-    [Parameter] public List<Truck> Trucks { get; set; } = new();
-    [Parameter] public List<Machine> Machines { get; set; } = new();
+[Parameter] public PickingList Model { get; set; } = new();
+[Parameter] public bool IsEdit { get; set; }
+[Parameter] public string Title { get; set; } = "";
+[Parameter] public List<Branch> Branches { get; set; } = new();
+[Parameter] public List<Truck> Trucks { get; set; } = new();
+[Parameter] public List<Machine> Machines { get; set; } = new();
 
-    [Parameter] public bool LockBranch { get; set; }
-    [Parameter] public Branch? CurrentBranch { get; set; }
+[Parameter] public bool LockBranch { get; set; }
+[Parameter] public Branch? CurrentBranch { get; set; }
 
-    private MudForm form = default!;
-    [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
+private MudForm form = default!;
+[CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
 
-    // Visible for New (Model.Id == 0) and Edit, disabled only for true view-only
-    private bool CanAddOrEdit => IsEdit || (Model?.Id ?? 0) == 0;
+private Customer? _selectedCustomer;
 
-    protected override void OnParametersSet()
+private bool CanAddOrEdit => IsEdit || (Model?.Id ?? 0) == 0;
+
+protected override async Task OnParametersSetAsync()
+{
+    Model.Items ??= new List<PickingListItem>();
+
+    if (LockBranch && CurrentBranch != null)
+        Model.BranchId = CurrentBranch.Id;
+
+    // Preload selected customer for edit
+    if (Model.CustomerId.HasValue && _selectedCustomer == null)
+        _selectedCustomer = await CustomerService.GetByIdAsync(Model.CustomerId.Value);
+}
+
+private DateTime? OrderDateValue
+{
+    get => Model.OrderDate;
+    set => Model.OrderDate = value ?? Model.OrderDate;
+}
+
+private DateTime? ShipDateValue
+{
+    get => Model.ShipDate;
+    set => Model.ShipDate = value;
+}
+
+private decimal TotalWeight => Model?.Items?.Sum(i => i.Weight ?? 0m) ?? 0m;
+
+private async Task<IEnumerable<Customer>> SearchCustomers(string value)
+{
+    value = value?.Trim() ?? string.Empty;
+    return await CustomerService.SearchAsync(value, 20);
+}
+
+private void OnCustomerChanged(Customer? c)
+{
+    _selectedCustomer = c;
+
+    if (c is null)
     {
-        if (LockBranch && CurrentBranch != null)
-            Model.BranchId = CurrentBranch.Id;
-
-        // Ensure Items is never null
-        Model.Items ??= new List<PickingListItem>();
+        Model.CustomerId = null;
+        return;
     }
 
-    private DateTime? OrderDateValue
+    Model.CustomerId = c.Id;
+
+    if (string.IsNullOrWhiteSpace(Model.CustomerName))
+        Model.CustomerName = c.CustomerName;
+
+    if (string.IsNullOrWhiteSpace(Model.ShipToAddress))
+        Model.ShipToAddress = c.Address;
+}
+
+private async Task AddItem()
+{
+    if (!CanAddOrEdit) return;
+
+    var parameters = new DialogParameters
     {
-        get => Model.OrderDate;
-        set => Model.OrderDate = value ?? Model.OrderDate;
-    }
+        ["Item"] = new PickingListItem
+        {
+            LineNumber = (Model.Items.Any() ? Model.Items.Max(i => i.LineNumber) : 0) + 1,
+            Unit = "EA",
+            Status = PickingLineStatus.Pending
+        },
+        ["Machines"] = Machines,
+        ["Title"] = "Add Line"
+    };
 
-    private DateTime? ShipDateValue
+    var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
+    var dlg = DialogService.Show<PickingListItemDialog>("Add Line", parameters, options);
+    var res = await dlg.Result;
+    if (res.Canceled) return;
+
+    if (res.Data is PickingListItem item)
     {
-        get => Model.ShipDate;
-        set => Model.ShipDate = value;
-    }
-
-    private decimal TotalWeight => Model?.Items?.Sum(i => i.Weight ?? 0m) ?? 0m;
-
-    private async Task AddItem()
-    {
-        if (!CanAddOrEdit) return;
-
-        var parameters = new DialogParameters
-        {
-            ["Item"] = new PickingListItem
-            {
-                LineNumber = (Model.Items.Any() ? Model.Items.Max(i => i.LineNumber) : 0) + 1,
-                Unit = "EA",
-                Status = PickingLineStatus.Pending
-            },
-            ["Machines"] = Machines,
-            ["Title"] = "Add Line"
-        };
-
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
-        var dlg = DialogService.Show<PickingListItemDialog>("Add Line", parameters, options);
-        var res = await dlg.Result;
-        if (res.Canceled) return;
-
-        if (res.Data is PickingListItem item)
-        {
-            item.Id = 0;
-            Model.Items.Add(item);
-            StateHasChanged();
-        }
-    }
-
-    private async Task EditItem(PickingListItem src)
-    {
-        if (!CanAddOrEdit) return;
-
-        var clone = new PickingListItem
-        {
-            Id = src.Id,
-            PickingListId = Model.Id,
-            LineNumber = src.LineNumber,
-            ItemId = src.ItemId,
-            ItemDescription = src.ItemDescription,
-            Quantity = src.Quantity,
-            Unit = src.Unit,
-            Width = src.Width,
-            Length = src.Length,
-            Weight = src.Weight,
-            MachineId = src.MachineId,
-            Status = src.Status
-        };
-
-        var parameters = new DialogParameters
-        {
-            ["Item"] = clone,
-            ["Machines"] = Machines,
-            ["Title"] = "Edit Line"
-        };
-
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
-        var dlg = DialogService.Show<PickingListItemDialog>("Edit Line", parameters, options);
-        var res = await dlg.Result;
-        if (res.Canceled) return;
-
-        if (res.Data is PickingListItem updated)
-        {
-            var target = Model.Items.First(i => i.Id == src.Id);
-            target.LineNumber = updated.LineNumber;
-            target.ItemId = updated.ItemId;
-            target.ItemDescription = updated.ItemDescription;
-            target.Quantity = updated.Quantity;
-            target.Unit = updated.Unit;
-            target.Width = updated.Width;
-            target.Length = updated.Length;
-            target.Weight = updated.Weight;
-            target.MachineId = updated.MachineId;
-            target.Status = updated.Status;
-
-            StateHasChanged();
-        }
-    }
-
-    private void RemoveItem(PickingListItem item)
-    {
-        if (!CanAddOrEdit) return;
-        Model.Items.Remove(item);
+        item.Id = 0;
+        Model.Items.Add(item);
         StateHasChanged();
     }
+}
 
-    private async Task Save()
+private async Task EditItem(PickingListItem src)
+{
+    if (!CanAddOrEdit) return;
+
+    var clone = new PickingListItem
     {
-        await form.Validate();
-        if (!form.IsValid) return;
+        Id = src.Id,
+        PickingListId = Model.Id,
+        LineNumber = src.LineNumber,
+        ItemId = src.ItemId,
+        ItemDescription = src.ItemDescription,
+        Quantity = src.Quantity,
+        Unit = src.Unit,
+        Width = src.Width,
+        Length = src.Length,
+        Weight = src.Weight,
+        MachineId = src.MachineId,
+        Status = src.Status
+    };
 
-        if (LockBranch && CurrentBranch != null)
-            Model.BranchId = CurrentBranch.Id;
+    var parameters = new DialogParameters
+    {
+        ["Item"] = clone,
+        ["Machines"] = Machines,
+        ["Title"] = "Edit Line"
+    };
 
-        Dialog.Close(DialogResult.Ok(Model));
+    var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
+    var dlg = DialogService.Show<PickingListItemDialog>("Edit Line", parameters, options);
+    var res = await dlg.Result;
+    if (res.Canceled) return;
+
+    if (res.Data is PickingListItem updated)
+    {
+        var target = Model.Items.First(i => i.Id == src.Id);
+        target.LineNumber = updated.LineNumber;
+        target.ItemId = updated.ItemId;
+        target.ItemDescription = updated.ItemDescription;
+        target.Quantity = updated.Quantity;
+        target.Unit = updated.Unit;
+        target.Width = updated.Width;
+        target.Length = updated.Length;
+        target.Weight = updated.Weight;
+        target.MachineId = updated.MachineId;
+        target.Status = updated.Status;
+
+        StateHasChanged();
     }
+}
 
-    private void Cancel() => Dialog.Cancel();
+private void RemoveItem(PickingListItem item)
+{
+    if (!CanAddOrEdit) return;
+    Model.Items.Remove(item);
+    StateHasChanged();
+}
+
+private async Task Save()
+{
+    await form.Validate();
+    if (!form.IsValid) return;
+
+    if (LockBranch && CurrentBranch != null)
+        Model.BranchId = CurrentBranch.Id;
+
+    Dialog.Close(DialogResult.Ok(Model));
+}
+
+private void Cancel() => Dialog.Cancel();
+
+
 }

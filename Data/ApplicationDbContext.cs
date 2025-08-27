@@ -23,6 +23,7 @@ namespace CMetalsWS.Data
         public DbSet<ItemRelationship> ItemRelationships => Set<ItemRelationship>();
         public DbSet<LoadItem> LoadItems => Set<LoadItem>();
         public DbSet<TruckRoute> TruckRoutes => Set<TruckRoute>();
+        public DbSet<Customer> Customers => Set<Customer>();
         public DbSet<TruckRouteStop> TruckRouteStops => Set<TruckRouteStop>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

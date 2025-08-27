@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 // MudBlazor
@@ -83,6 +84,7 @@ builder.Services.AddScoped<ItemRelationshipService>();
 builder.Services.AddTransient<IdentityDataSeeder>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<LoadService>();
+builder.Services.AddScoped<CustomerService>();
 builder.Services.AddSignalR();
 
 var app = builder.Build();

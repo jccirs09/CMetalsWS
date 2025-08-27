@@ -15,11 +15,16 @@ namespace CMetalsWS.Data
         public int BranchId { get; set; }
         public Branch? Branch { get; set; }
 
+        // NEW: link to Customer (optional)
+        public int? CustomerId { get; set; }
+        public Customer? Customer { get; set; }
+
         [Required]
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
 
         public DateTime? ShipDate { get; set; }
 
+        // keep denormalized display fields
         [MaxLength(128)]
         public string? CustomerName { get; set; }
 
@@ -68,6 +73,7 @@ namespace CMetalsWS.Data
         public decimal? Weight { get; set; }
 
         public PickingLineStatus Status { get; set; } = PickingLineStatus.Pending;
+
         public int? MachineId { get; set; }
         public Machine? Machine { get; set; }
     }

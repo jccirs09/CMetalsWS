@@ -1,8 +1,60 @@
 ﻿using CMetalsWS.Data;
+using CMetalsWS.Services;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+
+namespace CMetalsWS.Services
+{
+    public class CustomerService
+    {
+        private readonly ApplicationDbContext _db;
+        public CustomerService(ApplicationDbContext db) => _db = db;
+
+        public async Task<Customer?> GetByIdAsync(int id)
+        {
+            return await _db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
+        }
+
+        public async Task<Customer?> GetByCodeAsync(string customerCode)
+        {
+            if (string.IsNullOrWhiteSpace(customerCode)) return null;
+            var code = customerCode.Trim();
+            return await _db.Customers.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.CustomerCode == code);
+        }
+
+        public async Task<List<Customer>> SearchAsync(string term, int take = 20)
+        {
+            term = term?.Trim() ?? string.Empty;
+            IQueryable<Customer> q = _db.Customers.AsNoTracking().Where(c => c.IsActive);
+
+            if (!string.IsNullOrEmpty(term))
+            {
+                var t = term.ToLower();
+                q = q.Where(c =>
+                    c.CustomerCode.ToLower().Contains(t) ||
+                    c.CustomerName.ToLower().Contains(t) ||
+                    (c.LocationCode != null && c.LocationCode.ToLower().Contains(t)));
+            }
+
+            return await q
+                .OrderBy(c => c.CustomerCode)
+                .ThenBy(c => c.CustomerName)
+                .Take(Math.Clamp(take, 1, 100))
+                .ToListAsync();
+        }
+    }
+
+
+}
+
+File: Services / PickingListService.cs replace entire file to include Customer
+using CMetalsWS.Data;
+using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace CMetalsWS.Services
 {
@@ -17,7 +69,7 @@ namespace CMetalsWS.Services
             var query = _db.PickingLists
                 .Include(p => p.Branch)
                 .Include(p => p.Truck)
-                .Include(p => p.Customer) // include Customer
+                .Include(p => p.Customer)
                 .Include(p => p.Items).ThenInclude(i => i.Machine)
                 .AsNoTracking();
 
@@ -30,30 +82,18 @@ namespace CMetalsWS.Services
         public async Task<PickingList?> GetByIdAsync(int id)
         {
             return await _db.PickingLists
-                .Include(p => p.Customer) // include Customer
                 .Include(p => p.Items).ThenInclude(i => i.Machine)
                 .Include(p => p.Truck)
                 .Include(p => p.Branch)
+                .Include(p => p.Customer)
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
 
         public async Task CreateAsync(PickingList model)
         {
-            // default statuses
             model.Status = PickingListStatus.Pending;
-            foreach (var item in model.Items)
-                item.Status = item.Status == 0 ? PickingLineStatus.Pending : item.Status;
-
-            // optional denorm fill from Customer if blank
-            if (model.CustomerId.HasValue && string.IsNullOrWhiteSpace(model.ShipToAddress))
-            {
-                var cust = await _db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == model.CustomerId.Value);
-                if (cust != null)
-                {
-                    model.CustomerName ??= cust.CustomerName;
-                    model.ShipToAddress = cust.Address;
-                }
-            }
+            foreach (var li in model.Items)
+                li.Status = PickingLineStatus.Pending;
 
             _db.PickingLists.Add(model);
             await _db.SaveChangesAsync();
@@ -68,16 +108,15 @@ namespace CMetalsWS.Services
 
             existing.SalesOrderNumber = model.SalesOrderNumber;
             existing.BranchId = model.BranchId;
-            existing.CustomerId = model.CustomerId; // new
             existing.OrderDate = model.OrderDate;
             existing.ShipDate = model.ShipDate;
+            existing.CustomerId = model.CustomerId;
             existing.CustomerName = model.CustomerName;
             existing.ShipToAddress = model.ShipToAddress;
             existing.ShippingMethod = model.ShippingMethod;
             existing.Status = model.Status;
             existing.TruckId = model.TruckId;
 
-            // Sync items
             var incomingIds = model.Items.Select(i => i.Id).ToHashSet();
             var toDelete = existing.Items.Where(i => !incomingIds.Contains(i.Id)).ToList();
             if (toDelete.Count > 0)
@@ -98,7 +137,7 @@ namespace CMetalsWS.Services
                         Length = item.Length,
                         Weight = item.Weight,
                         MachineId = item.MachineId,
-                        Status = item.Status == 0 ? PickingLineStatus.Pending : item.Status
+                        Status = item.Status
                     });
                 }
                 else
@@ -129,7 +168,7 @@ namespace CMetalsWS.Services
                 await _db.SaveChangesAsync();
             }
         }
-
-        // Optional helpers from earlier answer can remain (SetLineStatusAsync, UpdatePickingListStatusAsync)
     }
+
+
 }

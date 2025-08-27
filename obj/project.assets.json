@@ -6917,23 +6917,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\jccir\\.nuget\\packages\\": {},
+    "C:\\Users\\Jessie\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\CMetalsWS.csproj",
+      "projectUniqueName": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\CMetalsWS.csproj",
       "projectName": "CMetalsWS",
-      "projectPath": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\CMetalsWS.csproj",
-      "packagesPath": "C:\\Users\\jccir\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\obj\\",
+      "projectPath": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\CMetalsWS.csproj",
+      "packagesPath": "C:\\Users\\Jessie\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\jccir\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\Jessie\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
