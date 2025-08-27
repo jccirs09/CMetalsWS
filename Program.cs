@@ -81,6 +81,8 @@ builder.Services.AddScoped<PickingListService>();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<ItemRelationshipService>();
 builder.Services.AddTransient<IdentityDataSeeder>();
+builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<LoadService>();
 builder.Services.AddSignalR();
 
 var app = builder.Build();

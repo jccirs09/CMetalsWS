@@ -12,14 +12,19 @@ namespace CMetalsWS.Services
             _db = db;
         }
 
-        public async Task<List<Truck>> GetTrucksAsync()
+        public async Task<List<Truck>> GetTrucksAsync(int? branchId = null)
         {
-            return await _db.Trucks
+            IQueryable<Truck> query = _db.Trucks
                 .Include(t => t.Branch)
                 .Include(t => t.Driver)
-                .AsNoTracking()
-                .OrderBy(t => t.Name)
-                .ToListAsync();
+                .AsNoTracking();
+
+            if (branchId.HasValue)
+            {
+                query = query.Where(t => t.BranchId == branchId.Value);
+            }
+
+            return await query.OrderBy(t => t.Name).ToListAsync();
         }
 
         public async Task<Truck?> GetByIdAsync(int id)

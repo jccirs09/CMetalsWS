@@ -14,6 +14,7 @@ namespace CMetalsWS.Data
         public DbSet<Branch> Branches => Set<Branch>();
         public DbSet<Machine> Machines => Set<Machine>();
         public DbSet<Truck> Trucks => Set<Truck>();
+        public DbSet<Load> Loads => Set<Load>();
         public DbSet<PickingList> PickingLists => Set<PickingList>();
         public DbSet<PickingListItem> PickingListItems => Set<PickingListItem>();
         public DbSet<WorkOrder> WorkOrders => Set<WorkOrder>();

@@ -2,8 +2,15 @@
 using System.ComponentModel.DataAnnotations;
 
 namespace CMetalsWS.Data
+
 {
-    /// <summary>A production machine on a branch site.</summary>
+    public enum MachineCategory
+    {
+        Slitter,
+        CTL,
+        Sheet,
+        Coil
+    }
     public class Machine
     {
         public int Id { get; set; }
@@ -15,6 +22,6 @@ namespace CMetalsWS.Data
         public Branch? Branch { get; set; }
 
         [MaxLength(64)]
-        public string? Category { get; set; }
+        public MachineCategory Category { get; set; }
     }
 }

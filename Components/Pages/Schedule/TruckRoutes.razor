@@ -1,0 +1,46 @@
+﻿@page "/routes"
+@inject LoadService LoadService
+@inject RouteService RouteService
+
+<MudSelect T="int" Label="Load" @bind-Value="selectedLoadId">
+    @foreach (var l in Loads)
+    {
+        <MudSelectItem Value="l.Id">@l.LoadNumber - @l.Truck?.Name</MudSelectItem>
+    }
+</MudSelect>
+
+@if (CurrentRoute != null)
+{
+    <MudTable Items="CurrentRoute" Dense="true">
+        <HeaderContent>
+            <MudTh>Stop</MudTh>
+            <MudTh>Destination</MudTh>
+            <MudTh>Work Order</MudTh>
+            <MudTh>Weight</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.StopNumber</MudTd>
+            <MudTd>@context.Destination</MudTd>
+            <MudTd>@context.WorkOrderNumber</MudTd>
+            <MudTd>@context.Weight</MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<Load> Loads = new();
+    private int selectedLoadId;
+    private IEnumerable<RouteStopDto>? CurrentRoute;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Loads = await LoadService.GetLoadsAsync(null);
+    }
+
+    private void OnLoadChanged(int id)
+    {
+        var load = Loads.FirstOrDefault(l => l.Id == id);
+        if (load != null)
+            CurrentRoute = RouteService.BuildRouteForLoad(load);
+    }
+}
