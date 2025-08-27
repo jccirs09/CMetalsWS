@@ -1,71 +1,57 @@
 ﻿@using CMetalsWS.Data
 @using MudBlazor
 
-<MudDialog>
-    <TitleContent>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-            <MudIcon Icon="@Icons.Material.Filled.Build" />
-            <MudText Typo="Typo.h6">@Title</MudText>
-        </MudStack>
-    </TitleContent>
-
+<MudDialog Title="@Title">
     <DialogContent>
-        <MudPaper Class="pa-4" Elevation="0">
-            <MudForm Model="@Model" @ref="form">
-                <MudGrid Spacing="2">
-                    <MudItem xs="12" sm="6">
-                        <MudTextField @bind-Value="Model.Code" Label="Code" Required="true" />
-                    </MudItem>
-                    <MudItem xs="12" sm="6">
-                        <MudTextField @bind-Value="Model.Name" Label="Name" Required="true" />
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudTextField @bind-Value="Model.Description" Label="Description" Lines="3" />
-                    </MudItem>
-                    <MudSelect T="string" Label="Category" @bind-Value="Model.Category" Dense="true" Clearable="true">
-                        @foreach (var c in _categories)
-                        {
-                            <MudSelectItem Value="@c">@c</MudSelectItem>
-                        }
-                    </MudSelect>
-                    <MudItem xs="12" sm="6">
-                        <MudSelect T="int" Label="Branch" @bind-Value="Model.BranchId">
-                            @foreach (var b in Branches)
-                            {
-                                <MudSelectItem T="int" Value="b.Id">@b.Name</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudItem>
-                </MudGrid>
-            </MudForm>
-        </MudPaper>
-    </DialogContent>
+        <MudForm @ref="_form">
+            <MudStack Spacing="3">
+                <MudTextField T="string" Label="Code" @bind-Value="Model.Code" Required="true" />
+                <MudTextField T="string" Label="Name" @bind-Value="Model.Name" Required="true" />
+                <MudTextField T="string" Label="Model" @bind-Value="Model.Model" />
+                <MudTextField T="string" Label="Description" @bind-Value="Model.Description" Lines="2" />
 
+                <MudSelect T="int" Label="Branch" @bind-Value="Model.BranchId" Required="true">
+                    @foreach (var b in Branches)
+                    {
+                        <MudSelectItem Value="b.Id">@b.Name</MudSelectItem>
+                    }
+                </MudSelect>                
+                <MudSelect T="MachineCategory"
+                           Label="Category"
+                           @bind-Value="Model.Category">
+                    @foreach (var cat in Enum.GetValues<MachineCategory>())
+                    {
+                        <MudSelectItem Value="cat">@cat</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
     <DialogActions>
-        <MudSpacer />
-        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Save</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
+    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
+
     [Parameter] public Machine Model { get; set; } = new();
-    [Parameter] public bool IsEdit { get; set; }
-    [Parameter] public string Title { get; set; } = "";
     [Parameter] public List<Branch> Branches { get; set; } = new();
+    [Parameter] public string Title { get; set; } = "Machine";
+    [Parameter] public bool IsEdit { get; set; }
 
-    private MudForm form = default!;
-    private readonly string[] _categories = new[] { "CTL", "SLITTER", "SHEET", "COIL" };
+    private MudForm? _form;
 
-
-    [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
+    private void Cancel() => MudDialog.Cancel();
 
     private async Task Save()
     {
-        await form.Validate();
-        if (!form.IsValid) return;
-        Dialog.Close(DialogResult.Ok(Model));
+        if (_form is not null)
+        {
+            await _form.Validate();
+            if (!_form.IsValid) return;
+        }
+        MudDialog.Close(DialogResult.Ok(Model));
     }
-
-    private void Cancel() => Dialog.Cancel();
 }

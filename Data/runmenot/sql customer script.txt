@@ -1,0 +1,103 @@
+-- 1) Core tables
+IF OBJECT_ID('dbo.CustomerAddress','U') IS NOT NULL DROP TABLE dbo.CustomerAddress;
+IF OBJECT_ID('dbo.Customer','U') IS NOT NULL DROP TABLE dbo.Customer;
+GO
+
+CREATE TABLE dbo.Customer
+(
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    CustomerCode    NVARCHAR(16)  NOT NULL,
+    CustomerName    NVARCHAR(200) NOT NULL,
+    IsActive        BIT NOT NULL CONSTRAINT DF_Customer_IsActive DEFAULT(1),
+    CreatedUtc      DATETIME2(0) NOT NULL CONSTRAINT DF_Customer_CreatedUtc DEFAULT(SYSUTCDATETIME()),
+    ModifiedUtc     DATETIME2(0) NULL
+);
+GO
+CREATE UNIQUE INDEX UX_Customer_CustomerCode ON dbo.Customer(CustomerCode);
+GO
+
+CREATE TABLE dbo.CustomerAddress
+(
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    CustomerId      INT NOT NULL FOREIGN KEY REFERENCES dbo.Customer(Id) ON DELETE CASCADE,
+    AddressType     TINYINT NOT NULL, -- 0=Billing,1=Shipping,2=Main
+    Line1           NVARCHAR(200) NULL,
+    Line2           NVARCHAR(200) NULL,
+    City            NVARCHAR(100) NULL,
+    Province        NVARCHAR(100) NULL, -- e.g., BC, AB
+    PostalCode      NVARCHAR(20)  NULL,
+    Country         NVARCHAR(100) NULL,
+    Phone           NVARCHAR(50)  NULL,
+    Email           NVARCHAR(200) NULL,
+    IsPrimary       BIT NOT NULL CONSTRAINT DF_CustomerAddress_IsPrimary DEFAULT(0)
+);
+GO
+CREATE INDEX IX_CustomerAddress_CustomerId ON dbo.CustomerAddress(CustomerId);
+GO
+
+-- 2) Staging (for loading from CSV of "customer profiles" with addresses)
+IF OBJECT_ID('dbo.Stg_Customer','U') IS NOT NULL DROP TABLE dbo.Stg_Customer;
+GO
+CREATE TABLE dbo.Stg_Customer
+(
+    CustomerCode NVARCHAR(16)  NOT NULL,
+    CustomerName NVARCHAR(200) NULL,
+    AddressType  TINYINT       NULL, -- 0=Billing,1=Shipping,2=Main
+    Line1        NVARCHAR(200) NULL,
+    Line2        NVARCHAR(200) NULL,
+    City         NVARCHAR(100) NULL,
+    Province     NVARCHAR(100) NULL,
+    PostalCode   NVARCHAR(20)  NULL,
+    Country      NVARCHAR(100) NULL,
+    Phone        NVARCHAR(50)  NULL,
+    Email        NVARCHAR(200) NULL
+);
+GO
+
+-- 3) Upsert customers (codes + names) from a VALUES block
+-- Paste the giant list here (code, name). I’ve included a few to show the format.
+MERGE dbo.Customer AS T
+USING (VALUES
+    (N'22DURA', N'DURA STAINLESS & S/M MFG LTD'),
+    (N'2CBI',   N'CBI MANUFACTURING LTD'),
+    (N'2EMCCB', N'EMCO CORP #752 - CRANBROOK'),
+    (N'2EMCNA', N'EMCO CORP #821 - NANAIMO'),
+    (N'2EMCOB', N'EMCO CORP #822 - BURNABY')
+    -- keep adding: (N'<Customer_ID>', N'<Customer_Name>')
+) AS S(CustomerCode, CustomerName)
+ON  T.CustomerCode = S.CustomerCode
+WHEN MATCHED AND T.CustomerName <> S.CustomerName
+    THEN UPDATE SET T.CustomerName = S.CustomerName, T.ModifiedUtc = SYSUTCDATETIME()
+WHEN NOT MATCHED BY TARGET
+    THEN INSERT (CustomerCode, CustomerName) VALUES (S.CustomerCode, S.CustomerName);
+
+-- 4) (Optional) Load addresses from your “customer profiles” CSV into staging, e.g.:
+-- BULK INSERT dbo.Stg_Customer
+-- FROM 'C:\imports\customer_profiles.csv'
+-- WITH (FIRSTROW=2, FIELDTERMINATOR=',', ROWTERMINATOR='\n', CODEPAGE='65001');
+
+-- 5) Upsert addresses from staging to normalized tables
+;WITH cte AS (
+    SELECT s.*, c.Id AS CustomerId
+    FROM dbo.Stg_Customer s
+    JOIN dbo.Customer c ON c.CustomerCode = s.CustomerCode
+)
+MERGE dbo.CustomerAddress AS T
+USING cte AS S
+ON T.CustomerId = S.CustomerId
+AND ((T.AddressType = ISNULL(S.AddressType, 2)) AND T.IsPrimary = 1) -- match primary address of that type
+WHEN MATCHED THEN UPDATE SET
+    T.Line1 = S.Line1,
+    T.Line2 = S.Line2,
+    T.City  = S.City,
+    T.Province = S.Province,
+    T.PostalCode = S.PostalCode,
+    T.Country = ISNULL(S.Country, N'Canada'),
+    T.Phone = S.Phone,
+    T.Email = S.Email
+WHEN NOT MATCHED BY TARGET THEN
+    INSERT (CustomerId, AddressType, Line1, Line2, City, Province, PostalCode, Country, Phone, Email, IsPrimary)
+    VALUES (S.CustomerId, ISNULL(S.AddressType, 2), S.Line1, S.Line2, S.City, S.Province, S.PostalCode, ISNULL(S.Country, N'Canada'), S.Phone, S.Email, 1);
+
+-- 6) Clean up staging when done
+-- TRUNCATE TABLE dbo.Stg_Customer;

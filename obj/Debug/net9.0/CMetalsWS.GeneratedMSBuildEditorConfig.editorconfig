@@ -283,14 +283,6 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXFBpY2tpbmdsaXN0XFBpY2tpbmdMaXN0cy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Operations/SalesOrder/SalesOrderDialog.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXFNhbGVzT3JkZXJcU2FsZXNPcmRlckRpYWxvZy5yYXpvcg==
-build_metadata.AdditionalFiles.CssScope = 
-
-[C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Operations/SalesOrder/SalesOrders.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXFNhbGVzT3JkZXJcU2FsZXNPcmRlcnMucmF6b3I=
-build_metadata.AdditionalFiles.CssScope = 
-
 [C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Operations/WorkOrder/WorkOrderDialog.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXFdvcmtPcmRlclxXb3JrT3JkZXJEaWFsb2cucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 

@@ -7,8 +7,8 @@
 <MudPaper Class="pa-4">
     <MudStack Spacing="3">
         <MudText Typo="Typo.h5">Truck Routes</MudText>
-
-        <MudSelect T="int" Label="Load" @bind-Value="selectedLoadId" ValueChanged="OnLoadChanged">
+        
+        <MudSelect T="int" Label="Load" Value="selectedLoadId" ValueChanged="OnLoadChanged">
             @foreach (var load in Loads)
             {
                 <MudSelectItem Value="load.Id">@load.LoadNumber - @load.Truck?.Name</MudSelectItem>
@@ -21,13 +21,13 @@
                 <HeaderContent>
                     <MudTh>Stop</MudTh>
                     <MudTh>Destination</MudTh>
-                    <MudTh>Work Order</MudTh>
+                    <MudTh>Picking List</MudTh>
                     <MudTh>Weight</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.StopNumber</MudTd>
                     <MudTd>@context.Destination</MudTd>
-                    <MudTd>@context.WorkOrderNumber</MudTd>
+                    <MudTd>@context.PickingListNumber</MudTd>
                     <MudTd>@context.Weight</MudTd>
                 </RowTemplate>
             </MudTable>
@@ -38,7 +38,7 @@
 @code {
     private List<Load> Loads = new();
     private int selectedLoadId;
-    private IEnumerable<RouteStopDto>? CurrentRoute;
+    private IEnumerable<RouteStopDtp>? CurrentRoute;
 
     protected override async Task OnInitializedAsync()
     {
@@ -50,5 +50,6 @@
         selectedLoadId = id;
         var load = Loads.FirstOrDefault(l => l.Id == id);
         CurrentRoute = load is null ? null : RouteService.BuildRouteForLoad(load);
+        StateHasChanged();
     }
 }

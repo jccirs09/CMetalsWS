@@ -1,8 +1,10 @@
 ﻿@using CMetalsWS.Data
 @using CMetalsWS.Services
 @using MudBlazor
+@using Microsoft.AspNetCore.Components
+
 @inject TruckService TruckService
-@inject WorkOrderService WorkOrderService
+@inject PickingListService PickingListService
 
 <MudDialog Title="Load">
     <DialogContent>
@@ -10,7 +12,7 @@
             <MudStack Spacing="3">
                 <MudTextField Label="Load Number" Value="@Model.LoadNumber" Disabled="true" />
 
-                <MudDatePicker Label="Scheduled Date" @bind-Date="Model.ScheduledDate" Required="true" />
+                <MudDatePicker Label="Scheduled Date" @bind-Date="ScheduledDateProxy" Required="true" />
 
                 <MudSelect T="int" Label="Truck" @bind-Value="Model.TruckId" Required="true">
                     @foreach (var t in _trucks)
@@ -30,16 +32,16 @@
                 <MudText Typo="Typo.h6">Load Items</MudText>
                 <MudTable Items="Model.Items" Hover="true" Dense="true">
                     <HeaderContent>
-                        <MudTh>Work Order</MudTh>
+                        <MudTh>Picking List</MudTh>
                         <MudTh>Weight</MudTh>
                         <MudTh>Destination</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>
-                            <MudSelect T="int" @bind-Value="context.WorkOrderId">
-                                @foreach (var wo in _workOrders)
+                            <MudSelect T="int" @bind-Value="context.PickingListId">
+                                @foreach (var pl in _pickingLists)
                                 {
-                                    <MudSelectItem Value="wo.Id">@wo.WorkOrderNumber</MudSelectItem>
+                                    <MudSelectItem Value="pl.Id">@pl.SalesOrderNumber - @pl.CustomerName</MudSelectItem>
                                 }
                             </MudSelect>
                         </MudTd>
@@ -67,19 +69,25 @@
 
     private MudForm? _form;
     private List<Truck> _trucks = new();
-    private List<WorkOrder> _workOrders = new();
+    private List<PickingList> _pickingLists = new();
+
+    private DateTime? ScheduledDateProxy
+    {
+        get => Model.ScheduledDate;
+        set => Model.ScheduledDate = value ?? Model.ScheduledDate;
+    }
 
     protected override async Task OnInitializedAsync()
     {
         _trucks = await TruckService.GetTrucksAsync();
-        _workOrders = await WorkOrderService.GetAsync(null);
+        _pickingLists = await PickingListService.GetAsync(null);
     }
 
     private void AddItem()
     {
         Model.Items.Add(new LoadItem
         {
-            WorkOrderId = 0,
+            PickingListId = 0,
             Weight = 0,
             Destination = string.Empty
         });

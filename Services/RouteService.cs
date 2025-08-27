@@ -14,16 +14,15 @@ namespace CMetalsWS.Services
 
     public class RouteService
     {
-        // Very basic route ordering; replace with actual geo distance logic later.
-        public IEnumerable<RouteStopDto> BuildRouteForLoad(Load load)
+        public IEnumerable<RouteStopDtp> BuildRouteForLoad(Load load)
         {
             return load.Items
                 .OrderBy(i => i.Destination)
-                .Select((item, index) => new RouteStopDto
+                .Select((item, index) => new RouteStopDtp
                 {
                     StopNumber = index + 1,
                     Destination = item.Destination,
-                    WorkOrderNumber = item.WorkOrder?.WorkOrderNumber ?? "",
+                    PickingListNumber = item.PickingList?.SalesOrderNumber ?? "",
                     Weight = item.Weight
                 });
         }

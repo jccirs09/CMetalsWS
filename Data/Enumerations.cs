@@ -4,8 +4,13 @@
     public enum PickingListStatus
     {
         Pending,
+        Awaiting,
+        OnHold,
+        InProgress,
         Scheduled,
         Picked,
+        Completed,
+        ReadyToShip,
         Shipped,
         Cancelled
     }
@@ -17,7 +22,8 @@
         InProgress = 3,
         Completed = 4,
         Canceled = 5,
-        WorkOrder = 6
+        WorkOrder = 6,
+        Awaiting = 7
 
     }
 }

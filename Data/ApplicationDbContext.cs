@@ -21,9 +21,9 @@ namespace CMetalsWS.Data
         public DbSet<WorkOrderItem> WorkOrderItems => Set<WorkOrderItem>();
         public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
         public DbSet<ItemRelationship> ItemRelationships => Set<ItemRelationship>();
-        public DbSet<SalesOrder> SalesOrders { get; set; } = default!;
-        public DbSet<SalesOrderItem> SalesOrderItems { get; set; } = default!;
-        public DbSet<LoadItem> LoadItems { get; set; } = default!;
+        public DbSet<LoadItem> LoadItems => Set<LoadItem>();
+        public DbSet<TruckRoute> TruckRoutes => Set<TruckRoute>();
+        public DbSet<TruckRouteStop> TruckRouteStops => Set<TruckRouteStop>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -42,6 +42,29 @@ namespace CMetalsWS.Data
                 .WithMany(b => b.Trucks)
                 .HasForeignKey(t => t.BranchId)
                 .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Customer>(entity =>
+            {
+                entity.HasIndex(c => c.CustomerCode).IsUnique();
+                entity.Property(c => c.CustomerCode).HasMaxLength(16).IsRequired();
+                entity.Property(c => c.CustomerName).HasMaxLength(200).IsRequired();
+                entity.Property(c => c.LocationCode).HasMaxLength(32);
+                entity.Property(c => c.Address).HasMaxLength(256);
+                entity.HasIndex(c => c.LocationCode);
+            });
+
+            modelBuilder.Entity<TruckRoute>(e =>
+            {
+                e.Property(r => r.RegionCode).HasMaxLength(32).IsRequired();
+                e.HasOne(r => r.Truck).WithMany().HasForeignKey(r => r.TruckId).OnDelete(DeleteBehavior.Restrict);
+                e.HasIndex(r => new { r.BranchId, r.RouteDate, r.RegionCode });
+            });
+
+            modelBuilder.Entity<TruckRouteStop>(e =>
+            {
+                e.HasOne(s => s.Route).WithMany(r => r.Stops).HasForeignKey(s => s.RouteId).OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(s => s.Load).WithMany().HasForeignKey(s => s.LoadId).OnDelete(DeleteBehavior.Restrict);
+                e.HasIndex(s => new { s.RouteId, s.StopOrder }).IsUnique();
+            });
 
             // Truck -> Driver (AspNetUsers)
             modelBuilder.Entity<Truck>()
@@ -68,13 +91,7 @@ namespace CMetalsWS.Data
                 .WithMany()
                 .HasForeignKey(p => p.TruckId)
                 .OnDelete(DeleteBehavior.SetNull);
-
-            // Sales order relationships
-            modelBuilder.Entity<SalesOrder>()
-                .HasMany(o => o.Items)
-                .WithOne(i => i.SalesOrder)
-                .HasForeignKey(i => i.SalesOrderId)
-                .OnDelete(DeleteBehavior.Cascade);
+            
 
             // Load relationships
             modelBuilder.Entity<Load>()
@@ -82,6 +99,12 @@ namespace CMetalsWS.Data
                 .WithOne(i => i.Load)
                 .HasForeignKey(i => i.LoadId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LoadItem>()
+                .HasOne(i => i.PickingList)
+                .WithMany()
+                .HasForeignKey(i => i.PickingListId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             // Date types
             modelBuilder.Entity<PickingList>()

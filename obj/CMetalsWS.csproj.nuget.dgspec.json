@@ -59,6 +59,10 @@
               "target": "Package",
               "version": "[3.*, )"
             },
+            "Google.Maps.RouteOptimization.V1": {
+              "target": "Package",
+              "version": "[1.2.0, )"
+            },
             "Heron.MudCalendar": {
               "target": "Package",
               "version": "[3.2.0, )"

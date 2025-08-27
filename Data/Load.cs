@@ -6,6 +6,7 @@ namespace CMetalsWS.Data
     public enum LoadStatus
     {
         Pending,
+        Loaded,
         Scheduled,
         InTransit,
         Delivered,
@@ -23,6 +24,8 @@ namespace CMetalsWS.Data
         public DateTime ScheduledDate { get; set; }
         public LoadStatus Status { get; set; } = LoadStatus.Pending;
         public ICollection<LoadItem> Items { get; set; } = new List<LoadItem>();
+        public DateTime ScheduledStart { get; internal set; }
+        public DateTime ScheduledEnd { get; internal set; }
     }
 
     public class LoadItem
@@ -30,8 +33,8 @@ namespace CMetalsWS.Data
         public int Id { get; set; }
         public int LoadId { get; set; }
         public Load? Load { get; set; }
-        public int WorkOrderId { get; set; }
-        public WorkOrder? WorkOrder { get; set; }
+        public int PickingListId { get; set; }
+        public PickingList? PickingList { get; set; }
         public decimal Weight { get; set; }
         public string Destination { get; set; } = default!;
     }

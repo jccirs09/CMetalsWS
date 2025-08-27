@@ -10,7 +10,8 @@ namespace CMetalsWS.Data
         Pending,
         InProgress,
         Completed,
-        Canceled
+        Canceled,
+        Awaiting
     }
 
     public class WorkOrder
@@ -51,6 +52,7 @@ namespace CMetalsWS.Data
     public class WorkOrderItem
     {
         public int Id { get; set; }
+
         public int WorkOrderId { get; set; }
         public WorkOrder? WorkOrder { get; set; }
 
@@ -71,6 +73,7 @@ namespace CMetalsWS.Data
 
         public decimal? OrderQuantity { get; set; }
         public decimal? OrderWeight { get; set; }
+
         public decimal? Width { get; set; }
         public decimal? Length { get; set; }
         public decimal? Weight { get; set; }
@@ -82,7 +85,5 @@ namespace CMetalsWS.Data
         public string? Unit { get; set; }
         [MaxLength(64)]
         public string? Location { get; set; }
-
-        public MachineCategory MachineCategory { get; set; }
     }
 }

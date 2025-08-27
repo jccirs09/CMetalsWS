@@ -1,5 +1,6 @@
 ﻿@using CMetalsWS.Data
 @using MudBlazor
+@inject IDialogService DialogService
 
 <MudDialog Title="@Title">
     <DialogContent>
@@ -19,11 +20,11 @@
                     }
                 </MudSelect>
 
-                <MudTextField Label="Tag Number" @bind-Value="Model.TagNumber" Required="true" />
+                <MudTextField T="string" Label="Tag Number" @bind-Value="Model.TagNumber" Required="true" />
 
                 <MudDatePicker Label="Due Date" @bind-Date="DueDateValue" Required="true" />
 
-                <MudTextField Label="Instructions" @bind-Value="Model.Instructions" Lines="3" />
+                <MudTextField T="string" Label="Instructions" @bind-Value="Model.Instructions" Lines="3" />
 
                 <MudDivider />
                 <MudText Typo="Typo.h6">Line Items</MudText>
@@ -32,50 +33,54 @@
                     <HeaderContent>
                         <MudTh>Item</MudTh>
                         <MudTh>Description</MudTh>
-                        <MudTh>Sales Order #</MudTh>
+                        <MudTh>SO #</MudTh>
                         <MudTh>Customer</MudTh>
-                        <MudTh>Order Qty/Wt</MudTh>
+                        <MudTh>Order Qty or Wt</MudTh>
                         <MudTh>Width</MudTh>
                         @if (Model.MachineCategory == MachineCategory.CTL)
                         {
                             <MudTh>Length</MudTh>
                         }
                         <MudTh>Weight</MudTh>
-                        <MudTh>Produced Qty/Wt</MudTh>
+                        <MudTh>Produced Qty or Wt</MudTh>
                         <MudTh>Location</MudTh>
+                        <MudTh></MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd>@context.ItemCode</MudTd>
-                        <MudTd>@context.Description</MudTd>
-                        <MudTd>@context.SalesOrderNumber</MudTd>
-                        <MudTd>@context.CustomerName</MudTd>
+                        <MudTd><MudTextField T="string" @bind-Value="context.ItemCode" /></MudTd>
+                        <MudTd><MudTextField T="string" @bind-Value="context.Description" /></MudTd>
+                        <MudTd><MudTextField T="string" @bind-Value="context.SalesOrderNumber" /></MudTd>
+                        <MudTd><MudTextField T="string" @bind-Value="context.CustomerName" /></MudTd>
                         <MudTd>
                             @if (Model.MachineCategory == MachineCategory.CTL)
                             {
-                                @context.OrderQuantity
+                                <MudTextField T="decimal?" @bind-Value="context.OrderQuantity" />
                             }
                             else
                             {
-                                @context.OrderWeight
+                                <MudTextField T="decimal?" @bind-Value="context.OrderWeight" />
                             }
                         </MudTd>
-                        <MudTd>@context.Width</MudTd>
+                        <MudTd><MudTextField T="decimal?" @bind-Value="context.Width" /></MudTd>
                         @if (Model.MachineCategory == MachineCategory.CTL)
                         {
-                            <MudTd>@context.Length</MudTd>
+                            <MudTd><MudTextField T="decimal?" @bind-Value="context.Length" /></MudTd>
                         }
-                        <MudTd>@context.Weight</MudTd>
+                        <MudTd><MudTextField T="decimal?" @bind-Value="context.Weight" /></MudTd>
                         <MudTd>
                             @if (Model.MachineCategory == MachineCategory.CTL)
                             {
-                                @context.ProducedQuantity
+                                <MudTextField T="decimal?" @bind-Value="context.ProducedQuantity" />
                             }
                             else
                             {
-                                @context.ProducedWeight
+                                <MudTextField T="decimal?" @bind-Value="context.ProducedWeight" />
                             }
                         </MudTd>
-                        <MudTd>@context.Location</MudTd>
+                        <MudTd><MudTextField T="string" @bind-Value="context.Location" /></MudTd>
+                        <MudTd>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveLine(context))" />
+                        </MudTd>
                     </RowTemplate>
                 </MudTable>
 
@@ -87,13 +92,13 @@
         </MudForm>
     </DialogContent>
     <DialogActions>
-        <MudButton Variant="Variant.Text" OnClick="OnCancel">Cancel</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnSave">Save</MudButton>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Save</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
-    [CascadingParameter] public WorkOrderDialog MudDialog { get; set; } = default!;
+    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
 
     [Parameter] public WorkOrder Model { get; set; } = new();
     [Parameter] public List<Machine> Machines { get; set; } = new();
@@ -128,42 +133,18 @@
     {
         var machine = Machines.FirstOrDefault(m => m.Id == Model.MachineId);
         if (machine != null)
-            Model.MachineCategory = ParseMachineCategory(machine.Category);
+            Model.MachineCategory = machine.Category;
     }
 
-    private static MachineCategory ParseMachineCategory(string? category)
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
     {
-        if (string.IsNullOrWhiteSpace(category))
-            return MachineCategory.Slitter;
-
-        if (Enum.TryParse<MachineCategory>(category, true, out var parsed))
-            return parsed;
-
-        switch (category.Trim().ToUpperInvariant())
+        if (_form is not null)
         {
-            case "CTL":
-            case "CUT-TO-LENGTH":
-            case "CUT TO LENGTH":
-                return MachineCategory.CTL;
-            case "SLITTER":
-            case "SLIT":
-                return MachineCategory.Slitter;
-            case "SHEET":
-                return MachineCategory.Sheet;
-            case "COIL":
-                return MachineCategory.Coil;
-            default:
-                return MachineCategory.Slitter;
+            await _form.Validate();
+            if (!_form.IsValid) return;
         }
-    }
-
-    private void OnCancel() => MudDialog.Cancel();
-
-    private async Task OnSave()
-    {
-        if (_form is null) return;
-        await _form.Validate();
-        if (!_form.IsValid) return;
         MudDialog.Close(DialogResult.Ok(Model));
     }
 
@@ -172,8 +153,7 @@
         Model.Items.Add(new WorkOrderItem
         {
             ItemCode = string.Empty,
-            Description = string.Empty,
-            MachineCategory = Model.MachineCategory
+            Description = string.Empty
         });
     }
 
@@ -186,8 +166,12 @@
             OrderQuantity = 0,
             OrderWeight = 0,
             ProducedQuantity = 0,
-            ProducedWeight = 0,
-            MachineCategory = Model.MachineCategory
+            ProducedWeight = 0
         });
+    }
+
+    private void RemoveLine(WorkOrderItem item)
+    {
+        Model.Items.Remove(item);
     }
 }

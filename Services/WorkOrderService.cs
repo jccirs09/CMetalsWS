@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using CMetalsWS.Data;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace CMetalsWS.Services
@@ -10,86 +11,164 @@ namespace CMetalsWS.Services
     public class WorkOrderService
     {
         private readonly ApplicationDbContext _db;
-        public WorkOrderService(ApplicationDbContext db)
+        private readonly UserManager<ApplicationUser> _userManager;
+
+        public WorkOrderService(ApplicationDbContext db, UserManager<ApplicationUser> userManager)
         {
             _db = db;
+            _userManager = userManager;
         }
 
         public async Task<List<WorkOrder>> GetAsync(int? branchId = null)
         {
-            var query = _db.WorkOrders
-                           .Include(w => w.Machine)
-                           .Include(w => w.Branch)
-                           .Include(w => w.Items);
+            IQueryable<WorkOrder> query = _db.WorkOrders
+                .Include(w => w.Items)
+                .Include(w => w.Machine)
+                .AsNoTracking();
+
             if (branchId.HasValue)
                 query = query.Where(w => w.BranchId == branchId.Value);
-            return await query.ToListAsync();
+
+            return await query
+                .OrderByDescending(w => w.CreatedDate)
+                .ToListAsync();
         }
 
         public async Task<WorkOrder?> GetByIdAsync(int id)
         {
             return await _db.WorkOrders
-                            .Include(w => w.Machine)
-                            .Include(w => w.Branch)
-                            .Include(w => w.Items)
-                            .FirstOrDefaultAsync(w => w.Id == id);
+                .Include(w => w.Items)
+                .Include(w => w.Machine)
+                .FirstOrDefaultAsync(w => w.Id == id);
         }
 
-        public async Task CreateAsync(WorkOrder order, string createdBy)
+        // New overload: branch is taken from the user's default branch
+        public async Task CreateAsync(WorkOrder workOrder, string userId)
         {
-            order.CreatedBy = createdBy;
-            order.CreatedDate = DateTime.UtcNow;
-            order.LastUpdatedBy = createdBy;
-            order.LastUpdatedDate = DateTime.UtcNow;
-            order.WorkOrderNumber = await GenerateNumber(order.BranchId);
-            _db.WorkOrders.Add(order);
+            var user = await _userManager.FindByIdAsync(userId)
+                ?? throw new InvalidOperationException("User not found.");
+            if (!user.BranchId.HasValue)
+                throw new InvalidOperationException("User has no default branch assigned.");
+
+            workOrder.BranchId = user.BranchId.Value;
+            workOrder.WorkOrderNumber = await GenerateWorkOrderNumber(workOrder.BranchId);
+
+            var createdBy = user.UserName ?? user.Email ?? user.Id;
+            workOrder.CreatedBy = createdBy;
+            workOrder.CreatedDate = DateTime.UtcNow;
+            workOrder.LastUpdatedBy = createdBy;
+            workOrder.LastUpdatedDate = workOrder.CreatedDate;
+
+            if (workOrder.Status == 0)
+                workOrder.Status = WorkOrderStatus.Draft;
+
+            _db.WorkOrders.Add(workOrder);
             await _db.SaveChangesAsync();
         }
 
-        public async Task UpdateAsync(WorkOrder order, string updatedBy)
+        // Optional: keep the old signature but redirect to the enforced version
+        public Task CreateAsync(WorkOrder workOrder, string createdBy, string userId)
+            => CreateAsync(workOrder, userId);
+
+        public async Task UpdateAsync(WorkOrder workOrder, string updatedBy)
         {
             var existing = await _db.WorkOrders
-                                    .Include(w => w.Items)
-                                    .FirstOrDefaultAsync(w => w.Id == order.Id);
-            if (existing == null) return;
+                .Include(w => w.Items)
+                .FirstOrDefaultAsync(w => w.Id == workOrder.Id);
 
-            existing.TagNumber = order.TagNumber;
-            existing.MachineId = order.MachineId;
-            existing.MachineCategory = order.MachineCategory;
-            existing.DueDate = order.DueDate;
-            existing.Instructions = order.Instructions;
-            existing.Status = order.Status;
+            if (existing is null) return;
+
+            // Do not allow branch changes here. Keep existing.BranchId as-is.
+            existing.TagNumber = workOrder.TagNumber;
+            existing.DueDate = workOrder.DueDate;
+            existing.Instructions = workOrder.Instructions;
+            existing.MachineId = workOrder.MachineId;
+            existing.MachineCategory = workOrder.MachineCategory;
+            existing.Status = workOrder.Status;
             existing.LastUpdatedBy = updatedBy;
             existing.LastUpdatedDate = DateTime.UtcNow;
 
-            // Update items
             existing.Items.Clear();
-            foreach (var item in order.Items)
-            {
-                existing.Items.Add(item);
-            }
+            foreach (var it in workOrder.Items)
+                existing.Items.Add(it);
 
             await _db.SaveChangesAsync();
         }
 
-        public async Task ScheduleAsync(int workOrderId, DateTime start, DateTime end)
+        public async Task ScheduleAsync(int id, DateTime start, DateTime? end)
         {
-            var order = await _db.WorkOrders.FindAsync(workOrderId);
-            if (order != null)
-            {
-                order.ScheduledStartDate = start;
-                order.ScheduledEndDate = end;
-                order.Status = WorkOrderStatus.Pending;
-                await _db.SaveChangesAsync();
-            }
+            var workOrder = await _db.WorkOrders.FirstOrDefaultAsync(w => w.Id == id);
+            if (workOrder is null) return;
+
+            workOrder.ScheduledStartDate = start;
+            workOrder.ScheduledEndDate = end ?? start;
+            if (workOrder.Status == WorkOrderStatus.Draft)
+                workOrder.Status = WorkOrderStatus.Pending;
+
+            workOrder.LastUpdatedDate = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
         }
 
-        private async Task<string> GenerateNumber(int branchId)
+       
+
+        private async Task<string> GenerateWorkOrderNumber(int branchId)
         {
-            var branch = await _db.Branches.FindAsync(branchId);
-            var prefix = branch?.Code ?? "00";
-            var count = await _db.WorkOrders.CountAsync(w => w.BranchId == branchId) + 1;
-            return $"W{prefix}{count:0000000}";
+            var branch = await _db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == branchId);
+            var branchCode = branch?.Code ?? "00";
+            var next = await _db.WorkOrders.CountAsync(w => w.BranchId == branchId) + 1;
+            return $"W{branchCode}{next:0000000}";
+        }
+        public async Task SetStatusAsync(int id, WorkOrderStatus status, string updatedBy)
+        {
+            var workOrder = await _db.WorkOrders
+                .Include(w => w.Items)
+                .FirstOrDefaultAsync(w => w.Id == id);
+
+            if (workOrder is null) return;
+
+            workOrder.Status = status;
+            workOrder.LastUpdatedBy = updatedBy;
+            workOrder.LastUpdatedDate = DateTime.UtcNow;
+
+            // Update linked Picking List Items’ statuses to mirror work progress
+            var pickingIds = workOrder.Items
+                .Where(i => i.PickingListItemId != null)
+                .Select(i => i.PickingListItemId!.Value)
+                .Distinct()
+                .ToList();
+
+            if (pickingIds.Count > 0)
+            {
+                var plis = await _db.PickingListItems
+                    .Where(p => pickingIds.Contains(p.Id))
+                    .ToListAsync();
+
+                // Map WorkOrderStatus -> PickingListStatus (adjust names to your enum if needed)
+                foreach (var p in plis)
+                {
+                    switch (status)
+                    {
+                        case WorkOrderStatus.InProgress:
+                            p.Status = PickingListStatus.InProgress;
+                            break;
+                        case WorkOrderStatus.Completed:
+                            p.Status = PickingListStatus.ReadyToShip;
+                            break;
+                        case WorkOrderStatus.Canceled:
+                            p.Status = PickingListStatus.Pending;
+                            break;
+                        default:
+                            // no change for Draft/Pending
+                            break;
+                    }
+                }
+
+                // Optional: bump Loads’ ReadyDate affected by these picking items
+                var loadService = new LoadService(_db);
+                await loadService.RecalculateLoadsForPickingItemsAsync(pickingIds);
+            }
+
+            await _db.SaveChangesAsync();
         }
     }
 }

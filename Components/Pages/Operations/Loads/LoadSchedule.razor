@@ -3,13 +3,11 @@
 @using CMetalsWS.Services
 @using MudBlazor
 @inject LoadService LoadService
-@inject MachineService MachineService
 @inject TruckService TruckService
 @inject BranchService BranchService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
-@inject IHubContext<ScheduleHub> HubContext
 
 <MudPaper Class="pa-4">
     <MudStack Spacing="3">
@@ -71,6 +69,7 @@
             ["Model"] = load,
             ["IsEdit"] = false
         }, new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true });
+
         var result = await dlg.Result;
         if (!result.Canceled && result.Data is Load saved)
         {
@@ -90,6 +89,7 @@
             ["Model"] = clone,
             ["IsEdit"] = true
         }, new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true });
+
         var result = await dlg.Result;
         if (!result.Canceled && result.Data is Load updated)
         {
