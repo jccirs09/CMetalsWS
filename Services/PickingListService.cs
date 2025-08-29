@@ -184,9 +184,17 @@ namespace CMetalsWS.Services
 
         public async Task<List<PickingList>> GetPendingPullingOrdersAsync(int? branchId = null)
         {
+            // 1. Get IDs of all picking list items that are already part of a work order.
+            var assignedPickingListItemIds = await _db.WorkOrderItems
+                .Where(wi => wi.PickingListItemId != null)
+                .Select(wi => wi.PickingListItemId!.Value)
+                .Distinct()
+                .ToListAsync();
+
+            // 2. Find picking lists that are pending and have no items in the "assigned" list.
             var query = _db.PickingLists
                 .Include(p => p.Items)
-                .Where(p => p.Status == PickingListStatus.Pending && !p.Items.Any(i => i.WorkOrderItemId != null))
+                .Where(p => p.Status == PickingListStatus.Pending && !p.Items.Any(i => assignedPickingListItemIds.Contains(i.Id)))
                 .AsNoTracking();
 
             if (branchId.HasValue)

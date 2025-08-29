@@ -11,26 +11,64 @@
     <DialogContent>
         <MudForm @ref="_form">
             <MudStack Spacing="3">
-                <MudSelect T="int?" Label="Machine" @bind-Value="MachineId" Required="true">
-                    @foreach (var m in Machines)
-                    {
-                        <MudSelectItem T="int?" Value="m.Id">@m.Name (@m.Category)</MudSelectItem>
-                    }
-                </MudSelect>
-
-                <MudSelect T="MachineCategory" Label="Category" @bind-Value="Model.MachineCategory" Disabled="true">
-                    @foreach (var cat in Enum.GetValues<MachineCategory>())
-                    {
-                        <MudSelectItem Value="cat">@cat</MudSelectItem>
-                    }
-                </MudSelect>
+                <MudGrid>
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="int?" Label="Machine" @bind-Value="MachineId" Required="true" Margin="Margin.Dense">
+                            @foreach (var m in Machines)
+                            {
+                                <MudSelectItem T="int?" Value="m.Id">@m.Name (@m.Category)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="MachineCategory" Label="Category" @bind-Value="Model.MachineCategory" Disabled="true" Margin="Margin.Dense">
+                            @foreach (var cat in Enum.GetValues<MachineCategory>())
+                            {
+                                <MudSelectItem Value="cat">@cat</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudDatePicker Label="Due Date" @bind-Date="DueDateValue" Required="true" Margin="Margin.Dense"/>
+                    </MudItem>
+                </MudGrid>
 
                 <MudStack Row="true" AlignItems="AlignItems.End">
                     <MudTextField T="string" Label="Tag Number" @bind-Value="Model.TagNumber" Required="true" />
-                    <MudButton Variant="Variant.Outlined" OnClick="SearchByTag">Search by Tag</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="SearchByTag" IsEnabled="@(!IsEdit)">Search by Tag</MudButton>
                 </MudStack>
+                @if (!string.IsNullOrWhiteSpace(_parentCoilDescription))
+                {
+                    <MudText>Parent Coil: <b>@_parentCoilDescription</b></MudText>
+                }
 
-                <MudDatePicker Label="Due Date" @bind-Date="DueDateValue" Required="true" />
+                @if (_childItemPreview.Any())
+                {
+                    <MudText Typo="Typo.h6">Child Items</MudText>
+                    <MudSimpleTable Dense="true" Bordered="true">
+                        <thead>
+                            <tr>
+                                <th>Item ID</th>
+                                <th>Description</th>
+                                <th>Width</th>
+                                <th>Length</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in _childItemPreview)
+                            {
+                                <tr>
+                                    <td>@item.ItemId</td>
+                                    <td>@item.Description</td>
+                                    <td>@item.Width</td>
+                                    <td>@item.Length</td>
+                                    <td><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => AddChildItemToWorkOrder(item))">Add</MudButton></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                }
 
                 <MudTextField T="string" Label="Instructions" @bind-Value="Model.Instructions" Lines="3" />
 
@@ -40,7 +78,6 @@
                 <MudTable Items="Model.Items" Hover="true" Dense="true">
                     <HeaderContent>
                         <MudTh>Item</MudTh>
-                        <MudTh>Description</MudTh>
                         <MudTh>SO #</MudTh>
                         <MudTh>Customer</MudTh>
                         <MudTh>Order Qty or Wt</MudTh>
@@ -56,7 +93,6 @@
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd><MudTextField T="string" @bind-Value="context.ItemCode" /></MudTd>
-                        <MudTd><MudTextField T="string" @bind-Value="context.Description" /></MudTd>
                         <MudTd><MudTextField T="string" @bind-Value="context.SalesOrderNumber" /></MudTd>
                         <MudTd><MudTextField T="string" @bind-Value="context.CustomerName" /></MudTd>
                         <MudTd>
@@ -115,6 +151,8 @@
     [Parameter] public bool IsEdit { get; set; }
 
     private MudForm? _form;
+    private string? _parentCoilDescription;
+    private List<InventoryItem> _childItemPreview = new();
 
     private int? MachineId
     {
@@ -144,8 +182,54 @@
             Model.MachineCategory = machine.Category;
     }
 
+    private async Task AddChildItemToWorkOrder(InventoryItem item)
+    {
+        // Create the new WorkOrderItem
+        var newItem = new WorkOrderItem
+        {
+            ItemCode = item.ItemId,
+            Description = item.Description, // This will be removed from the table display, but good to have in the model
+            Width = item.Width,
+            Length = item.Length,
+            Weight = item.Snapshot
+        };
+
+        // Ask user to select a pending picking list for this specific item
+        var parameters = new DialogParameters
+        {
+            ["RequiredItemIds"] = new List<string> { item.ItemId }
+        };
+        var dialog = await DialogService.ShowAsync<SelectPickingListDialog>("Select Picking List Item", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is List<PickingListItem> selectedPlItems && selectedPlItems.Any())
+        {
+            // For now, assume the user selects one PL item for the WO item
+            var plItem = selectedPlItems.First();
+            newItem.PickingListItemId = plItem.Id;
+            newItem.SalesOrderNumber = plItem.PickingList.SalesOrderNumber;
+            newItem.CustomerName = plItem.PickingList.CustomerName;
+            newItem.OrderQuantity = plItem.Quantity;
+            newItem.OrderWeight = plItem.Weight;
+
+            Model.Items.Add(newItem);
+            _childItemPreview.Remove(item); // Remove from preview
+            StateHasChanged();
+            Snackbar.Add($"Added item {item.ItemId} from SO {plItem.PickingList.SalesOrderNumber}", Severity.Success);
+        }
+        else
+        {
+            // Optional: Handle case where user cancels or doesn't select a picking list item.
+            // For now, we just won't add the item to the work order.
+            Snackbar.Add("No picking list item selected. Item not added to work order.", Severity.Info);
+        }
+    }
+
     private async Task SearchByTag()
     {
+        _parentCoilDescription = null;
+        _childItemPreview.Clear();
+
         if (string.IsNullOrWhiteSpace(Model.TagNumber))
         {
             Snackbar.Add("Please enter a Tag Number.", Severity.Warning);
@@ -161,7 +245,7 @@
                 return;
             }
 
-            var (_, children) = await RelService.GetAsync(parent.ItemId);
+            var (parentDesc, children) = await RelService.GetAsync(parent.ItemId);
             if (children.Count == 0)
             {
                 Snackbar.Add($"No child items (sheets) are related to the coil with tag '{Model.TagNumber}'. Use the 'Item Relationships' page to add some.", Severity.Info);
@@ -169,54 +253,12 @@
             }
 
             var childItemIds = children.Select(c => c.childId).ToList();
-            var childInventoryItems = (await InvService.GetByItemIdsAsync(childItemIds))
-                .ToDictionary(i => i.ItemId);
+            var childInventoryItems = await InvService.GetByItemIdsAsync(childItemIds);
 
-            Model.Items.Clear();
-            foreach (var childRel in children)
-            {
-                if (childInventoryItems.TryGetValue(childRel.childId, out var childInv))
-                {
-                    Model.Items.Add(new WorkOrderItem
-                    {
-                        ItemCode = childInv.ItemId,
-                        Description = childInv.Description,
-                        Width = childInv.Width,
-                        Length = childInv.Length,
-                        // Other properties like SalesOrderNumber will be populated from picking lists next
-                    });
-                }
-            }
+            _parentCoilDescription = parentDesc;
+            _childItemPreview = childInventoryItems;
 
-            Snackbar.Add($"Found {Model.Items.Count} child item(s) for Tag '{Model.TagNumber}'.", Severity.Success);
-
-            // Now, ask the user to select which pending orders to associate
-            if (Model.Items.Any())
-            {
-                var parameters = new DialogParameters
-                {
-                    ["RequiredItemIds"] = childItemIds
-                };
-                var dialog = await DialogService.ShowAsync<SelectPickingListDialog>("Select Picking List Items", parameters);
-                var result = await dialog.Result;
-
-                if (!result.Canceled && result.Data is List<PickingListItem> selectedPlItems)
-                {
-                    foreach (var woItem in Model.Items)
-                    {
-                        var matchingPlItem = selectedPlItems.FirstOrDefault(p => p.ItemId == woItem.ItemCode);
-                        if (matchingPlItem != null)
-                        {
-                            woItem.SalesOrderNumber = matchingPlItem.PickingList.SalesOrderNumber;
-                            woItem.CustomerName = matchingPlItem.PickingList.CustomerName;
-                            woItem.OrderQuantity = matchingPlItem.Quantity;
-                            woItem.OrderWeight = matchingPlItem.Weight;
-                        }
-                    }
-                    Snackbar.Add($"Associated {selectedPlItems.Count} picking list item(s).", Severity.Success);
-                }
-            }
-
+            Snackbar.Add($"Found {_childItemPreview.Count} child item(s) for Tag '{Model.TagNumber}'.", Severity.Success);
             StateHasChanged();
         }
         catch (Exception ex)
