@@ -8,6 +8,28 @@ namespace CMetalsWS.Services
         private readonly ApplicationDbContext _db;
         public InventoryService(ApplicationDbContext db) => _db = db;
 
+        public async Task<InventoryItem?> GetByTagNumberAsync(string tagNumber, CancellationToken ct = default)
+        {
+            tagNumber = tagNumber?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(tagNumber))
+                return null;
+
+            return await _db.InventoryItems
+                .AsNoTracking()
+                .FirstOrDefaultAsync(i => i.TagNumber == tagNumber, ct);
+        }
+
+        public async Task<List<InventoryItem>> GetByItemIdsAsync(List<string> itemIds, CancellationToken ct = default)
+        {
+            if (itemIds == null || itemIds.Count == 0)
+                return new List<InventoryItem>();
+
+            return await _db.InventoryItems
+                .AsNoTracking()
+                .Where(i => itemIds.Contains(i.ItemId))
+                .ToListAsync(ct);
+        }
+
         // Upsert by (BranchId, TagNumber)
         public async Task<(int inserted, int updated)> UpsertAsync(IEnumerable<InventoryItem> rows, CancellationToken ct = default)
         {

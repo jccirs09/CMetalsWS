@@ -171,5 +171,30 @@ namespace CMetalsWS.Services
             line.ScheduledShipDate = shipStart;
             await _db.SaveChangesAsync();
         }
+
+        public async Task<List<PickingListItem>> GetPendingItemsByItemIdsAsync(List<string> itemIds)
+        {
+            return await _db.PickingListItems
+                .Include(i => i.PickingList)
+                .ThenInclude(pl => pl.Customer)
+                .Where(i => i.PickingList.Status == PickingListStatus.Pending && itemIds.Contains(i.ItemId))
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<List<PickingList>> GetPendingPullingOrdersAsync(int? branchId = null)
+        {
+            var query = _db.PickingLists
+                .Include(p => p.Items)
+                .Where(p => p.Status == PickingListStatus.Pending && !p.Items.Any(i => i.WorkOrderItemId != null))
+                .AsNoTracking();
+
+            if (branchId.HasValue)
+            {
+                query = query.Where(p => p.BranchId == branchId.Value);
+            }
+
+            return await query.ToListAsync();
+        }
     }
 }

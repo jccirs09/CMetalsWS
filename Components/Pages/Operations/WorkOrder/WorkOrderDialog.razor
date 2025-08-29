@@ -1,6 +1,11 @@
 ﻿@using CMetalsWS.Data
+@using CMetalsWS.Services
 @using MudBlazor
 @inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject InventoryService InvService
+@inject ItemRelationshipService RelService
+@inject PickingListService PlService
 
 <MudDialog Title="@Title">
     <DialogContent>
@@ -20,7 +25,10 @@
                     }
                 </MudSelect>
 
-                <MudTextField T="string" Label="Tag Number" @bind-Value="Model.TagNumber" Required="true" />
+                <MudStack Row="true" AlignItems="AlignItems.End">
+                    <MudTextField T="string" Label="Tag Number" @bind-Value="Model.TagNumber" Required="true" />
+                    <MudButton Variant="Variant.Outlined" OnClick="SearchByTag">Search by Tag</MudButton>
+                </MudStack>
 
                 <MudDatePicker Label="Due Date" @bind-Date="DueDateValue" Required="true" />
 
@@ -134,6 +142,87 @@
         var machine = Machines.FirstOrDefault(m => m.Id == Model.MachineId);
         if (machine != null)
             Model.MachineCategory = machine.Category;
+    }
+
+    private async Task SearchByTag()
+    {
+        if (string.IsNullOrWhiteSpace(Model.TagNumber))
+        {
+            Snackbar.Add("Please enter a Tag Number.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var parent = await InvService.GetByTagNumberAsync(Model.TagNumber);
+            if (parent is null)
+            {
+                Snackbar.Add($"Tag '{Model.TagNumber}' not found.", Severity.Error);
+                return;
+            }
+
+            var (_, children) = await RelService.GetAsync(parent.ItemId);
+            if (children.Count == 0)
+            {
+                Snackbar.Add($"No child items (sheets) are related to the coil with tag '{Model.TagNumber}'. Use the 'Item Relationships' page to add some.", Severity.Info);
+                return;
+            }
+
+            var childItemIds = children.Select(c => c.childId).ToList();
+            var childInventoryItems = (await InvService.GetByItemIdsAsync(childItemIds))
+                .ToDictionary(i => i.ItemId);
+
+            Model.Items.Clear();
+            foreach (var childRel in children)
+            {
+                if (childInventoryItems.TryGetValue(childRel.childId, out var childInv))
+                {
+                    Model.Items.Add(new WorkOrderItem
+                    {
+                        ItemCode = childInv.ItemId,
+                        Description = childInv.Description,
+                        Width = childInv.Width,
+                        Length = childInv.Length,
+                        // Other properties like SalesOrderNumber will be populated from picking lists next
+                    });
+                }
+            }
+
+            Snackbar.Add($"Found {Model.Items.Count} child item(s) for Tag '{Model.TagNumber}'.", Severity.Success);
+
+            // Now, ask the user to select which pending orders to associate
+            if (Model.Items.Any())
+            {
+                var parameters = new DialogParameters
+                {
+                    ["RequiredItemIds"] = childItemIds
+                };
+                var dialog = await DialogService.ShowAsync<SelectPickingListDialog>("Select Picking List Items", parameters);
+                var result = await dialog.Result;
+
+                if (!result.Canceled && result.Data is List<PickingListItem> selectedPlItems)
+                {
+                    foreach (var woItem in Model.Items)
+                    {
+                        var matchingPlItem = selectedPlItems.FirstOrDefault(p => p.ItemId == woItem.ItemCode);
+                        if (matchingPlItem != null)
+                        {
+                            woItem.SalesOrderNumber = matchingPlItem.PickingList.SalesOrderNumber;
+                            woItem.CustomerName = matchingPlItem.PickingList.CustomerName;
+                            woItem.OrderQuantity = matchingPlItem.Quantity;
+                            woItem.OrderWeight = matchingPlItem.Weight;
+                        }
+                    }
+                    Snackbar.Add($"Associated {selectedPlItems.Count} picking list item(s).", Severity.Success);
+                }
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
     }
 
     private void Cancel() => MudDialog.Cancel();
