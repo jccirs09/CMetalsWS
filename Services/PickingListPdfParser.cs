@@ -110,7 +110,7 @@ namespace CMetalsWS.Services
             while (i < lines.Count)
             {
                 var raw = lines[i];
-                if (string.IsNullOrWhiteSpace(raw) || IsHeaderOrFooter(raw) || !char.IsDigit(raw[0]))
+                if (string.IsNullOrWhiteSpace(raw) || IsHeaderOrFooter(raw) || raw.Length == 0 || !char.IsDigit(raw[0]))
                 {
                     i++;
                     continue;
