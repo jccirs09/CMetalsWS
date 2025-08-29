@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -16,158 +16,76 @@ namespace CMetalsWS.Services
         {
             var text = ExtractText(pdfStream);
 
-            // --- DEBUGGING: Return raw text ---
-            var debugPl = new PickingList
+            var pl = new PickingList
             {
-                SalesOrderNumber = "DEBUG",
-                CustomerName = "Raw PdfPig Text ->",
-                ShipToAddress = "See Item Description below"
+                BranchId = branchId,
+                CustomerId = customerId,
+                TruckId = truckId
             };
-            debugPl.Items.Add(new PickingListItem
+
+            // Use single-line regex matching on the entire text block
+            pl.SalesOrderNumber = MatchAndGetGroup(text, @"PICKING LISTNo\.(?<val>[\d\w]+)");
+            pl.ShipDate = ParseDate(MatchAndGetGroup(text, @"SHIP DATE(?<val>\d{2}/\d{2}/\d{4})"));
+            pl.OrderDate = ParseDate(MatchAndGetGroup(text, @"ORDER DATE(?<val>\d{2}/\d{2}/\d{4})"));
+            pl.ShippingMethod = MatchAndGetGroup(text, @"SHIP VIA(?<val>[\w\s]+?)SOLD TO");
+
+            var soldToMatch = Regex.Match(text, @"SOLD TO(?<sold>.*?)SHIP TO");
+            if(soldToMatch.Success)
             {
-                ItemDescription = text
-            });
-            return debugPl;
-            // --- END DEBUGGING ---
+                pl.CustomerName = soldToMatch.Groups["sold"].Value.Trim();
+            }
+
+            var shipToMatch = Regex.Match(text, @"SHIP TO(?<ship>.*?)SHIP VIA");
+            if(shipToMatch.Success)
+            {
+                pl.ShipToAddress = shipToMatch.Groups["ship"].Value.Trim();
+            }
+
+            // Item parsing
+            var itemsTextMatch = Regex.Match(text, @"LINE QUANTITY QTY STAGED DESCRIPTION WIDTH LENGTH WEIGHT(?<items>.*)PULLED BY");
+            if (itemsTextMatch.Success)
+            {
+                var itemsText = itemsTextMatch.Groups["items"].Value;
+                var itemMatches = Regex.Matches(itemsText, @"(?<line>\d+)\s+(?<qty>\d+)\s+PCS\s+(?<itemid>[\w\d]+)\s+(?<desc>.*?)(?<width>\d+"")\s+(?<length>\d+\.?\d*"")\s+(?<weight>[\d,\.]+)");
+
+                foreach (Match itemMatch in itemMatches)
+                {
+                    var item = new PickingListItem
+                    {
+                        LineNumber = ToInt(itemMatch.Groups["line"].Value),
+                        Quantity = ToDec(itemMatch.Groups["qty"].Value),
+                        Unit = "PCS",
+                        ItemId = itemMatch.Groups["itemid"].Value,
+                        ItemDescription = itemMatch.Groups["desc"].Value.Trim(),
+                        Width = ToDec(itemMatch.Groups["width"].Value),
+                        Length = ToDec(itemMatch.Groups["length"].Value),
+                        Weight = ToDec(itemMatch.Groups["weight"].Value)
+                    };
+                    pl.Items.Add(item);
+                }
+            }
+
+            return pl;
         }
 
-        private static void ParseItems(List<string> lines, ICollection<PickingListItem> items)
+        private static string MatchAndGetGroup(string text, string pattern, string groupName = "val")
         {
-            var headerIdx = IndexOf(lines, l => l.StartsWith("LINE", StringComparison.OrdinalIgnoreCase) && l.Contains("DESCRIPTION"));
-            if (headerIdx < 0) return;
-
-            var itemStartRegex = new Regex(@"^(?<line>\d+)\s+(?<qty>[\d,]+)\s+PCS");
-
-            for (int i = headerIdx + 1; i < lines.Count; i++)
-            {
-                var line = lines[i];
-                if (IsHeaderOrFooter(line)) break;
-
-                var match = itemStartRegex.Match(line);
-                if (!match.Success) continue;
-
-                // We found the start of an item.
-                var item = new PickingListItem
-                {
-                    LineNumber = ToInt(match.Groups["line"].Value) ?? 0,
-                    Quantity = ToDec(match.Groups["qty"].Value) ?? 0,
-                    Unit = "PCS"
-                };
-
-                // The rest of the line contains ItemId and possibly dimensions
-                var remainder = line.Substring(match.Length).Trim();
-                var parts = Regex.Split(remainder, @"\s{2,}"); // Split by 2+ spaces
-
-                item.ItemId = parts.FirstOrDefault() ?? "";
-
-                // Dimensions are tricky. Let's look for numbers with " at the end.
-                var sizeParts = remainder.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                item.Width = ToDec(sizeParts.FirstOrDefault(p => p.EndsWith("\""))?.TrimEnd('"'));
-                item.Length = ToDec(sizeParts.Skip(1).FirstOrDefault(p => p.EndsWith("\""))?.TrimEnd('"'));
-                item.Weight = ToDec(sizeParts.LastOrDefault(p => decimal.TryParse(p, out _)));
-
-
-                // Now, read subsequent lines that belong to this item
-                var descriptionLines = new List<string>();
-                i++;
-                while (i < lines.Count && !itemStartRegex.IsMatch(lines[i]) && !IsHeaderOrFooter(lines[i]))
-                {
-                    descriptionLines.Add(lines[i].Trim());
-                    i++;
-                }
-                // We've either hit the next item or the footer, so decrement i to account for the loop's increment
-                if (i < lines.Count) i--;
-
-                item.ItemDescription = string.Join(" ", descriptionLines.Where(l => !string.IsNullOrWhiteSpace(l)));
-                items.Add(item);
-            }
+            var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
+            return match.Success ? match.Groups[groupName].Value.Trim() : string.Empty;
         }
 
         private static string ExtractText(Stream pdfStream)
         {
             if (pdfStream.CanSeek) pdfStream.Position = 0;
-
             var text = new StringBuilder();
             using (var pdf = PdfDocument.Open(pdfStream))
             {
                 foreach (var page in pdf.GetPages())
                 {
-                    text.AppendLine(page.Text);
+                    text.Append(" " + page.Text);
                 }
             }
             return text.ToString();
-        }
-
-        // ---------- Helpers ----------
-
-        private static bool IsHeaderOrFooter(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s)) return false;
-            if (s.StartsWith("LINE", StringComparison.OrdinalIgnoreCase) && s.Contains("DESCRIPTION", StringComparison.OrdinalIgnoreCase)) return true;
-            if (s.StartsWith("PICKING LIST No.", StringComparison.OrdinalIgnoreCase)) return true;
-            if (s.StartsWith("PRINT DATE/TIME", StringComparison.OrdinalIgnoreCase)) return true;
-            if (s.StartsWith("PULLED BY TOTAL WT", StringComparison.OrdinalIgnoreCase)) return true;
-            if (s.StartsWith("TERMS", StringComparison.OrdinalIgnoreCase)) return true;
-            if (s.Contains("MAX SKID WEIGHT", StringComparison.OrdinalIgnoreCase)) return true;
-            if (s.Contains("MAX COIL WEIGHT", StringComparison.OrdinalIgnoreCase)) return true;
-            if (s.StartsWith("----------------", StringComparison.OrdinalIgnoreCase)) return true;
-            if (s.StartsWith("********************************", StringComparison.OrdinalIgnoreCase)) return true;
-            if (s.StartsWith("================================", StringComparison.OrdinalIgnoreCase)) return true;
-            return false;
-        }
-
-        private static List<string> SplitLines(string text)
-        {
-            if (string.IsNullOrEmpty(text)) return new List<string>();
-            return text
-                .Replace("\r\n", "\n")
-                .Replace('\r', '\n')
-                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                .Select(l => l.Trim())
-                .Where(l => l.Length > 0)
-                .ToList();
-        }
-
-        private static string? MatchFirst(IEnumerable<string> lines, string pattern, string groupName)
-        {
-            foreach (var l in lines)
-            {
-                var m = Regex.Match(l, pattern, RegexOptions.IgnoreCase);
-                if (m.Success) return m.Groups[groupName].Value.Trim();
-            }
-            return null;
-        }
-
-        private static int IndexOf(List<string> lines, Func<string, bool> pred)
-        {
-            for (int i = 0; i < lines.Count; i++)
-                if (pred(lines[i])) return i;
-            return -1;
-        }
-
-        private static string? GetValueFromNextLine(List<string> lines, string label)
-        {
-            var idx = IndexOf(lines, l => l.Contains(label, StringComparison.OrdinalIgnoreCase));
-            if (idx == -1) return null;
-            return NextNonEmpty(lines, idx + 1);
-        }
-
-        private static string? SafeGet(List<string> lines, int index) =>
-            (index >= 0 && index < lines.Count) ? lines[index] : null;
-
-        private static string NextNonEmpty(List<string> lines, int start)
-        {
-            if (start >= lines.Count) return string.Empty;
-            return lines.Skip(start).FirstOrDefault(l => !string.IsNullOrWhiteSpace(l)) ?? string.Empty;
-        }
-
-        private static string NextNonEmptyBlock(List<string> lines, int start, int maxLines, Func<string, bool>? stopIf = null)
-        {
-            var blockLines = lines.Skip(start)
-                                  .TakeWhile(l => stopIf == null || !stopIf(l))
-                                  .Where(l => !string.IsNullOrWhiteSpace(l))
-                                  .Take(maxLines);
-            return string.Join(", ", blockLines);
         }
 
         private static DateTime? ParseDate(string? s)
@@ -182,7 +100,7 @@ namespace CMetalsWS.Services
         private static int? ToInt(string? s)
         {
             if (string.IsNullOrWhiteSpace(s)) return null;
-            if (int.TryParse(s.Replace(",", ""), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v)) return v;
+            if (int.TryParse(s?.Replace(",", ""), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v)) return v;
             return null;
         }
 
@@ -191,18 +109,7 @@ namespace CMetalsWS.Services
             if (string.IsNullOrWhiteSpace(s)) return null;
             var cleaned = s.Replace(",", "").Replace("\"", "");
             if (decimal.TryParse(cleaned, NumberStyles.Any, CultureInfo.InvariantCulture, out var v)) return v;
-            if (decimal.TryParse(cleaned, NumberStyles.Any, CultureInfo.CurrentCulture, out v)) return v;
             return null;
-        }
-
-        private static string Clean(string s) => Regex.Replace(s ?? string.Empty, @"\s+", " ").Trim();
-
-        private static string InferItemIdFromDesc(string desc)
-        {
-            if (string.IsNullOrWhiteSpace(desc)) return string.Empty;
-            var first = desc.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
-            // If the first token is clearly not an ID, keep empty
-            return Regex.IsMatch(first, @"^[A-Z0-9\-_\/\.]+$") ? first : string.Empty;
         }
     }
 }
