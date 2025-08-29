@@ -287,6 +287,14 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXFBpY2tpbmdsaXN0XFVwbG9hZC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/Jessie/Documents/GitHub/CMetalsWS/Components/Pages/Operations/WorkOrder/SelectPickingListDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXFdvcmtPcmRlclxTZWxlY3RQaWNraW5nTGlzdERpYWxvZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Jessie/Documents/GitHub/CMetalsWS/Components/Pages/Operations/WorkOrder/UploadWorkOrder.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXFdvcmtPcmRlclxVcGxvYWRXb3JrT3JkZXIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/Jessie/Documents/GitHub/CMetalsWS/Components/Pages/Operations/WorkOrder/WorkOrderDialog.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPcGVyYXRpb25zXFdvcmtPcmRlclxXb3JrT3JkZXJEaWFsb2cucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
@@ -301,6 +309,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/Jessie/Documents/GitHub/CMetalsWS/Components/Pages/Schedule/LogisticsSchedule.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTY2hlZHVsZVxMb2dpc3RpY3NTY2hlZHVsZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Jessie/Documents/GitHub/CMetalsWS/Components/Pages/Schedule/PullingSchedule.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTY2hlZHVsZVxQdWxsaW5nU2NoZWR1bGUucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Jessie/Documents/GitHub/CMetalsWS/Components/Pages/Schedule/SlitterSchedule.razor]

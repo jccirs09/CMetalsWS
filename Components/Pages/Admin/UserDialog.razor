@@ -45,7 +45,7 @@
                     @if (!IsEdit)
                     {
                         <MudItem xs="12">
-                            <MudSwitch T="bool" Checked="true" Disabled="true">
+                            <MudSwitch T="bool" checked="true" Disabled="true">
                                 Email will be marked as verified
                             </MudSwitch>
                         </MudItem>
@@ -88,7 +88,7 @@
                     </MudItem>
 
                     <MudItem xs="12" sm="6">
-                        <MudSelect T="string" Label="Role"
+                        <MudSelect T="string?" Label="Role"
                                    @bind-Value="_selectedRole"
                                    Clearable="true"
                                    Class="mb-2">

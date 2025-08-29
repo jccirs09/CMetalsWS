@@ -278,6 +278,10 @@ namespace CMetalsWS.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ChildItemDescription")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ChildItemId")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -285,6 +289,10 @@ namespace CMetalsWS.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("ParentItemDescription")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ParentItemId")
                         .IsRequired()
@@ -710,6 +718,10 @@ namespace CMetalsWS.Migrations
 
                     b.Property<int?>("MachineId")
                         .HasColumnType("int");
+
+                    b.Property<string>("PdfWorkOrderNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<DateTime?>("ScheduledEndDate")
                         .HasColumnType("datetime2");

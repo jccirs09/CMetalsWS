@@ -11,22 +11,20 @@
         <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
             <MudText Typo="Typo.h5">Logistics Schedule (Picking Lists & Partial Lines)</MudText>
             <MudSpacer />
-            <MudSwitch T="bool" @bind-Checked="_showListEvents" Color="Color.Primary">Lists</MudSwitch>
-            <MudSwitch T="bool" @bind-Checked="_showItemEvents" Color="Color.Secondary">Items</MudSwitch>
+            <MudSwitch T="bool" @bind-checked="_showListEvents" Color="Color.Primary" Label="Lists" />
+            <MudSwitch T="bool" @bind-checked="_showItemEvents" Color="Color.Secondary" Label="Items" />
         </MudStack>
 
         <MudCalendar T="SchedItem"
                      Items="_events"
                      View="_view"
-                     StartHour="_startHour"
-                     EndHour="_endHour"
                      MonthCellMinHeight="120"
                      EnableDragItems="true"
                      EnableResizeItems="true"
                      CanDragItem="@(item => item.Start >= DateTime.Now)"
                      CanDropItem="@((item, date, view) => (view == CalendarView.Month && date.Add(item.Start.TimeOfDay) >= DateTime.Now) || date >= DateTime.Now)"
-                     OnItemDrop="HandleDrop"
-                     OnItemClick="HandleClick">
+                     onItemDrop="HandleDrop"
+                     onItemClick="HandleClick">
             <CellTemplate Context="evt">
                 @{
                     var pl = evt.PickingList!;
@@ -70,8 +68,6 @@
 
     private List<SchedItem> _events = new();
     private CalendarView _view = CalendarView.Week;
-    private int _startHour = 5;
-    private int _endHour = 23;
     private HubConnection? _hub;
 
     private bool _showListEvents = true;

@@ -44,7 +44,7 @@
                     <Authorized Context="authEdit">
                         <MudIconButton Color="Color.Info"
                                        Icon="@Icons.Material.Filled.Edit"
-                                       Title="Edit"
+                                       title="Edit"
                                        OnClick="@(() => EditUser(context))" />
                     </Authorized>
                 </AuthorizeView>
@@ -52,7 +52,7 @@
                     <Authorized Context="authDelete">
                         <MudIconButton Color="Color.Error"
                                        Icon="@Icons.Material.Filled.Delete"
-                                       Title="Delete"
+                                       title="Delete"
                                        OnClick="@(() => DeleteUser(context))" />
                     </Authorized>
                 </AuthorizeView>
@@ -101,13 +101,11 @@
             CloseOnEscapeKey = true
         };
 
-        var dialogRef = DialogService.Show<UserDialog>("Add User", parameters, options);
-        var result = await dialogRef.Result;
-
-        if (!result.Canceled)
+        var dialogRef = await DialogService.ShowAsync<UserDialog>("Add User", parameters, options);
+        if (dialogRef is not null)
         {
-            var dto = result.Data as UserDialogResult;
-            if (dto != null)
+            var result = await dialogRef.Result;
+            if (result is not null && !result.Canceled && result.Data is UserDialogResult dto)
             {
                 var create = await UserService.CreateUserAsync(dto.User, dto.Password ?? string.Empty, dto.Roles);
                 if (create.Succeeded)
@@ -149,13 +147,11 @@
             CloseOnEscapeKey = true
         };
 
-        var dialogRef = DialogService.Show<UserDialog>("Edit User", parameters, options);
-        var result = await dialogRef.Result;
-
-        if (!result.Canceled)
+        var dialogRef = await DialogService.ShowAsync<UserDialog>("Edit User", parameters, options);
+        if (dialogRef is not null)
         {
-            var dto = result.Data as UserDialogResult;
-            if (dto != null)
+            var result = await dialogRef.Result;
+            if (result is not null && !result.Canceled && result.Data is UserDialogResult dto)
             {
                 await UserService.UpdateUserAsync(dto.User, dto.Roles);
                 await LoadUsersAsync();

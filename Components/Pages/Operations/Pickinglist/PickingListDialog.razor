@@ -47,7 +47,7 @@
                                          ToStringFunc="@((Customer c) => c is null ? string.Empty : $"{c.CustomerCode} - {c.CustomerName}")"
                                          Value="_selectedCustomer"
                                          ValueChanged="@(c => OnCustomerChanged(c))"
-                                         ValueExpression="() => _selectedCustomer"
+                                         valueExpression="() => _selectedCustomer"
                                          SearchFunc="SearchCustomers"
                                          Clearable="true"
                                          Dense="true"

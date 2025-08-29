@@ -40,7 +40,7 @@
                     <Authorized Context="authEdit">
                         <MudIconButton Color="Color.Info"
                                        Icon="@Icons.Material.Filled.Edit"
-                                       Title="Edit"
+                                       title="Edit"
                                        OnClick="@(async () => await EditMachine(context))" />
                     </Authorized>
                 </AuthorizeView>
@@ -48,7 +48,7 @@
                     <Authorized Context="authDelete">
                         <MudIconButton Color="Color.Error"
                                        Icon="@Icons.Material.Filled.Delete"
-                                       Title="Delete"
+                                       title="Delete"
                                        OnClick="@(async () => await DeleteMachine(context))" />
                     </Authorized>
                 </AuthorizeView>
@@ -84,16 +84,16 @@
         };
 
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
-        var dialogRef = DialogService.Show<MachineDialog>("Add Machine", parameters, options);
-        var result = await dialogRef.Result;
-        if (result.Canceled) return;
-
-        var model = result.Data as Machine;
-        if (model != null)
+        var dialogRef = await DialogService.ShowAsync<MachineDialog>("Add Machine", parameters, options);
+        if(dialogRef is not null)
         {
-            await MachineService.CreateAsync(model);
-            Snackbar.Add("Machine created.", Severity.Success);
-            await LoadAsync();
+            var result = await dialogRef.Result;
+            if (result is not null && !result.Canceled && result.Data is Machine model)
+            {
+                await MachineService.CreateAsync(model);
+                Snackbar.Add("Machine created.", Severity.Success);
+                await LoadAsync();
+            }
         }
     }
 
@@ -119,16 +119,16 @@
         };
 
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
-        var dialogRef = DialogService.Show<MachineDialog>("Edit Machine", parameters, options);
-        var result = await dialogRef.Result;
-        if (result.Canceled) return;
-
-        var model = result.Data as Machine;
-        if (model != null)
+        var dialogRef = await DialogService.ShowAsync<MachineDialog>("Edit Machine", parameters, options);
+        if (dialogRef is not null)
         {
-            await MachineService.UpdateAsync(model);
-            Snackbar.Add("Machine updated.", Severity.Success);
-            await LoadAsync();
+            var result = await dialogRef.Result;
+            if (result is not null && !result.Canceled && result.Data is Machine model)
+            {
+                await MachineService.UpdateAsync(model);
+                Snackbar.Add("Machine updated.", Severity.Success);
+                await LoadAsync();
+            }
         }
     }
 
