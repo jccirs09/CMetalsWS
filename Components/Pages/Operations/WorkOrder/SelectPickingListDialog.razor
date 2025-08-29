@@ -23,7 +23,7 @@
                             {
                                 <MudListItem T="PickingListItem" OnClick="@(() => ToggleSelection(item))">
                                     <ChildContent>
-                                        <MudCheckBox T="bool" @bind-checked="@_selectedItems.Contains(item)" ReadOnly="true" />
+                                        <MudCheckBox T="bool" Checked="@_selectedItems.Contains(item)" ReadOnly="true" />
                                         <MudText><b>SO:</b> @item.PickingList.SalesOrderNumber | <b>Customer:</b> @item.PickingList.CustomerName | <b>Qty:</b> @item.Quantity @item.Unit</MudText>
                                     </ChildContent>
                                 </MudListItem>
