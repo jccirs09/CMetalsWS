@@ -26,7 +26,7 @@ namespace CMetalsWS.Services
             // Use single-line regex matching on the entire text block
             pl.SalesOrderNumber = MatchAndGetGroup(text, @"PICKING LISTNo\.(?<val>[\d\w]+)");
             pl.ShipDate = ParseDate(MatchAndGetGroup(text, @"SHIP DATE(?<val>\d{2}/\d{2}/\d{4})"));
-            pl.OrderDate = ParseDate(MatchAndGetGroup(text, @"ORDER DATE(?<val>\d{2}/\d{2}/\d{4})"));
+            pl.OrderDate = ParseDate(MatchAndGetGroup(text, @"ORDER DATE(?<val>\d{2}/\d{2}/\d{4})")) ?? DateTime.UtcNow;
             pl.ShippingMethod = MatchAndGetGroup(text, @"SHIP VIA(?<val>[\w\s]+?)SOLD TO");
 
             var soldToMatch = Regex.Match(text, @"SOLD TO(?<sold>.*?)SHIP TO");
@@ -52,8 +52,8 @@ namespace CMetalsWS.Services
                 {
                     var item = new PickingListItem
                     {
-                        LineNumber = ToInt(itemMatch.Groups["line"].Value),
-                        Quantity = ToDec(itemMatch.Groups["qty"].Value),
+                        LineNumber = ToInt(itemMatch.Groups["line"].Value) ?? 0,
+                        Quantity = ToDec(itemMatch.Groups["qty"].Value) ?? 0,
                         Unit = "PCS",
                         ItemId = itemMatch.Groups["itemid"].Value,
                         ItemDescription = itemMatch.Groups["desc"].Value.Trim(),
