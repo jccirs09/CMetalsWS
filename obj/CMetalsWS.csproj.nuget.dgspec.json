@@ -71,6 +71,10 @@
               "target": "Package",
               "version": "[3.1.0, )"
             },
+            "IronOcr": {
+              "target": "Package",
+              "version": "[2025.8.6, )"
+            },
             "Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore": {
               "target": "Package",
               "version": "[9.*, )"

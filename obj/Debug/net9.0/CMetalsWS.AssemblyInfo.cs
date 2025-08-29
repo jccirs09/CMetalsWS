@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CMetalsWS")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0e423ad2b206d024fbee87485e7afded0c7d9e8d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+222893b27d348324b9ba1af926380736b817c8dc")]
 [assembly: System.Reflection.AssemblyProductAttribute("CMetalsWS")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CMetalsWS")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
