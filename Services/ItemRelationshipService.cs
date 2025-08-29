@@ -6,38 +6,25 @@ namespace CMetalsWS.Services
     public class ItemRelationshipService
     {
         private readonly ApplicationDbContext _db;
-        public ItemRelationshipService(ApplicationDbContext db) => _db = db;
+        private readonly InventoryService _inventory;
 
-        public async Task<(string? parentDesc, List<(int relId, string childId, string? childDesc)> children)>
-            GetAsync(string parentItemId, CancellationToken ct = default)
+        public ItemRelationshipService(ApplicationDbContext db, InventoryService inventory)
+        {
+            _db = db;
+            _inventory = inventory;
+        }
+
+        public async Task<List<ItemRelationship>> GetAsync(string parentItemId, CancellationToken ct = default)
         {
             parentItemId = parentItemId?.Trim() ?? "";
             if (string.IsNullOrWhiteSpace(parentItemId))
-                return (null, new());
+                return new List<ItemRelationship>();
 
-            var parentDesc = await _db.InventoryItems
-                .Where(i => i.ItemId == parentItemId)
-                .GroupBy(i => i.ItemId)
-                .Select(g => g.Max(x => x.Description))
-                .FirstOrDefaultAsync(ct);
-
-            var rels = await _db.ItemRelationships
+            return await _db.ItemRelationships
                 .Where(r => r.ParentItemId == parentItemId && r.Relation == "CoilToSheet")
                 .OrderBy(r => r.ChildItemId)
+                .AsNoTracking()
                 .ToListAsync(ct);
-
-            var childIds = rels.Select(r => r.ChildItemId).Distinct().ToList();
-            var childDescMap = await _db.InventoryItems
-                .Where(i => childIds.Contains(i.ItemId))
-                .GroupBy(i => i.ItemId)
-                .Select(g => new { g.Key, Desc = g.Max(x => x.Description) })
-                .ToDictionaryAsync(x => x.Key, x => x.Desc, ct);
-
-            var children = rels
-                .Select(r => (r.Id, r.ChildItemId, childDescMap.TryGetValue(r.ChildItemId, out var d) ? d : null))
-                .ToList();
-
-            return (parentDesc, children);
         }
 
         public async Task AddChildAsync(string parentItemId, string childItemId, CancellationToken ct = default)
@@ -54,10 +41,19 @@ namespace CMetalsWS.Services
 
             if (!exists)
             {
+                var items = await _inventory.GetByItemIdsAsync(new List<string> { parentItemId, childItemId }, ct);
+                var parent = items.FirstOrDefault(i => i.ItemId == parentItemId);
+                var child = items.FirstOrDefault(i => i.ItemId == childItemId);
+
+                if (parent == null) throw new InvalidOperationException("Parent item not found.");
+                if (child == null) throw new InvalidOperationException("Child item not found.");
+
                 _db.ItemRelationships.Add(new ItemRelationship
                 {
                     ParentItemId = parentItemId,
                     ChildItemId = childItemId,
+                    ParentItemDescription = parent.Description ?? string.Empty,
+                    ChildItemDescription = child.Description ?? string.Empty,
                     Relation = "CoilToSheet"
                 });
                 await _db.SaveChangesAsync(ct);

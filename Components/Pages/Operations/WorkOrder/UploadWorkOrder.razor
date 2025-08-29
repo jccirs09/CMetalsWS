@@ -1,0 +1,149 @@
+@page "/work-orders/upload"
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Forms
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@inject WorkOrderPdfParser Parser
+@inject WorkOrderService WorkOrderService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>Upload Work Order PDF</PageTitle>
+
+<MudPaper Class="p-4">
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.h5">Upload CTL Work Order PDF</MudText>
+
+        <MudStack Row Spacing="2" AlignItems="AlignItems.Center">
+            <div style="position:relative">
+                <MudPaper Class="px-4 py-3 d-flex align-center" Outlined="true" Style="border:2px dashed var(--mud-palette-primary); min-width: 340px;">
+                    <MudIcon Icon="@Icons.Material.Filled.UploadFile" Class="mr-2" />
+                    <MudText>Select or drop .pdf</MudText>
+                </MudPaper>
+                <InputFile OnChange="OnFilesChanged" accept=".pdf" style="position:absolute; inset:0; opacity:0; cursor:pointer;" />
+            </div>
+
+            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="@Clear" Disabled="@(_preview is null)">Clear</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_preview is null || _saving)" OnClick="Save">Save to Database</MudButton>
+
+            @if (_saving)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="ml-2" />
+            }
+        </MudStack>
+    </MudStack>
+</MudPaper>
+
+@if (_preview != null)
+{
+    <MudPaper Class="pa-4 mt-4">
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.h6">Parsed Preview</MudText>
+            <MudDivider />
+            <MudGrid>
+                <MudItem xs="4"><MudTextField @bind-Value="_preview.PdfWorkOrderNumber" Label="PDF WO #" /></MudItem>
+                <MudItem xs="4"><MudDatePicker @bind-Date="_preview.DueDate" Label="Due Date" /></MudItem>
+                <MudItem xs="4"><MudTextField @bind-Value="_preview.TagNumber" Label="Parent Tag" /></MudItem>
+            </MudGrid>
+
+            <MudTable Items="_preview.Items" Dense="true" Hover="true" Bordered="true">
+                <HeaderContent>
+                    <MudTh>Item Code</MudTh>
+                    <MudTh>Qty</MudTh>
+                    <MudTh>Width</MudTh>
+                    <MudTh>Length</MudTh>
+                    <MudTh>Weight</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd><MudTextField @bind-Value="context.ItemCode" Margin="Margin.Dense" /></MudTd>
+                    <MudTd><MudTextField @bind-Value="context.OrderQuantity" Margin="Margin.Dense" /></MudTd>
+                    <MudTd><MudTextField @bind-Value="context.Width" Margin="Margin.Dense" /></MudTd>
+                    <MudTd><MudTextField @bind-Value="context.Length" Margin="Margin.Dense" /></MudTd>
+                    <MudTd><MudTextField @bind-Value="context.Weight" Margin="Margin.Dense" /></MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudStack>
+    </MudPaper>
+}
+
+@code {
+    private WorkOrder? _preview;
+    private bool _saving;
+    private string? _status;
+    private int _branchId;
+    private ApplicationUser? _user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        _user = await UserManager.GetUserAsync(auth.User);
+        _branchId = _user?.BranchId ?? 0;
+    }
+
+    private void Clear()
+    {
+        _preview = null;
+        _status = null;
+    }
+
+    private async Task OnFilesChanged(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            _status = null;
+            var file = e.GetMultipleFiles(1).FirstOrDefault();
+            if (file is null) return;
+
+            if (_branchId <= 0)
+            {
+                Snackbar.Add("Your user account must have a default Branch assigned.", Severity.Warning);
+                return;
+            }
+
+            await using var upload = file.OpenReadStream(10 * 1024 * 1024); // 10MB limit
+            using var ms = new MemoryStream();
+            await upload.CopyToAsync(ms);
+            ms.Position = 0;
+
+            _preview = Parser.Parse(ms, _branchId);
+            _status = $"Parsed {_preview.Items.Count} line(s) from {file.Name}";
+            Snackbar.Add(_status, Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            _preview = null;
+            Snackbar.Add($"Parse failed: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task Save()
+    {
+        if (_preview == null || _user == null)
+        {
+            Snackbar.Add("Nothing to save or user not found.", Severity.Info);
+            return;
+        }
+
+        try
+        {
+            _saving = true;
+            await WorkOrderService.CreateAsync(_preview, _user.Id);
+            Snackbar.Add("Saved to database.", Severity.Success);
+            _preview = null;
+            Nav.NavigateTo("/workorders");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Save failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

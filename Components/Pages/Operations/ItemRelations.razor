@@ -1,4 +1,5 @@
 ﻿@page "/operations/item-relations"
+@using CMetalsWS.Data
 @using CMetalsWS.Services
 @inject ItemRelationshipService RelService
 @inject ISnackbar Snackbar
@@ -24,18 +25,18 @@
 
             <MudText Typo="Typo.subtitle2">Children (Sheets)</MudText>
 
-            <MudTable Items="_children" Dense="true" Hover="true" Bordered="true">
+            <MudTable Items="_relationships" Dense="true" Hover="true" Bordered="true">
                 <HeaderContent>
                     <MudTh>Child ItemId</MudTh>
                     <MudTh>Description</MudTh>
                     <MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd>@context.childId</MudTd>
-                    <MudTd>@context.childDesc</MudTd>
+                    <MudTd>@context.ChildItemId</MudTd>
+                    <MudTd>@context.ChildItemDescription</MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
-                                       OnClick="@(() => DeleteAsync(context.relId))" />
+                                       OnClick="@(() => DeleteAsync(context.Id))" />
                     </MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
@@ -56,15 +57,14 @@
     private string? _parentDesc;
     private bool _loaded;
     private string _newChildId = "";
-    private List<(int relId, string childId, string? childDesc)> _children = new();
+    private List<ItemRelationship> _relationships = new();
 
     private async Task LoadAsync()
     {
         try
         {
-            var (desc, kids) = await RelService.GetAsync(_parentId);
-            _parentDesc = desc;
-            _children = kids;
+            _relationships = await RelService.GetAsync(_parentId);
+            _parentDesc = _relationships.FirstOrDefault()?.ParentItemDescription ?? "— not found —";
             _loaded = true;
             StateHasChanged();
         }
