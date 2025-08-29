@@ -16,7 +16,6 @@ namespace CMetalsWS.Data
         public int BranchId { get; set; }
         public Branch? Branch { get; set; }
 
-        // NEW: link to Customer (optional)
         public int? CustomerId { get; set; }
         public Customer? Customer { get; set; }
 
@@ -25,7 +24,6 @@ namespace CMetalsWS.Data
 
         public DateTime? ShipDate { get; set; }
 
-        // keep denormalized display fields
         [MaxLength(128)]
         public string? CustomerName { get; set; }
 
@@ -34,6 +32,10 @@ namespace CMetalsWS.Data
 
         [MaxLength(64)]
         public string? ShippingMethod { get; set; }
+
+        // Sales representative parsed from ship via lines like "JASON PAYNE TRUCK"
+        [MaxLength(128)]
+        public string? SalesRep { get; set; }
 
         public PickingListStatus Status { get; set; } = PickingListStatus.Pending;
 
