@@ -32,15 +32,13 @@
                 <MudCalendar T="SchedItem"
                              Items="_items"
                              View="_view"
-                             StartHour="_startHour"
-                             EndHour="_endHour"
                              MonthCellMinHeight="120"
                              EnableDragItems="true"
                              EnableResizeItems="true"
                              CanDragItem="@(it => it.Start >= DateTime.Now)"
                              CanDropItem="@((it, date, view) => (view == CalendarView.Month && date.Add(it.Start.TimeOfDay) >= DateTime.Now) || date >= DateTime.Now)"
-                             OnItemDrop="HandleDrop"
-                             OnItemClick="HandleClick">
+                             onItemDrop="HandleDrop"
+                             onItemClick="HandleClick">
                     <CellTemplate Context="evt">
                         @{
                             var wo = evt.WorkOrder!;
@@ -89,8 +87,6 @@
 
     private int _selectedMachineId;
     private CalendarView _view = CalendarView.Week;
-    private int _startHour = 5;
-    private int _endHour = 23;
     private HubConnection? _hub;
 
     protected override async Task OnInitializedAsync()

@@ -98,22 +98,24 @@
             ["IsEdit"] = false
         };
 
-        var dialog = DialogService.Show<WorkOrderDialog>("New Work Order", parameters, new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true });
-        var result = await dialog.Result;
-
-        if (!result.Canceled && result.Data is WorkOrder model)
+        var dialog = await DialogService.ShowAsync<WorkOrderDialog>("New Work Order", parameters, new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true });
+        if(dialog is not null)
         {
-            var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-            var user = await UserManager.GetUserAsync(auth.User);
-            if (user?.Id == null || !user.BranchId.HasValue)
+            var result = await dialog.Result;
+            if (result is not null && !result.Canceled && result.Data is WorkOrder model)
             {
-                Snackbar.Add("Your account has no default branch. Contact admin.", Severity.Error);
-                return;
-            }
+                var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+                var user = await UserManager.GetUserAsync(auth.User);
+                if (user?.Id == null || !user.BranchId.HasValue)
+                {
+                    Snackbar.Add("Your account has no default branch. Contact admin.", Severity.Error);
+                    return;
+                }
 
-            await WorkOrderService.CreateAsync(model, user.Id);
-            Snackbar.Add("Work order created.", Severity.Success);
-            await LoadAsync();
+                await WorkOrderService.CreateAsync(model, user.Id);
+                Snackbar.Add("Work order created.", Severity.Success);
+                await LoadAsync();
+            }
         }
     }
 
@@ -162,18 +164,20 @@
             ["IsEdit"] = true
         };
 
-        var dialog = DialogService.Show<WorkOrderDialog>("Edit Work Order", parameters, new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
-        var result = await dialog.Result;
-
-        if (!result.Canceled && result.Data is WorkOrder updated)
+        var dialog = await DialogService.ShowAsync<WorkOrderDialog>("Edit Work Order", parameters, new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
+        if(dialog is not null)
         {
-            var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-            var user = await UserManager.GetUserAsync(auth.User);
-            var updatedBy = user?.UserName ?? user?.Email ?? "system";
+            var result = await dialog.Result;
+            if (result is not null && !result.Canceled && result.Data is WorkOrder updated)
+            {
+                var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+                var user = await UserManager.GetUserAsync(auth.User);
+                var updatedBy = user?.UserName ?? user?.Email ?? "system";
 
-            await WorkOrderService.UpdateAsync(updated, updatedBy);
-            Snackbar.Add("Work order updated.", Severity.Success);
-            await LoadAsync();
+                await WorkOrderService.UpdateAsync(updated, updatedBy);
+                Snackbar.Add("Work order updated.", Severity.Success);
+                await LoadAsync();
+            }
         }
     }
 

@@ -18,12 +18,12 @@
                 {
                     <MudPaper Outlined="true" Class="pa-3">
                         <MudText Typo="Typo.subtitle1">Required Item: <b>@group.Key</b></MudText>
-                        <MudList T="PickingListItem" Clickable="true" Dense="true">
+                        <MudList T="PickingListItem" clickable="true" Dense="true">
                             @foreach (var item in group.Value)
                             {
                                 <MudListItem T="PickingListItem" OnClick="@(() => ToggleSelection(item))">
                                     <ChildContent>
-                                        <MudCheckBox T="bool" Checked="@_selectedItems.Contains(item)" ReadOnly="true" />
+                                        <MudCheckBox T="bool" @bind-checked="@_selectedItems.Contains(item)" ReadOnly="true" />
                                         <MudText><b>SO:</b> @item.PickingList.SalesOrderNumber | <b>Customer:</b> @item.PickingList.CustomerName | <b>Qty:</b> @item.Quantity @item.Unit</MudText>
                                     </ChildContent>
                                 </MudListItem>

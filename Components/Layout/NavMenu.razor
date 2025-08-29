@@ -14,7 +14,7 @@
 
     @if (canUsers || canBranches || canRoles || canMachines || canTrucks)
     {
-        <MudNavGroup Text="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Title="System Panel">
+        <MudNavGroup text="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Title="System Panel">
             @if (canUsers)
             {
                 <MudNavLink Href="/users" Icon="@Icons.Material.Filled.Person">Users</MudNavLink>
@@ -40,7 +40,7 @@
 
     @if (canWorkOrders || canPickingLists)
     {
-        <MudNavGroup Text="Operations" Icon="@Icons.Material.Filled.DashboardCustomize" Title="Operations">
+        <MudNavGroup text="Operations" Icon="@Icons.Material.Filled.DashboardCustomize" Title="Operations">
             @if (canWorkOrders)
             {
                 <MudNavLink Href="/workorders" Icon="@Icons.Material.Filled.Assignment">Work Orders</MudNavLink>
@@ -57,7 +57,7 @@
 
     @if (canWorkOrders)
     {
-        <MudNavGroup Text="Schedule" Icon="@Icons.Material.Filled.EventNote" Title="Scheduling">
+        <MudNavGroup text="Schedule" Icon="@Icons.Material.Filled.EventNote" Title="Scheduling">
             <MudNavLink Href="/schedule/ctl" Icon="@Icons.Material.Filled.CalendarToday">CTL</MudNavLink>
             <MudNavLink Href="/schedule/slitter" Icon="@Icons.Material.Filled.CalendarViewDay">Slitter</MudNavLink>
             <MudNavLink Href="/schedule/pulling" Icon="@Icons.Material.Filled.PanTool">Pulling</MudNavLink>

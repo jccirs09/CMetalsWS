@@ -27,7 +27,7 @@
     [Parameter] public bool IsEdit { get; set; }
     [Parameter] public string Title { get; set; } = "";
 
-    private MudForm form;
+    private MudForm form = default!;
     [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
 
     private async Task Save()

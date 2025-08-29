@@ -58,7 +58,7 @@
                            Color="Color.Primary"
                            Class="px-0"
                            OnClick="@(async () => await View(context))"
-                           Title="View Picking List">
+                           title="View Picking List">
                     @context.SalesOrderNumber
                 </MudButton>
             </MudTd>
@@ -72,12 +72,12 @@
             <MudTd DataLabel="Actions">
                 <AuthorizeView Policy="@Permissions.PickingLists.Edit">
                     <Authorized Context="authEdit">
-                        <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" Title="Edit" OnClick="@(async () => await Edit(context))" />
+                        <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" title="Edit" OnClick="@(async () => await Edit(context))" />
                     </Authorized>
                 </AuthorizeView>
                 <AuthorizeView Policy="@Permissions.PickingLists.Delete">
                     <Authorized Context="authDelete">
-                        <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" Title="Delete" OnClick="@(async () => await Delete(context))" />
+                        <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" title="Delete" OnClick="@(async () => await Delete(context))" />
                     </Authorized>
                 </AuthorizeView>
             </MudTd>

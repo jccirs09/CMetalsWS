@@ -7,7 +7,7 @@
 @inject ItemRelationshipService RelService
 @inject PickingListService PlService
 
-<MudDialog Title="@Title">
+<MudDialog title="@Title">
     <DialogContent>
         <MudForm @ref="_form">
             <MudStack Spacing="3">
@@ -35,7 +35,7 @@
 
                 <MudStack Row="true" AlignItems="AlignItems.End">
                     <MudTextField T="string" Label="Tag Number" @bind-Value="Model.TagNumber" Required="true" />
-                    <MudButton Variant="Variant.Outlined" OnClick="SearchByTag" IsEnabled="@(!IsEdit)">Search by Tag</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="SearchByTag" isEnabled="@(!IsEdit)">Search by Tag</MudButton>
                 </MudStack>
 
                 <MudTextField T="string" Label="Instructions" @bind-Value="Model.Instructions" Lines="3" />

@@ -53,7 +53,7 @@
     [Parameter] public bool IsEdit { get; set; }
     [Parameter] public string Title { get; set; } = "";
 
-    private MudForm branchForm;
+    private MudForm branchForm = default!;
 
     [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
 

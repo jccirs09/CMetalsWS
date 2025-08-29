@@ -49,7 +49,7 @@
                     <Authorized Context="authEdit">
                         <MudIconButton Color="Color.Info"
                                        Icon="@Icons.Material.Filled.Edit"
-                                       Title="Edit"
+                                       title="Edit"
                                        OnClick="@(async () => await EditTruck(context))" />
                     </Authorized>
                 </AuthorizeView>
@@ -57,7 +57,7 @@
                     <Authorized Context="authDelete">
                         <MudIconButton Color="Color.Error"
                                        Icon="@Icons.Material.Filled.Delete"
-                                       Title="Delete"
+                                       title="Delete"
                                        OnClick="@(async () => await DeleteTruck(context))" />
                     </Authorized>
                 </AuthorizeView>
@@ -108,16 +108,16 @@
         };
 
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
-        var dialogRef = DialogService.Show<TruckDialog>("Add Truck", parameters, options);
-        var result = await dialogRef.Result;
-        if (result.Canceled) return;
-
-        var model = result.Data as Truck;
-        if (model != null)
+        var dialogRef = await DialogService.ShowAsync<TruckDialog>("Add Truck", parameters, options);
+        if (dialogRef is not null)
         {
-            await TruckService.CreateAsync(model);
-            Snackbar.Add("Truck created.", Severity.Success);
-            await LoadAsync();
+            var result = await dialogRef.Result;
+            if (result is not null && !result.Canceled && result.Data is Truck model)
+            {
+                await TruckService.CreateAsync(model);
+                Snackbar.Add("Truck created.", Severity.Success);
+                await LoadAsync();
+            }
         }
     }
 
@@ -148,16 +148,16 @@
         };
 
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
-        var dialogRef = DialogService.Show<TruckDialog>("Edit Truck", parameters, options);
-        var result = await dialogRef.Result;
-        if (result.Canceled) return;
-
-        var model = result.Data as Truck;
-        if (model != null)
+        var dialogRef = await DialogService.ShowAsync<TruckDialog>("Edit Truck", parameters, options);
+        if (dialogRef is not null)
         {
-            await TruckService.UpdateAsync(model);
-            Snackbar.Add("Truck updated.", Severity.Success);
-            await LoadAsync();
+            var result = await dialogRef.Result;
+            if (result is not null && !result.Canceled && result.Data is Truck model)
+            {
+                await TruckService.UpdateAsync(model);
+                Snackbar.Add("Truck updated.", Severity.Success);
+                await LoadAsync();
+            }
         }
     }
 

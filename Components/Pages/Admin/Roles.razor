@@ -44,12 +44,15 @@
             ["Title"] = "Add Role"
         };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
-        var dialogRef = DialogService.Show<RoleDialog>("Add Role", parameters, options);
-        var result = await dialogRef.Result;
-        if (result.Data is ApplicationRole saved)
+        var dialogRef = await DialogService.ShowAsync<RoleDialog>("Add Role", parameters, options);
+        if (dialogRef is not null)
         {
-            await RoleService.CreateRoleAsync(saved);
-            roles = RoleService.GetRoles();
+            var result = await dialogRef.Result;
+            if (result is not null && result.Data is ApplicationRole saved)
+            {
+                await RoleService.CreateRoleAsync(saved);
+                roles = RoleService.GetRoles();
+            }
         }
     }
 
@@ -63,13 +66,16 @@
             ["Title"] = "Edit Role"
         };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
-        var dialogRef = DialogService.Show<RoleDialog>("Edit Role", parameters, options);
-        var result = await dialogRef.Result;
-        if (result.Data is ApplicationRole updated)
+        var dialogRef = await DialogService.ShowAsync<RoleDialog>("Edit Role", parameters, options);
+        if (dialogRef is not null)
         {
-            updated.Id = role.Id;
-            await RoleService.UpdateRoleAsync(updated);
-            roles = RoleService.GetRoles();
+            var result = await dialogRef.Result;
+            if (result is not null && result.Data is ApplicationRole updated)
+            {
+                updated.Id = role.Id;
+                await RoleService.UpdateRoleAsync(updated);
+                roles = RoleService.GetRoles();
+            }
         }
     }
 

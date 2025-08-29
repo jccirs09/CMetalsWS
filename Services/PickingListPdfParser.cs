@@ -51,7 +51,8 @@ namespace CMetalsWS.Services
                     if (IsHeaderOrFooter(v)) break;
                     shipToLines.Add(v);
                 }
-                pl.ShipToAddress = Clean(string.Join(", ", shipToLines));
+                if(shipToLines.Any())
+                    pl.ShipToAddress = Clean(string.Join(", ", shipToLines));
             }
 
             // Ship via: primary signal (header) + inline variant near SHIP TO (e.g., "OUR TRUCK")

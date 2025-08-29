@@ -45,11 +45,60 @@
             ["Title"] = "Add Branch"
         };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
-        var dialogRef = DialogService.Show<BranchDialog>("Add Branch", parameters, options);
-        var result = await dialogRef.Result;
-        if (result.Data is Branch saved)
+        var dialogRef = await DialogService.ShowAsync<BranchDialog>("Add Branch", parameters, options);
+        if (dialogRef is not null)
         {
-            await BranchService.AddBranchAsync(saved);
+            var result = await dialogRef.Result;
+            if (result is not null && result.Data is Branch saved)
+            {
+                await BranchService.AddBranchAsync(saved);
+                branches = await BranchService.GetBranchesAsync();
+            }
+        }
+    }
+
+    private async Task EditBranch(Branch branch)
+    {
+        var clone = new Branch
+        {
+            Id = branch.Id,
+            Code = branch.Code,
+            Name = branch.Name,
+            AddressLine = branch.AddressLine,
+            City = branch.City,
+            Province = branch.Province,
+            Country = branch.Country,
+            PostalCode = branch.PostalCode
+        };
+        var parameters = new DialogParameters
+        {
+            ["Model"] = clone,
+            ["IsEdit"] = true,
+            ["Title"] = "Edit Branch"
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialogRef = await DialogService.ShowAsync<BranchDialog>("Edit Branch", parameters, options);
+        if (dialogRef is not null)
+        {
+            var result = await dialogRef.Result;
+            if (result is not null && result.Data is Branch updated)
+            {
+                updated.Id = branch.Id;
+                await BranchService.UpdateBranchAsync(updated);
+                branches = await BranchService.GetBranchesAsync();
+            }
+        }
+    }
+
+    private async Task DeleteBranch(Branch branch)
+    {
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Delete Confirmation",
+            $"Are you sure you want to delete branch '{branch.Name}'?",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirm == true)
+        {
+            await BranchService.DeleteBranchAsync(branch.Id);
             branches = await BranchService.GetBranchesAsync();
         }
     }
