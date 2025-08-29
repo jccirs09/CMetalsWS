@@ -79,6 +79,7 @@ namespace CMetalsWS.Services
             var toDelete = existing.Items.Where(i => !incomingIds.Contains(i.Id)).ToList();
             if (toDelete.Count > 0)
                 _db.PickingListItems.RemoveRange(toDelete);
+            var existingItems = existing.Items.ToDictionary(i => i.Id);
 
             foreach (var item in model.Items)
             {
@@ -100,17 +101,19 @@ namespace CMetalsWS.Services
                 }
                 else
                 {
-                    var tgt = existing.Items.First(i => i.Id == item.Id);
-                    tgt.LineNumber = item.LineNumber;
-                    tgt.ItemId = item.ItemId;
-                    tgt.ItemDescription = item.ItemDescription;
-                    tgt.Quantity = item.Quantity;
-                    tgt.Unit = item.Unit;
-                    tgt.Width = item.Width;
-                    tgt.Length = item.Length;
-                    tgt.Weight = item.Weight;
-                    tgt.MachineId = item.MachineId;
-                    tgt.Status = item.Status;
+                    if (existingItems.TryGetValue(item.Id, out var tgt))
+                    {
+                        tgt.LineNumber = item.LineNumber;
+                        tgt.ItemId = item.ItemId;
+                        tgt.ItemDescription = item.ItemDescription;
+                        tgt.Quantity = item.Quantity;
+                        tgt.Unit = item.Unit;
+                        tgt.Width = item.Width;
+                        tgt.Length = item.Length;
+                        tgt.Weight = item.Weight;
+                        tgt.MachineId = item.MachineId;
+                        tgt.Status = item.Status;
+                    }
                 }
             }
 
@@ -184,17 +187,10 @@ namespace CMetalsWS.Services
 
         public async Task<List<PickingList>> GetPendingPullingOrdersAsync(int? branchId = null)
         {
-            // 1. Get IDs of all picking list items that are already part of a work order.
-            var assignedPickingListItemIds = await _db.WorkOrderItems
-                .Where(wi => wi.PickingListItemId != null)
-                .Select(wi => wi.PickingListItemId!.Value)
-                .Distinct()
-                .ToListAsync();
-
-            // 2. Find picking lists that are pending and have no items in the "assigned" list.
             var query = _db.PickingLists
                 .Include(p => p.Items)
-                .Where(p => p.Status == PickingListStatus.Pending && !p.Items.Any(i => assignedPickingListItemIds.Contains(i.Id)))
+                .Where(p => p.Status == PickingListStatus.Pending &&
+                            !p.Items.Any(i => _db.WorkOrderItems.Any(wi => wi.PickingListItemId == i.Id)))
                 .AsNoTracking();
 
             if (branchId.HasValue)

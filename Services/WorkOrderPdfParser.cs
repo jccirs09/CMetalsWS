@@ -92,7 +92,7 @@ namespace CMetalsWS.Services
             return result.Text;
         }
 
-        private static List<string> SplitLines(string text) => text.Replace("", "").Split("''").Select(l => l.Trim()).Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+        private static List<string> SplitLines(string text) => text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim()).Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
         private static int IndexOf(List<string> lines, Func<string, bool> pred) { for (int i = 0; i < lines.Count; i++) if (pred(lines[i])) return i; return -1; }
         private static string? MatchFirst(IEnumerable<string> lines, string pattern, string groupName)
         {
@@ -103,6 +103,6 @@ namespace CMetalsWS.Services
             }
             return null;
         }
-        private static decimal? ToDec(string? s) => decimal.TryParse(s?.Replace(",", "").Replace("", ""), NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : null;
+        private static decimal? ToDec(string? s) => decimal.TryParse(s?.Replace(",", ""), NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : null;
     }
 }
