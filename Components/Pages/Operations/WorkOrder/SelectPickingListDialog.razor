@@ -18,10 +18,10 @@
                 {
                     <MudPaper Outlined="true" Class="pa-3">
                         <MudText Typo="Typo.subtitle1">Required Item: <b>@group.Key</b></MudText>
-                        <MudList Clickable="true" Dense="true">
+                        <MudList T="PickingListItem" Clickable="true" Dense="true">
                             @foreach (var item in group.Value)
                             {
-                                <MudListItem T="PickingListItem" OnClick="@() => ToggleSelection(item)">
+                                <MudListItem T="PickingListItem" OnClick="@(() => ToggleSelection(item))">
                                     <ChildContent>
                                         <MudCheckBox T="bool" Checked="@_selectedItems.Contains(item)" ReadOnly="true" />
                                         <MudText><b>SO:</b> @item.PickingList.SalesOrderNumber | <b>Customer:</b> @item.PickingList.CustomerName | <b>Qty:</b> @item.Quantity @item.Unit</MudText>
@@ -41,7 +41,7 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public List<string> RequiredItemIds { get; set; } = new();
 
     private Dictionary<string, List<PickingListItem>> _groupedItems = new();
