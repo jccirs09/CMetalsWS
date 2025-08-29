@@ -22,9 +22,20 @@
         <MudText Typo="Typo.h5">Picking Lists</MudText>
         <AuthorizeView Policy="@Permissions.PickingLists.Add">
             <Authorized Context="authAdd">
-                <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" OnClick="Add">
-                    New
-                </MudButton>
+                <MudStack Row="true">
+                    <MudButton Color="Color.Primary"
+                               Variant="Variant.Outlined"
+                               StartIcon="@Icons.Material.Filled.UploadFile"
+                               Href="/picking-lists/upload">
+                        Upload PDF
+                    </MudButton>
+                    <MudButton Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="Add">
+                        New
+                    </MudButton>
+                </MudStack>
             </Authorized>
         </AuthorizeView>
     </MudStack>

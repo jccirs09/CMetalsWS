@@ -34,6 +34,22 @@ namespace CMetalsWS.Services
                 .ToListAsync();
         }
 
+        public async Task<List<WorkOrder>> GetByCategoryAsync(MachineCategory category, int? branchId = null)
+        {
+            IQueryable<WorkOrder> query = _db.WorkOrders
+                .Include(w => w.Items)
+                .Include(w => w.Machine)
+                .Where(w => w.MachineCategory == category)
+                .AsNoTracking();
+
+            if (branchId.HasValue)
+                query = query.Where(w => w.BranchId == branchId.Value);
+
+            return await query
+                .OrderByDescending(w => w.CreatedDate)
+                .ToListAsync();
+        }
+
         public async Task<WorkOrder?> GetByIdAsync(int id)
         {
             return await _db.WorkOrders
