@@ -47,32 +47,33 @@ namespace CMetalsWS.Services
                 var headerIdx = IndexOf(itemLines, l => l.Contains("Skid") && l.Contains("Action"));
                 if(headerIdx >= 0)
                 {
+                    // Regex for format 1 (with Parent Tag in the line)
+                    var regex1 = new Regex(@"^\s*\d+\s+(?<action>\w+)\s+(?<childTag>\d+)\s+(?<parentTag>\d+)\s+(?<width>[\d\.]+)\s+(?<length>[\d\.]+)\s+(?<pcs>[\d,]+).*?(?<weight>[\d,]+)\s+.*?(?<itemId>ALUM\S+|PPS\S+)");
+
+                    // Regex for format 2 (without Parent Tag in the line)
+                    var regex2 = new Regex(@"^\s*\d+\s+(?<action>\w+)\s+(?<childTag>\d+)\s+(?<width>[\d\.]+)\s+(?<length>[\d\.]+)\s+(?<pcs>[\d,]+).*?(?<weight>[\d,]+)\s+.*?(?<itemId>ALUM\S+|PPS\S+)");
+
                     for(int i = headerIdx + 1; i < itemLines.Count; i++)
                     {
                         var line = itemLines[i];
                         if (line.Contains("SHIP-TO INFO") || line.Contains("END ORDER")) break;
 
-                        var match = Regex.Match(line, @"^\s*\d+\s+(?<action>\w+)\s+(?<childTag>\d+)\s+(?<parentTag>\d+)\s+(?<width>[\d\.]+)\s+(?<length>[\d\.]+)\s+(?<pcs>[\d,]+).*?(?<weight>[\d,]+)");
+                        var match = regex1.Match(line);
+                        if (!match.Success)
+                        {
+                            match = regex2.Match(line);
+                        }
+
                         if (match.Success)
                         {
                             var item = new WorkOrderItem
                             {
-                                ItemCode = match.Groups["childTag"].Value, // Or should this be looked up from ItemId in Skid Setups?
+                                ItemCode = match.Groups["itemId"].Value,
                                 OrderQuantity = ToDec(match.Groups["pcs"].Value),
                                 Weight = ToDec(match.Groups["weight"].Value),
                                 Width = ToDec(match.Groups["width"].Value),
                                 Length = ToDec(match.Groups["length"].Value)
                             };
-
-                            // The ItemId from the far right needs to be associated
-                            var itemIdMatch = Regex.Match(line, @"(?<id>[A-Z0-9\s/]+(?:FW|PW))$");
-                            if(itemIdMatch.Success)
-                            {
-                                // This is tricky, the ItemId in the table is not the child tag.
-                                // The real child ItemId is on the far right.
-                                item.ItemCode = itemIdMatch.Groups["id"].Value.Trim();
-                            }
-
                             wo.Items.Add(item);
                         }
                     }
