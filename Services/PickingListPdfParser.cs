@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using UglyToad.PdfPig;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 using CMetalsWS.Data;
 
 namespace CMetalsWS.Services
@@ -28,7 +29,7 @@ namespace CMetalsWS.Services
             pl.SalesOrderNumber = MatchFirst(lines,
                 @"PICKING\s+LIST\s+No\.?\s*(?<num>[0-9A-Za-z\-]+)", "num") ?? string.Empty;
 
-            // Order date and ship date
+            // Dates
             var printDt = MatchFirst(lines, @"PRINT\s+DATE/TIME:\s*(?<dt>.+)", "dt");
             var shipDt = MatchFirst(lines, @"SHIP\s+DATE\s*(?<dt>\d{2}/\d{2}/\d{4})", "dt");
             pl.OrderDate = ParseDateTime(printDt) ?? DateTime.UtcNow;
@@ -54,34 +55,25 @@ namespace CMetalsWS.Services
                 pl.ShipToAddress = Clean(string.Join(", ", shipToLines));
             }
 
-            // Ship via: primary signal (header) + inline variant near SHIP TO (e.g., "OUR TRUCK")
-            string? shipViaHeader = null, shipViaInline = null;
-
+            // Ship Via (clip at typical breakers to avoid eating the rest of the line)
             var shipViaIdx = IndexOf(lines, l => Regex.IsMatch(l, @"\bSHIP\s+VIA\b", RegexOptions.IgnoreCase));
             if (shipViaIdx >= 0)
             {
-                var block = string.Join(" ", lines.Skip(shipViaIdx).Take(4));
-                shipViaHeader = Clean(MatchFirst(new[] { block }, @"\bSHIP\s+VIA\b\s*(?<via>[A-Za-z0-9 \-_/]+)", "via"));
+                var raw = string.Join(" ", lines.Skip(shipViaIdx).Take(2));
+                var via = MatchFirst(new[] { raw }, @"\bSHIP\s+VIA\b\s*(?<via>[A-Za-z0-9 /_\-]+)", "via");
+                via = via?.Trim();
+                if (!string.IsNullOrEmpty(via))
+                {
+                    // trim if it accidentally captured following labels
+                    via = Regex.Replace(via, @"\b(SOLD\s+TO|SHIP\s+TO|LINE|DESCRIPTION)\b.*$", "", RegexOptions.IgnoreCase).Trim();
+                    pl.ShippingMethod = via;
+                }
             }
-
-            if (shipToIdx >= 0)
-            {
-                var area = string.Join(" ", lines.Skip(shipToIdx).Take(5));
-                // Capture short tokens commonly printed inline beside SHIP TO
-                shipViaInline = MatchFirst(new[] { area }, @"\b(OUR\s+TRUCK|TRUCK|COURIER|PICKUP)\b", "0");
-                if (!string.IsNullOrWhiteSpace(shipViaInline))
-                    shipViaInline = shipViaInline.ToUpperInvariant();
-            }
-
-            if (!string.IsNullOrWhiteSpace(shipViaHeader) && !string.IsNullOrWhiteSpace(shipViaInline) && !shipViaHeader!.Contains(shipViaInline!, StringComparison.OrdinalIgnoreCase))
-                pl.ShippingMethod = $"{shipViaHeader} ({shipViaInline})";
-            else
-                pl.ShippingMethod = shipViaHeader ?? shipViaInline;
 
             // Items
-            ParseItems(lines, pl.Items);
+            ParseItems(lines, text, pl.Items);
 
-            // Final fallback: if customer name is blank, lift from first Ship-To line
+            // Fallback: if customer name blank, lift from ship-to line 1
             if (string.IsNullOrWhiteSpace(pl.CustomerName) && shipToIdx >= 0)
             {
                 var alt = SafeGet(lines, shipToIdx + 1);
@@ -92,108 +84,135 @@ namespace CMetalsWS.Services
             return pl;
         }
 
-        private static void ParseItems(List<string> lines, ICollection<PickingListItem> items)
+        private static void ParseItems(List<string> lines, string fullText, ICollection<PickingListItem> items)
         {
+            // 1) Try the original line-by-line approach
             var header = IndexOf(lines, l =>
                 l.StartsWith("LINE", StringComparison.OrdinalIgnoreCase) &&
                 l.Contains("DESCRIPTION", StringComparison.OrdinalIgnoreCase));
-            if (header < 0) return;
 
-            var i = header + 1;
-            while (i < lines.Count)
+            if (header >= 0)
             {
-                var raw = lines[i];
-                if (string.IsNullOrWhiteSpace(raw) || IsHeaderOrFooter(raw))
+                var i = header + 1;
+                while (i < lines.Count)
                 {
-                    i++;
-                    continue;
-                }
+                    var raw = lines[i];
+                    if (string.IsNullOrWhiteSpace(raw) || IsHeaderOrFooter(raw))
+                    {
+                        i++;
+                        continue;
+                    }
 
-                // End or skip zones
-                if (raw.StartsWith("CTL -", StringComparison.OrdinalIgnoreCase)) break;
-                if (raw.StartsWith("TAG #", StringComparison.OrdinalIgnoreCase) ||
-                    raw.StartsWith("TAG:", StringComparison.OrdinalIgnoreCase) ||
-                    raw.StartsWith("SOURCE:", StringComparison.OrdinalIgnoreCase) ||
-                    raw.StartsWith("Other Reservations", StringComparison.OrdinalIgnoreCase))
-                {
-                    i++;
-                    continue;
-                }
+                    if (raw.StartsWith("CTL -", StringComparison.OrdinalIgnoreCase)) break;
+                    if (raw.StartsWith("TAG #", StringComparison.OrdinalIgnoreCase) ||
+                        raw.StartsWith("TAG:", StringComparison.OrdinalIgnoreCase) ||
+                        raw.StartsWith("SOURCE:", StringComparison.OrdinalIgnoreCase) ||
+                        raw.StartsWith("Other Reservations", StringComparison.OrdinalIgnoreCase))
+                    {
+                        i++;
+                        continue;
+                    }
 
-                // Pattern A: PCS rows with width, length, weight
-                var m = Regex.Match(raw,
-                    @"^(?<line>\d+)\s+(?<qty>[\d,]+)\s*(?<unit>PCS)\b.*?(?<item>[A-Z0-9\-_\/\.]+)\s+(?<w>\d{1,3}(?:\.\d{1,3})?)""\s+(?<l>\d{1,3}(?:\.\d{1,3})?)""\s+(?<wt>[\d,]+)$",
+                    // A: PCS rows (width + length + weight)
+                    var m = Regex.Match(raw,
+                        @"^(?<line>\d+)\s+(?<qty>[\d,]+)\s*(?<unit>PCS)\b.*?(?<item>[A-Z0-9\-_\/\.]+)\s+(?<w>\d{1,3}(?:\.\d{1,3})?)""\s+(?<l>\d{1,3}(?:\.\d{1,3})?)""\s+(?<wt>[\d,]+)$",
+                        RegexOptions.IgnoreCase);
+
+                    // B: LBS rows (width only, weight at end)
+                    if (!m.Success)
+                    {
+                        m = Regex.Match(raw,
+                            @"^(?<line>\d+)\s+(?<qty>[\d,]+)\s*(?<unit>LBS)\b.*?(?<item>[A-Z0-9\-_\/\.]+)\s+(?<w>\d{1,3}(?:\.\d{1,3})?)""\s+(?<wt>[\d,]+)$",
+                            RegexOptions.IgnoreCase);
+                    }
+
+                    // C: PCS variant
+                    if (!m.Success)
+                    {
+                        m = Regex.Match(raw,
+                            @"^(?<line>\d+)\s+(?<qty>[\d,]+)\s*(?<unit>PCS)\b.*?(?<item>[A-Z0-9\-_\/\.]+)\s+(?<w>\d{1,3}(?:\.\d{1,3})?)""\s+(?<l>\d{1,3}(?:\.\d{1,3})?)""\s+(?<wt>\d{1,3}(?:,\d{3})*(?:\.\d+)?)$",
+                            RegexOptions.IgnoreCase);
+                    }
+
+                    if (m.Success)
+                    {
+                        items.Add(BuildItemFromMatch(m, lines, i + 1));
+                        i += _descLinesConsumed;
+                        _descLinesConsumed = 0;
+                        i++;
+                        continue;
+                    }
+
+                    i++;
+                }
+            }
+
+            // 2) If nothing found (your screenshot case), use a multiline fallback over the items block.
+            if (items.Count == 0)
+            {
+                // Take text between header row and a terminating marker
+                var block = ExtractItemsBlock(fullText);
+
+                // Pattern for LBS (no length)
+                var lbs = Regex.Matches(block,
+                    @"(?m)^\s*(?<line>\d+)\s+(?<qty>[\d,]+)\s*(?<unit>LBS)\b.*?(?<item>[A-Z0-9\-/\.]+)\s+(?<w>\d{1,3}(?:\.\d{1,3})?)""\s+(?<wt>[\d,]+)\s*$",
                     RegexOptions.IgnoreCase);
 
-                // Pattern B: LBS rows for slit coils (no length)
-                if (!m.Success)
-                {
-                    m = Regex.Match(raw,
-                        @"^(?<line>\d+)\s+(?<qty>[\d,]+)\s*(?<unit>LBS)\b.*?(?<item>[A-Z0-9\-_\/\.]+)\s+(?<w>\d{1,3}(?:\.\d{1,3})?)""\s+(?<wt>[\d,]+)$",
-                        RegexOptions.IgnoreCase);
-                }
+                foreach (Match m in lbs.Cast<Match>())
+                    items.Add(BuildItemFromMatch(m, null, -1));
 
-                // Pattern C: PCS variant (decimals and flexible weight)
-                if (!m.Success)
-                {
-                    m = Regex.Match(raw,
-                        @"^(?<line>\d+)\s+(?<qty>[\d,]+)\s*(?<unit>PCS)\b.*?(?<item>[A-Z0-9\-_\/\.]+)\s+(?<w>\d{1,3}(?:\.\d{1,3})?)""\s+(?<l>\d{1,3}(?:\.\d{1,3})?)""\s+(?<wt>\d{1,3}(?:,\d{3})*(?:\.\d+)?)$",
-                        RegexOptions.IgnoreCase);
-                }
+                // Pattern for PCS (has length)
+                var pcs = Regex.Matches(block,
+                    @"(?m)^\s*(?<line>\d+)\s+(?<qty>[\d,]+)\s*(?<unit>PCS)\b.*?(?<item>[A-Z0-9\-/\.]+)\s+(?<w>\d{1,3}(?:\.\d{1,3})?)""\s+(?<l>\d{1,3}(?:\.\d{1,3})?)""\s+(?<wt>[\d,]+)\s*$",
+                    RegexOptions.IgnoreCase);
 
-                if (m.Success)
-                {
-                    var lineNum = ToInt(m.Groups["line"].Value) ?? 0;
-                    var qty = ToDec(m.Groups["qty"].Value) ?? 0m;
-                    var unit = m.Groups["unit"].Value.ToUpperInvariant();
-                    var itemId = Clean(m.Groups["item"].Value);
-                    var width = ToDec(m.Groups["w"].Value);
-                    decimal? length = null;
-                    if (m.Groups["l"]?.Success == true)
-                        length = ToDec(m.Groups["l"].Value);
-                    var weight = ToDec(m.Groups["wt"].Value);
-
-                    // Pull multiline description right after the row, until next row or footer
-                    var description = ExtractDescription(lines, i + 1);
-                    if (string.IsNullOrWhiteSpace(description))
-                        description = itemId; // fallback
-
-                    var pli = new PickingListItem
-                    {
-                        LineNumber = lineNum,
-                        Quantity = qty,
-                        Unit = unit == "LBS" ? "LBS" : "EA",
-                        ItemId = itemId,
-                        ItemDescription = description,
-                        Width = width,
-                        Length = length,
-                        Weight = weight
-                    };
-
-                    items.Add(pli);
-
-                    i += _descLinesConsumed;
-                    _descLinesConsumed = 0;
-                    i++;
-                    continue;
-                }
-
-                // Not an item row
-                i++;
+                foreach (Match m in pcs.Cast<Match>())
+                    items.Add(BuildItemFromMatch(m, null, -1));
             }
+        }
 
-            // Optional: refine weight from later CTL/SOURCE blocks (kept from previous version)
-            var ctlIdx = IndexOf(lines, l => l.StartsWith("CTL -", StringComparison.OrdinalIgnoreCase) || l.Contains("- CTL -", StringComparison.OrdinalIgnoreCase));
-            if (ctlIdx >= 0 && items.Count > 0)
+        private static PickingListItem BuildItemFromMatch(Match m, List<string>? lines, int descStart)
+        {
+            var lineNum = ToInt(m.Groups["line"].Value) ?? 0;
+            var qty = ToDec(m.Groups["qty"].Value) ?? 0m;
+            var unit = m.Groups["unit"].Value.ToUpperInvariant();
+            var itemId = Clean(m.Groups["item"].Value);
+            var width = ToDec(m.Groups["w"].Value);
+            decimal? length = null;
+            if (m.Groups["l"]?.Success == true)
+                length = ToDec(m.Groups["l"].Value);
+            var weight = ToDec(m.Groups["wt"].Value);
+
+            string description = itemId;
+            if (lines != null && descStart >= 0)
             {
-                var window = string.Join(" ", lines.Skip(ctlIdx).Take(14));
-                var wlbs = MatchFirst(new[] { window }, @"(?<w>\d{1,3}(?:,\d{3})*)\s*LBS", "w");
-                if (wlbs != null)
-                {
-                    var first = items.First();
-                    first.Weight = ToDec(wlbs) ?? first.Weight;
-                }
+                description = ExtractDescription(lines, descStart);
             }
+
+            return new PickingListItem
+            {
+                LineNumber = lineNum,
+                Quantity = qty,
+                Unit = unit == "LBS" ? "LBS" : "EA",
+                ItemId = itemId,
+                ItemDescription = description,
+                Width = width,
+                Length = length,
+                Weight = weight
+            };
+        }
+
+        private static string ExtractItemsBlock(string fullText)
+        {
+            // Find the header "LINE ... DESCRIPTION" and cut until a typical trailer line
+            var start = Regex.Match(fullText, @"LINE\s+QTY.*DESCRIPTION", RegexOptions.IgnoreCase);
+            if (!start.Success) return fullText;
+
+            var tail = Regex.Match(fullText, @"(?:(?:PULLED BY)|(?:TERMS)|(?:MAX SKID WEIGHT)|(?:MAX COIL WEIGHT))", RegexOptions.IgnoreCase);
+            if (tail.Success && tail.Index > start.Index)
+                return fullText.Substring(start.Index, tail.Index - start.Index);
+
+            return fullText.Substring(start.Index);
         }
 
         private static int _descLinesConsumed = 0;
@@ -201,7 +220,7 @@ namespace CMetalsWS.Services
         private static string ExtractDescription(List<string> lines, int startIdx)
         {
             var sb = new StringBuilder();
-            var idx = startIdx;
+            int idx = startIdx;
 
             while (idx < lines.Count)
             {
@@ -250,11 +269,9 @@ namespace CMetalsWS.Services
             using var doc = PdfDocument.Open(pdfStream);
             foreach (var page in doc.GetPages())
             {
-                foreach (var word in page.GetWords())
-                {
-                    sb.Append(word.Text);
-                    sb.Append(' ');
-                }
+                // Content-order extraction preserves natural line breaks much better
+                var pageText = ContentOrderTextExtractor.GetText(page);
+                sb.AppendLine(pageText);
                 sb.AppendLine();
             }
             return sb.ToString();
@@ -329,6 +346,4 @@ namespace CMetalsWS.Services
 
         private static string Clean(string s) => Regex.Replace(s ?? string.Empty, @"\s+", " ").Trim();
     }
-
-
 }
