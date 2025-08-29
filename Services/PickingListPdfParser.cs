@@ -10,58 +10,25 @@ using UglyToad.PdfPig;
 
 namespace CMetalsWS.Services
 {
-    public class PickingListPdfParser
+    public class PickingListPdfParser : IPickingListPdfParser
     {
         public PickingList Parse(Stream pdfStream, int branchId, int? customerId = null, int? truckId = null)
         {
             var text = ExtractText(pdfStream);
-            var lines = SplitLines(text);
 
-            var pl = new PickingList
+            // --- DEBUGGING: Return raw text ---
+            var debugPl = new PickingList
             {
-                BranchId = branchId,
-                CustomerId = customerId,
-                TruckId = truckId
+                SalesOrderNumber = "DEBUG",
+                CustomerName = "Raw PdfPig Text ->",
+                ShipToAddress = "See Item Description below"
             };
-
-            // Sales order / picking number
-            pl.SalesOrderNumber = MatchFirst(lines, @"No\.\s*(?<num>[0-9A-Z\-]+)", "num") ?? string.Empty;
-
-            // Dates
-            pl.ShipDate = ParseDate(GetValueFromNextLine(lines, "SHIP DATE"));
-            pl.OrderDate = ParseDate(GetValueFromNextLine(lines, "ORDER DATE")) ?? DateTime.UtcNow;
-
-            // Sales rep
-            pl.SalesRep = GetValueFromNextLine(lines, "SALES REP");
-
-            // SOLD TO (CustomerName)
-            var soldToIdx = IndexOf(lines, l => l.Contains("SOLD TO"));
-            if (soldToIdx >= 0)
+            debugPl.Items.Add(new PickingListItem
             {
-                pl.CustomerName = NextNonEmpty(lines, soldToIdx + 1);
-            }
-
-            // SHIP TO (multi-line address)
-            var shipToIdx = IndexOf(lines, l => l.Contains("SHIP TO"));
-            if (shipToIdx >= 0)
-            {
-                pl.ShipToAddress = NextNonEmptyBlock(lines, shipToIdx + 1, 3, stopIf: s => s.Contains("SHIP VIA"));
-            }
-
-            // Ship Via
-            pl.ShippingMethod = GetValueFromNextLine(lines, "SHIP VIA");
-
-            // Items
-            ParseItems(lines, pl.Items);
-
-            // Fallback: if no CustomerName and we have a ShipTo first line, use it
-            if (string.IsNullOrWhiteSpace(pl.CustomerName) && shipToIdx >= 0)
-            {
-                var firstShipLine = NextNonEmpty(lines, shipToIdx + 1);
-                if (!string.IsNullOrWhiteSpace(firstShipLine)) pl.CustomerName = firstShipLine;
-            }
-
-            return pl;
+                ItemDescription = text
+            });
+            return debugPl;
+            // --- END DEBUGGING ---
         }
 
         private static void ParseItems(List<string> lines, ICollection<PickingListItem> items)
