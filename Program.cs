@@ -88,7 +88,7 @@ builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddTransient<WorkOrderPdfParser>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddSignalR();
-builder.Services.AddScoped<IPickingListPdfParser, PickingListPdfParser>();
+builder.Services.AddScoped<PickingListPdfParser>();
 
 var app = builder.Build();
 

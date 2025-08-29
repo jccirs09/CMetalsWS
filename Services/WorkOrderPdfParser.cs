@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using CMetalsWS.Data;
-using UglyToad.PdfPig;
+using IronOcr;
 
 namespace CMetalsWS.Services
 {
@@ -45,7 +45,7 @@ namespace CMetalsWS.Services
             {
                 var itemLines = lines.Skip(skidSetupsIdx + 1).ToList();
                 var headerIdx = IndexOf(itemLines, l => l.Contains("Skid") && l.Contains("Action"));
-                if(headerIdx >= 0)
+                if (headerIdx >= 0)
                 {
                     // Regex for format 1 (with Parent Tag in the line)
                     var regex1 = new Regex(@"^\s*\d+\s+(?<action>\w+)\s+(?<childTag>\d+)\s+(?<parentTag>\d+)\s+(?<width>[\d\.]+)\s+(?<length>[\d\.]+)\s+(?<pcs>[\d,]+).*?(?<weight>[\d,]+)\s+.*?(?<itemId>ALUM\S+|PPS\S+)");
@@ -53,7 +53,7 @@ namespace CMetalsWS.Services
                     // Regex for format 2 (without Parent Tag in the line)
                     var regex2 = new Regex(@"^\s*\d+\s+(?<action>\w+)\s+(?<childTag>\d+)\s+(?<width>[\d\.]+)\s+(?<length>[\d\.]+)\s+(?<pcs>[\d,]+).*?(?<weight>[\d,]+)\s+.*?(?<itemId>ALUM\S+|PPS\S+)");
 
-                    for(int i = headerIdx + 1; i < itemLines.Count; i++)
+                    for (int i = headerIdx + 1; i < itemLines.Count; i++)
                     {
                         var line = itemLines[i];
                         if (line.Contains("SHIP-TO INFO") || line.Contains("END ORDER")) break;
@@ -85,21 +85,14 @@ namespace CMetalsWS.Services
 
         private static string ExtractText(Stream pdfStream)
         {
-            var sb = new StringBuilder();
-            using var doc = PdfDocument.Open(pdfStream);
-            foreach (var page in doc.GetPages())
-            {
-                foreach (var word in page.GetWords())
-                {
-                    sb.Append(word.Text);
-                    sb.Append(' ');
-                }
-                sb.AppendLine();
-            }
-            return sb.ToString();
+            var ocr = new IronTesseract();
+            var input = new OcrInput();
+            input.LoadPdf(pdfStream);
+            var result = ocr.Read(input);
+            return result.Text;
         }
 
-        private static List<string> SplitLines(string text) => text.Replace("\r\n", "\n").Split('\n').Select(l => l.Trim()).Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+        private static List<string> SplitLines(string text) => text.Replace("", "").Split("''").Select(l => l.Trim()).Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
         private static int IndexOf(List<string> lines, Func<string, bool> pred) { for (int i = 0; i < lines.Count; i++) if (pred(lines[i])) return i; return -1; }
         private static string? MatchFirst(IEnumerable<string> lines, string pattern, string groupName)
         {
@@ -110,6 +103,6 @@ namespace CMetalsWS.Services
             }
             return null;
         }
-        private static decimal? ToDec(string s) => decimal.TryParse(s.Replace(",", "").Replace("\"", ""), NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : null;
+        private static decimal? ToDec(string? s) => decimal.TryParse(s?.Replace(",", "").Replace("", ""), NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : null;
     }
 }
