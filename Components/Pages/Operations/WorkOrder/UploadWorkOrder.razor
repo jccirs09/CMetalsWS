@@ -47,7 +47,7 @@
             <MudDivider />
             <MudGrid>
                 <MudItem xs="4"><MudTextField @bind-Value="_preview.PdfWorkOrderNumber" Label="PDF WO #" /></MudItem>
-                <MudItem xs="4"><MudDatePicker @bind-Date="_preview.DueDate" Label="Due Date" /></MudItem>
+                <MudItem xs="4"><MudDatePicker @bind-Date="_dueDatePreview" Label="Due Date" /></MudItem>
                 <MudItem xs="4"><MudTextField @bind-Value="_preview.TagNumber" Label="Parent Tag" /></MudItem>
             </MudGrid>
 
@@ -73,6 +73,7 @@
 
 @code {
     private WorkOrder? _preview;
+    private DateTime? _dueDatePreview;
     private bool _saving;
     private string? _status;
     private int _branchId;
@@ -89,6 +90,7 @@
     {
         _preview = null;
         _status = null;
+        _dueDatePreview = null;
     }
 
     private async Task OnFilesChanged(InputFileChangeEventArgs e)
@@ -111,6 +113,7 @@
             ms.Position = 0;
 
             _preview = Parser.Parse(ms, _branchId);
+            _dueDatePreview = _preview.DueDate;
             _status = $"Parsed {_preview.Items.Count} line(s) from {file.Name}";
             Snackbar.Add(_status, Severity.Success);
         }
@@ -128,6 +131,8 @@
             Snackbar.Add("Nothing to save or user not found.", Severity.Info);
             return;
         }
+
+        _preview.DueDate = _dueDatePreview ?? DateTime.UtcNow;
 
         try
         {
