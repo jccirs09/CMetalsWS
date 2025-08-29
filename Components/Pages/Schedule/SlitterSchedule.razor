@@ -1,45 +1,72 @@
 ﻿@page "/schedule/slitter"
+@using System.Linq
+@using MudBlazor
+@using Heron.MudCalendar
+@using Microsoft.AspNetCore.SignalR.Client
+@using CMetalsWS.Data
+@using CMetalsWS.Services
 
 @inject WorkOrderService WorkOrderService
 @inject MachineService MachineService
 @inject BranchService BranchService
 @inject AuthenticationStateProvider AuthStateProvider
-@inject IHubContext<ScheduleHub> HubContext
 @inject NavigationManager NavigationManager
 
 @implements IAsyncDisposable
 
 <MudPaper Class="pa-4">
     <MudStack Spacing="3">
-        <MudText Typo="Typo.h5">Slitter Schedule</MudText>
+        <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.h5">Slitter Schedule</MudText>
+            <MudSpacer />
+            <MudSelect T="int" Label="Machine" @bind-Value="_selectedMachineId" Dense="true" Style="min-width:240px">
+                @foreach (var m in _machines)
+                {
+                    <MudSelectItem T="int" Value="@m.Id">@m.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudStack>
 
-        <MudSelect T="int" Label="Machine" @bind-Value="_selectedMachineId">
-            @foreach (var m in _machines)
-            {
-                <MudSelectItem Value="m.Id">@m.Name</MudSelectItem>
-            }
-        </MudSelect>
+        <MudCalendar T="SchedItem"
+                     Items="_items"
+                     View="_view"
+                     StartHour="_startHour"
+                     EndHour="_endHour"
+                     MonthCellMinHeight="120"
+                     EnableDragItems="true"
+                     EnableResizeItems="true"
+                     CanDragItem="@(it => it.Start >= DateTime.Now)"
+                     CanDropItem="@((it, date, view) => (view == CalendarView.Month && date.Add(it.Start.TimeOfDay) >= DateTime.Now) || date >= DateTime.Now)"
+                     OnItemDrop="HandleDrop"
+                     OnItemClick="HandleClick">
+            <CellTemplate Context="evt">
+                @{
+                    var wo = evt.WorkOrder!;
+                    var stripe = "var(--mud-palette-secondary)";
+                    var sub = $"{wo.TagNumber} • Due {wo.DueDate:yyyy-MM-dd}";
+                }
+                <div style="width:100%;border:1px solid var(--mud-palette-lines-default);border-left:4px solid @stripe;border-radius:6px;overflow:hidden;">
+                    <div style="display:flex;align-items:center;gap:.5rem;padding:.25rem .5rem;">
+                        <MudIcon Icon="@Icons.Material.Filled.ContentCut" Size="Size.Small" />
+                        <MudText Typo="Typo.body2">@wo.WorkOrderNumber</MudText>
+                        <MudSpacer />
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">WO @wo.Id</MudChip>
+                    </div>
+                    <div style="padding:0 .5rem .5rem .5rem;">
+                        <MudText Typo="Typo.caption">@sub</MudText>
+                    </div>
+                </div>
+            </CellTemplate>
+        </MudCalendar>
 
-        <MudTabs>
-            <MudTabPanel Text="Day">
-                <MudCalendar T="CalendarItem" Items="_items" View="CalendarView.Day" />
-            </MudTabPanel>
-            <MudTabPanel Text="Week">
-                <MudCalendar T="CalendarItem" Items="_items" View="CalendarView.Week" />
-            </MudTabPanel>
-            <MudTabPanel Text="Month">
-                <MudCalendar T="CalendarItem" Items="_items" View="CalendarView.Month" />
-            </MudTabPanel>
-        </MudTabs>
-
-        <MudDivider />
+        <MudDivider Class="my-4" />
 
         <MudText Typo="Typo.h6">Unscheduled Slitter Work Orders</MudText>
         <MudList T="WorkOrder" Dense="true">
             @foreach (var wo in _unscheduled)
             {
-                <MudListItem>
-                    <MudListItemText>@wo.WorkOrderNumber - @wo.TagNumber - Due: @wo.DueDate.ToString("yyyy-MM-dd")</MudListItemText>
+                <MudListItem T="WorkOrder" Value="@wo">
+                        @wo.WorkOrderNumber - @wo.TagNumber - Due: @wo.DueDate.ToString("yyyy-MM-dd")
                 </MudListItem>
             }
         </MudList>
@@ -47,17 +74,26 @@
 </MudPaper>
 
 @code {
+    private sealed class SchedItem : CalendarItem
+    {
+        public WorkOrder WorkOrder { get; init; } = default!;
+    }
+
     private List<Machine> _machines = new();
     private List<WorkOrder> _all = new();
     private List<WorkOrder> _unscheduled = new();
+    private List<SchedItem> _items = new();
+
     private int _selectedMachineId;
-    private List<CalendarItem> _items = new();
-    private HubConnection? _hubConnection;
+    private CalendarView _view = CalendarView.Week;
+    private int _startHour = 5;
+    private int _endHour = 23;
+    private HubConnection? _hub;
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = auth.User;
         var branches = await BranchService.GetBranchesAsync();
         int? branchId = user.IsInRole("Admin") ? null : branches.FirstOrDefault()?.Id;
 
@@ -71,25 +107,26 @@
         await LoadWorkOrders(branchId);
         BuildCalendarItems();
 
-        _hubConnection = new HubConnectionBuilder()
+        _hub = new HubConnectionBuilder()
             .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/schedule"))
             .WithAutomaticReconnect()
             .Build();
 
-        _hubConnection.On<int>("WorkOrderUpdated", async (id) =>
+        _hub.On<int>("WorkOrderUpdated", async (id) =>
         {
             await LoadWorkOrders(branchId);
             BuildCalendarItems();
             StateHasChanged();
         });
 
-        await _hubConnection.StartAsync();
+        await _hub.StartAsync();
     }
 
     private async Task LoadWorkOrders(int? branchId)
     {
         _all = (await WorkOrderService.GetAsync(branchId))
-            .Where(w => w.MachineCategory == MachineCategory.Slitter)
+            .Where(w => w.MachineCategory == MachineCategory.Slitter
+                        && (_selectedMachineId == 0 || w.MachineId == _selectedMachineId))
             .ToList();
 
         _unscheduled = _all.Where(w => w.ScheduledStartDate == null).ToList();
@@ -97,21 +134,48 @@
 
     private void BuildCalendarItems()
     {
-        var scheduled = _all.Where(w => w.ScheduledStartDate != null).ToList();
+        _items = _all
+            .Where(w => w.ScheduledStartDate != null)
+            .Select(w => new SchedItem
+            {
+                Text = w.WorkOrderNumber,
+                Start = w.ScheduledStartDate!.Value,
+                End = w.ScheduledEndDate ?? w.ScheduledStartDate!.Value.AddHours(1),
+                AllDay = false,
+                WorkOrder = w
+            })
+            .ToList();
+    }
 
-        _items = scheduled.Select(w => new CalendarItem
-        {
-            Id = w.Id.ToString(),
-            Text = w.WorkOrderNumber,
-            Start = w.ScheduledStartDate!.Value,
-            End = w.ScheduledEndDate ?? w.ScheduledStartDate!.Value.AddHours(1),
-            AllDay = false
-        }).ToList();
+    private async Task HandleDrop(object e)
+    {
+        dynamic d = e;
+        var item = (SchedItem)d.Item;
+        var newStart = (DateTime)d.NewStart;
+        var newEnd = (DateTime?)(d.NewEnd ?? null) ?? newStart.AddHours(1);
+
+        var wo = item.WorkOrder;
+        wo.ScheduledStartDate = newStart;
+        wo.ScheduledEndDate = newEnd;
+
+        await WorkOrderService.UpdateAsync(wo, "system");
+        await LoadWorkOrders(null);
+        BuildCalendarItems();
+        StateHasChanged();
+
+        if (_hub is not null)
+            await _hub.SendAsync("WorkOrderUpdated", wo.Id);
+    }
+
+    private Task HandleClick(SchedItem item)
+    {
+        // NavigationManager.NavigateTo($"/work-orders/{item.WorkOrder.Id}");
+        return Task.CompletedTask;
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_hubConnection != null)
-            await _hubConnection.DisposeAsync();
+        if (_hub is not null)
+            await _hub.DisposeAsync();
     }
 }

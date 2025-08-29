@@ -2,6 +2,8 @@
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using MudBlazor
+@using Microsoft.AspNetCore.Components.Authorization
+
 @inject LoadService LoadService
 @inject TruckService TruckService
 @inject BranchService BranchService
@@ -12,7 +14,6 @@
 <MudPaper Class="pa-4">
     <MudStack Spacing="3">
         <MudText Typo="Typo.h5">Load (Shipping) Schedule</MudText>
-
         <MudTable Items="_loads" Hover="true" Dense="true" Class="mt-4">
             <HeaderContent>
                 <MudTh>Load #</MudTh>
@@ -24,16 +25,17 @@
             <RowTemplate>
                 <MudTd>@context.LoadNumber</MudTd>
                 <MudTd>@context.Truck?.Name</MudTd>
-                <MudTd>@context.ScheduledDate.ToString("yyyy-MM-dd")</MudTd>
+                <MudTd>@($"{context.ScheduledDate:yyyy-MM-dd}")</MudTd>
                 <MudTd>@context.Status</MudTd>
                 <MudTd>
-                    <MudButton Variant="Variant.Text" OnClick="@(() => EditLoad(context))">Edit</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="@(async () => await EditLoad(context))">Edit</MudButton>
                 </MudTd>
             </RowTemplate>
         </MudTable>
 
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateLoad">New Load</MudButton>
     </MudStack>
+
 </MudPaper>
 
 @code {
@@ -64,7 +66,7 @@
             ScheduledDate = DateTime.UtcNow.Date
         };
 
-        var dlg = DialogService.Show<LoadDialog>("New Load", new DialogParameters
+        var dlg = await DialogService.ShowAsync<LoadDialog>("New Load", new DialogParameters
         {
             ["Model"] = load,
             ["IsEdit"] = false
@@ -84,7 +86,7 @@
         var clone = await LoadService.GetByIdAsync(load.Id);
         if (clone == null) return;
 
-        var dlg = DialogService.Show<LoadDialog>("Edit Load", new DialogParameters
+        var dlg = await DialogService.ShowAsync<LoadDialog>("Edit Load", new DialogParameters
         {
             ["Model"] = clone,
             ["IsEdit"] = true
@@ -98,4 +100,6 @@
             await LoadAsync();
         }
     }
+
+
 }

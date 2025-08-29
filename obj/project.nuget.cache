@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "yWCP5ZU4B1E=",
+  "dgSpecHash": "776FRgsTjFw=",
   "success": true,
   "projectFilePath": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\CMetalsWS.csproj",
   "expectedPackageFiles": [
@@ -98,6 +98,7 @@
     "C:\\Users\\Jessie\\.nuget\\packages\\mono.texttemplating\\3.0.0\\mono.texttemplating.3.0.0.nupkg.sha512",
     "C:\\Users\\Jessie\\.nuget\\packages\\mudblazor\\8.11.0\\mudblazor.8.11.0.nupkg.sha512",
     "C:\\Users\\Jessie\\.nuget\\packages\\newtonsoft.json\\13.0.3\\newtonsoft.json.13.0.3.nupkg.sha512",
+    "C:\\Users\\Jessie\\.nuget\\packages\\pdfpig\\0.1.11\\pdfpig.0.1.11.nupkg.sha512",
     "C:\\Users\\Jessie\\.nuget\\packages\\rbush.signed\\4.0.0\\rbush.signed.4.0.0.nupkg.sha512",
     "C:\\Users\\Jessie\\.nuget\\packages\\sixlabors.fonts\\1.0.0\\sixlabors.fonts.1.0.0.nupkg.sha512",
     "C:\\Users\\Jessie\\.nuget\\packages\\system.clientmodel\\1.0.0\\system.clientmodel.1.0.0.nupkg.sha512",

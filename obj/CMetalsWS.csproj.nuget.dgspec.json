@@ -98,6 +98,10 @@
             "MudBlazor": {
               "target": "Package",
               "version": "[8.*, )"
+            },
+            "PdfPig": {
+              "target": "Package",
+              "version": "[0.1.11, )"
             }
           },
           "imports": [

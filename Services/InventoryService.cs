@@ -48,7 +48,7 @@ namespace CMetalsWS.Services
                         TagNumber = incoming.TagNumber,
                         Width = incoming.Width,
                         Length = incoming.Length,
-                        Weight = incoming.Weight,
+                        Snapshot = incoming.Snapshot,
                         Location = incoming.Location
                     });
                     ins++;
@@ -59,7 +59,7 @@ namespace CMetalsWS.Services
                     current.Description = incoming.Description;
                     current.Width = incoming.Width;
                     current.Length = incoming.Length;
-                    current.Weight = incoming.Weight;
+                    current.Snapshot = incoming.Snapshot;
                     current.Location = incoming.Location;
                     upd++;
                 }

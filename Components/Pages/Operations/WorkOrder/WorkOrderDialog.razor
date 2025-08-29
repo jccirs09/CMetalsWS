@@ -9,7 +9,7 @@
                 <MudSelect T="int?" Label="Machine" @bind-Value="MachineId" Required="true">
                     @foreach (var m in Machines)
                     {
-                        <MudSelectItem Value="m.Id">@m.Name (@m.Category)</MudSelectItem>
+                        <MudSelectItem T="int?" Value="m.Id">@m.Name (@m.Category)</MudSelectItem>
                     }
                 </MudSelect>
 

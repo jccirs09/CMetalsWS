@@ -84,8 +84,10 @@ builder.Services.AddScoped<ItemRelationshipService>();
 builder.Services.AddTransient<IdentityDataSeeder>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<LoadService>();
+builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddSignalR();
+builder.Services.AddScoped<IPickingListPdfParser, PickingListPdfParser>();
 
 var app = builder.Build();
 

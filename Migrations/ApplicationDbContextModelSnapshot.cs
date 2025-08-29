@@ -164,6 +164,51 @@ namespace CMetalsWS.Migrations
                     b.ToTable("Branches");
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.Customer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CustomerCode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LocationCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTime?>("ModifiedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerCode")
+                        .IsUnique();
+
+                    b.HasIndex("LocationCode");
+
+                    b.ToTable("Customer", (string)null);
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.InventoryItem", b =>
                 {
                     b.Property<int>("Id")
@@ -176,7 +221,6 @@ namespace CMetalsWS.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
@@ -193,17 +237,25 @@ namespace CMetalsWS.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
+                    b.Property<decimal?>("Snapshot")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
 
-                    b.Property<string>("TagNumber")
-                        .IsRequired()
+                    b.Property<string>("SnapshotLabel")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("SnapshotUnit")
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
+
+                    b.Property<string>("Status")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
-                    b.Property<decimal?>("Weight")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
+                    b.Property<string>("TagNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<decimal?>("Width")
                         .HasPrecision(18, 3)
@@ -213,8 +265,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("BranchId");
 
-                    b.HasIndex("ItemId", "TagNumber", "BranchId")
-                        .IsUnique();
+                    b.HasIndex("ItemId");
 
                     b.ToTable("InventoryItems");
                 });
@@ -255,6 +306,79 @@ namespace CMetalsWS.Migrations
                     b.ToTable("ItemRelationship", (string)null);
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.Load", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("LoadNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ReadyDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ScheduledDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ScheduledEnd")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ScheduledStart")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TruckId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("TruckId");
+
+                    b.ToTable("Loads");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.LoadItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Destination")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("LoadId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PickingListId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Weight")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LoadId");
+
+                    b.HasIndex("PickingListId");
+
+                    b.ToTable("LoadItems");
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.Machine", b =>
                 {
                     b.Property<int>("Id")
@@ -267,8 +391,9 @@ namespace CMetalsWS.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Category")
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -300,6 +425,9 @@ namespace CMetalsWS.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CustomerId")
                         .HasColumnType("int");
 
                     b.Property<string>("CustomerName")
@@ -334,6 +462,8 @@ namespace CMetalsWS.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BranchId");
+
+                    b.HasIndex("CustomerId");
 
                     b.HasIndex("SalesOrderNumber")
                         .IsUnique();
@@ -377,6 +507,9 @@ namespace CMetalsWS.Migrations
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime?>("ScheduledShipDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("Status")
                         .ValueGeneratedOnAdd()
@@ -456,6 +589,89 @@ namespace CMetalsWS.Migrations
                     b.ToTable("Trucks");
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.TruckRoute", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ModifiedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RegionCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTime>("RouteDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TruckId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TruckId");
+
+                    b.HasIndex("BranchId", "RouteDate", "RegionCode");
+
+                    b.ToTable("TruckRoutes");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.TruckRouteStop", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ActualArrive")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ActualDepart")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("LoadId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("PlannedEnd")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("PlannedStart")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RouteId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StopOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LoadId");
+
+                    b.HasIndex("RouteId", "StopOrder")
+                        .IsUnique();
+
+                    b.ToTable("TruckRouteStops");
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.WorkOrder", b =>
                 {
                     b.Property<int>("Id")
@@ -467,21 +683,48 @@ namespace CMetalsWS.Migrations
                     b.Property<int>("BranchId")
                         .HasColumnType("int");
 
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Instructions")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("LastUpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("LastUpdatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("MachineCategory")
+                        .HasColumnType("int");
+
                     b.Property<int?>("MachineId")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("ScheduledEndDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime>("ScheduledStartDate")
+                    b.Property<DateTime?>("ScheduledStartDate")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
+                    b.Property<string>("TagNumber")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("WorkOrderNumber")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.HasKey("Id");
 
@@ -500,26 +743,69 @@ namespace CMetalsWS.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("CustomerName")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("ItemCode")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
-                    b.Property<decimal>("Quantity")
+                    b.Property<decimal?>("Length")
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 
+                    b.Property<string>("Location")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<decimal?>("OrderQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("OrderWeight")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int?>("PickingListItemId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("ProducedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("ProducedWeight")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("SalesOrderNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("Unit")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<decimal?>("Weight")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("Width")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<int>("WorkOrderId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PickingListItemId");
 
                     b.HasIndex("WorkOrderId");
 
@@ -641,15 +927,42 @@ namespace CMetalsWS.Migrations
                     b.Navigation("Branch");
                 });
 
-            modelBuilder.Entity("CMetalsWS.Data.InventoryItem", b =>
+            modelBuilder.Entity("CMetalsWS.Data.Load", b =>
                 {
                     b.HasOne("CMetalsWS.Data.Branch", "Branch")
                         .WithMany()
                         .HasForeignKey("BranchId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMetalsWS.Data.Truck", "Truck")
+                        .WithMany()
+                        .HasForeignKey("TruckId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Branch");
+
+                    b.Navigation("Truck");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.LoadItem", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.Load", "Load")
+                        .WithMany("Items")
+                        .HasForeignKey("LoadId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMetalsWS.Data.PickingList", "PickingList")
+                        .WithMany()
+                        .HasForeignKey("PickingListId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Load");
+
+                    b.Navigation("PickingList");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.Machine", b =>
@@ -671,12 +984,18 @@ namespace CMetalsWS.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("CMetalsWS.Data.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId");
+
                     b.HasOne("CMetalsWS.Data.Truck", "Truck")
                         .WithMany()
                         .HasForeignKey("TruckId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Branch");
+
+                    b.Navigation("Customer");
 
                     b.Navigation("Truck");
                 });
@@ -717,6 +1036,35 @@ namespace CMetalsWS.Migrations
                     b.Navigation("Driver");
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.TruckRoute", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.Truck", "Truck")
+                        .WithMany()
+                        .HasForeignKey("TruckId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Truck");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.TruckRouteStop", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.Load", "Load")
+                        .WithMany()
+                        .HasForeignKey("LoadId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CMetalsWS.Data.TruckRoute", "Route")
+                        .WithMany("Stops")
+                        .HasForeignKey("RouteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Load");
+
+                    b.Navigation("Route");
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.WorkOrder", b =>
                 {
                     b.HasOne("CMetalsWS.Data.Branch", "Branch")
@@ -736,11 +1084,17 @@ namespace CMetalsWS.Migrations
 
             modelBuilder.Entity("CMetalsWS.Data.WorkOrderItem", b =>
                 {
+                    b.HasOne("CMetalsWS.Data.PickingListItem", "PickingListItem")
+                        .WithMany()
+                        .HasForeignKey("PickingListItemId");
+
                     b.HasOne("CMetalsWS.Data.WorkOrder", "WorkOrder")
                         .WithMany("Items")
                         .HasForeignKey("WorkOrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("PickingListItem");
 
                     b.Navigation("WorkOrder");
                 });
@@ -809,9 +1163,19 @@ namespace CMetalsWS.Migrations
                     b.Navigation("WorkOrders");
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.Load", b =>
+                {
+                    b.Navigation("Items");
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.PickingList", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.TruckRoute", b =>
+                {
+                    b.Navigation("Stops");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.WorkOrder", b =>

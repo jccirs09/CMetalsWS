@@ -17,7 +17,7 @@ namespace CMetalsWS.Services
             var query = _db.PickingLists
                 .Include(p => p.Branch)
                 .Include(p => p.Truck)
-                .Include(p => p.Customer) // include Customer
+                .Include(p => p.Customer)
                 .Include(p => p.Items).ThenInclude(i => i.Machine)
                 .AsNoTracking();
 
@@ -30,7 +30,7 @@ namespace CMetalsWS.Services
         public async Task<PickingList?> GetByIdAsync(int id)
         {
             return await _db.PickingLists
-                .Include(p => p.Customer) // include Customer
+                .Include(p => p.Customer)
                 .Include(p => p.Items).ThenInclude(i => i.Machine)
                 .Include(p => p.Truck)
                 .Include(p => p.Branch)
@@ -39,12 +39,10 @@ namespace CMetalsWS.Services
 
         public async Task CreateAsync(PickingList model)
         {
-            // default statuses
             model.Status = PickingListStatus.Pending;
             foreach (var item in model.Items)
                 item.Status = item.Status == 0 ? PickingLineStatus.Pending : item.Status;
 
-            // optional denorm fill from Customer if blank
             if (model.CustomerId.HasValue && string.IsNullOrWhiteSpace(model.ShipToAddress))
             {
                 var cust = await _db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == model.CustomerId.Value);
@@ -68,7 +66,7 @@ namespace CMetalsWS.Services
 
             existing.SalesOrderNumber = model.SalesOrderNumber;
             existing.BranchId = model.BranchId;
-            existing.CustomerId = model.CustomerId; // new
+            existing.CustomerId = model.CustomerId;
             existing.OrderDate = model.OrderDate;
             existing.ShipDate = model.ShipDate;
             existing.CustomerName = model.CustomerName;
@@ -77,7 +75,6 @@ namespace CMetalsWS.Services
             existing.Status = model.Status;
             existing.TruckId = model.TruckId;
 
-            // Sync items
             var incomingIds = model.Items.Select(i => i.Id).ToHashSet();
             var toDelete = existing.Items.Where(i => !incomingIds.Contains(i.Id)).ToList();
             if (toDelete.Count > 0)
@@ -130,6 +127,49 @@ namespace CMetalsWS.Services
             }
         }
 
-        // Optional helpers from earlier answer can remain (SetLineStatusAsync, UpdatePickingListStatusAsync)
+        public async Task UpdatePickingListStatusAsync(int id)
+        {
+            var list = await _db.PickingLists
+                .Include(p => p.Items)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            if (list is null) return;
+
+            if (list.Items.All(i => i.Status == PickingLineStatus.AssignedProduction))
+                list.Status = PickingListStatus.Awaiting;
+            else if (list.Items.All(i => i.Status == PickingLineStatus.AssignedPulling))
+                list.Status = PickingListStatus.Awaiting;
+            else if (list.Items.All(i => i.Status == PickingLineStatus.Completed))
+                list.Status = PickingListStatus.Completed;
+            else if (list.Items.Any(i => i.Status == PickingLineStatus.InProgress))
+                list.Status = PickingListStatus.InProgress;
+            else
+                list.Status = PickingListStatus.Pending;
+
+            await _db.SaveChangesAsync();
+        }
+
+        public async Task SetLineStatusAsync(int itemId, PickingLineStatus status)
+        {
+            var item = await _db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+            item.Status = status;
+            await _db.SaveChangesAsync();
+            await UpdatePickingListStatusAsync(item.PickingListId);
+        }
+        public async Task ScheduleListAsync(int pickingListId, DateTime shipStart)
+        {
+            var pl = await _db.PickingLists.Include(p => p.Items).FirstOrDefaultAsync(p => p.Id == pickingListId);
+            if (pl is null) return;
+            pl.ShipDate = shipStart;
+            await _db.SaveChangesAsync();
+        }
+
+        public async Task ScheduleLineAsync(int pickingListId, int lineId, DateTime shipStart)
+        {
+            var line = await _db.PickingListItems.FirstOrDefaultAsync(i => i.Id == lineId && i.PickingListId == pickingListId);
+            if (line is null) return;
+            line.ScheduledShipDate = shipStart;
+            await _db.SaveChangesAsync();
+        }
     }
 }

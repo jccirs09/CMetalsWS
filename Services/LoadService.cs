@@ -18,7 +18,7 @@ namespace CMetalsWS.Services
                 .Include(l => l.Truck)
                 .Include(l => l.Items)
                     .ThenInclude(i => i.PickingList)
-                        .ThenInclude(p => p.Customer); // <- Customer now wired
+                        .ThenInclude(p => p.Customer);
 
             if (branchId.HasValue)
                 query = query.Where(l => l.BranchId == branchId.Value);
@@ -49,6 +49,10 @@ namespace CMetalsWS.Services
         public async Task CreateAsync(Load load)
         {
             load.LoadNumber = await GenerateLoadNumber(load.BranchId);
+
+            if (load.ReadyDate == null)
+                load.ReadyDate = await DeriveReadyDateFromPickingListsAsync(load);
+
             await RecalculateReadyDateFromWorkOrdersAsync(load);
             _db.Loads.Add(load);
             await _db.SaveChangesAsync();
@@ -66,11 +70,14 @@ namespace CMetalsWS.Services
             existing.ScheduledEnd = load.ScheduledEnd;
             existing.ScheduledDate = load.ScheduledDate;
             existing.TruckId = load.TruckId;
+            existing.ReadyDate = load.ReadyDate;
 
-            // Replace items (simple sync)
             existing.Items.Clear();
             foreach (var item in load.Items)
                 existing.Items.Add(item);
+
+            if (existing.ReadyDate == null)
+                existing.ReadyDate = await DeriveReadyDateFromPickingListsAsync(existing);
 
             await RecalculateReadyDateFromWorkOrdersAsync(existing);
             await _db.SaveChangesAsync();
@@ -92,15 +99,14 @@ namespace CMetalsWS.Services
             if (load.Status == LoadStatus.Pending)
                 load.Status = LoadStatus.Scheduled;
 
-            // Mark related picking lists as Scheduled (since they’re now on a load schedule)
-            await SetPickingListsScheduledForLoadAsync(load.Id);
+            if (load.ReadyDate == null)
+                load.ReadyDate = await DeriveReadyDateFromPickingListsAsync(load);
 
+            await SetPickingListsScheduledForLoadAsync(load.Id);
             await RecalculateReadyDateFromWorkOrdersAsync(load);
             await _db.SaveChangesAsync();
         }
 
-        /// Computes a grouping key for routing from the customers on this load’s picking list items.
-        /// If multiple customer regions are present, returns "MULTI"; if none, "UNSET".
         public static string GetLoadRegionCode(Load load)
         {
             var codes = load.Items
@@ -115,112 +121,91 @@ namespace CMetalsWS.Services
             return "UNSET";
         }
 
-        /// Returns a planned "ready" timestamp for an unscheduled load:
-        /// the time all related work orders are done (max of each WO EndOrStart across included items).
         public async Task<DateTime?> GetPlannedReadyAsync(int loadId)
         {
-            // Gather all PickingListItem ids attached to this load
-            var pickingItemIds = await _db.LoadItems
-                .Where(li => li.LoadId == loadId && li.PickingListItemId != null)
-                .Select(li => li.PickingListItemId!.Value)
+            var pickingListIds = await _db.LoadItems
+                .Where(li => li.LoadId == loadId)
+                .Select(li => li.PickingListId)
+                .Distinct()
+                .ToListAsync();
+
+            if (pickingListIds.Count == 0)
+                return null;
+
+            var pickingItemIds = await _db.PickingListItems
+                .Where(pli => pickingListIds.Contains(pli.PickingListId))
+                .Select(pli => pli.Id)
                 .ToListAsync();
 
             if (pickingItemIds.Count == 0)
                 return null;
 
-            // Work orders that cover any of those items
             var workTimes = await _db.WorkOrders
                 .Where(wo => wo.Items.Any(wi => wi.PickingListItemId != null &&
                                                 pickingItemIds.Contains(wi.PickingListItemId.Value)))
-                .Select(wo => wo.ScheduledEndDate ?? wo.ScheduledStartDate)
+                .Select(wo =>
+                    wo.ScheduledEndDate != default ? (DateTime?)wo.ScheduledEndDate
+                  : wo.ScheduledStartDate != default ? (DateTime?)wo.ScheduledStartDate
+                  : null)
                 .ToListAsync();
 
-            if (workTimes.Count == 0) return null;
-
-            // A load is "ready" when all its items are ready -> use the latest time
             var ready = workTimes
                 .Where(dt => dt.HasValue)
                 .Select(dt => dt!.Value)
-                .DefaultIfEmpty()
+                .DefaultIfEmpty(default)
                 .Max();
 
             return ready == default ? null : ready;
         }
 
-        /// Recomputes and stores Load.ReadyDate based on related work orders for the items on the load.
         public async Task RecalculateReadyDateFromWorkOrdersAsync(Load load)
         {
-            var pickingItemIds = await _db.LoadItems
+            var pickingListIdsOnLoad = await _db.LoadItems
                 .Where(li => li.LoadId == load.Id)
-                .Select(li => li.PickingListItemId)
-                .Where(id => id != null)
-                .Select(id => id!.Value)
+                .Select(li => li.PickingListId)
+                .Distinct()
                 .ToListAsync();
 
-            if (pickingItemIds.Count == 0)
+            if (pickingListIdsOnLoad.Count == 0)
             {
-                // If your Load model has ReadyDate, keep it in sync; otherwise remove these lines.
                 load.ReadyDate = null;
                 return;
             }
 
-            var relatedWorkOrders = await _db.WorkOrders
-                .Where(wo => wo.Items.Any(wi => wi.PickingListItemId != null &&
-                                                pickingItemIds.Contains(wi.PickingListItemId.Value)))
-                .Select(wo => wo.ScheduledEndDate ?? wo.ScheduledStartDate)
+            var pickingItemIds = await _db.PickingListItems
+                .Where(pli => pickingListIdsOnLoad.Contains(pli.PickingListId))
+                .Select(pli => pli.Id)
                 .ToListAsync();
 
-            if (relatedWorkOrders.Count == 0)
+            if (pickingItemIds.Count == 0)
             {
                 load.ReadyDate = null;
+                return;
             }
-            else
-            {
-                var maxReady = relatedWorkOrders
-                    .Where(x => x.HasValue)
-                    .Select(x => x!.Value)
-                    .DefaultIfEmpty()
-                    .Max();
 
-                load.ReadyDate = maxReady == default ? null : maxReady;
-            }
-        }
-
-        /// When picking list item statuses change (e.g., after WO completion), recalc any loads that include them.
-        public async Task RecalculateLoadsForPickingItemsAsync(IEnumerable<int> pickingItemIds)
-        {
-            var ids = pickingItemIds?.ToList() ?? new List<int>();
-            if (ids.Count == 0) return;
-
-            var loadIds = await _db.LoadItems
-                .Where(li => li.PickingListItemId != null && ids.Contains(li.PickingListItemId!.Value))
-                .Select(li => li.LoadId)
-                .Distinct()
+            var relatedWorkTimes = await _db.WorkOrders
+                .Where(wo => wo.Items.Any(wi => wi.PickingListItemId != null &&
+                                                pickingItemIds.Contains(wi.PickingListItemId.Value)))
+                .Select(wo =>
+                    wo.ScheduledEndDate != default ? (DateTime?)wo.ScheduledEndDate
+                  : wo.ScheduledStartDate != default ? (DateTime?)wo.ScheduledStartDate
+                  : null)
                 .ToListAsync();
 
-            foreach (var id in loadIds)
-            {
-                var load = await _db.Loads
-                    .Include(l => l.Items)
-                    .FirstOrDefaultAsync(l => l.Id == id);
+            var maxReady = relatedWorkTimes
+                .Where(x => x.HasValue)
+                .Select(x => x!.Value)
+                .DefaultIfEmpty(default)
+                .Max();
 
-                if (load != null)
-                    await RecalculateReadyDateFromWorkOrdersAsync(load);
-            }
-
-            if (loadIds.Count > 0)
-                await _db.SaveChangesAsync();
+            load.ReadyDate = maxReady == default ? null : maxReady;
         }
 
         private async Task SetPickingListsScheduledForLoadAsync(int loadId)
         {
-            // Find all picking lists attached (via load items -> picking list items -> picking list)
             var pickingListIds = await _db.LoadItems
-                .Where(li => li.LoadId == loadId && li.PickingListId != null)
-                .Join(_db.PickingListItems,
-                    li => li.PickingListId,
-                    pli => pli.Id,
-                    (li, pli) => pli.PickingListId)
+                .Where(li => li.LoadId == loadId)
+                .Select(li => li.PickingListId)
                 .Distinct()
                 .ToListAsync();
 
@@ -231,7 +216,7 @@ namespace CMetalsWS.Services
                 .ToListAsync();
 
             foreach (var pl in lists)
-            {                
+            {
                 if (pl.Status == PickingListStatus.Pending ||
                     pl.Status == PickingListStatus.Awaiting ||
                     pl.Status == PickingListStatus.InProgress ||
@@ -241,6 +226,36 @@ namespace CMetalsWS.Services
                     pl.Status = PickingListStatus.Scheduled;
                 }
             }
+        }
+
+        private async Task<DateTime?> DeriveReadyDateFromPickingListsAsync(Load load)
+        {
+            var pickingListIds = load.Items.Select(i => i.PickingListId).Distinct().ToList();
+            if (pickingListIds.Count == 0) return null;
+
+            var lists = await _db.PickingLists
+                .Include(p => p.Items)
+                .Where(p => pickingListIds.Contains(p.Id))
+                .ToListAsync();
+
+            var candidates = new List<DateTime>();
+
+            foreach (var pl in lists)
+            {
+                if (pl.ShipDate != null && pl.ShipDate.Value != default)
+                    candidates.Add(pl.ShipDate.Value);
+
+                if (pl.Items != null)
+                {
+                    candidates.AddRange(
+                        pl.Items
+                          .Where(i => i.ScheduledShipDate != null && i.ScheduledShipDate.Value != default)
+                          .Select(i => i.ScheduledShipDate!.Value));
+                }
+            }
+
+            if (candidates.Count == 0) return null;
+            return candidates.Max();
         }
 
         private async Task<string> GenerateLoadNumber(int branchId)

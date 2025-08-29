@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CMetalsWS.Data
 {
@@ -73,6 +74,10 @@ namespace CMetalsWS.Data
         public decimal? Weight { get; set; }
 
         public PickingLineStatus Status { get; set; } = PickingLineStatus.Pending;
+        public DateTime? ScheduledShipDate { get; set; }
+
+        [NotMapped]
+        public DateTime? EffectiveShipDate => ScheduledShipDate ?? PickingList?.ShipDate;
 
         public int? MachineId { get; set; }
         public Machine? Machine { get; set; }

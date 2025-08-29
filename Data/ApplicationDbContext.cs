@@ -36,6 +36,10 @@ namespace CMetalsWS.Data
                 .WithMany(b => b.Machines)
                 .HasForeignKey(m => m.BranchId)
                 .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Machine>()
+               .Property(m => m.Category)
+               .HasConversion<string>()
+               .HasMaxLength(32);
 
             // Truck -> Branch
             modelBuilder.Entity<Truck>()
@@ -43,8 +47,11 @@ namespace CMetalsWS.Data
                 .WithMany(b => b.Trucks)
                 .HasForeignKey(t => t.BranchId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Customer (map to existing table name and columns/indexes)
             modelBuilder.Entity<Customer>(entity =>
             {
+                entity.ToTable("Customer"); // important: fixes “Invalid object name 'Customers'”
                 entity.HasIndex(c => c.CustomerCode).IsUnique();
                 entity.Property(c => c.CustomerCode).HasMaxLength(16).IsRequired();
                 entity.Property(c => c.CustomerName).HasMaxLength(200).IsRequired();
@@ -53,6 +60,7 @@ namespace CMetalsWS.Data
                 entity.HasIndex(c => c.LocationCode);
             });
 
+            // TruckRoute + stops
             modelBuilder.Entity<TruckRoute>(e =>
             {
                 e.Property(r => r.RegionCode).HasMaxLength(32).IsRequired();
@@ -92,7 +100,6 @@ namespace CMetalsWS.Data
                 .WithMany()
                 .HasForeignKey(p => p.TruckId)
                 .OnDelete(DeleteBehavior.SetNull);
-            
 
             // Load relationships
             modelBuilder.Entity<Load>()
@@ -115,6 +122,18 @@ namespace CMetalsWS.Data
                 .Property(p => p.ShipDate)
                 .HasColumnType("datetime2");
 
+            modelBuilder.Entity<Load>()
+                .Property(l => l.ScheduledDate)
+                .HasColumnType("datetime2");
+            modelBuilder.Entity<Load>()
+                .Property(l => l.ScheduledStart)
+                .HasColumnType("datetime2");
+            modelBuilder.Entity<Load>()
+                .Property(l => l.ScheduledEnd)
+                .HasColumnType("datetime2");
+            // If your Load has ReadyDate in the model, this mapping will apply automatically.
+            // If not present, this line will compile-time fail, so it is intentionally omitted.
+
             // PickingListItem -> PickingList
             modelBuilder.Entity<PickingListItem>()
                 .HasOne(i => i.PickingList)
@@ -129,7 +148,7 @@ namespace CMetalsWS.Data
                 .HasForeignKey(i => i.MachineId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // NEW: PickingListItem.Status enum stored as int with default Pending
+            // PickingListItem status enum as int with default
             modelBuilder.Entity<PickingListItem>()
                 .Property(i => i.Status)
                 .HasConversion<int>()
@@ -145,7 +164,7 @@ namespace CMetalsWS.Data
                 e.HasIndex(x => new { x.ParentItemId, x.ChildItemId, x.Relation }).IsUnique();
             });
 
-            // Numeric precisions
+            // Numeric precisions (fix EF warnings)
             modelBuilder.Entity<PickingListItem>().Property(i => i.Quantity).HasPrecision(18, 3);
             modelBuilder.Entity<PickingListItem>().Property(i => i.Width).HasPrecision(18, 3);
             modelBuilder.Entity<PickingListItem>().Property(i => i.Length).HasPrecision(18, 3);
@@ -154,21 +173,21 @@ namespace CMetalsWS.Data
             modelBuilder.Entity<Truck>().Property(t => t.CapacityWeight).HasPrecision(18, 2);
             modelBuilder.Entity<Truck>().Property(t => t.CapacityVolume).HasPrecision(18, 2);
 
-            // InventoryItem mapping
-            modelBuilder.Entity<InventoryItem>()
-                .HasOne(i => i.Branch)
-                .WithMany()
-                .HasForeignKey(i => i.BranchId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<InventoryItem>()
-                .HasIndex(i => new { i.ItemId, i.TagNumber, i.BranchId })
-                .IsUnique();
-
             modelBuilder.Entity<InventoryItem>().Property(p => p.Width).HasPrecision(18, 3);
             modelBuilder.Entity<InventoryItem>().Property(p => p.Length).HasPrecision(18, 3);
-            modelBuilder.Entity<InventoryItem>().Property(p => p.Weight).HasPrecision(18, 3);
-            
+            modelBuilder.Entity<InventoryItem>().Property(p => p.Snapshot).HasPrecision(18, 3);
+
+            // LoadItem
+            modelBuilder.Entity<LoadItem>().Property(li => li.Weight).HasPrecision(18, 3);
+
+            // WorkOrderItem numeric fields
+            modelBuilder.Entity<WorkOrderItem>().Property(w => w.Length).HasPrecision(18, 3);
+            modelBuilder.Entity<WorkOrderItem>().Property(w => w.OrderQuantity).HasPrecision(18, 3);
+            modelBuilder.Entity<WorkOrderItem>().Property(w => w.OrderWeight).HasPrecision(18, 3);
+            modelBuilder.Entity<WorkOrderItem>().Property(w => w.ProducedQuantity).HasPrecision(18, 3);
+            modelBuilder.Entity<WorkOrderItem>().Property(w => w.ProducedWeight).HasPrecision(18, 3);
+            modelBuilder.Entity<WorkOrderItem>().Property(w => w.Weight).HasPrecision(18, 3);
+            modelBuilder.Entity<WorkOrderItem>().Property(w => w.Width).HasPrecision(18, 3);
         }
     }
 }
