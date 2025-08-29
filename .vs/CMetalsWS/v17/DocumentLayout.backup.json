@@ -1,12 +1,37 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\services\\pickinglistpdfparser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\pickinglistpdfparser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": []
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "PickingListPdfParser.cs",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Services\\PickingListPdfParser.cs",
+              "RelativeDocumentMoniker": "Services\\PickingListPdfParser.cs",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Services\\PickingListPdfParser.cs",
+              "RelativeToolTip": "Services\\PickingListPdfParser.cs",
+              "ViewState": "AgIAAH8AAAAAAAAAAAAwwJkAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-29T14:55:12.309Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
     }
   ]
 }

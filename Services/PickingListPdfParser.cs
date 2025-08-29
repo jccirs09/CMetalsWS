@@ -24,19 +24,26 @@ namespace CMetalsWS.Services
                 TruckId = truckId
             };
 
-            pl.SalesOrderNumber = MatchFirst(lines, @"No\.\s*(?<num>[0-9A-Za-z\-]+)", "num") ?? string.Empty;
+            // Header fields are more reliable with specific regex
+            pl.SalesOrderNumber = MatchFirst(lines, @"No\.\s*(?<num>[\d-A-Z]+)", "num") ?? string.Empty;
+            pl.ShipDate = ParseDate(MatchFirst(lines, @"SHIP DATE\s+(?<dt>\d{2}/\d{2}/\d{4})", "dt"));
+            pl.OrderDate = ParseDate(MatchFirst(lines, @"ORDER DATE\s+(?<dt>\d{2}/\d{2}/\d{4})", "dt")) ?? DateTime.UtcNow;
 
-            var shipDt = MatchFirst(lines, @"SHIP\s+DATE\s+(?<dt>\d{2}/\d{2}/\d{4})", "dt");
-            pl.ShipDate = ParseDate(shipDt);
+            // Customer and ShipTo are in blocks. Find the line containing the label, then take the next non-empty line.
+            var soldToLine = lines.FirstOrDefault(l => l.Contains("SOLD TO"));
+            if (soldToLine != null)
+            {
+                var soldToIdx = lines.IndexOf(soldToLine);
+                pl.CustomerName = SafeGet(lines, soldToIdx + 1)?.Trim();
+            }
 
-            var orderDt = MatchFirst(lines, @"ORDER\s+DATE\s+(?<dt>\d{2}/\d{2}/\d{4})", "dt");
-            pl.OrderDate = ParseDate(orderDt) ?? DateTime.UtcNow;
-
-            var soldToBlock = ExtractBlock(lines, "SOLD TO", "SHIP TO");
-            pl.CustomerName = soldToBlock.FirstOrDefault()?.Trim();
-
-            var shipToBlock = ExtractBlock(lines, "SHIP TO", "PICKING GROUP");
-            pl.ShipToAddress = string.Join(", ", shipToBlock).Trim();
+            var shipToLine = lines.FirstOrDefault(l => l.Contains("SHIP TO"));
+            if (shipToLine != null)
+            {
+                var shipToIdx = lines.IndexOf(shipToLine);
+                var addressLines = lines.Skip(shipToIdx + 1).Take(3).Select(l => l.Trim()).Where(l => !string.IsNullOrEmpty(l));
+                pl.ShipToAddress = string.Join(" ", addressLines);
+            }
 
             ParseItems(lines, pl.Items);
 
@@ -45,66 +52,64 @@ namespace CMetalsWS.Services
 
         private static void ParseItems(List<string> lines, ICollection<PickingListItem> items)
         {
-            var header = IndexOf(lines, l => l.Contains("LINE") && l.Contains("QUANTITY") && l.Contains("DESCRIPTION"));
-            if (header < 0) return;
+            var headerIdx = IndexOf(lines, l => l.Contains("LINE") && l.Contains("QUANTITY") && l.Contains("DESCRIPTION"));
+            if (headerIdx < 0) return;
 
-            var i = header + 1;
-            while (i < lines.Count)
+            var currentLine = headerIdx + 1;
+            while (currentLine < lines.Count)
             {
-                var raw = lines[i];
-                if (string.IsNullOrWhiteSpace(raw) || IsHeaderOrFooter(raw) || raw.Length == 0 || !char.IsDigit(raw[0]))
+                var line = lines[currentLine];
+                if (IsFooter(line)) break;
+
+                // Find the start of a new item (must start with a line number)
+                var itemMatch = Regex.Match(line, @"^\s*(?<lineNum>\d+)\s+(?<qty>[\d,]+)\s+(?<unit>LBS|PCS|EA)", RegexOptions.IgnoreCase);
+                if (!itemMatch.Success)
                 {
-                    i++;
+                    currentLine++;
                     continue;
                 }
 
-                var m = Regex.Match(raw, @"^(?<line>\d+)\s+(?<qty>[\d,]+\s+LBS)", RegexOptions.IgnoreCase);
-                if (m.Success)
+                // We found a new item, now gather all its data
+                var pli = new PickingListItem
                 {
-                    var lineNum = ToInt(m.Groups["line"].Value) ?? 0;
-                    var qtyParts = m.Groups["qty"].Value.Split(' ');
-                    var qty = ToDec(qtyParts[0]);
-                    var unit = qtyParts[1];
+                    LineNumber = ToInt(itemMatch.Groups["lineNum"].Value) ?? 0,
+                    Quantity = ToDec(itemMatch.Groups["qty"].Value) ?? 0,
+                    Unit = itemMatch.Groups["unit"].Value
+                };
 
-                    var endValues = Regex.Match(raw, @"(?<width>[\d\.,\s]+)"")?\s+(?<weight>[\d,]+)$");
-                    var width = ToDec(endValues.Groups["width"].Value);
-                    var weight = ToDec(endValues.Groups["weight"].Value);
+                // The rest of the first line is part of the description
+                var descriptionContent = new StringBuilder();
+                descriptionContent.AppendLine(line.Substring(itemMatch.Length).Trim());
 
-                    var descriptionBlock = new StringBuilder();
-                    var descLines = 0;
-                    for (var j = i + 1; j < lines.Count; j++)
-                    {
-                        var nextLine = lines[j];
-                        if (string.IsNullOrWhiteSpace(nextLine) || IsHeaderOrFooter(nextLine) || (nextLine.Length > 0 && char.IsDigit(nextLine[0]) && Regex.IsMatch(nextLine, @"^\d+\s")))
-                        {
-                            break;
-                        }
-                        descriptionBlock.AppendLine(nextLine.Trim());
-                        descLines++;
-                    }
+                // Find the end of the line to get width and weight
+                var endOfLineMatch = Regex.Match(line, @"(?<width>[\d\.]+)"")?\s+(?<weight>[\d,]+)\s*$", RegexOptions.IgnoreCase);
+                if (endOfLineMatch.Success)
+                {
+                    pli.Width = ToDec(endOfLineMatch.Groups["width"].Value);
+                    pli.Weight = ToDec(endOfLineMatch.Groups["weight"].Value);
+                }
 
-                    var fullDescription = Clean(descriptionBlock.ToString());
-                    var itemId = fullDescription.Split(new[] { '
+                // Consume subsequent lines that are part of the description
+                var descLineIdx = currentLine + 1;
+                while (descLineIdx < lines.Count)
+                {
+                    var descLine = lines[descLineIdx];
+                    if (IsFooter(descLine) || Regex.IsMatch(descLine, @"^\s*\d+\s+")) break;
+                    descriptionContent.AppendLine(descLine.Trim());
+                    descLineIdx++;
+                }
+
+                var fullDescription = Clean(descriptionContent.ToString());
+                pli.ItemDescription = fullDescription;
+
+                // Extract ItemId from the description (usually the first "word")
+                var firstWord = fullDescription.Split(new[] {' ', '
 ', '
-' }).FirstOrDefault()?.Trim() ?? string.Empty;
+'}, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                pli.ItemId = firstWord ?? string.Empty;
 
-                    var pli = new PickingListItem
-                    {
-                        LineNumber = lineNum,
-                        Quantity = qty ?? 0,
-                        Unit = unit,
-                        ItemId = itemId,
-                        ItemDescription = fullDescription,
-                        Width = width,
-                        Weight = weight
-                    };
-                    items.Add(pli);
-
-                    i += descLines + 1;
-                    continue;
-                }
-
-                i++;
+                items.Add(pli);
+                currentLine = descLineIdx;
             }
         }
 
@@ -116,20 +121,10 @@ namespace CMetalsWS.Services
             return result.Text;
         }
 
-        private static List<string> ExtractBlock(List<string> lines, string startMarker, string endMarker)
-        {
-            var startIdx = IndexOf(lines, l => l.Contains(startMarker));
-            var endIdx = IndexOf(lines, l => l.Contains(endMarker));
-            if (startIdx < 0 || endIdx < 0 || endIdx <= startIdx) return new List<string>();
-
-            return lines.Skip(startIdx + 1).Take(endIdx - startIdx - 1).Select(l => l.Trim()).ToList();
-        }
-
-        private static bool IsHeaderOrFooter(string s)
+        private static bool IsFooter(string s)
         {
             if (string.IsNullOrWhiteSpace(s)) return false;
-            if (s.Contains("PULLED BY") || s.Contains("TOTAL WT")) return true;
-            return false;
+            return s.Contains("PULLED BY") || s.Contains("TOTAL WT");
         }
 
         private static List<string> SplitLines(string text) => text.Replace("
@@ -146,8 +141,9 @@ namespace CMetalsWS.Services
             }
             return null;
         }
+        private static string? SafeGet(List<string> lines, int index) => (index >= 0 && index < lines.Count) ? lines[index] : null;
         private static DateTime? ParseDate(string? s) => DateTime.TryParseExact(s?.Trim(), "MM/dd/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt) ? dt : null;
-        private static int? ToInt(string s) => int.TryParse(s.Replace(",", ""), out var v) ? v : null;
+        private static int? ToInt(string? s) => int.TryParse(s?.Replace(",", ""), out var v) ? v : null;
         private static decimal? ToDec(string? s) => decimal.TryParse(s?.Replace(",", "").Replace(""", ""), NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : null;
         private static string Clean(string s) => Regex.Replace(s ?? string.Empty, @"\s+", " ").Trim();
     }
