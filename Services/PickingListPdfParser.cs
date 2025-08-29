@@ -24,39 +24,32 @@ namespace CMetalsWS.Services
                 TruckId = truckId
             };
 
-            // Sales order / picking number (very permissive: digits with optional dash)
-            pl.SalesOrderNumber = MatchFirst(lines, @"(?:PICKING\s+LIST\s+No\.?|No\.)\s*(?<num>[0-9A-Z\-]+)", "num") ?? string.Empty;
+            // Sales order / picking number
+            pl.SalesOrderNumber = MatchFirst(lines, @"No\.\s*(?<num>[0-9A-Z\-]+)", "num") ?? string.Empty;
 
             // Dates
-            pl.ShipDate = ParseDate(MatchFirst(lines, @"\bSHIP\s*DATE\b\s*(?<dt>\d{2}/\d{2}/\d{4})", "dt"));
-            // Try explicit ORDER DATE first, then fall back to PRINT DATE/TIME, else now
-            var orderDateText = MatchFirst(lines, @"\bORDER\s*DATE\b\s*(?<dt>\d{2}/\d{2}/\d{4})", "dt")
-                                ?? MatchFirst(lines, @"\bPRINT\s*DATE/TIME\b\s*(?<dt>\d{2}/\d{2}/\d{4})", "dt");
-            pl.OrderDate = ParseDate(orderDateText) ?? DateTime.UtcNow;
+            pl.ShipDate = ParseDate(GetValueFromNextLine(lines, "SHIP DATE"));
+            pl.OrderDate = ParseDate(GetValueFromNextLine(lines, "ORDER DATE")) ?? DateTime.UtcNow;
 
             // Sales rep
-            pl.SalesRep = MatchFirst(lines, @"\bSALES\s*REP\b\s*(?<rep>[A-Z][A-Z \-'.]+)", "rep");
+            pl.SalesRep = GetValueFromNextLine(lines, "SALES REP");
 
-            // SOLD TO (CustomerName) — usually next non-empty line
-            var soldToIdx = IndexOf(lines, l => l.Contains("SOLD TO", StringComparison.OrdinalIgnoreCase));
+            // SOLD TO (CustomerName)
+            var soldToIdx = IndexOf(lines, l => l.Contains("SOLD TO"));
             if (soldToIdx >= 0)
             {
-                var nm = NextNonEmpty(lines, soldToIdx + 1, takeUpTo: 1);
-                if (!string.IsNullOrWhiteSpace(nm)) pl.CustomerName = nm;
+                pl.CustomerName = NextNonEmpty(lines, soldToIdx + 1);
             }
 
             // SHIP TO (multi-line address)
-            var shipToIdx = IndexOf(lines, l => l.Contains("SHIP TO", StringComparison.OrdinalIgnoreCase));
+            var shipToIdx = IndexOf(lines, l => l.Contains("SHIP TO"));
             if (shipToIdx >= 0)
             {
-                var addr = NextNonEmptyBlock(lines, shipToIdx + 1, maxLines: 4,
-                    stopIf: s => IsHeaderOrFooter(s) || s.StartsWith("SHIP VIA", StringComparison.OrdinalIgnoreCase));
-                if (!string.IsNullOrWhiteSpace(addr)) pl.ShipToAddress = addr;
+                pl.ShipToAddress = NextNonEmptyBlock(lines, shipToIdx + 1, 3, stopIf: s => s.Contains("SHIP VIA"));
             }
 
             // Ship Via
-            var via = MatchFirst(lines, @"\bSHIP\s*VIA\b\s*(?<via>.+?)(?:\s{2,}|$)", "via");
-            if (!string.IsNullOrWhiteSpace(via)) pl.ShippingMethod = via.Trim();
+            pl.ShippingMethod = GetValueFromNextLine(lines, "SHIP VIA");
 
             // Items
             ParseItems(lines, pl.Items);
@@ -64,7 +57,7 @@ namespace CMetalsWS.Services
             // Fallback: if no CustomerName and we have a ShipTo first line, use it
             if (string.IsNullOrWhiteSpace(pl.CustomerName) && shipToIdx >= 0)
             {
-                var firstShipLine = NextNonEmpty(lines, shipToIdx + 1, takeUpTo: 1);
+                var firstShipLine = NextNonEmpty(lines, shipToIdx + 1);
                 if (!string.IsNullOrWhiteSpace(firstShipLine)) pl.CustomerName = firstShipLine;
             }
 
@@ -73,104 +66,53 @@ namespace CMetalsWS.Services
 
         private static void ParseItems(List<string> lines, ICollection<PickingListItem> items)
         {
-            // Find header for the items table
-            var headerIdx = IndexOf(lines, l => l.StartsWith("LINE", StringComparison.OrdinalIgnoreCase) &&
-                                                l.Contains("DESCRIPTION", StringComparison.OrdinalIgnoreCase));
+            var headerIdx = IndexOf(lines, l => l.StartsWith("LINE", StringComparison.OrdinalIgnoreCase) && l.Contains("DESCRIPTION"));
             if (headerIdx < 0) return;
 
-            var i = headerIdx + 1;
-            while (i < lines.Count)
+            var itemStartRegex = new Regex(@"^(?<line>\d+)\s+(?<qty>[\d,]+)\s+PCS");
+
+            for (int i = headerIdx + 1; i < lines.Count; i++)
             {
-                var raw = lines[i];
-                if (string.IsNullOrWhiteSpace(raw)) { i++; continue; }
-                if (IsHeaderOrFooter(raw)) break;
+                var line = lines[i];
+                if (IsHeaderOrFooter(line)) break;
 
-                // Lines that are definitely not item starts
-                if (raw.StartsWith("TAG", StringComparison.OrdinalIgnoreCase) ||
-                    raw.StartsWith("SOURCE:", StringComparison.OrdinalIgnoreCase) ||
-                    raw.StartsWith("LOC", StringComparison.OrdinalIgnoreCase) ||
-                    raw.StartsWith("- CTL -", StringComparison.OrdinalIgnoreCase) ||
-                    raw.StartsWith("CTL", StringComparison.OrdinalIgnoreCase) ||
-                    raw.StartsWith("- SHEET STOCK -", StringComparison.OrdinalIgnoreCase) ||
-                    raw.StartsWith("Other Reservations", StringComparison.OrdinalIgnoreCase))
-                {
-                    i++;
-                    continue;
-                }
+                var match = itemStartRegex.Match(line);
+                if (!match.Success) continue;
 
-                // Try to match an item header line:
-                //  <line> <qty> <unit>  ...  <itemId>   <width>"   <length>"   <weight>
-                // Support PCS or LBS. Length and/or width may be absent for coils.
-                var m = Regex.Match(raw,
-                    @"^(?<line>\d+)\s+(?<qty>[\d,]+)\s+(?<unit>PCS|EA|LBS)\b.*?(?<item>[A-Z0-9\-_\/\.]+)\s*(?<sizes>.*)$",
-                    RegexOptions.IgnoreCase);
-
-                if (!m.Success)
-                {
-                    // If it doesn't look like an item start, move on
-                    i++;
-                    continue;
-                }
-
-                var lineNum = ToInt(m.Groups["line"].Value) ?? 0;
-                var qty = ToDec(m.Groups["qty"].Value) ?? 0m;
-                var unit = m.Groups["unit"].Value.ToUpperInvariant();
-                var itemId = m.Groups["item"].Value.Trim();
-                var sizesTail = m.Groups["sizes"].Value;
-
-                decimal? width = null, length = null, weight = null;
-
-                // Try to parse sizes from the tail: width" length" weight
-                // Examples:
-                //   60" 120" 3,624
-                //   60" 41.75" 2,364.094
-                //   60" 939.031        (coil: width then weight)
-                //   48" 96"            (sheet without weight on this line; may appear elsewhere)
-                var sizeWeight = Regex.Match(sizesTail,
-                    @"(?:(?<w>\d{1,3}(?:\.\d{1,3})?)\"")?\s*(?:(?<l>\d{1,3}(?:\.\d{1,3})?)\"")?\s*(?<wt>\d{1,3}(?:,\d{3})*(?:\.\d+)?)?\s*$",
-                    RegexOptions.IgnoreCase);
-
-                if (sizeWeight.Success)
-                {
-                    var w = sizeWeight.Groups["w"]; var l = sizeWeight.Groups["l"]; var wt = sizeWeight.Groups["wt"];
-                    if (w.Success) width = ToDec(w.Value);
-                    if (l.Success) length = ToDec(l.Value);
-                    if (wt.Success) weight = ToDec(wt.Value);
-                }
-
-                // Read description lines below the header row until the next item or a section break
-                var desc = new StringBuilder();
-                var j = i + 1;
-                while (j < lines.Count)
-                {
-                    var s = lines[j];
-                    if (string.IsNullOrWhiteSpace(s)) { j++; continue; }
-                    if (IsHeaderOrFooter(s)) break;
-                    if (Regex.IsMatch(s, @"^\d+\s+[\d,]+\s+(PCS|EA|LBS)\b", RegexOptions.IgnoreCase)) break; // next item
-                    if (s.StartsWith("TAG", StringComparison.OrdinalIgnoreCase)) break;
-                    if (s.StartsWith("SOURCE:", StringComparison.OrdinalIgnoreCase)) break;
-                    if (s.StartsWith("- CTL -", StringComparison.OrdinalIgnoreCase) || s.StartsWith("CTL", StringComparison.OrdinalIgnoreCase)) break;
-                    if (s.StartsWith("- SHEET STOCK -", StringComparison.OrdinalIgnoreCase)) break;
-
-                    desc.Append(' ').Append(s.Trim());
-                    j++;
-                }
-
+                // We found the start of an item.
                 var item = new PickingListItem
                 {
-                    LineNumber = lineNum,
-                    Quantity = qty,
-                    Unit = unit,
-                    ItemId = string.IsNullOrWhiteSpace(itemId) ? InferItemIdFromDesc(desc.ToString()) : itemId,
-                    ItemDescription = Clean(desc.ToString()),
-                    Width = width,
-                    Length = length,
-                    Weight = weight
+                    LineNumber = ToInt(match.Groups["line"].Value) ?? 0,
+                    Quantity = ToDec(match.Groups["qty"].Value) ?? 0,
+                    Unit = "PCS"
                 };
 
-                items.Add(item);
+                // The rest of the line contains ItemId and possibly dimensions
+                var remainder = line.Substring(match.Length).Trim();
+                var parts = Regex.Split(remainder, @"\s{2,}"); // Split by 2+ spaces
 
-                i = j;
+                item.ItemId = parts.FirstOrDefault() ?? "";
+
+                // Dimensions are tricky. Let's look for numbers with " at the end.
+                var sizeParts = remainder.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                item.Width = ToDec(sizeParts.FirstOrDefault(p => p.EndsWith("\""))?.TrimEnd('"'));
+                item.Length = ToDec(sizeParts.Skip(1).FirstOrDefault(p => p.EndsWith("\""))?.TrimEnd('"'));
+                item.Weight = ToDec(sizeParts.LastOrDefault(p => decimal.TryParse(p, out _)));
+
+
+                // Now, read subsequent lines that belong to this item
+                var descriptionLines = new List<string>();
+                i++;
+                while (i < lines.Count && !itemStartRegex.IsMatch(lines[i]) && !IsHeaderOrFooter(lines[i]))
+                {
+                    descriptionLines.Add(lines[i].Trim());
+                    i++;
+                }
+                // We've either hit the next item or the footer, so decrement i to account for the loop's increment
+                if (i < lines.Count) i--;
+
+                item.ItemDescription = string.Join(" ", descriptionLines.Where(l => !string.IsNullOrWhiteSpace(l)));
+                items.Add(item);
             }
         }
 
@@ -242,36 +184,29 @@ namespace CMetalsWS.Services
             return -1;
         }
 
+        private static string? GetValueFromNextLine(List<string> lines, string label)
+        {
+            var idx = IndexOf(lines, l => l.Contains(label, StringComparison.OrdinalIgnoreCase));
+            if (idx == -1) return null;
+            return NextNonEmpty(lines, idx + 1);
+        }
+
         private static string? SafeGet(List<string> lines, int index) =>
             (index >= 0 && index < lines.Count) ? lines[index] : null;
 
-        private static string NextNonEmpty(List<string> lines, int start, int takeUpTo = 1)
+        private static string NextNonEmpty(List<string> lines, int start)
         {
-            var taken = new List<string>();
-            int i = start;
-            while (i < lines.Count && taken.Count < takeUpTo)
-            {
-                var s = lines[i].Trim();
-                if (!string.IsNullOrWhiteSpace(s) && !IsHeaderOrFooter(s)) taken.Add(s);
-                i++;
-            }
-            return string.Join(" ", taken);
+            if (start >= lines.Count) return string.Empty;
+            return lines.Skip(start).FirstOrDefault(l => !string.IsNullOrWhiteSpace(l)) ?? string.Empty;
         }
 
         private static string NextNonEmptyBlock(List<string> lines, int start, int maxLines, Func<string, bool>? stopIf = null)
         {
-            var taken = new List<string>();
-            int i = start;
-            while (i < lines.Count && taken.Count < maxLines)
-            {
-                var s = lines[i].Trim();
-                if (stopIf != null && stopIf(s)) break;
-                if (string.IsNullOrWhiteSpace(s)) { i++; continue; }
-                if (IsHeaderOrFooter(s)) break;
-                taken.Add(s);
-                i++;
-            }
-            return string.Join(", ", taken);
+            var blockLines = lines.Skip(start)
+                                  .TakeWhile(l => stopIf == null || !stopIf(l))
+                                  .Where(l => !string.IsNullOrWhiteSpace(l))
+                                  .Take(maxLines);
+            return string.Join(", ", blockLines);
         }
 
         private static DateTime? ParseDate(string? s)
