@@ -6,11 +6,11 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using CMetalsWS.Data;
-using IronOcr;
+using UglyToad.PdfPig;
 
 namespace CMetalsWS.Services
 {
-    public class PickingListPdfParser : IPickingListPdfParser
+    public class PickingListPdfParser
     {
         public PickingList Parse(Stream pdfStream, int branchId, int? customerId = null, int? truckId = null)
         {
@@ -118,23 +118,17 @@ namespace CMetalsWS.Services
 
         private static string ExtractText(Stream pdfStream)
         {
-            // Make sure the stream is at the beginning
             if (pdfStream.CanSeek) pdfStream.Position = 0;
 
-            // Avoid using statements to prevent IDisposable API mismatch issues
-            var ocr = new IronTesseract();
-            var input = new OcrInput();
-
-            // Works across many IronOCR versions
-            input.LoadPdf(pdfStream);
-
-            // If your version supports it, these can help quality:
-            // input.Configuration.DetectWhiteTextOnDarkBackgrounds = true;
-            // input.Configuration.PageSegmentationMode = TesseractPageSegmentationMode.Auto;
-            // input.Tesseract.Version = TesseractVersion.Tesseract5;
-
-            var result = ocr.Read(input);
-            return result?.Text ?? string.Empty;
+            var text = new StringBuilder();
+            using (var pdf = PdfDocument.Open(pdfStream))
+            {
+                foreach (var page in pdf.GetPages())
+                {
+                    text.AppendLine(page.Text);
+                }
+            }
+            return text.ToString();
         }
 
         // ---------- Helpers ----------
