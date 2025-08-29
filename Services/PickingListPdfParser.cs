@@ -10,7 +10,7 @@ using IronOcr;
 
 namespace CMetalsWS.Services
 {
-    public class PickingListPdfParser
+    public class PickingListPdfParser : IPickingListPdfParser
     {
         public PickingList Parse(Stream pdfStream, int branchId, int? customerId = null, int? truckId = null)
         {

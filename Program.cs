@@ -85,10 +85,10 @@ builder.Services.AddTransient<IdentityDataSeeder>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<LoadService>();
 builder.Services.AddScoped<WorkOrderService>();
-builder.Services.AddTransient<WorkOrderPdfParser>();
+builder.Services.AddTransient<IWorkOrderPdfParser, WorkOrderPdfParser>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddSignalR();
-builder.Services.AddScoped<PickingListPdfParser>();
+builder.Services.AddScoped<IPickingListPdfParser, PickingListPdfParser>();
 
 var app = builder.Build();
 

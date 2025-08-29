@@ -10,7 +10,7 @@ using IronOcr;
 
 namespace CMetalsWS.Services
 {
-    public class WorkOrderPdfParser
+    public class WorkOrderPdfParser : IWorkOrderPdfParser
     {
         public WorkOrder Parse(Stream pdfStream, int branchId)
         {
