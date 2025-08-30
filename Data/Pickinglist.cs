@@ -45,7 +45,7 @@ namespace CMetalsWS.Data
         public ICollection<PickingListItem> Items { get; set; } = new List<PickingListItem>();
     }
 
-    public class PickingListItem
+    public class PickingListItem : IEquatable<PickingListItem>
     {
         public int Id { get; set; }
 
@@ -83,5 +83,22 @@ namespace CMetalsWS.Data
 
         public int? MachineId { get; set; }
         public Machine? Machine { get; set; }
+
+        public bool Equals(PickingListItem? other)
+        {
+            if (other is null) return false;
+            if (ReferenceEquals(this, other)) return true;
+            return Id == other.Id;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return Equals(obj as PickingListItem);
+        }
+
+        public override int GetHashCode()
+        {
+            return Id.GetHashCode();
+        }
     }
 }

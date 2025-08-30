@@ -7,31 +7,31 @@
         <MudText Typo="Typo.h6">Select Pending Picking List Items</MudText>
     </TitleContent>
     <DialogContent>
-        @if (!_groupedItems.Any())
+        @if (!_allItems.Any())
         {
             <MudText>No pending picking list items found for the required materials.</MudText>
         }
         else
         {
-            <MudStack Spacing="3">
-                @foreach (var group in _groupedItems)
-                {
-                    <MudPaper Outlined="true" Class="pa-3">
-                        <MudText Typo="Typo.subtitle1">Required Item: <b>@group.Key</b></MudText>
-                        <MudList T="PickingListItem" clickable="true" Dense="true">
-                            @foreach (var item in group.Value)
-                            {
-                                <MudListItem T="PickingListItem" OnClick="@(() => ToggleSelection(item))">
-                                    <ChildContent>
-                                        <MudCheckBox T="bool" Checked="@_selectedItems.Contains(item)" ReadOnly="true" />
-                                        <MudText><b>SO:</b> @item.PickingList.SalesOrderNumber | <b>Customer:</b> @item.PickingList.CustomerName | <b>Qty:</b> @item.Quantity @item.Unit</MudText>
-                                    </ChildContent>
-                                </MudListItem>
-                            }
-                        </MudList>
-                    </MudPaper>
-                }
-            </MudStack>
+            <MudTable Items="@_allItems" T="PickingListItem" MultiSelection="true" @bind-SelectedItems="_selectedItems" Hover="true">
+                <HeaderContent>
+                    <MudTh>SO</MudTh>
+                    <MudTh>Customer</MudTh>
+                    <MudTh>Item ID</MudTh>
+                    <MudTh>Quantity</MudTh>
+                    <MudTh>Unit</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="SO">@context.PickingList.SalesOrderNumber</MudTd>
+                    <MudTd DataLabel="Customer">@context.PickingList.CustomerName</MudTd>
+                    <MudTd DataLabel="Item ID">@context.ItemId</MudTd>
+                    <MudTd DataLabel="Quantity">@context.Quantity</MudTd>
+                    <MudTd DataLabel="Unit">@context.Unit</MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
         }
     </DialogContent>
     <DialogActions>
@@ -44,25 +44,12 @@
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public List<string> RequiredItemIds { get; set; } = new();
 
-    private Dictionary<string, List<PickingListItem>> _groupedItems = new();
+    private List<PickingListItem> _allItems = new();
     private HashSet<PickingListItem> _selectedItems = new();
 
     protected override async Task OnInitializedAsync()
     {
-        var items = await PlService.GetPendingItemsByItemIdsAsync(RequiredItemIds);
-        _groupedItems = items.GroupBy(i => i.ItemId).ToDictionary(g => g.Key, g => g.ToList());
-    }
-
-    private void ToggleSelection(PickingListItem item)
-    {
-        if (_selectedItems.Contains(item))
-        {
-            _selectedItems.Remove(item);
-        }
-        else
-        {
-            _selectedItems.Add(item);
-        }
+        _allItems = await PlService.GetPendingItemsByItemIdsAsync(RequiredItemIds);
     }
 
     private void Submit() => MudDialog.Close(DialogResult.Ok(_selectedItems.ToList()));

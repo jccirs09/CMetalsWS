@@ -12,7 +12,13 @@
         <MudForm @ref="_form">
             <MudStack Spacing="3">
                 <MudGrid>
-                    <MudItem xs="12" sm="4">
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudDatePicker Label="Date Issued" @bind-Date="Model.DateIssued" IsReadOnly="true" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudDatePicker Label="Due Date" @bind-Date="DueDateValue" Required="true" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="4">
                         <MudSelect T="int?" Label="Machine" @bind-Value="MachineId" Required="true" Margin="Margin.Dense">
                             @foreach (var m in Machines)
                             {
@@ -20,86 +26,65 @@
                             }
                         </MudSelect>
                     </MudItem>
-                    <MudItem xs="12" sm="4">
-                        <MudSelect T="MachineCategory" Label="Category" @bind-Value="Model.MachineCategory" Disabled="true" Margin="Margin.Dense">
-                            @foreach (var cat in Enum.GetValues<MachineCategory>())
-                            {
-                                <MudSelectItem Value="cat">@cat</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudItem>
-                    <MudItem xs="12" sm="4">
-                        <MudDatePicker Label="Due Date" @bind-Date="DueDateValue" Required="true" Margin="Margin.Dense"/>
-                    </MudItem>
                 </MudGrid>
 
-                <MudStack Row="true" AlignItems="AlignItems.End">
-                    <MudTextField T="string" Label="Tag Number" @bind-Value="Model.TagNumber" Required="true" />
-                    <MudButton Variant="Variant.Outlined" OnClick="SearchByTag" isEnabled="@(!IsEdit)">Search by Tag</MudButton>
-                </MudStack>
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Pull Info</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudGrid>
+                            <MudItem xs="12" sm="4">
+                                <MudTextField T="string" Label="Parent Tag #" @bind-Value="Model.TagNumber" Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" sm="4">
+                                <MudButton Variant="Variant.Outlined" OnClick="SearchByTag" Disabled="@IsEdit" FullWidth="true" Class="mt-4">Search by Tag</MudButton>
+                            </MudItem>
+                             <MudItem xs="12" sm="4">
+                                <MudTextField T="string" Label="Parent Item ID" @bind-Value="Model.ParentItemId" IsReadOnly="true" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudCardContent>
+                </MudCard>
+
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Skid Setups</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudTable Items="Model.Items" Hover="true" Dense="true">
+                            <HeaderContent>
+                                <MudTh>Action</MudTh>
+                                <MudTh>Child Tag</MudTh>
+                                <MudTh>Item ID</MudTh>
+                                <MudTh>Width</MudTh>
+                                <MudTh>Length</MudTh>
+                                <MudTh>Pieces</MudTh>
+                                <MudTh>Weight</MudTh>
+                                <MudTh></MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Action"><MudTextField @bind-Value="context.Action" Margin="Margin.Dense"/></MudTd>
+                                <MudTd DataLabel="Child Tag"><MudTextField @bind-Value="context.ChildTag" Margin="Margin.Dense"/></MudTd>
+                                <MudTd DataLabel="Item ID"><MudTextField @bind-Value="context.ItemCode" Margin="Margin.Dense"/></MudTd>
+                                <MudTd DataLabel="Width"><MudTextField @bind-Value="context.Width" Margin="Margin.Dense"/></MudTd>
+                                <MudTd DataLabel="Length"><MudTextField @bind-Value="context.Length" Margin="Margin.Dense"/></MudTd>
+                                <MudTd DataLabel="Pieces"><MudTextField @bind-Value="context.OrderQuantity" Margin="Margin.Dense"/></MudTd>
+                                <MudTd DataLabel="Weight"><MudTextField @bind-Value="context.Weight" Margin="Margin.Dense"/></MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveLine(context))" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudCardContent>
+                </MudCard>
 
                 <MudTextField T="string" Label="Instructions" @bind-Value="Model.Instructions" Lines="3" />
 
-                <MudDivider />
-                <MudText Typo="Typo.h6">Line Items</MudText>
-
-                <MudTable Items="Model.Items" Hover="true" Dense="true">
-                    <HeaderContent>
-                        <MudTh>Item</MudTh>
-                        <MudTh>SO #</MudTh>
-                        <MudTh>Customer</MudTh>
-                        <MudTh>Order Qty or Wt</MudTh>
-                        <MudTh>Width</MudTh>
-                        @if (Model.MachineCategory == MachineCategory.CTL)
-                        {
-                            <MudTh>Length</MudTh>
-                        }
-                        <MudTh>Weight</MudTh>
-                        <MudTh>Produced Qty or Wt</MudTh>
-                        <MudTh>Location</MudTh>
-                        <MudTh></MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd><MudTextField T="string" @bind-Value="context.ItemCode" /></MudTd>
-                        <MudTd><MudTextField T="string" @bind-Value="context.SalesOrderNumber" /></MudTd>
-                        <MudTd><MudTextField T="string" @bind-Value="context.CustomerName" /></MudTd>
-                        <MudTd>
-                            @if (Model.MachineCategory == MachineCategory.CTL)
-                            {
-                                <MudTextField T="decimal?" @bind-Value="context.OrderQuantity" />
-                            }
-                            else
-                            {
-                                <MudTextField T="decimal?" @bind-Value="context.OrderWeight" />
-                            }
-                        </MudTd>
-                        <MudTd><MudTextField T="decimal?" @bind-Value="context.Width" /></MudTd>
-                        @if (Model.MachineCategory == MachineCategory.CTL)
-                        {
-                            <MudTd><MudTextField T="decimal?" @bind-Value="context.Length" /></MudTd>
-                        }
-                        <MudTd><MudTextField T="decimal?" @bind-Value="context.Weight" /></MudTd>
-                        <MudTd>
-                            @if (Model.MachineCategory == MachineCategory.CTL)
-                            {
-                                <MudTextField T="decimal?" @bind-Value="context.ProducedQuantity" />
-                            }
-                            else
-                            {
-                                <MudTextField T="decimal?" @bind-Value="context.ProducedWeight" />
-                            }
-                        </MudTd>
-                        <MudTd><MudTextField T="string" @bind-Value="context.Location" /></MudTd>
-                        <MudTd>
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveLine(context))" />
-                        </MudTd>
-                    </RowTemplate>
-                </MudTable>
-
-                <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1">
-                    <MudButton Variant="Variant.Text" OnClick="AddStockLine">Add Stock Line</MudButton>
-                    <MudButton Variant="Variant.Text" OnClick="AddReturnLine">Add Return Line</MudButton>
-                </MudStack>
             </MudStack>
         </MudForm>
     </DialogContent>
@@ -199,7 +184,8 @@
             {
                 ["RequiredItemIds"] = childItemIds
             };
-            var dialog = await DialogService.ShowAsync<SelectPickingListDialog>("Select Picking List Items", parameters);
+            var options = new DialogOptions { MaxWidth = MaxWidth.Md, FullWidth = true };
+            var dialog = await DialogService.ShowAsync<SelectPickingListDialog>("Select Picking List Items", parameters, options);
             var result = await dialog.Result;
 
             if (!result.Canceled && result.Data is List<PickingListItem> selectedPlItems)
@@ -236,28 +222,6 @@
             if (!_form.IsValid) return;
         }
         MudDialog.Close(DialogResult.Ok(Model));
-    }
-
-    private void AddStockLine()
-    {
-        Model.Items.Add(new WorkOrderItem
-        {
-            ItemCode = string.Empty,
-            Description = string.Empty
-        });
-    }
-
-    private void AddReturnLine()
-    {
-        Model.Items.Add(new WorkOrderItem
-        {
-            ItemCode = "RETURN",
-            Description = "Return to stock",
-            OrderQuantity = 0,
-            OrderWeight = 0,
-            ProducedQuantity = 0,
-            ProducedWeight = 0
-        });
     }
 
     private void RemoveLine(WorkOrderItem item)
