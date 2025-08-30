@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250829181128_Baseline")]
-    partial class Baseline
+    [Migration("20250830161504_Baseline2")]
+    partial class Baseline2
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -721,6 +721,9 @@ namespace CMetalsWS.Migrations
 
                     b.Property<int?>("MachineId")
                         .HasColumnType("int");
+
+                    b.Property<string>("ParentItemId")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PdfWorkOrderNumber")
                         .HasMaxLength(64)
