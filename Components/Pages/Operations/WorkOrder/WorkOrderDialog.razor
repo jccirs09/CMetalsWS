@@ -13,7 +13,7 @@
             <MudStack Spacing="3">
                 <MudGrid>
                     <MudItem xs="12" sm="6" md="4">
-                        <MudDatePicker Label="Date Issued" @bind-Date="Model.DateIssued" IsReadOnly="true" Margin="Margin.Dense" />
+                        <MudDatePicker Label="Date Issued" Date="Model.DateIssued" IsReadOnly="true" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" sm="6" md="4">
                         <MudDatePicker Label="Due Date" @bind-Date="DueDateValue" Required="true" Margin="Margin.Dense" />
@@ -184,7 +184,7 @@
             {
                 ["RequiredItemIds"] = childItemIds
             };
-            var options = new DialogOptions { MaxWidth = MaxWidth.Md, FullWidth = true };
+            var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
             var dialog = await DialogService.ShowAsync<SelectPickingListDialog>("Select Picking List Items", parameters, options);
             var result = await dialog.Result;
 
