@@ -35,7 +35,6 @@ namespace CMetalsWS.Data
 
         public MachineCategory MachineCategory { get; set; }
 
-        public DateTime DateIssued { get; set; } = DateTime.UtcNow;
         public DateTime DueDate { get; set; }
 
         public string? ParentItemId { get; set; }
@@ -63,12 +62,6 @@ namespace CMetalsWS.Data
 
         public int? PickingListItemId { get; set; }
         public PickingListItem? PickingListItem { get; set; }
-
-        [MaxLength(64)]
-        public string? Action { get; set; }
-
-        [MaxLength(64)]
-        public string? ChildTag { get; set; }
 
         [MaxLength(64)]
         public string ItemCode { get; set; } = default!;

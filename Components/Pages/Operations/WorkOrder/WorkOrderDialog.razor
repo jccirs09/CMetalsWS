@@ -13,7 +13,7 @@
             <MudStack Spacing="3">
                 <MudGrid>
                     <MudItem xs="12" sm="6" md="4">
-                        <MudDatePicker Label="Date Issued" Date="Model.DateIssued" IsReadOnly="true" Margin="Margin.Dense" />
+                        <MudDatePicker Label="Date Issued" Date="Model.CreatedDate" IsReadOnly="true" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" sm="6" md="4">
                         <MudDatePicker Label="Due Date" @bind-Date="DueDateValue" Required="true" Margin="Margin.Dense" />
@@ -58,8 +58,6 @@
                     <MudCardContent>
                         <MudTable Items="Model.Items" Hover="true" Dense="true">
                             <HeaderContent>
-                                <MudTh>Action</MudTh>
-                                <MudTh>Child Tag</MudTh>
                                 <MudTh>Item ID</MudTh>
                                 <MudTh>Width</MudTh>
                                 <MudTh>Length</MudTh>
@@ -68,8 +66,6 @@
                                 <MudTh></MudTh>
                             </HeaderContent>
                             <RowTemplate>
-                                <MudTd DataLabel="Action"><MudTextField @bind-Value="context.Action" Margin="Margin.Dense"/></MudTd>
-                                <MudTd DataLabel="Child Tag"><MudTextField @bind-Value="context.ChildTag" Margin="Margin.Dense"/></MudTd>
                                 <MudTd DataLabel="Item ID"><MudTextField @bind-Value="context.ItemCode" Margin="Margin.Dense"/></MudTd>
                                 <MudTd DataLabel="Width"><MudTextField @bind-Value="context.Width" Margin="Margin.Dense"/></MudTd>
                                 <MudTd DataLabel="Length"><MudTextField @bind-Value="context.Length" Margin="Margin.Dense"/></MudTd>
