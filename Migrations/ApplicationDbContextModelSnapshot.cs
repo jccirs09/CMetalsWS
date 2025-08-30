@@ -162,10 +162,7 @@ namespace CMetalsWS.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Branches");
-                });
 
-            modelBuilder.Entity("CMetalsWS.Data.Branch", b =>
-                {
                     b.Navigation("Machines");
 
                     b.Navigation("PickingLists");
