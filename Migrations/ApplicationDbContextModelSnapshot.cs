@@ -164,6 +164,19 @@ namespace CMetalsWS.Migrations
                     b.ToTable("Branches");
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.Branch", b =>
+                {
+                    b.Navigation("Machines");
+
+                    b.Navigation("PickingLists");
+
+                    b.Navigation("Trucks");
+
+                    b.Navigation("Users");
+
+                    b.Navigation("WorkOrders");
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.Customer", b =>
                 {
                     b.Property<int>("Id")
