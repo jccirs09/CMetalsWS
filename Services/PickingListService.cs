@@ -180,7 +180,7 @@ namespace CMetalsWS.Services
             return await _db.PickingListItems
                 .Include(i => i.PickingList!)
                 .ThenInclude(pl => pl.Customer)
-                .Where(i => i.PickingList != null && i.PickingList.Status == PickingListStatus.Pending && itemIds.Contains(i.ItemId))
+                .Where(i => i.PickingList != null && (i.Status == PickingLineStatus.Pending || i.Status == PickingLineStatus.Awaiting) && itemIds.Contains(i.ItemId))
                 .AsNoTracking()
                 .ToListAsync();
         }
