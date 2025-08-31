@@ -341,6 +341,7 @@
 
         var qty = item.OrderQuantity ?? 0;
         item.OrderWeight = CalculateWeight(item.Description, item.Width, item.Length, (int)qty);
+        StateHasChanged();
     }
 
     private static double? ParseGauge(string description)
