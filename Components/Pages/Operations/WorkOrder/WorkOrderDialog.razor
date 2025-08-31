@@ -97,7 +97,7 @@
                                 <MudTd DataLabel="Order Qty"><MudTextField Value="context.OrderQuantity" ValueChanged="@((decimal? v) => { context.OrderQuantity = v; RecalculateWeight(context); })" Margin="Margin.Dense" IsReadOnly="@(!context.IsStockItem)" /></MudTd>
                                 <MudTd DataLabel="Width"><MudTextField Value="context.Width" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
                                 <MudTd DataLabel="Length"><MudTextField Value="context.Length" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
-                                <MudTd DataLabel="Weight"><MudTextField Value="context.OrderWeight" Margin="Margin.Dense" IsReadOnly="@context.IsStockItem" /></Td>
+                                <MudTd DataLabel="Weight"><MudTextField Value="context.OrderWeight" Margin="Margin.Dense" IsReadOnly="@context.IsStockItem" /></MudTd>
                                 <MudTd DataLabel="Produced Qty"><MudTextField @bind-Value="context.ProducedQuantity" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></MudTd>
                                 <MudTd DataLabel="Produced Wt"><MudTextField @bind-Value="context.ProducedWeight" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></MudTd>
                                 <MudTd>
@@ -278,6 +278,7 @@
 
     private void AddStockLine(InventoryItem child)
     {
+        if (child is null) return;
         var orderQty = 1;
         var weight = CalculateWeight(child.Description ?? "", child.Width, child.Length, orderQty);
 
