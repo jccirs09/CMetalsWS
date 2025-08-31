@@ -86,7 +86,7 @@
         await LoadAsync();
 
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/schedulehub"))
+            .WithUrl(Navigation.ToAbsoluteUri("/hubs/schedule"))
             .Build();
 
         _hubConnection.On<int>("WorkOrderUpdated", (workOrderId) =>
