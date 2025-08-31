@@ -162,16 +162,6 @@ namespace CMetalsWS.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Branches");
-
-                    b.Navigation("Machines");
-
-                    b.Navigation("PickingLists");
-
-                    b.Navigation("Trucks");
-
-                    b.Navigation("Users");
-
-                    b.Navigation("WorkOrders");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.Customer", b =>

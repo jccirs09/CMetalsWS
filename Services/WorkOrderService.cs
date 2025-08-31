@@ -153,6 +153,28 @@ namespace CMetalsWS.Services
             var next = await _db.WorkOrders.CountAsync(w => w.BranchId == branchId) + 1;
             return $"W{branchCode}{next:0000000}";
         }
+        public async Task MarkWorkOrderCompleteAsync(WorkOrder workOrder, string updatedBy)
+        {
+            var existing = await _db.WorkOrders
+                .Include(w => w.Items)
+                .FirstOrDefaultAsync(w => w.Id == workOrder.Id);
+
+            if (existing is null) return;
+
+            // Update produced quantities from the UI model
+            foreach(var item in workOrder.Items)
+            {
+                var existingItem = existing.Items.FirstOrDefault(i => i.Id == item.Id);
+                if(existingItem != null)
+                {
+                    existingItem.ProducedQuantity = item.ProducedQuantity;
+                    existingItem.ProducedWeight = item.ProducedWeight;
+                }
+            }
+
+            await SetStatusAsync(workOrder.Id, WorkOrderStatus.Completed, updatedBy);
+        }
+
         public async Task SetStatusAsync(int id, WorkOrderStatus status, string updatedBy)
         {
             var workOrder = await _db.WorkOrders

@@ -6,20 +6,21 @@
 @inject InventoryService InvService
 @inject ItemRelationshipService RelService
 @inject PickingListService PlService
+@inject WorkOrderService WorkOrderService
 
 <MudDialog title="@Title">
     <DialogContent>
-        <MudForm @ref="_form">
+        <MudForm @ref="_form" IsReadOnly="@IsProcessing">
             <MudStack Spacing="3">
                 <MudGrid>
                     <MudItem xs="12" sm="6" md="4">
                         <MudDatePicker Label="Date Issued" Date="Model.CreatedDate" IsReadOnly="true" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" sm="6" md="4">
-                        <MudDatePicker Label="Due Date" @bind-Date="DueDateValue" Required="true" Margin="Margin.Dense" />
+                        <MudDatePicker Label="Due Date" @bind-Date="DueDateValue" Required="true" Margin="Margin.Dense" IsReadOnly="@IsProcessing" />
                     </MudItem>
                     <MudItem xs="12" sm="6" md="4">
-                        <MudSelect T="int?" Label="Machine" @bind-Value="MachineId" Required="true" Margin="Margin.Dense">
+                        <MudSelect T="int?" Label="Machine" @bind-Value="MachineId" Required="true" Margin="Margin.Dense" IsReadOnly="@IsProcessing">
                             @foreach (var m in Machines)
                             {
                                 <MudSelectItem T="int?" Value="m.Id">@m.Name (@m.Category)</MudSelectItem>
@@ -37,10 +38,10 @@
                     <MudCardContent>
                         <MudGrid>
                             <MudItem xs="12" sm="4">
-                                <MudTextField T="string" Label="Parent Tag #" @bind-Value="Model.TagNumber" Required="true" />
+                                <MudTextField T="string" Label="Parent Tag #" @bind-Value="Model.TagNumber" Required="true" IsReadOnly="@IsProcessing" />
                             </MudItem>
                             <MudItem xs="12" sm="4">
-                                <MudButton Variant="Variant.Outlined" OnClick="SearchByTag" Disabled="@IsEdit" FullWidth="true" Class="mt-4">Search by Tag</MudButton>
+                                <MudButton Variant="Variant.Outlined" OnClick="SearchByTag" Disabled="@(IsEdit || IsProcessing)" FullWidth="true" Class="mt-4">Search by Tag</MudButton>
                             </MudItem>
                              <MudItem xs="12" sm="4">
                                 <MudTextField T="string" Label="Parent Item ID" @bind-Value="Model.ParentItemId" IsReadOnly="true" />
@@ -59,45 +60,57 @@
                         <MudTable Items="Model.Items" Hover="true" Dense="true">
                             <HeaderContent>
                                 <MudTh>Item ID</MudTh>
+                                <MudTh>Order Qty</MudTh>
+                                <MudTh>Produced Qty</MudTh>
                                 <MudTh>Width</MudTh>
                                 <MudTh>Length</MudTh>
-                                <MudTh>Pieces</MudTh>
                                 <MudTh>Weight</MudTh>
                                 <MudTh></MudTh>
                             </HeaderContent>
                             <RowTemplate>
-                                <MudTd DataLabel="Item ID"><MudTextField @bind-Value="context.ItemCode" Margin="Margin.Dense"/></MudTd>
-                                <MudTd DataLabel="Width"><MudTextField @bind-Value="context.Width" Margin="Margin.Dense"/></MudTd>
-                                <MudTd DataLabel="Length"><MudTextField @bind-Value="context.Length" Margin="Margin.Dense"/></MudTd>
-                                <MudTd DataLabel="Pieces"><MudTextField @bind-Value="context.OrderQuantity" Margin="Margin.Dense"/></MudTd>
-                                <MudTd DataLabel="Weight"><MudTextField @bind-Value="context.Weight" Margin="Margin.Dense"/></MudTd>
+                                <MudTd DataLabel="Item ID"><MudTextField @bind-Value="context.ItemCode" Margin="Margin.Dense" IsReadOnly="@IsProcessing"/></MudTd>
+                                <MudTd DataLabel="Order Qty"><MudTextField @bind-Value="context.OrderQuantity" Margin="Margin.Dense" IsReadOnly="@IsProcessing"/></MudTd>
+                                <MudTd DataLabel="Produced Qty"><MudTextField @bind-Value="context.ProducedQuantity" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)"/></MudTd>
+                                <MudTd DataLabel="Width"><MudTextField @bind-Value="context.Width" Margin="Margin.Dense" IsReadOnly="@IsProcessing"/></Td>
+                                <MudTd DataLabel="Length"><MudTextField @bind-Value="context.Length" Margin="Margin.Dense" IsReadOnly="@IsProcessing"/></Td>
+                                <MudTd DataLabel="Weight"><MudTextField @bind-Value="context.Weight" Margin="Margin.Dense" IsReadOnly="@IsProcessing"/></Td>
                                 <MudTd>
-                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveLine(context))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveLine(context))" Disabled="@IsProcessing" />
                                 </MudTd>
                             </RowTemplate>
                         </MudTable>
                     </MudCardContent>
                 </MudCard>
 
-                <MudTextField T="string" Label="Instructions" @bind-Value="Model.Instructions" Lines="3" />
+                <MudTextField T="string" Label="Instructions" @bind-Value="Model.Instructions" Lines="3" IsReadOnly="@IsProcessing" />
 
             </MudStack>
         </MudForm>
     </DialogContent>
     <DialogActions>
         <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Save</MudButton>
+        @if (IsProcessing)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="MarkComplete">Mark as Complete</MudButton>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Save</MudButton>
+        }
     </DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
 
     [Parameter] public WorkOrder Model { get; set; } = new();
     [Parameter] public List<Machine> Machines { get; set; } = new();
     [Parameter] public List<Branch> Branches { get; set; } = new();
     [Parameter] public string Title { get; set; } = string.Empty;
     [Parameter] public bool IsEdit { get; set; }
+    [Parameter] public bool IsProcessing { get; set; }
 
     private MudForm? _form;
 
@@ -223,5 +236,14 @@
     private void RemoveLine(WorkOrderItem item)
     {
         Model.Items.Remove(item);
+    }
+
+    private async Task MarkComplete()
+    {
+        var user = (await AuthState).User;
+        var updatedBy = user.Identity?.Name ?? "Unknown";
+        await WorkOrderService.MarkWorkOrderCompleteAsync(Model, updatedBy);
+        Snackbar.Add("Work Order marked as complete.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(Model));
     }
 }

@@ -46,8 +46,7 @@
             <MudTd>
                 <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true">
                     <MudMenuItem OnClick="@(() => EditWorkOrderAsync(context))">Edit</MudMenuItem>
-                    <MudMenuItem OnClick="@(() => SetStatusAsync(context.Id, WorkOrderStatus.InProgress))">Start</MudMenuItem>
-                    <MudMenuItem OnClick="@(() => SetStatusAsync(context.Id, WorkOrderStatus.Completed))">Complete</MudMenuItem>
+                    <MudMenuItem OnClick="@(() => ProcessWorkOrderAsync(context))">Process</MudMenuItem>
                 </MudMenu>
             </MudTd>
         </RowTemplate>
@@ -189,5 +188,28 @@
 
         await WorkOrderService.SetStatusAsync(id, status, updatedBy);
         await LoadAsync();
+    }
+
+    private async Task ProcessWorkOrderAsync(WorkOrder wo)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Model"] = wo,
+            ["Machines"] = _machines,
+            ["Branches"] = _branches,
+            ["Title"] = $"Process {wo.WorkOrderNumber}",
+            ["IsEdit"] = true, // Keep IsEdit to disable tag search
+            ["IsProcessing"] = true
+        };
+
+        var dialog = await DialogService.ShowAsync<WorkOrderDialog>("Process Work Order", parameters, new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
+        if(dialog is not null)
+        {
+            var result = await dialog.Result;
+            if (result is not null && !result.Canceled)
+            {
+                await LoadAsync();
+            }
+        }
     }
 }
