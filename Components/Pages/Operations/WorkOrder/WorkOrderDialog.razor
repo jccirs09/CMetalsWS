@@ -45,15 +45,32 @@
                     </MudCardContent>
                 </MudCard>
 
-                @if(Model.Items.Any())
+                @if(_childItems.Any())
                 {
                     <MudCard>
-                        <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Child Item(s)</MudText></CardHeaderContent></MudCardHeader>
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                    <MudText Typo="Typo.h6">Child Item(s)</MudText>
+                                    <MudButton Variant="Variant.Text" OnClick="AssociatePickingLists" Disabled="@IsProcessing">Associate Picking Lists</MudButton>
+                                </MudStack>
+                            </CardHeaderContent>
+                        </MudCardHeader>
                         <MudCardContent>
-                            @foreach(var item in Model.Items)
-                            {
-                                <MudText><b>@item.ItemCode:</b> @item.Description</MudText>
-                            }
+                            <MudTable Items="@_childItems" Dense="true" Hover="true">
+                                <HeaderContent>
+                                    <MudTh>Item Code</MudTh>
+                                    <MudTh>Description</MudTh>
+                                    <MudTh></MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="Item Code">@context.ItemCode</MudTd>
+                                    <MudTd DataLabel="Description">@context.Description</MudTd>
+                                    <MudTd>
+                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => AddStockLine(context))">Add</MudButton>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
                         </MudCardContent>
                     </MudCard>
                 }
@@ -83,7 +100,7 @@
                                 <MudTd DataLabel="Length"><MudTextField @bind-Value="context.Length" Margin="Margin.Dense" IsReadOnly="true" /></Td>
                                 <MudTd DataLabel="Weight"><MudTextField @bind-Value="context.Weight" Margin="Margin.Dense" IsReadOnly="true" /></Td>
                                 <MudTd DataLabel="Produced Qty"><MudTextField @bind-Value="context.ProducedQuantity" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></Td>
-                                <MudTd DataLabel="Produced Wt"><MudTextField @bind-Value="context.ProducedWeight" Margin="Margin.Dense" IsReadOnly="true" /></Td>
+                                <MudTd DataLabel="Produced Wt"><MudTextField @bind-Value="context.ProducedWeight" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></Td>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveLine(context))" Disabled="@IsProcessing" />
                                 </MudTd>
@@ -92,6 +109,10 @@
                     </MudCardContent>
                 </MudCard>
 
+                <MudStack Row="true" Justify="Justify.FlexEnd">
+                    <MudButton Variant="Variant.Text" OnClick="AddReturnCoil" Disabled="@(IsProcessing || _parentItem is null)">Add Return Coil</MudButton>
+                </MudStack>
+
                 <MudTextField T="string" Label="Instructions" @bind-Value="Model.Instructions" Lines="3" IsReadOnly="@IsProcessing" />
 
                 @if(Model.Items.Any(i => i.PickingListItemId.HasValue))
@@ -99,10 +120,20 @@
                     <MudCard>
                         <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Ship-To Info</MudText></CardHeaderContent></MudCardHeader>
                         <MudCardContent>
-                            @foreach(var pl in Model.Items.Where(i => i.PickingListItemId.HasValue).Select(i => new { i.SalesOrderNumber, i.CustomerName }).Distinct())
-                            {
-                                <MudText><b>PL:</b> @pl.SalesOrderNumber | <b>Customer:</b> @pl.CustomerName</MudText>
-                            }
+                            <MudTable Items="@(Model.Items.Where(i => i.PickingListItemId.HasValue).GroupBy(i => i.PickingListItemId).Select(g => g.First()))" Dense="true" Hover="true">
+                                <HeaderContent>
+                                    <MudTh>Picking List #</MudTh>
+                                    <MudTh>Customer</MudTh>
+                                    <MudTh></MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="Picking List #">@context.SalesOrderNumber</MudTd>
+                                    <MudTd DataLabel="Customer">@context.CustomerName</MudTd>
+                                    <MudTd>
+                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => AddMoreLineFromPL(context))">Add More</MudButton>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
                         </MudCardContent>
                     </MudCard>
                 }
@@ -137,6 +168,7 @@
 
     private MudForm? _form;
     private InventoryItem? _parentItem;
+    private List<InventoryItem> _childItems = new();
 
     private int? MachineId
     {
@@ -191,33 +223,118 @@
                 return;
             }
 
-            // Automatically add child items to the work order
-            Model.Items.Clear();
-            var childItemIds = new List<string>();
+            // Populate the list of potential child items to add
+            _childItems.Clear();
             foreach (var childRel in children)
             {
                 var childInv = await InvService.GetByItemIdsAsync(new List<string> { childRel.ChildItemId });
-                if (childInv.Any())
-                {
-                     Model.Items.Add(new WorkOrderItem
-                    {
-                        ItemCode = childInv.First().ItemId,
-                        Description = childInv.First().Description,
-                        Width = childInv.First().Width,
-                        Length = childInv.First().Length,
-                        Weight = childInv.First().Snapshot
-                    });
-                    childItemIds.Add(childRel.ChildItemId);
-                }
+                _childItems.AddRange(childInv);
             }
-            Snackbar.Add($"Automatically added {Model.Items.Count} child item(s).", Severity.Success);
+            Snackbar.Add($"Found {_childItems.Count} potential child item(s).", Severity.Success);
             StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+    }
 
-            // Automatically open the picking list dialog
-            var parameters = new DialogParameters
-            {
-                ["RequiredItemIds"] = childItemIds
-            };
+    private void AddStockLine(InventoryItem child)
+    {
+        var orderQty = 1; // Default, can be changed by user later
+        var weight = CalculateWeight(child.Description, child.Width, child.Length, orderQty);
+
+        Model.Items.Add(new WorkOrderItem
+        {
+            ItemCode = child.ItemId,
+            Description = child.Description,
+            Width = child.Width,
+            Length = child.Length,
+            OrderQuantity = orderQty,
+            Weight = weight
+        });
+    }
+
+    private static decimal? CalculateWeight(string description, decimal? width, decimal? length, int orderQty)
+    {
+        if (width is null || length is null) return null;
+
+        var gauge = ParseGauge(description);
+        if (gauge is null) return null;
+
+        var key = (gauge.Value, (int)width.Value, (int)length.Value);
+        if (SheetWeightLookup.TryGetValue(key, out var lbsPerSheet))
+        {
+            return lbsPerSheet * orderQty;
+        }
+        return null; // No match in lookup table
+    }
+
+    private void AddReturnCoil()
+    {
+        if (_parentItem is null) return;
+        Model.Items.Add(new WorkOrderItem
+        {
+            ItemCode = _parentItem.ItemId,
+            Description = "Return to stock",
+            ProducedWeight = _parentItem.Snapshot // Or whatever the remaining weight is
+        });
+    }
+
+    private static double? ParseGauge(string description)
+    {
+        var match = Regex.Match(description, @"\((?<gauge>\.\d+)\)");
+        if (match.Success && double.TryParse(match.Groups["gauge"].Value, out var gauge))
+        {
+            return gauge;
+        }
+        return null;
+    }
+
+    private void AddMoreLineFromPL(WorkOrderItem itemToCopy)
+    {
+        Model.Items.Add(new WorkOrderItem
+        {
+            PickingListItemId = itemToCopy.PickingListItemId,
+            SalesOrderNumber = itemToCopy.SalesOrderNumber,
+            CustomerName = itemToCopy.CustomerName,
+            ItemCode = itemToCopy.ItemCode,
+            Description = itemToCopy.Description,
+            Width = itemToCopy.Width,
+            Length = itemToCopy.Length,
+            Weight = itemToCopy.Weight,
+            OrderQuantity = itemToCopy.OrderQuantity
+        });
+    }
+
+    private static readonly Dictionary<(double gauge, int width, int length), decimal> SheetWeightLookup = new()
+    {
+        { (0.014, 36, 96), 14.35m }, { (0.014, 36, 120), 17.85m }, { (0.014, 48, 96), 19.00m }, { (0.014, 48, 120), 23.85m },
+        { (0.015, 36, 96), 15.75m }, { (0.015, 36, 120), 19.75m }, { (0.015, 48, 96), 21.00m }, { (0.015, 48, 120), 26.25m },
+        { (0.018, 36, 96), 18.75m }, { (0.018, 36, 120), 23.45m }, { (0.018, 48, 96), 25.05m }, { (0.018, 48, 120), 31.25m },
+        { (0.020, 36, 96), 21.75m }, { (0.020, 36, 120), 27.25m }, { (0.020, 48, 96), 29.05m }, { (0.020, 48, 120), 36.25m },
+        { (0.024, 36, 96), 27.75m }, { (0.024, 36, 120), 34.75m }, { (0.024, 48, 96), 37.05m }, { (0.024, 48, 120), 46.25m },
+        { (0.030, 48, 96), 45.05m }, { (0.030, 48, 120), 56.25m },
+        { (0.038, 48, 96), 53.05m }, { (0.038, 48, 120), 66.25m },
+        { (0.047, 48, 96), 69.05m }, { (0.047, 48, 120), 86.25m },
+        { (0.059, 48, 96), 85.05m }, { (0.059, 48, 120), 106.25m },
+        { (0.075, 48, 96), 105.05m }, { (0.075, 48, 120), 131.25m },
+        { (0.104, 48, 96), 145.00m }, { (0.104, 48, 120), 181.25m },
+        { (0.135, 48, 96), 185.00m }, { (0.135, 48, 120), 231.25m }
+    };
+
+    private async Task AssociatePickingLists()
+    {
+        var childItemIds = _childItems.Select(c => c.ItemId).ToList();
+        if(!childItemIds.Any())
+        {
+            Snackbar.Add("No child items to associate.", Severity.Info);
+            return;
+        }
+        var parameters = new DialogParameters
+        {
+            ["RequiredItemIds"] = childItemIds
+        };
             var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
             var dialog = await DialogService.ShowAsync<SelectPickingListDialog>("Select Picking List Items", parameters, options);
             var result = await dialog.Result;
