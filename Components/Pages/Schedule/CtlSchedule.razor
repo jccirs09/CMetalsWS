@@ -42,9 +42,9 @@
                              StartTime="new TimeSpan(5, 0, 0)"
                              EndTime="new TimeSpan(23, 0, 0)"
                              OnItemClick="HandleClick">
-                    <ItemTemplate>
+                    <ItemTemplate Context="item">
                         @{
-                            var wo = context.WorkOrder!;
+                            var wo = item.WorkOrder!;
                             var customers = string.Join(", ", wo.Items.Select(i => i.CustomerName).Distinct());
                             var pickingLists = string.Join(", ", wo.Items.Select(i => i.SalesOrderNumber).Distinct());
                         }
@@ -55,7 +55,7 @@
                             <MudText Typo="Typo.caption">Tag: @wo.TagNumber</MudText>
                             <MudText Typo="Typo.caption">Instructions: @wo.Instructions</MudText>
                         </div>
-                    </CellTemplate>
+                    </ItemTemplate>
                 </MudCalendar>
             </MudItem>
             <MudItem xs="12" sm="3">
@@ -171,10 +171,11 @@
             await _hub.SendAsync("WorkOrderUpdated", wo.Id);
     }
 
-    private async Task HandleDayDrop((CalendarItem Item, DateTime Date) args)
+    private async Task HandleDayDrop(object e)
     {
-        var item = (WorkOrder)args.Item;
-        var date = args.Date;
+        dynamic d = e;
+        var item = (WorkOrder)d.Item;
+        var date = (DateTime)d.Date;
 
         item.ScheduledStartDate = date.Date.AddHours(5); // Default to 5 AM, start of shift
         item.ScheduledEndDate = item.ScheduledStartDate.Value.AddHours(1); // Default to 1 hour duration
