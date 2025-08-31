@@ -37,10 +37,10 @@
                         <MudGrid>
                             <MudItem xs="12" sm="3"><MudTextField T="string" Label="Parent Tag #" @bind-Value="Model.TagNumber" Required="true" IsReadOnly="@IsProcessing" /></MudItem>
                             <MudItem xs="12" sm="3"><MudButton Variant="Variant.Outlined" OnClick="SearchByTag" Disabled="@(IsEdit || IsProcessing)" FullWidth="true" Class="mt-4">Search by Tag</MudButton></MudItem>
-                            <MudItem xs="12" sm="6"><MudTextField T="string" Label="Parent Item ID" Value="@_parentItem?.ItemId" IsReadOnly="true" /></MudItem>
-                            <MudItem xs="12" sm="6"><MudTextField T="string" Label="Description" Value="@_parentItem?.Description" IsReadOnly="true" /></MudItem>
-                            <MudItem xs="12" sm="3"><MudTextField T="decimal?" Label="Weight" Value="@_parentItem?.Snapshot" IsReadOnly="true" /></MudItem>
-                            <MudItem xs="12" sm="3"><MudTextField T="string" Label="Location" Value="@_parentItem?.Location" IsReadOnly="true" /></MudItem>
+                            <MudItem xs="12" sm="6"><MudText><b>Parent Item ID:</b> @_parentItem?.ItemId</MudText></MudItem>
+                            <MudItem xs="12" sm="6"><MudText><b>Description:</b> @_parentItem?.Description</MudText></MudItem>
+                            <MudItem xs="12" sm="3"><MudText><b>Weight:</b> @_parentItem?.Snapshot</MudText></MudItem>
+                            <MudItem xs="12" sm="3"><MudText><b>Location:</b> @_parentItem?.Location</MudText></MudItem>
                         </MudGrid>
                     </MudCardContent>
                 </MudCard>
@@ -224,17 +224,28 @@
 
             if (!result.Canceled && result.Data is List<PickingListItem> selectedPlItems)
             {
-                foreach (var woItem in Model.Items)
+                // First, clear any previous picking list associations
+                foreach(var item in Model.Items)
                 {
-                    var matchingPlItem = selectedPlItems.FirstOrDefault(p => p.ItemId == woItem.ItemCode);
-                    if (matchingPlItem != null)
+                    item.PickingListItemId = null;
+                    item.SalesOrderNumber = null;
+                    item.CustomerName = null;
+                }
+
+                // Now, associate the selected items
+                foreach (var selectedItem in selectedPlItems)
+                {
+                    // Find all work order items that could be fulfilled by this picking list item
+                    var matchingWoItems = Model.Items.Where(p => p.ItemCode == selectedItem.ItemId).ToList();
+                    foreach(var woItem in matchingWoItems)
                     {
-                        woItem.PickingListItemId = matchingPlItem.Id;
-                        woItem.SalesOrderNumber = matchingPlItem.PickingList?.SalesOrderNumber;
-                        woItem.CustomerName = matchingPlItem.PickingList?.CustomerName;
-                        woItem.OrderQuantity = matchingPlItem.Quantity;
-                        woItem.Weight = matchingPlItem.Weight; // This was the bug, it was assigning to OrderWeight
-                        woItem.Length = matchingPlItem.Length;
+                        woItem.PickingListItemId = selectedItem.Id;
+                        woItem.SalesOrderNumber = selectedItem.PickingList?.SalesOrderNumber;
+                        woItem.CustomerName = selectedItem.PickingList?.CustomerName;
+                        woItem.OrderQuantity = selectedItem.Quantity;
+                        woItem.Weight = selectedItem.Weight;
+                        woItem.Length = selectedItem.Length;
+                         woItem.Width = selectedItem.Width;
                     }
                 }
                 Snackbar.Add($"Associated {selectedPlItems.Count} picking list item(s).", Severity.Success);
