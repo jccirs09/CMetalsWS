@@ -15,12 +15,12 @@
     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
         <MudText Typo="Typo.h5">Work Orders</MudText>
         <MudSpacer />
-        <MudButton Variant="Variant.Outlined" Href="/work-orders/upload">Upload PDF</MudButton>
+        <MudTextField @bind-Value="_searchString" Label="Search by WO# or SO#" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" OnAdornmentClick="LoadAsync" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateWorkOrderAsync">New</MudButton>
         <MudButton Variant="Variant.Outlined" OnClick="LoadAsync">Refresh</MudButton>
     </MudStack>
 
-    <MudTable Items="_workOrders" Hover="true" Dense="true" Class="mt-4">
+    <MudTable Items="@FilteredWorkOrders" Hover="true" Dense="true" Class="mt-4">
         <HeaderContent>
             <MudTh>WO #</MudTh>
             <MudTh>Branch</MudTh>
@@ -55,10 +55,19 @@
 
 @code {
     private List<WorkOrder> _workOrders = new();
+    private string _searchString = "";
     private List<Machine> _machines = new();
     private List<Branch> _branches = new();
     private bool _isAdmin;
     private int? _userBranchId;
+
+    private List<WorkOrder> FilteredWorkOrders =>
+        string.IsNullOrWhiteSpace(_searchString)
+            ? _workOrders
+            : _workOrders.Where(wo =>
+                wo.WorkOrderNumber.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                wo.Items.Any(i => i.SalesOrderNumber != null && i.SalesOrderNumber.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
 
     protected override async Task OnInitializedAsync()
     {
