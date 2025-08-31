@@ -31,49 +31,59 @@
 
                 <MudCard>
                     <MudCardHeader>
-                        <CardHeaderContent>
-                            <MudText Typo="Typo.h6">Pull Info</MudText>
-                        </CardHeaderContent>
+                        <CardHeaderContent><MudText Typo="Typo.h6">Pull Info</MudText></CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
                         <MudGrid>
-                            <MudItem xs="12" sm="4">
-                                <MudTextField T="string" Label="Parent Tag #" @bind-Value="Model.TagNumber" Required="true" IsReadOnly="@IsProcessing" />
-                            </MudItem>
-                            <MudItem xs="12" sm="4">
-                                <MudButton Variant="Variant.Outlined" OnClick="SearchByTag" Disabled="@(IsEdit || IsProcessing)" FullWidth="true" Class="mt-4">Search by Tag</MudButton>
-                            </MudItem>
-                             <MudItem xs="12" sm="4">
-                                <MudTextField T="string" Label="Parent Item ID" @bind-Value="Model.ParentItemId" IsReadOnly="true" />
-                            </MudItem>
+                            <MudItem xs="12" sm="3"><MudTextField T="string" Label="Parent Tag #" @bind-Value="Model.TagNumber" Required="true" IsReadOnly="@IsProcessing" /></MudItem>
+                            <MudItem xs="12" sm="3"><MudButton Variant="Variant.Outlined" OnClick="SearchByTag" Disabled="@(IsEdit || IsProcessing)" FullWidth="true" Class="mt-4">Search by Tag</MudButton></MudItem>
+                            <MudItem xs="12" sm="6"><MudTextField T="string" Label="Parent Item ID" Value="@_parentItem?.ItemId" IsReadOnly="true" /></MudItem>
+                            <MudItem xs="12" sm="6"><MudTextField T="string" Label="Description" Value="@_parentItem?.Description" IsReadOnly="true" /></MudItem>
+                            <MudItem xs="12" sm="3"><MudTextField T="decimal?" Label="Weight" Value="@_parentItem?.Snapshot" IsReadOnly="true" /></MudItem>
+                            <MudItem xs="12" sm="3"><MudTextField T="string" Label="Location" Value="@_parentItem?.Location" IsReadOnly="true" /></MudItem>
                         </MudGrid>
                     </MudCardContent>
                 </MudCard>
 
+                @if(Model.Items.Any())
+                {
+                    <MudCard>
+                        <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Child Item(s)</MudText></CardHeaderContent></MudCardHeader>
+                        <MudCardContent>
+                            @foreach(var item in Model.Items)
+                            {
+                                <MudText><b>@item.ItemCode:</b> @item.Description</MudText>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                }
+
                 <MudCard>
-                    <MudCardHeader>
-                        <CardHeaderContent>
-                            <MudText Typo="Typo.h6">Skid Setups</MudText>
-                        </CardHeaderContent>
-                    </MudCardHeader>
+                    <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Skid Setups</MudText></CardHeaderContent></MudCardHeader>
                     <MudCardContent>
                         <MudTable Items="Model.Items" Hover="true" Dense="true">
                             <HeaderContent>
+                                <MudTh>#</MudTh>
                                 <MudTh>Item ID</MudTh>
+                                <MudTh>Picking List #</MudTh>
                                 <MudTh>Order Qty</MudTh>
-                                <MudTh>Produced Qty</MudTh>
                                 <MudTh>Width</MudTh>
                                 <MudTh>Length</MudTh>
                                 <MudTh>Weight</MudTh>
+                                <MudTh>Produced Qty</MudTh>
+                                <MudTh>Produced Wt</MudTh>
                                 <MudTh></MudTh>
                             </HeaderContent>
                             <RowTemplate>
-                                <MudTd DataLabel="Item ID"><MudTextField @bind-Value="context.ItemCode" Margin="Margin.Dense" IsReadOnly="@IsProcessing"/></MudTd>
-                                <MudTd DataLabel="Order Qty"><MudTextField @bind-Value="context.OrderQuantity" Margin="Margin.Dense" IsReadOnly="@IsProcessing"/></MudTd>
-                                <MudTd DataLabel="Produced Qty"><MudTextField @bind-Value="context.ProducedQuantity" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)"/></MudTd>
-                                <MudTd DataLabel="Width"><MudTextField @bind-Value="context.Width" Margin="Margin.Dense" IsReadOnly="@IsProcessing"/></Td>
-                                <MudTd DataLabel="Length"><MudTextField @bind-Value="context.Length" Margin="Margin.Dense" IsReadOnly="@IsProcessing"/></Td>
-                                <MudTd DataLabel="Weight"><MudTextField @bind-Value="context.Weight" Margin="Margin.Dense" IsReadOnly="@IsProcessing"/></Td>
+                                <MudTd DataLabel="#">@Model.Items.ToList().IndexOf(context)</MudTd>
+                                <MudTd DataLabel="Item ID"><MudTextField @bind-Value="context.ItemCode" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
+                                <MudTd DataLabel="Picking List #"><MudTextField @bind-Value="context.SalesOrderNumber" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
+                                <MudTd DataLabel="Order Qty"><MudTextField @bind-Value="context.OrderQuantity" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
+                                <MudTd DataLabel="Width"><MudTextField @bind-Value="context.Width" Margin="Margin.Dense" IsReadOnly="true" /></Td>
+                                <MudTd DataLabel="Length"><MudTextField @bind-Value="context.Length" Margin="Margin.Dense" IsReadOnly="true" /></Td>
+                                <MudTd DataLabel="Weight"><MudTextField @bind-Value="context.Weight" Margin="Margin.Dense" IsReadOnly="true" /></Td>
+                                <MudTd DataLabel="Produced Qty"><MudTextField @bind-Value="context.ProducedQuantity" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></Td>
+                                <MudTd DataLabel="Produced Wt"><MudTextField @bind-Value="context.ProducedWeight" Margin="Margin.Dense" IsReadOnly="true" /></Td>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveLine(context))" Disabled="@IsProcessing" />
                                 </MudTd>
@@ -83,6 +93,19 @@
                 </MudCard>
 
                 <MudTextField T="string" Label="Instructions" @bind-Value="Model.Instructions" Lines="3" IsReadOnly="@IsProcessing" />
+
+                @if(Model.Items.Any(i => i.PickingListItemId.HasValue))
+                {
+                    <MudCard>
+                        <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Ship-To Info</MudText></CardHeaderContent></MudCardHeader>
+                        <MudCardContent>
+                            @foreach(var pl in Model.Items.Where(i => i.PickingListItemId.HasValue).Select(i => new { i.SalesOrderNumber, i.CustomerName }).Distinct())
+                            {
+                                <MudText><b>PL:</b> @pl.SalesOrderNumber | <b>Customer:</b> @pl.CustomerName</MudText>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                }
 
             </MudStack>
         </MudForm>
@@ -113,6 +136,7 @@
     [Parameter] public bool IsProcessing { get; set; }
 
     private MudForm? _form;
+    private InventoryItem? _parentItem;
 
     private int? MachineId
     {
@@ -152,14 +176,15 @@
 
         try
         {
-            var parent = await InvService.GetByTagNumberAsync(Model.TagNumber);
-            if (parent is null)
+            _parentItem = await InvService.GetByTagNumberAsync(Model.TagNumber);
+            if (_parentItem is null)
             {
                 Snackbar.Add($"Tag '{Model.TagNumber}' not found.", Severity.Error);
                 return;
             }
+            Model.ParentItemId = _parentItem.ItemId;
 
-            var children = await RelService.GetAsync(parent.ItemId);
+            var children = await RelService.GetAsync(_parentItem.ItemId);
             if (children.Count == 0)
             {
                 Snackbar.Add($"No child items (sheets) are related to the coil with tag '{Model.TagNumber}'. Use the 'Item Relationships' page to add some.", Severity.Info);
@@ -205,10 +230,11 @@
                     if (matchingPlItem != null)
                     {
                         woItem.PickingListItemId = matchingPlItem.Id;
-                        woItem.SalesOrderNumber = matchingPlItem.PickingList.SalesOrderNumber;
-                        woItem.CustomerName = matchingPlItem.PickingList.CustomerName;
+                        woItem.SalesOrderNumber = matchingPlItem.PickingList?.SalesOrderNumber;
+                        woItem.CustomerName = matchingPlItem.PickingList?.CustomerName;
                         woItem.OrderQuantity = matchingPlItem.Quantity;
-                        woItem.OrderWeight = matchingPlItem.Weight;
+                        woItem.Weight = matchingPlItem.Weight; // This was the bug, it was assigning to OrderWeight
+                        woItem.Length = matchingPlItem.Length;
                     }
                 }
                 Snackbar.Add($"Associated {selectedPlItems.Count} picking list item(s).", Severity.Success);
