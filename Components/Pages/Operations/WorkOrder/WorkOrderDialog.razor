@@ -94,7 +94,7 @@
                                 <MudTd DataLabel="#">@(Model.Items.ToList().IndexOf(context) + 1)</MudTd>
                                 <MudTd DataLabel="Item ID"><MudTextField Value="context.ItemCode" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
                                 <MudTd DataLabel="Picking List #"><MudTextField Value="context.SalesOrderNumber" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
-                                <MudTd DataLabel="Order Qty"><MudTextField @bind-Value="context.OrderQuantity" Margin="Margin.Dense" IsReadOnly="@(!context.IsStockItem)" ValueChanged="@((decimal? qty) => RecalculateWeight(context))" /></MudTd>
+                                <MudTd DataLabel="Order Qty"><MudTextField Value="context.OrderQuantity" ValueChanged="@((decimal? v) => { context.OrderQuantity = v; RecalculateWeight(context); })" Margin="Margin.Dense" IsReadOnly="@(!context.IsStockItem)" /></MudTd>
                                 <MudTd DataLabel="Width"><MudTextField Value="context.Width" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
                                 <MudTd DataLabel="Length"><MudTextField Value="context.Length" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
                                 <MudTd DataLabel="Weight"><MudTextField Value="context.OrderWeight" Margin="Margin.Dense" IsReadOnly="@context.IsStockItem" /></MudTd>
