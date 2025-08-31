@@ -55,7 +55,7 @@
                             <MudText Typo="Typo.caption">Tag: @wo.TagNumber</MudText>
                             <MudText Typo="Typo.caption">Instructions: @wo.Instructions</MudText>
                         </div>
-                    </ItemTemplate>
+                    </CellTemplate>
                 </MudCalendar>
             </MudItem>
             <MudItem xs="12" sm="3">
@@ -64,12 +64,12 @@
                     <ChildContent>
                         @foreach (var wo in _unscheduled)
                         {
-                            <MudDropItem T="WorkOrder" Item="wo">
+                            <MudDynamicDropItem T="WorkOrder" Item="wo">
                                 <MudPaper Elevation="2" Class="pa-2">
                                     <MudText>@wo.WorkOrderNumber</MudText>
                                     <MudText Typo="Typo.caption">@wo.TagNumber - Due: @wo.DueDate.ToString("yyyy-MM-dd")</MudText>
                                 </MudPaper>
-                            </MudDropItem>
+                            </MudDynamicDropItem>
                         }
                     </ChildContent>
                 </MudDropContainer>
