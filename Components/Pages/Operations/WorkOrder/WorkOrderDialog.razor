@@ -29,7 +29,7 @@
                         </MudSelect>
                     </MudItem>
                 </MudGrid>
-
+                
                 <MudCard>
                     <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Pull Info</MudText></CardHeaderContent></MudCardHeader>
                     <MudCardContent>
@@ -94,10 +94,10 @@
                                 <MudTd DataLabel="#">@(Model.Items.ToList().IndexOf(context) + 1)</MudTd>
                                 <MudTd DataLabel="Item ID"><MudTextField Value="context.ItemCode" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
                                 <MudTd DataLabel="Picking List #"><MudTextField Value="context.SalesOrderNumber" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
-                                <MudTd DataLabel="Order Qty"><MudTextField Value="context.OrderQuantity" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
+                                <MudTd DataLabel="Order Qty"><MudTextField @bind-Value="context.OrderQuantity" Margin="Margin.Dense" IsReadOnly="@(!context.IsStockItem)" ValueChanged="@((decimal? qty) => RecalculateWeight(context))" /></MudTd>
                                 <MudTd DataLabel="Width"><MudTextField Value="context.Width" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
                                 <MudTd DataLabel="Length"><MudTextField Value="context.Length" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
-                                <MudTd DataLabel="Weight"><MudTextField Value="context.Weight" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
+                                <MudTd DataLabel="Weight"><MudTextField Value="context.OrderWeight" Margin="Margin.Dense" IsReadOnly="@context.IsStockItem" /></MudTd>
                                 <MudTd DataLabel="Produced Qty"><MudTextField @bind-Value="context.ProducedQuantity" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></MudTd>
                                 <MudTd DataLabel="Produced Wt"><MudTextField @bind-Value="context.ProducedWeight" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></MudTd>
                                 <MudTd>
@@ -107,7 +107,7 @@
                         </MudTable>
                     </MudCardContent>
                 </MudCard>
-
+                
                 <MudStack Row="true" Justify="Justify.FlexEnd">
                     <MudButton Variant="Variant.Text" OnClick="AddReturnCoil" Disabled="@(IsProcessing || _parentItem is null)">Add Return Coil</MudButton>
                 </MudStack>
@@ -184,9 +184,13 @@
         set => Model.DueDate = value ?? Model.DueDate;
     }
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
         SyncCategoryWithMachine();
+        if (IsEdit || IsProcessing)
+        {
+            await SearchByTag();
+        }
     }
 
     private void SyncCategoryWithMachine()
@@ -240,7 +244,7 @@
             Snackbar.Add("No child items to associate.", Severity.Info);
             return;
         }
-
+        
         var parameters = new DialogParameters
         {
             ["RequiredItemIds"] = childItemIds
@@ -263,7 +267,7 @@
                     Description = selectedItem.ItemDescription,
                     Width = selectedItem.Width,
                     Length = selectedItem.Length,
-                    Weight = selectedItem.Weight,
+                    OrderWeight = selectedItem.Weight,
                     OrderQuantity = selectedItem.Quantity
                 });
             }
@@ -274,7 +278,7 @@
 
     private void AddStockLine(InventoryItem child)
     {
-        var orderQty = 1;
+        var orderQty = 1; 
         var weight = CalculateWeight(child.Description ?? "", child.Width, child.Length, orderQty);
 
         Model.Items.Add(new WorkOrderItem
@@ -284,7 +288,8 @@
             Width = child.Width,
             Length = child.Length,
             OrderQuantity = orderQty,
-            Weight = weight
+            OrderWeight = weight,
+            IsStockItem = true
         });
     }
 
@@ -310,7 +315,7 @@
             Description = itemToCopy.Description,
             Width = itemToCopy.Width,
             Length = itemToCopy.Length,
-            Weight = itemToCopy.Weight,
+            OrderWeight = itemToCopy.OrderWeight,
             OrderQuantity = itemToCopy.OrderQuantity
         });
     }
@@ -326,6 +331,14 @@
             return lbsPerSheet * orderQty;
         }
         return null;
+    }
+
+    private void RecalculateWeight(WorkOrderItem item)
+    {
+        if (!item.IsStockItem) return;
+
+        var qty = item.OrderQuantity ?? 0;
+        item.OrderWeight = CalculateWeight(item.Description, item.Width, item.Length, (int)qty);
     }
 
     private static double? ParseGauge(string description)

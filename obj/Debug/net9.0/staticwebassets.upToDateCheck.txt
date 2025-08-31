@@ -1,2 +1,0 @@
-wwwroot\favicon.ico
-C:\Users\Jessie\Documents\GitHub\CMetalsWS\wwwroot\favicon.ico

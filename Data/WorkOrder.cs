@@ -80,7 +80,6 @@ namespace CMetalsWS.Data
 
         public decimal? Width { get; set; }
         public decimal? Length { get; set; }
-        public decimal? Weight { get; set; }
 
         public decimal? ProducedQuantity { get; set; }
         public decimal? ProducedWeight { get; set; }
@@ -89,5 +88,6 @@ namespace CMetalsWS.Data
         public string? Unit { get; set; }
         [MaxLength(64)]
         public string? Location { get; set; }
+        public bool IsStockItem { get; set; }
     }
 }
