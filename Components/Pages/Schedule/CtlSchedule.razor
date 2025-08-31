@@ -1,4 +1,4 @@
-﻿@page "/schedule/ctl"
+@page "/schedule/ctl"
 @using System.Linq
 @using MudBlazor
 @using Heron.MudCalendar
@@ -27,67 +27,52 @@
             </MudSelect>
         </MudStack>
 
-        <MudGrid>
+        <MudDropContainer T="WorkOrder" Items="_all" ItemDropped="HandleItemDropped" Class="d-flex flex-grow-1">
             <MudItem xs="12" sm="9">
-                <MudCalendar T="SchedItem"
-                             Items="_items"
+                <MudCalendar T="WorkOrder"
+                             Items="_scheduled"
                              View="_view"
                              MonthCellMinHeight="120"
-                             EnableDragItems="true"
-                             EnableResizeItems="true"
-                             CanDragItem="@(it => it.Start >= DateTime.Now)"
-                             CanDropItem="@((it, date, view) => (view == CalendarView.Month && date.Add(it.Start.TimeOfDay) >= DateTime.Now) || date >= DateTime.Now)"
-                             ItemDropped="HandleDrop"
-                             DayDrop="HandleDayDrop"
                              StartTime="new TimeSpan(5, 0, 0)"
-                             EndTime="new TimeSpan(23, 0, 0)"
-                             OnItemClick="HandleClick">
+                             EndTime="new TimeSpan(23, 0, 0)">
                     <CellTemplate>
-                        @{
-                            var wo = context.WorkOrder;
-                            var customers = string.Join(", ", wo.Items.Select(i => i.CustomerName).Distinct());
-                            var pickingLists = string.Join(", ", wo.Items.Select(i => i.SalesOrderNumber).Distinct());
-                        }
-                        <div class="d-flex flex-column" style="width:100%; height:100%;">
-                            <MudText Typo="Typo.body2"><b>@wo.WorkOrderNumber</b></MudText>
-                            <MudText Typo="Typo.caption">@customers</MudText>
-                            <MudText Typo="Typo.caption">PLs: @pickingLists</MudText>
-                            <MudText Typo="Typo.caption">Tag: @wo.TagNumber</MudText>
-                            <MudText Typo="Typo.caption">Instructions: @wo.Instructions</MudText>
-                        </div>
+                        <MudDropZone T="WorkOrder" Identifier="@context.Date.ToString("yyyy-MM-dd")" Class="d-flex flex-column flex-grow-1" Style="height: 100%;">
+                            @foreach (var wo in _scheduled.Where(x => x.ScheduledStartDate?.Date == context.Date.Date))
+                            {
+                                <MudDynamicDropItem T="WorkOrder" Item="wo">
+                                    <MudPaper Elevation="2" Class="pa-2 ma-1">
+                                        <MudText>@wo.WorkOrderNumber</MudText>
+                                        <MudText Typo="Typo.caption">@wo.TagNumber</MudText>
+                                    </MudPaper>
+                                </MudDynamicDropItem>
+                            }
+                        </MudDropZone>
                     </CellTemplate>
                 </MudCalendar>
             </MudItem>
             <MudItem xs="12" sm="3">
                 <MudText Typo="Typo.h6">Unscheduled CTL Work Orders</MudText>
-                <MudDropContainer T="WorkOrder" Items="_unscheduled" ItemsSelector="@((item,dropzone) => true)" ItemDropped="UnscheduledItemDropped" Class="d-flex flex-column flex-grow-1 pa-4 mud-border-2 mud-border-dashed">
-                    <ChildContent>
-                        @foreach (var wo in _unscheduled)
-                        {
-                            <MudDynamicDropItem T="WorkOrder" Item="wo">
-                                <MudPaper Elevation="2" Class="pa-2">
-                                    <MudText>@wo.WorkOrderNumber</MudText>
-                                    <MudText Typo="Typo.caption">@wo.TagNumber - Due: @wo.DueDate.ToString("yyyy-MM-dd")</MudText>
-                                </MudPaper>
-                            </MudDynamicDropItem>
-                        }
-                    </ChildContent>
-                </MudDropContainer>
+                <MudDropZone T="WorkOrder" Identifier="unscheduled" Class="d-flex flex-column flex-grow-1 pa-4 mud-border-2 mud-border-dashed">
+                    @foreach (var wo in _unscheduled)
+                    {
+                        <MudDynamicDropItem T="WorkOrder" Item="wo">
+                            <MudPaper Elevation="2" Class="pa-2 ma-1">
+                                <MudText>@wo.WorkOrderNumber</MudText>
+                                <MudText Typo="Typo.caption">@wo.TagNumber - Due: @wo.DueDate.ToString("yyyy-MM-dd")</MudText>
+                            </MudPaper>
+                        </MudDynamicDropItem>
+                    }
+                </MudDropZone>
             </MudItem>
-        </MudGrid>
+        </MudDropContainer>
     </MudStack>
 </MudPaper>
 
 @code {
-    private sealed class SchedItem : CalendarItem
-    {
-        public WorkOrder WorkOrder { get; init; } = default!;
-    }
-
     private List<Machine> _machines = new();
     private List<WorkOrder> _all = new();
     private List<WorkOrder> _unscheduled = new();
-    private List<SchedItem> _items = new();
+    private List<WorkOrder> _scheduled = new();
 
     private int _selectedMachineId;
     private CalendarView _view = CalendarView.Week;
@@ -108,7 +93,6 @@
             _selectedMachineId = _machines.First().Id;
 
         await LoadWorkOrders(branchId);
-        BuildCalendarItems();
 
         _hub = new HubConnectionBuilder()
             .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/schedule"))
@@ -118,7 +102,6 @@
         _hub.On<int>("WorkOrderUpdated", async (id) =>
         {
             await LoadWorkOrders(branchId);
-            BuildCalendarItems();
             StateHasChanged();
         });
 
@@ -131,76 +114,39 @@
             .Where(w => _selectedMachineId == 0 || w.MachineId == _selectedMachineId)
             .ToList();
 
+        _scheduled = _all.Where(w => w.ScheduledStartDate != null).ToList();
         _unscheduled = _all.Where(w => w.ScheduledStartDate == null).ToList();
     }
 
-    private void BuildCalendarItems()
+    private async Task HandleItemDropped(MudDragAndDropItemTransaction<WorkOrder> transaction)
     {
-        _items = _all
-            .Where(w => w.ScheduledStartDate != null)
-            .Select(w => new SchedItem
-            {
-                Text = w.WorkOrderNumber,
-                Start = w.ScheduledStartDate!.Value,
-                End = w.ScheduledEndDate ?? w.ScheduledStartDate!.Value.AddHours(1),
-                AllDay = false,
-                WorkOrder = w
-            })
-            .ToList();
-    }
+        var item = transaction.Item;
 
-    // Use dynamic to avoid direct dependency on ItemDropEventArgs<T>
-    private async Task HandleDrop(object e)
-    {
-        dynamic d = e; // d.Item (SchedItem), d.NewStart (DateTime), d.NewEnd (DateTime?)
-        var item = (SchedItem)d.Item;
-        var newStart = (DateTime)d.NewStart;
-        var newEnd = (DateTime?)(d.NewEnd ?? null) ?? newStart.AddHours(1);
-
-        var wo = item.WorkOrder;
-        wo.ScheduledStartDate = newStart;
-        wo.ScheduledEndDate = newEnd;
-
-        await WorkOrderService.UpdateAsync(wo, "system");
-        // refresh from source to keep references consistent
-        await LoadWorkOrders(null);
-        BuildCalendarItems();
-        StateHasChanged();
-
-        if (_hub is not null)
-            await _hub.SendAsync("WorkOrderUpdated", wo.Id);
-    }
-
-    private async Task HandleDayDrop(object e)
-    {
-        dynamic d = e;
-        var item = (WorkOrder)d.Item;
-        var date = (DateTime)d.Date;
-
-        item.ScheduledStartDate = date.Date.AddHours(5); // Default to 5 AM, start of shift
-        item.ScheduledEndDate = item.ScheduledStartDate.Value.AddHours(1); // Default to 1 hour duration
+        if (transaction.DropzoneIdentifier == "unscheduled")
+        {
+            item.ScheduledStartDate = null;
+            item.ScheduledEndDate = null;
+        }
+        else if (DateTime.TryParse(transaction.DropzoneIdentifier, out var newDate))
+        {
+            item.ScheduledStartDate = newDate.Date.AddHours(5); // Default to 5 AM, start of shift
+            item.ScheduledEndDate = item.ScheduledStartDate.Value.AddHours(1); // Default to 1 hour duration
+        }
 
         await WorkOrderService.ScheduleAsync(item.Id, item.ScheduledStartDate.Value, item.ScheduledEndDate);
-        await LoadWorkOrders(null);
-        BuildCalendarItems();
+
+        // This is a bit of a hack to get the UI to update correctly.
+        // We remove the item from the list and add it back.
+        _all.Remove(item);
+        _all.Add(item);
+
+        _scheduled = _all.Where(w => w.ScheduledStartDate != null).ToList();
+        _unscheduled = _all.Where(w => w.ScheduledStartDate == null).ToList();
+
         StateHasChanged();
 
         if (_hub is not null)
             await _hub.SendAsync("WorkOrderUpdated", item.Id);
-    }
-
-    private void UnscheduledItemDropped(MudItemDropInfo<WorkOrder> dropItem)
-    {
-        _unscheduled.Remove(dropItem.Item);
-        _unscheduled.Insert(dropItem.IndexInZone, dropItem.Item);
-        StateHasChanged();
-    }
-
-    private Task HandleClick(SchedItem item)
-    {
-        // Navigate to a WO details page if you have one (adjust route as needed)
-         NavigationManager.NavigateTo($"/work-orders/{item.WorkOrder.Id}");
-        return Task.CompletedTask;
     }
 
     public async ValueTask DisposeAsync()
@@ -209,12 +155,9 @@
             await _hub.DisposeAsync();
     }
 
-    // React to machine change
     private async Task OnSelectedMachineChanged(int value)
     {
-       
         await LoadWorkOrders(null);
-        BuildCalendarItems();
         StateHasChanged();
     }
 }
