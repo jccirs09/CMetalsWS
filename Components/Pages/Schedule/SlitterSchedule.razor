@@ -100,22 +100,22 @@
         return wo.ScheduledStartDate?.ToString("yyyy-MM-dd") ?? "unscheduled";
     }
 
-    private async Task HandleItemDropped(MudDragAndDropItemTransaction<WorkOrder> transaction)
+    private async Task HandleItemDropped(MudItemDropInfo<WorkOrder> dropItem)
     {
-        var item = transaction.Item;
+        var item = dropItem.Item;
 
-        if (transaction.DropzoneIdentifier == "unscheduled")
+        if (dropItem.DropzoneIdentifier == "unscheduled")
         {
             item.ScheduledStartDate = null;
             item.ScheduledEndDate = null;
+            await WorkOrderService.UpdateAsync(item, "system");
         }
-        else if (DateTime.TryParse(transaction.DropzoneIdentifier, out var newDate))
+        else if (DateTime.TryParse(dropItem.DropzoneIdentifier, out var newDate))
         {
             item.ScheduledStartDate = newDate.Date.AddHours(5); // Default to 5 AM, start of shift
             item.ScheduledEndDate = item.ScheduledStartDate.Value.AddHours(1); // Default to 1 hour duration
+            await WorkOrderService.ScheduleAsync(item.Id, item.ScheduledStartDate.Value, item.ScheduledEndDate);
         }
-
-        await WorkOrderService.ScheduleAsync(item.Id, item.ScheduledStartDate, item.ScheduledEndDate);
 
         StateHasChanged();
 
