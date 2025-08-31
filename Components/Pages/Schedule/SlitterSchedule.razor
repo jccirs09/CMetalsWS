@@ -42,9 +42,9 @@
                              StartTime="new TimeSpan(5, 0, 0)"
                              EndTime="new TimeSpan(23, 0, 0)"
                              OnItemClick="HandleClick">
-                    <ItemTemplate Context="item">
+                    <CellTemplate>
                         @{
-                            var wo = item.WorkOrder;
+                            var wo = context.WorkOrder;
                             var customers = string.Join(", ", wo.Items.Select(i => i.CustomerName).Distinct());
                             var pickingLists = string.Join(", ", wo.Items.Select(i => i.SalesOrderNumber).Distinct());
                         }
