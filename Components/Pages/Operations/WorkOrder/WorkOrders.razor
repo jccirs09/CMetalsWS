@@ -119,7 +119,7 @@
         var parameters = new DialogParameters
         {
             ["Model"] = newModel,
-            ["Machines"] = _machines,
+            ["Machines"] = _machines.Where(m => m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter).ToList(),
             ["Branches"] = _branches,
             ["Title"] = "New Work Order",
             ["IsEdit"] = false
@@ -184,7 +184,7 @@
         var parameters = new DialogParameters
         {
             ["Model"] = clone,
-            ["Machines"] = _machines,
+            ["Machines"] = _machines.Where(m => m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter).ToList(),
             ["Branches"] = _branches,
             ["Title"] = $"Edit {wo.WorkOrderNumber}",
             ["IsEdit"] = true
@@ -222,7 +222,7 @@
         var parameters = new DialogParameters
         {
             ["Model"] = wo,
-            ["Machines"] = _machines,
+            ["Machines"] = _machines.Where(m => m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter).ToList(),
             ["Branches"] = _branches,
             ["Title"] = $"Process {wo.WorkOrderNumber}",
             ["IsEdit"] = true, // Keep IsEdit to disable tag search

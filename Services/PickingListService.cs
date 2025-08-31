@@ -185,6 +185,16 @@ namespace CMetalsWS.Services
                 .ToListAsync();
         }
 
+        public async Task<List<PickingListItem>> GetPendingItemsByParentItemIdAsync(string parentItemId)
+        {
+            return await _db.PickingListItems
+                .Include(i => i.PickingList!)
+                .ThenInclude(pl => pl.Customer)
+                .Where(i => i.PickingList != null && (i.Status == PickingLineStatus.Pending || i.Status == PickingLineStatus.Awaiting) && i.ItemId == parentItemId)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
         public async Task<List<PickingList>> GetPendingPullingOrdersAsync(int? branchId = null)
         {
             var query = _db.PickingLists

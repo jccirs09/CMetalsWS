@@ -21,7 +21,10 @@
                     <MudTh>Qty</MudTh>
                     <MudTh>Unit</MudTh>
                     <MudTh>Width</MudTh>
-                    <MudTh>Length</MudTh>
+                    @if (ShowLength)
+                    {
+                        <MudTh>Length</MudTh>
+                    }
                     <MudTh>Weight</MudTh>
                 </HeaderContent>
                 <RowTemplate>
@@ -31,7 +34,10 @@
                     <MudTd DataLabel="Qty">@context.Quantity</MudTd>
                     <MudTd DataLabel="Unit">@context.Unit</MudTd>
                     <MudTd DataLabel="Width">@context.Width</MudTd>
-                    <MudTd DataLabel="Length">@context.Length</MudTd>
+                    @if (ShowLength)
+                    {
+                        <MudTd DataLabel="Length">@context.Length</MudTd>
+                    }
                     <MudTd DataLabel="Weight">@context.Weight</MudTd>
                 </RowTemplate>
                 <PagerContent>
@@ -49,6 +55,7 @@
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public List<string> RequiredItemIds { get; set; } = new();
+    [Parameter] public bool ShowLength { get; set; } = true;
 
     private List<PickingListItem> _allItems = new();
     private HashSet<PickingListItem> _selectedItems = new();

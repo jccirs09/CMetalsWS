@@ -30,7 +30,7 @@
                     </MudItem>
                 </MudGrid>
 
-                <MudCard>
+                <MudCard Disabled="@(!_isMachineSelected)">
                     <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Pull Info</MudText></CardHeaderContent></MudCardHeader>
                     <MudCardContent>
                         <MudGrid>
@@ -82,11 +82,21 @@
                                 <MudTh>#</MudTh>
                                 <MudTh>Item ID</MudTh>
                                 <MudTh>Picking List #</MudTh>
-                                <MudTh>Order Qty</MudTh>
+                                @if (Model.MachineCategory == MachineCategory.CTL)
+                                {
+                                    <MudTh>Scheduled Qty</MudTh>
+                                }
                                 <MudTh>Width</MudTh>
-                                <MudTh>Length</MudTh>
+                                @if (Model.MachineCategory == MachineCategory.CTL)
+                                {
+                                    <MudTh>Length</MudTh>
+                                }
                                 <MudTh>Weight</MudTh>
-                                <MudTh>Produced Qty</MudTh>
+                                <MudTh>Unit</MudTh>
+                                @if (Model.MachineCategory == MachineCategory.CTL)
+                                {
+                                    <MudTh>Produced Qty</MudTh>
+                                }
                                 <MudTh>Produced Wt</MudTh>
                                 <MudTh></MudTh>
                             </HeaderContent>
@@ -94,11 +104,21 @@
                                 <MudTd DataLabel="#">@(Model.Items.ToList().IndexOf(context) + 1)</MudTd>
                                 <MudTd DataLabel="Item ID"><MudTextField Value="context.ItemCode" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
                                 <MudTd DataLabel="Picking List #"><MudTextField Value="context.SalesOrderNumber" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
-                                <MudTd DataLabel="Order Qty"><MudTextField Value="context.OrderQuantity" ValueChanged="@((decimal? v) => { context.OrderQuantity = v; RecalculateWeight(context); })" Margin="Margin.Dense" IsReadOnly="@(!context.IsStockItem)" /></MudTd>
+                                @if (Model.MachineCategory == MachineCategory.CTL)
+                                {
+                                    <MudTd DataLabel="Scheduled Qty"><MudTextField Value="context.OrderQuantity" ValueChanged="@((decimal? v) => { context.OrderQuantity = v; RecalculateWeight(context); })" Margin="Margin.Dense" IsReadOnly="@(!context.IsStockItem)" /></MudTd>
+                                }
                                 <MudTd DataLabel="Width"><MudTextField Value="context.Width" ValueChanged="@((decimal? v) => { context.Width = v; RecalculateWeight(context); })" Margin="Margin.Dense" IsReadOnly="@(!context.IsStockItem)" /></MudTd>
-                                <MudTd DataLabel="Length"><MudTextField Value="context.Length" ValueChanged="@((decimal? v) => { context.Length = v; RecalculateWeight(context); })" Margin="Margin.Dense" IsReadOnly="@(!context.IsStockItem)" /></MudTd>
+                                @if (Model.MachineCategory == MachineCategory.CTL)
+                                {
+                                    <MudTd DataLabel="Length"><MudTextField Value="context.Length" ValueChanged="@((decimal? v) => { context.Length = v; RecalculateWeight(context); })" Margin="Margin.Dense" IsReadOnly="@(!context.IsStockItem)" /></MudTd>
+                                }
                                 <MudTd DataLabel="Weight"><MudTextField @bind-Value="context.OrderWeight" Margin="Margin.Dense" IsReadOnly="@(!context.IsStockItem)" /></MudTd>
-                                <MudTd DataLabel="Produced Qty"><MudTextField @bind-Value="context.ProducedQuantity" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></MudTd>
+                                <MudTd DataLabel="Unit">@context.Unit</MudTd>
+                                @if (Model.MachineCategory == MachineCategory.CTL)
+                                {
+                                    <MudTd DataLabel="Produced Qty"><MudTextField @bind-Value="context.ProducedQuantity" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></MudTd>
+                                }
                                 <MudTd DataLabel="Produced Wt"><MudTextField @bind-Value="context.ProducedWeight" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveLine(context))" Disabled="@IsProcessing" />
@@ -123,11 +143,27 @@
                                 <HeaderContent>
                                     <MudTh>Picking List #</MudTh>
                                     <MudTh>Customer</MudTh>
+                                    @if (Model.MachineCategory == MachineCategory.CTL)
+                                    {
+                                        <MudTh>Order Qty</MudTh>
+                                    }
+                                    else
+                                    {
+                                        <MudTh>Order Weight</MudTh>
+                                    }
                                     <MudTh></MudTh>
                                 </HeaderContent>
                                 <RowTemplate>
                                     <MudTd DataLabel="Picking List #">@context.SalesOrderNumber</MudTd>
                                     <MudTd DataLabel="Customer">@context.CustomerName</MudTd>
+                                    @if (Model.MachineCategory == MachineCategory.CTL)
+                                    {
+                                        <MudTd DataLabel="Order Qty">@context.OrderQuantity</MudTd>
+                                    }
+                                    else
+                                    {
+                                        <MudTd DataLabel="Order Weight">@context.OrderWeight</MudTd>
+                                    }
                                     <MudTd>
                                         <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => AddMoreLineFromPL(context))" Disabled="@IsProcessing">Add More</MudButton>
                                     </MudTd>
@@ -167,6 +203,7 @@
     private MudForm? _form;
     private InventoryItem? _parentItem;
     private List<InventoryItem> _childItems = new();
+    private bool _isMachineSelected;
 
     private int? MachineId
     {
@@ -174,7 +211,16 @@
         set
         {
             Model.MachineId = value;
-            SyncCategoryWithMachine();
+            if (value.HasValue)
+            {
+                _isMachineSelected = true;
+                SyncCategoryWithMachine();
+            }
+            else
+            {
+                _isMachineSelected = false;
+            }
+            StateHasChanged();
         }
     }
 
@@ -218,15 +264,23 @@
             }
             Model.ParentItemId = _parentItem.ItemId;
 
-            var children = await RelService.GetAsync(_parentItem.ItemId);
-            if (children.Count == 0)
+            if (Model.MachineCategory == MachineCategory.Slitter)
             {
-                Snackbar.Add($"No child items (sheets) are related to the coil with tag '{Model.TagNumber}'. Use the 'Item Relationships' page to add some.", Severity.Info);
-                return;
+                _childItems.Clear();
+                _childItems.Add(_parentItem);
             }
+            else
+            {
+                var children = await RelService.GetAsync(_parentItem.ItemId);
+                if (children.Count == 0)
+                {
+                    Snackbar.Add($"No child items (sheets) are related to the coil with tag '{Model.TagNumber}'. Use the 'Item Relationships' page to add some.", Severity.Info);
+                    return;
+                }
 
-            _childItems.Clear();
-            _childItems = children.Select(c => new InventoryItem { ItemId = c.ChildItemId, Description = c.ChildItemDescription }).ToList();
+                _childItems.Clear();
+                _childItems = children.Select(c => new InventoryItem { ItemId = c.ChildItemId, Description = c.ChildItemDescription }).ToList();
+            }
             Snackbar.Add($"Found {_childItems.Count} potential child item(s).", Severity.Success);
             StateHasChanged();
         }
@@ -245,36 +299,50 @@
             return;
         }
 
-        var parameters = new DialogParameters
-        {
-            ["RequiredItemIds"] = childItemIds
-        };
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var dialog = await DialogService.ShowAsync<SelectPickingListDialog>("Select Picking List Items", parameters, options);
-        var result = await dialog.Result;
+        List<PickingListItem> selectedPlItems;
 
-        if (!result.Canceled && result.Data is List<PickingListItem> selectedPlItems)
+        if (Model.MachineCategory == MachineCategory.Slitter)
         {
-            Model.Items.Clear(); // Start fresh
-            foreach (var selectedItem in selectedPlItems)
+            var dialog = await DialogService.ShowAsync<SelectPickingListDialog>("Select Picking List Items", new DialogParameters
             {
-                Model.Items.Add(new WorkOrderItem
-                {
-                    PickingListItemId = selectedItem.Id,
-                    SalesOrderNumber = selectedItem.PickingList?.SalesOrderNumber,
-                    CustomerName = selectedItem.PickingList?.CustomerName,
-                    ItemCode = selectedItem.ItemId,
-                    Description = selectedItem.ItemDescription,
-                    Width = selectedItem.Width,
-                    Length = selectedItem.Length,
-                    OrderWeight = selectedItem.Weight,
-                    OrderQuantity = selectedItem.Quantity
-                });
-                await PlService.SetLineStatusAsync(selectedItem.Id, PickingLineStatus.WorkOrder);
-            }
-            Snackbar.Add($"Associated {selectedPlItems.Count} picking list item(s).", Severity.Success);
-            StateHasChanged();
+                ["RequiredItemIds"] = new List<string> { _parentItem.ItemId },
+                ["ShowLength"] = false
+            }, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+            var result = await dialog.Result;
+            if (result.Canceled || result.Data is not List<PickingListItem> data) return;
+            selectedPlItems = data;
         }
+        else
+        {
+            var dialog = await DialogService.ShowAsync<SelectPickingListDialog>("Select Picking List Items", new DialogParameters
+            {
+                ["RequiredItemIds"] = childItemIds
+            }, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+            var result = await dialog.Result;
+            if (result.Canceled || result.Data is not List<PickingListItem> data) return;
+            selectedPlItems = data;
+        }
+
+        Model.Items.Clear(); // Start fresh
+        foreach (var selectedItem in selectedPlItems)
+        {
+            Model.Items.Add(new WorkOrderItem
+            {
+                PickingListItemId = selectedItem.Id,
+                SalesOrderNumber = selectedItem.PickingList?.SalesOrderNumber,
+                CustomerName = selectedItem.PickingList?.CustomerName,
+                ItemCode = selectedItem.ItemId,
+                Description = selectedItem.ItemDescription,
+                Width = selectedItem.Width,
+                Length = selectedItem.Length,
+                OrderWeight = selectedItem.Weight,
+                OrderQuantity = selectedItem.Quantity,
+                Unit = Model.MachineCategory == MachineCategory.Slitter ? "LBS" : "PCS"
+            });
+            await PlService.SetLineStatusAsync(selectedItem.Id, PickingLineStatus.WorkOrder);
+        }
+        Snackbar.Add($"Associated {selectedPlItems.Count} picking list item(s).", Severity.Success);
+        StateHasChanged();
     }
 
     private void AddStockLine(InventoryItem child)
@@ -291,7 +359,8 @@
             Length = child.Length,
             OrderQuantity = orderQty,
             OrderWeight = weight,
-            IsStockItem = true
+            IsStockItem = true,
+            Unit = Model.MachineCategory == MachineCategory.Slitter ? "LBS" : "PCS"
         });
     }
 
