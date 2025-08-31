@@ -104,37 +104,9 @@ namespace CMetalsWS.Services
             existing.LastUpdatedBy = updatedBy;
             existing.LastUpdatedDate = DateTime.UtcNow;
 
-            // Sync child items
-            var incomingItemIds = workOrder.Items.Select(i => i.Id).ToHashSet();
-            var itemsToRemove = existing.Items.Where(i => !incomingItemIds.Contains(i.Id)).ToList();
-            _db.WorkOrderItems.RemoveRange(itemsToRemove);
-
-            foreach (var item in workOrder.Items)
-            {
-                var existingItem = existing.Items.FirstOrDefault(i => i.Id == item.Id);
-                if (existingItem == null)
-                {
-                    // New item
-                    existing.Items.Add(item);
-                }
-                else
-                {
-                    // Update existing item
-                    existingItem.ItemCode = item.ItemCode;
-                    existingItem.Description = item.Description;
-                    existingItem.SalesOrderNumber = item.SalesOrderNumber;
-                    existingItem.CustomerName = item.CustomerName;
-                    existingItem.OrderQuantity = item.OrderQuantity;
-                    existingItem.OrderWeight = item.OrderWeight;
-                    existingItem.Width = item.Width;
-                    existingItem.Length = item.Length;
-                    existingItem.ProducedQuantity = item.ProducedQuantity;
-                    existingItem.ProducedWeight = item.ProducedWeight;
-                    existingItem.Unit = item.Unit;
-                    existingItem.Location = item.Location;
-                    existingItem.PickingListItemId = item.PickingListItemId;
-                }
-            }
+            existing.Items.Clear();
+            foreach (var it in workOrder.Items)
+                existing.Items.Add(it);
 
             await _db.SaveChangesAsync();
         }

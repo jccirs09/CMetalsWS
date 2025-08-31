@@ -88,7 +88,6 @@ namespace CMetalsWS.Data
         public string? Unit { get; set; }
         [MaxLength(64)]
         public string? Location { get; set; }
-
         public bool IsStockItem { get; set; }
     }
 }

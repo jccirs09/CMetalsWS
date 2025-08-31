@@ -1,22 +1,10 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\",
+  "WorkspaceRootPath": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\services\\workorderpdfparser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\workorderpdfparser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\services\\pickinglistpdfparser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\pickinglistpdfparser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\pages\\operations\\inventory\\inventory.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\inventory\\inventory.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\operations\\workorder\\workorderdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\workorder\\workorderdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     }
   ],
   "DocumentGroupContainers": [
@@ -26,58 +14,19 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 0,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "Program.cs",
-              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Program.cs",
-              "RelativeDocumentMoniker": "Program.cs",
-              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Program.cs",
-              "RelativeToolTip": "Program.cs",
-              "ViewState": "AgIAAEIAAAAAAAAAAAAAAFYAAAAvAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-29T19:17:36.034Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "WorkOrderPdfParser.cs",
-              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Services\\WorkOrderPdfParser.cs",
-              "RelativeDocumentMoniker": "Services\\WorkOrderPdfParser.cs",
-              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Services\\WorkOrderPdfParser.cs",
-              "RelativeToolTip": "Services\\WorkOrderPdfParser.cs",
-              "ViewState": "AgIAABYAAAAAAAAAAAAQwGYAAAANAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-29T19:09:44.099Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "Inventory.razor",
-              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Operations\\Inventory\\Inventory.razor",
-              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\Inventory\\Inventory.razor",
-              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Operations\\Inventory\\Inventory.razor",
-              "RelativeToolTip": "Components\\Pages\\Operations\\Inventory\\Inventory.razor",
-              "ViewState": "AgIAADIBAAAAAAAAAAAiwDkBAAAFAAAAAAAAAA==",
+              "Title": "WorkOrderDialog.razor",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\WorkOrder\\WorkOrderDialog.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\WorkOrder\\WorkOrderDialog.razor",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\WorkOrder\\WorkOrderDialog.razor",
+              "RelativeToolTip": "Components\\Pages\\Operations\\WorkOrder\\WorkOrderDialog.razor",
+              "ViewState": "AgIAAEoAAAAAAAAAAAAQwGAAAAC4AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-29T19:09:17.771Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "PickingListPdfParser.cs",
-              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Services\\PickingListPdfParser.cs",
-              "RelativeDocumentMoniker": "Services\\PickingListPdfParser.cs",
-              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Services\\PickingListPdfParser.cs",
-              "RelativeToolTip": "Services\\PickingListPdfParser.cs",
-              "ViewState": "AgIAAB8AAAAAAAAAAAAQwBMAAAAkAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-29T16:40:27.608Z",
+              "WhenOpened": "2025-08-31T06:05:05.959Z",
               "EditorCaption": ""
             }
           ]
