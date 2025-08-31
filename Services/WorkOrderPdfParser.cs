@@ -70,7 +70,7 @@ namespace CMetalsWS.Services
                             {
                                 ItemCode = match.Groups["itemId"].Value,
                                 OrderQuantity = ToDec(match.Groups["pcs"].Value),
-                                OrderWeight = ToDec(match.Groups["weight"].Value),
+                                Weight = ToDec(match.Groups["weight"].Value),
                                 Width = ToDec(match.Groups["width"].Value),
                                 Length = ToDec(match.Groups["length"].Value)
                             };

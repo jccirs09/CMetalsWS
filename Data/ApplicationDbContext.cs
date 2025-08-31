@@ -186,6 +186,7 @@ namespace CMetalsWS.Data
             modelBuilder.Entity<WorkOrderItem>().Property(w => w.OrderWeight).HasPrecision(18, 3);
             modelBuilder.Entity<WorkOrderItem>().Property(w => w.ProducedQuantity).HasPrecision(18, 3);
             modelBuilder.Entity<WorkOrderItem>().Property(w => w.ProducedWeight).HasPrecision(18, 3);
+            modelBuilder.Entity<WorkOrderItem>().Property(w => w.Weight).HasPrecision(18, 3);
             modelBuilder.Entity<WorkOrderItem>().Property(w => w.Width).HasPrecision(18, 3);
         }
     }
