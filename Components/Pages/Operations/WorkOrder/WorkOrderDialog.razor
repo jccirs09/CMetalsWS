@@ -270,6 +270,7 @@
                     OrderWeight = selectedItem.Weight,
                     OrderQuantity = selectedItem.Quantity
                 });
+                await PlService.SetLineStatusAsync(selectedItem.Id, PickingLineStatus.WorkOrder);
             }
             Snackbar.Add($"Associated {selectedPlItems.Count} picking list item(s).", Severity.Success);
             StateHasChanged();
