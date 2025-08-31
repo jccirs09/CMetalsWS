@@ -18,15 +18,21 @@
                     <MudTh>SO</MudTh>
                     <MudTh>Customer</MudTh>
                     <MudTh>Item ID</MudTh>
-                    <MudTh>Quantity</MudTh>
+                    <MudTh>Qty</MudTh>
                     <MudTh>Unit</MudTh>
+                    <MudTh>Width</MudTh>
+                    <MudTh>Length</MudTh>
+                    <MudTh>Weight</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="SO">@context.PickingList.SalesOrderNumber</MudTd>
                     <MudTd DataLabel="Customer">@context.PickingList.CustomerName</MudTd>
                     <MudTd DataLabel="Item ID">@context.ItemId</MudTd>
-                    <MudTd DataLabel="Quantity">@context.Quantity</MudTd>
+                    <MudTd DataLabel="Qty">@context.Quantity</MudTd>
                     <MudTd DataLabel="Unit">@context.Unit</MudTd>
+                    <MudTd DataLabel="Width">@context.Width</MudTd>
+                    <MudTd DataLabel="Length">@context.Length</MudTd>
+                    <MudTd DataLabel="Weight">@context.Weight</MudTd>
                 </RowTemplate>
                 <PagerContent>
                     <MudTablePager />

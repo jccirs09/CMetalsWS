@@ -222,11 +222,7 @@
             }
 
             _childItems.Clear();
-            foreach (var childRel in children)
-            {
-                var childInv = await InvService.GetByItemIdsAsync(new List<string> { childRel.ChildItemId });
-                _childItems.AddRange(childInv);
-            }
+            _childItems = children.Select(c => new InventoryItem { ItemId = c.ChildItemId, Description = c.ChildItemDescription }).ToList();
             Snackbar.Add($"Found {_childItems.Count} potential child item(s).", Severity.Success);
             StateHasChanged();
         }
