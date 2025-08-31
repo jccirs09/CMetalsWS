@@ -30,12 +30,12 @@
                     </MudItem>
                 </MudGrid>
 
-                <MudCard Disabled="@(!_isMachineSelected)">
+                <MudCard>
                     <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Pull Info</MudText></CardHeaderContent></MudCardHeader>
                     <MudCardContent>
                         <MudGrid>
-                            <MudItem xs="12" sm="3"><MudTextField T="string" Label="Parent Tag #" @bind-Value="Model.TagNumber" Required="true" IsReadOnly="@IsProcessing" /></MudItem>
-                            <MudItem xs="12" sm="3"><MudButton Variant="Variant.Outlined" OnClick="SearchByTag" Disabled="@IsProcessing" FullWidth="true" Class="mt-4">Search by Tag</MudButton></MudItem>
+                            <MudItem xs="12" sm="3"><MudTextField T="string" Label="Parent Tag #" @bind-Value="Model.TagNumber" Required="true" IsReadOnly="@(IsProcessing || !_isMachineSelected)" /></MudItem>
+                            <MudItem xs="12" sm="3"><MudButton Variant="Variant.Outlined" OnClick="SearchByTag" Disabled="@(IsProcessing || !_isMachineSelected)" FullWidth="true" Class="mt-4">Search by Tag</MudButton></MudItem>
                             <MudItem xs="12" sm="6"><MudText><b>Parent Item ID:</b> @_parentItem?.ItemId</MudText></MudItem>
                             <MudItem xs="12" sm="6"><MudText><b>Description:</b> @_parentItem?.Description</MudText></MudItem>
                             <MudItem xs="12" sm="3"><MudText><b>Weight:</b> @_parentItem?.Snapshot</MudText></MudItem>
