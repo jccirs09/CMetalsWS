@@ -1,4 +1,4 @@
-﻿@page "/schedule/slitter"
+@page "/schedule/slitter"
 @using System.Linq
 @using MudBlazor
 @using Heron.MudCalendar
@@ -37,38 +37,42 @@
                              EnableResizeItems="true"
                              CanDragItem="@(it => it.Start >= DateTime.Now)"
                              CanDropItem="@((it, date, view) => (view == CalendarView.Month && date.Add(it.Start.TimeOfDay) >= DateTime.Now) || date >= DateTime.Now)"
-                             onItemDrop="HandleDrop"
-                             onItemClick="HandleClick">
-                    <CellTemplate Context="evt">
+                             ItemDropped="HandleDrop"
+                             DayDrop="HandleDayDrop"
+                             StartTime="new TimeSpan(5, 0, 0)"
+                             EndTime="new TimeSpan(23, 0, 0)"
+                             OnItemClick="HandleClick">
+                    <ItemTemplate>
                         @{
-                            var wo = evt.WorkOrder!;
-                            var stripe = "var(--mud-palette-secondary)";
-                            var sub = $"{wo.TagNumber} • Due {wo.DueDate:yyyy-MM-dd}";
+                            var wo = context.WorkOrder!;
+                            var customers = string.Join(", ", wo.Items.Select(i => i.CustomerName).Distinct());
+                            var pickingLists = string.Join(", ", wo.Items.Select(i => i.SalesOrderNumber).Distinct());
                         }
-                        <div style="width:100%;border:1px solid var(--mud-palette-lines-default);border-left:4px solid @stripe;border-radius:6px;overflow:hidden;">
-                            <div style="display:flex;align-items:center;gap:.5rem;padding:.25rem .5rem;">
-                                <MudIcon Icon="@Icons.Material.Filled.ContentCut" Size="Size.Small" />
-                                <MudText Typo="Typo.body2">@wo.WorkOrderNumber</MudText>
-                                <MudSpacer />
-                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">WO @wo.Id</MudChip>
-                            </div>
-                            <div style="padding:0 .5rem .5rem .5rem;">
-                                <MudText Typo="Typo.caption">@sub</MudText>
-                            </div>
+                        <div class="d-flex flex-column" style="width:100%; height:100%;">
+                            <MudText Typo="Typo.body2"><b>@wo.WorkOrderNumber</b></MudText>
+                            <MudText Typo="Typo.caption">@customers</MudText>
+                            <MudText Typo="Typo.caption">PLs: @pickingLists</MudText>
+                            <MudText Typo="Typo.caption">Tag: @wo.TagNumber</MudText>
+                            <MudText Typo="Typo.caption">Instructions: @wo.Instructions</MudText>
                         </div>
-                    </CellTemplate>
+                    </ItemTemplate>
                 </MudCalendar>
             </MudItem>
             <MudItem xs="12" sm="3">
                 <MudText Typo="Typo.h6">Unscheduled Slitter Work Orders</MudText>
-                <MudList T="WorkOrder" Dense="true">
-                    @foreach (var wo in _unscheduled)
-                    {
-                        <MudListItem T="WorkOrder" Value="@wo">
-                            @wo.WorkOrderNumber - @wo.TagNumber - Due: @wo.DueDate.ToString("yyyy-MM-dd")
-                        </MudListItem>
-                    }
-                </MudList>
+                <MudDropContainer T="WorkOrder" Items="_unscheduled" ItemsSelector="@((item,dropzone) => true)" ItemDropped="UnscheduledItemDropped" Class="d-flex flex-column flex-grow-1 pa-4 mud-border-2 mud-border-dashed">
+                    <ChildContent>
+                        @foreach (var wo in _unscheduled)
+                        {
+                            <MudDropItem T="WorkOrder" Item="wo">
+                                <MudPaper Elevation="2" Class="pa-2">
+                                    <MudText>@wo.WorkOrderNumber</MudText>
+                                    <MudText Typo="Typo.caption">@wo.TagNumber - Due: @wo.DueDate.ToString("yyyy-MM-dd")</MudText>
+                                </MudPaper>
+                            </MudDropItem>
+                        }
+                    </ChildContent>
+                </MudDropContainer>
             </MudItem>
         </MudGrid>
     </MudStack>
@@ -165,9 +169,33 @@
             await _hub.SendAsync("WorkOrderUpdated", wo.Id);
     }
 
+    private async Task HandleDayDrop((CalendarItem Item, DateTime Date) args)
+    {
+        var item = (WorkOrder)args.Item;
+        var date = args.Date;
+
+        item.ScheduledStartDate = date.Date.AddHours(5); // Default to 5 AM, start of shift
+        item.ScheduledEndDate = item.ScheduledStartDate.Value.AddHours(1); // Default to 1 hour duration
+
+        await WorkOrderService.ScheduleAsync(item.Id, item.ScheduledStartDate.Value, item.ScheduledEndDate);
+        await LoadWorkOrders(null);
+        BuildCalendarItems();
+        StateHasChanged();
+
+        if (_hub is not null)
+            await _hub.SendAsync("WorkOrderUpdated", item.Id);
+    }
+
+    private void UnscheduledItemDropped(MudItemDropInfo<WorkOrder> dropItem)
+    {
+        _unscheduled.Remove(dropItem.Item);
+        _unscheduled.Insert(dropItem.IndexInZone, dropItem.Item);
+        StateHasChanged();
+    }
+
     private Task HandleClick(SchedItem item)
     {
-        // NavigationManager.NavigateTo($"/work-orders/{item.WorkOrder.Id}");
+        NavigationManager.NavigateTo($"/work-orders/{item.WorkOrder.Id}");
         return Task.CompletedTask;
     }
 
