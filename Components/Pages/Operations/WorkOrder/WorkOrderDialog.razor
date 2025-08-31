@@ -63,7 +63,7 @@
                                     <MudTh></MudTh>
                                 </HeaderContent>
                                 <RowTemplate>
-                                    <MudTd DataLabel="Item Code">@context.ItemCode</MudTd>
+                                    <MudTd DataLabel="Item Code">@context.ItemId</MudTd>
                                     <MudTd DataLabel="Description">@context.Description</MudTd>
                                     <MudTd>
                                         <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => AddStockLine(context))" Disabled="@IsProcessing">Add</MudButton>
@@ -97,9 +97,9 @@
                                 <MudTd DataLabel="Order Qty"><MudTextField Value="context.OrderQuantity" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
                                 <MudTd DataLabel="Width"><MudTextField Value="context.Width" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
                                 <MudTd DataLabel="Length"><MudTextField Value="context.Length" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
-                                <MudTd DataLabel="Weight"><MudTextField Value="context.Weight" Margin="Margin.Dense" IsReadOnly="true" /></Td>
+                                <MudTd DataLabel="Weight"><MudTextField Value="context.Weight" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
                                 <MudTd DataLabel="Produced Qty"><MudTextField @bind-Value="context.ProducedQuantity" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></MudTd>
-                                <MudTd DataLabel="Produced Wt"><MudTextField @bind-Value="context.ProducedWeight" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></Td>
+                                <MudTd DataLabel="Produced Wt"><MudTextField @bind-Value="context.ProducedWeight" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveLine(context))" Disabled="@IsProcessing" />
                                 </MudTd>
@@ -279,7 +279,7 @@
     private void AddStockLine(InventoryItem child)
     {
         var orderQty = 1;
-        var weight = CalculateWeight(child.Description, child.Width, child.Length, orderQty);
+        var weight = CalculateWeight(child.Description ?? "", child.Width, child.Length, orderQty);
 
         Model.Items.Add(new WorkOrderItem
         {
