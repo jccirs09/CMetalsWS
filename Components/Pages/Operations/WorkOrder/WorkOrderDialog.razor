@@ -132,7 +132,7 @@
                     <MudButton Variant="Variant.Text" OnClick="AddReturnCoil" Disabled="@(IsProcessing || _parentItem is null)">Add Return Coil</MudButton>
                 </MudStack>
 
-                <MudTextField T="string" Label="Instructions" @bind-Value="Model.Instructions" Lines="3" IsReadOnly="@IsProcessing" />
+                <MudTextField T="string" Label="Instructions" @bind-Value="Model.Instructions" Lines="8" IsReadOnly="@IsProcessing" />
 
                 @if(Model.Items.Any(i => i.PickingListItemId.HasValue))
                 {
