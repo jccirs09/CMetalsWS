@@ -1,9 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using CMetalsWS.Data;
+using CMetalsWS.Hubs;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace CMetalsWS.Services
@@ -12,11 +14,13 @@ namespace CMetalsWS.Services
     {
         private readonly ApplicationDbContext _db;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IHubContext<ScheduleHub> _hubContext;
 
-        public WorkOrderService(ApplicationDbContext db, UserManager<ApplicationUser> userManager)
+        public WorkOrderService(ApplicationDbContext db, UserManager<ApplicationUser> userManager, IHubContext<ScheduleHub> hubContext)
         {
             _db = db;
             _userManager = userManager;
+            _hubContext = hubContext;
         }
 
         public async Task<List<WorkOrder>> GetAsync(int? branchId = null)
@@ -24,6 +28,7 @@ namespace CMetalsWS.Services
             IQueryable<WorkOrder> query = _db.WorkOrders
                 .Include(w => w.Items)
                 .Include(w => w.Machine)
+                .Include(w => w.Branch)
                 .AsNoTracking();
 
             if (branchId.HasValue)
@@ -58,7 +63,6 @@ namespace CMetalsWS.Services
                 .FirstOrDefaultAsync(w => w.Id == id);
         }
 
-        // New overload: branch is taken from the user's default branch
         public async Task CreateAsync(WorkOrder workOrder, string userId)
         {
             var user = await _userManager.FindByIdAsync(userId)
@@ -80,9 +84,9 @@ namespace CMetalsWS.Services
 
             _db.WorkOrders.Add(workOrder);
             await _db.SaveChangesAsync();
+            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
         }
 
-        // Optional: keep the old signature but redirect to the enforced version
         public Task CreateAsync(WorkOrder workOrder, string createdBy, string userId)
             => CreateAsync(workOrder, userId);
 
@@ -94,7 +98,6 @@ namespace CMetalsWS.Services
 
             if (existing is null) return;
 
-            // Do not allow branch changes here. Keep existing.BranchId as-is.
             existing.TagNumber = workOrder.TagNumber;
             existing.DueDate = workOrder.DueDate;
             existing.Instructions = workOrder.Instructions;
@@ -104,7 +107,6 @@ namespace CMetalsWS.Services
             existing.LastUpdatedBy = updatedBy;
             existing.LastUpdatedDate = DateTime.UtcNow;
 
-            // Sync child items
             var incomingItemIds = workOrder.Items.Select(i => i.Id).ToHashSet();
             var itemsToRemove = existing.Items.Where(i => !incomingItemIds.Contains(i.Id)).ToList();
             _db.WorkOrderItems.RemoveRange(itemsToRemove);
@@ -114,12 +116,10 @@ namespace CMetalsWS.Services
                 var existingItem = existing.Items.FirstOrDefault(i => i.Id == item.Id);
                 if (existingItem == null)
                 {
-                    // New item
                     existing.Items.Add(item);
                 }
                 else
                 {
-                    // Update existing item
                     existingItem.ItemCode = item.ItemCode;
                     existingItem.Description = item.Description;
                     existingItem.SalesOrderNumber = item.SalesOrderNumber;
@@ -137,6 +137,7 @@ namespace CMetalsWS.Services
             }
 
             await _db.SaveChangesAsync();
+            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
         }
 
         public async Task ScheduleAsync(int id, DateTime start, DateTime? end)
@@ -153,7 +154,6 @@ namespace CMetalsWS.Services
 
             workOrder.LastUpdatedDate = DateTime.UtcNow;
 
-            // Mark picking lines as part of a work order
             var lineIds = workOrder.Items
                 .Where(i => i.PickingListItemId != null)
                 .Select(i => i.PickingListItemId!.Value)
@@ -164,15 +164,13 @@ namespace CMetalsWS.Services
             foreach (var li in plis)
                 li.Status = PickingLineStatus.WorkOrder;
 
-            // Recalculate overall picking list status to Scheduled
             var pickingService = new PickingListService(_db);
             foreach (var grpId in plis.Select(p => p.PickingListId).Distinct())
                 await pickingService.UpdatePickingListStatusAsync(grpId);
 
             await _db.SaveChangesAsync();
+            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
         }
-
-
 
         private async Task<string> GenerateWorkOrderNumber(int branchId)
         {
@@ -181,6 +179,7 @@ namespace CMetalsWS.Services
             var next = await _db.WorkOrders.CountAsync(w => w.BranchId == branchId) + 1;
             return $"W{branchCode}{next:0000000}";
         }
+
         public async Task MarkWorkOrderCompleteAsync(WorkOrder workOrder, string updatedBy)
         {
             var existing = await _db.WorkOrders
@@ -189,7 +188,6 @@ namespace CMetalsWS.Services
 
             if (existing is null) return;
 
-            // Update produced quantities from the UI model
             foreach(var item in workOrder.Items)
             {
                 var existingItem = existing.Items.FirstOrDefault(i => i.Id == item.Id);
@@ -215,7 +213,6 @@ namespace CMetalsWS.Services
             workOrder.LastUpdatedBy = updatedBy;
             workOrder.LastUpdatedDate = DateTime.UtcNow;
 
-            // Update picking list item line statuses
             var lineIds = workOrder.Items
                 .Where(i => i.PickingListItemId != null)
                 .Select(i => i.PickingListItemId!.Value)
@@ -227,7 +224,6 @@ namespace CMetalsWS.Services
                     .Where(p => lineIds.Contains(p.Id))
                     .ToListAsync();
 
-                // Map WorkOrderStatus -> PickingListStatus and LineStatus
                 foreach (var p in plis)
                 {
                     switch (status)
@@ -242,18 +238,17 @@ namespace CMetalsWS.Services
                             p.Status = PickingLineStatus.Canceled;
                             break;
                         default:
-                            // Draft/Pending: no change
                             break;
                     }
                 }
 
-                // Recalculate the overall status of each affected picking list
                 var pickingService = new PickingListService(_db);
                 foreach (var grpId in plis.Select(p => p.PickingListId).Distinct())
                     await pickingService.UpdatePickingListStatusAsync(grpId);
             }
 
             await _db.SaveChangesAsync();
+            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
         }
     }
 }

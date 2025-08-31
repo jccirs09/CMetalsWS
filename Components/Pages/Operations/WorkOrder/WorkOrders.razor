@@ -1,8 +1,9 @@
-﻿@page "/workorders"
+@page "/workorders"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.SignalR.Client
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager
 @inject WorkOrderService WorkOrderService
@@ -10,6 +11,8 @@
 @inject BranchService BranchService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
 
 <MudPaper Class="pa-4">
     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
@@ -35,7 +38,7 @@
         </HeaderContent>
         <RowTemplate>
             <MudTd>@context.WorkOrderNumber</MudTd>
-            <MudTd>@context.BranchId</MudTd>
+            <MudTd>@context.Branch?.Code</MudTd>
             <MudTd>@context.MachineCategory</MudTd>
             <MudTd>@context.Machine?.Name</MudTd>
             <MudTd>@context.TagNumber</MudTd>
@@ -60,6 +63,7 @@
     private List<Branch> _branches = new();
     private bool _isAdmin;
     private int? _userBranchId;
+    private HubConnection? _hubConnection;
 
     private List<WorkOrder> FilteredWorkOrders =>
         string.IsNullOrWhiteSpace(_searchString)
@@ -80,6 +84,21 @@
         _branches = await BranchService.GetBranchesAsync();
 
         await LoadAsync();
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/schedulehub"))
+            .Build();
+
+        _hubConnection.On<int>("WorkOrderUpdated", (workOrderId) =>
+        {
+            InvokeAsync(async () =>
+            {
+                await LoadAsync();
+                StateHasChanged();
+            });
+        });
+
+        await _hubConnection.StartAsync();
     }
 
     private async Task LoadAsync()
@@ -218,6 +237,14 @@
             {
                 await LoadAsync();
             }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
         }
     }
 }
