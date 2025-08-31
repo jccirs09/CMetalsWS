@@ -55,6 +55,7 @@
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public List<string> RequiredItemIds { get; set; } = new();
+    [Parameter] public string? ParentItemId { get; set; }
     [Parameter] public bool ShowLength { get; set; } = true;
 
     private List<PickingListItem> _allItems = new();
@@ -62,7 +63,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _allItems = await PlService.GetPendingItemsByItemIdsAsync(RequiredItemIds);
+        if (!string.IsNullOrWhiteSpace(ParentItemId))
+        {
+            _allItems = await PlService.GetPendingItemsByParentItemIdAsync(ParentItemId);
+        }
+        else
+        {
+            _allItems = await PlService.GetPendingItemsByItemIdsAsync(RequiredItemIds);
+        }
     }
 
     private void Submit() => MudDialog.Close(DialogResult.Ok(_selectedItems.ToList()));

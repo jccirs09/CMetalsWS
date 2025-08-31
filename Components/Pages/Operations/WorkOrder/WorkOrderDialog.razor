@@ -305,7 +305,7 @@
         {
             var dialog = await DialogService.ShowAsync<SelectPickingListDialog>("Select Picking List Items", new DialogParameters
             {
-                ["RequiredItemIds"] = new List<string> { _parentItem.ItemId },
+                ["ParentItemId"] = _parentItem.ItemId,
                 ["ShowLength"] = false
             }, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
             var result = await dialog.Result;
