@@ -1,8 +1,9 @@
-﻿using System.Security.Claims;
-using CMetalsWS.Data;
+﻿using CMetalsWS.Data;
 using CMetalsWS.Security;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Security.Claims;
 
 namespace CMetalsWS.Services
 {
@@ -29,8 +30,10 @@ namespace CMetalsWS.Services
         {
             await _context.Database.EnsureCreatedAsync();
 
+            await SeedBranchesAsync();
+
             // Create roles
-            string[] roles = { "Admin", "Planner", "Supervisor", "Manager", "Operator", "Driver" };
+            string[] roles = { "Admin", "Planner", "Supervisor", "Manager", "Operator", "Driver", "BasicUser" };
             foreach (var r in roles)
             {
                 if (!await _roleManager.RoleExistsAsync(r))
@@ -124,6 +127,40 @@ namespace CMetalsWS.Services
 
                 await _userManager.AddToRoleAsync(admin, "Admin");
             }
+        }
+
+        private async Task SeedBranchesAsync()
+        {
+            if (await _context.Branches.AnyAsync())
+            {
+                return; // Branches have already been seeded
+            }
+
+            var branches = new List<Branch>
+            {
+                new Branch { Code = "DL", Name = "DELTA", AddressLine = "7630 Berg Road", City = "Delta", Province = "BC", PostalCode = "V4G 1G4" },
+                new Branch { Code = "SU", Name = "SURREY", AddressLine = "#104 - 19433 96th Avenue", City = "Surrey", Province = "BC", PostalCode = "V4N 4C4" },
+                new Branch { Code = "CG", Name = "CALGARY", AddressLine = "5535 53rd Ave SE", City = "Calgary", Province = "AB", PostalCode = "T2C 4N2" },
+                new Branch { Code = "ED", Name = "EDMONTON", AddressLine = "9525 60 Avenue NW", City = "Edmonton", Province = "AB", PostalCode = "T6E 0C3" },
+                new Branch { Code = "SA", Name = "SASKATOON", AddressLine = "3062 Millar Ave", City = "Saskatoon", Province = "SK", PostalCode = "S7K 5X9" },
+                new Branch { Code = "BR", Name = "BRANDON", AddressLine = "33rd St East & Hwy 10", City = "Brandon", Province = "MB", PostalCode = "R7A 5Y4" },
+                new Branch { Code = "WP", Name = "WINNIPEG", AddressLine = "1540 Seel Ave", City = "Winnipeg", Province = "MB", PostalCode = "R3T 4Z6" },
+                new Branch { Code = "MI", Name = "MISSISSAUGA", AddressLine = "75 Skyway Dr, Unit-B", City = "Mississauga", Province = "ON", PostalCode = "L5W 0H2" },
+                new Branch { Code = "HA", Name = "HAMILTON", AddressLine = "1632 Burlington St E", City = "Hamilton", Province = "ON", PostalCode = "L8H 3L3" },
+                new Branch { Code = "DO", Name = "DORVAL", AddressLine = "1535 Hymus Blvd", City = "Dorval", Province = "QC", PostalCode = "H9P 1J5" }
+            };
+
+            var startTime = new TimeOnly(5, 0); // 5 AM
+            var endTime = new TimeOnly(23, 59); // Midnight
+
+            foreach (var branch in branches)
+            {
+                branch.StartTime = startTime;
+                branch.EndTime = endTime;
+            }
+
+            _context.Branches.AddRange(branches);
+            await _context.SaveChangesAsync();
         }
     }
 }

@@ -1,7 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Reflection.PortableExecutable;
+﻿
 
 namespace CMetalsWS.Data
 {
@@ -16,6 +13,9 @@ namespace CMetalsWS.Data
         public string? Province { get; set; }
         public string? Country { get; set; }
         public string? PostalCode { get; set; }
+
+        public TimeOnly? StartTime { get; set; }
+        public TimeOnly? EndTime { get; set; }
 
         // Navigation collections
         public ICollection<ApplicationUser> Users { get; set; } = new List<ApplicationUser>();

@@ -3,6 +3,22 @@
   "WorkspaceRootPath": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Migrations\\20250901202459_AddBranchWorkingHours.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Migrations\\20250901202459_AddBranchWorkingHours.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\services\\identitydataseeder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\identitydataseeder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\admin\\branchdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\admin\\branchdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\data\\branch.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\branch.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\services\\workorderservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\workorderservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -34,11 +50,63 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 0,
           "Children": [
             {
               "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "20250901202459_AddBranchWorkingHours.cs",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Migrations\\20250901202459_AddBranchWorkingHours.cs",
+              "RelativeDocumentMoniker": "Migrations\\20250901202459_AddBranchWorkingHours.cs",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Migrations\\20250901202459_AddBranchWorkingHours.cs",
+              "RelativeToolTip": "Migrations\\20250901202459_AddBranchWorkingHours.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-01T20:24:59.266Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "BranchDialog.razor",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Admin\\BranchDialog.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Admin\\BranchDialog.razor",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Admin\\BranchDialog.razor",
+              "RelativeToolTip": "Components\\Pages\\Admin\\BranchDialog.razor",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-09-01T20:15:52.45Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 1,
+              "Title": "IdentityDataSeeder.cs",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\IdentityDataSeeder.cs",
+              "RelativeDocumentMoniker": "Services\\IdentityDataSeeder.cs",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\IdentityDataSeeder.cs",
+              "RelativeToolTip": "Services\\IdentityDataSeeder.cs",
+              "ViewState": "AgIAABQAAAAAAAAAAAAqwIMAAAAsAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-01T20:14:52.552Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Branch.cs",
+              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\Branch.cs",
+              "RelativeDocumentMoniker": "Data\\Branch.cs",
+              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\Branch.cs",
+              "RelativeToolTip": "Data\\Branch.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAqwBEAAAAIAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-01T19:55:33.464Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
               "Title": "CtlSchedule.razor",
               "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\CtlSchedule.razor",
               "RelativeDocumentMoniker": "Components\\Pages\\Schedule\\CtlSchedule.razor",
@@ -50,7 +118,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 4,
               "Title": "WorkOrderService.cs",
               "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\WorkOrderService.cs",
               "RelativeDocumentMoniker": "Services\\WorkOrderService.cs",
@@ -58,12 +126,11 @@
               "RelativeToolTip": "Services\\WorkOrderService.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAACQAAAAMAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-09-01T19:02:23.614Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-09-01T19:02:23.614Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 6,
               "Title": "WorkOrder.cs",
               "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\WorkOrder.cs",
               "RelativeDocumentMoniker": "Data\\WorkOrder.cs",
@@ -75,7 +142,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 9,
               "Title": "20250901190012_INITIALCREATE.cs",
               "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Migrations\\20250901190012_INITIALCREATE.cs",
               "RelativeDocumentMoniker": "Migrations\\20250901190012_INITIALCREATE.cs",
@@ -87,7 +154,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 7,
               "Title": "WorkOrders.razor",
               "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\WorkOrder\\WorkOrders.razor",
               "RelativeDocumentMoniker": "Components\\Pages\\Operations\\WorkOrder\\WorkOrders.razor",
@@ -99,7 +166,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 8,
               "Title": "WorkOrderDetailsDialog.razor",
               "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\Dialogs\\WorkOrderDetailsDialog.razor",
               "RelativeDocumentMoniker": "Components\\Pages\\Schedule\\Dialogs\\WorkOrderDetailsDialog.razor",
