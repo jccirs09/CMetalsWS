@@ -1,6 +1,5 @@
 @page "/schedule/ctl"
 
-@*
 @using System.Linq
 @using MudBlazor
 @using Heron.MudCalendar
@@ -22,7 +21,7 @@
         <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
             <MudText Typo="Typo.h5">CTL Schedule</MudText>
             <MudSpacer />
-            <MudSelect T="int" Label="Machine" @bind-Value="_selectedMachineId" Dense="true" Style="min-width:240px">
+            <MudSelect T="int" Label="Machine" @bind-Value="_selectedMachineId" Dense="true" Style="min-width:240px" ValueChanged="OnSelectedMachineChanged">
                 @foreach (var m in _machines)
                 {
                     <MudSelectItem T="int" Value="@m.Id">@m.Name</MudSelectItem>
@@ -30,34 +29,16 @@
             </MudSelect>
         </MudStack>
 
-        <MudGrid>
-            <MudItem xs="12" sm="9">
-                <MudCalendar T="SchedItem" Items="_items" MonthCellMinHeight="120"
-                             StartTime="new TimeSpan(5, 0, 0)" EndTime="new TimeSpan(23, 0, 0)"
-                             CellClicked="OnCellClicked">
-                    <ItemTemplate>
-                        <div style="width:100%; height:100%; border-left: 4px solid var(--mud-palette-primary);">
-                            <MudText>@context.WorkOrder.WorkOrderNumber</MudText>
-                            <MudText Typo="Typo.caption">@context.WorkOrder.TagNumber</MudText>
-                        </div>
-                    </ItemTemplate>
-                </MudCalendar>
-            </MudItem>
-            <MudItem xs="12" sm="3">
-                <MudText Typo="Typo.h6">Unscheduled CTL Work Orders</MudText>
-                <MudList T="WorkOrder" Clickable="true" @bind-SelectedItem="_selectedWorkOrder">
-                    @foreach (var wo in _unscheduled)
-                    {
-                        <MudListItem Value="wo">
-                            <MudPaper Elevation="2" Class="pa-2 ma-1" Style="@(wo == _selectedWorkOrder ? "background-color: var(--mud-palette-action-default);" : "")">
-                                <MudText>@wo.WorkOrderNumber</MudText>
-                                <MudText Typo="Typo.caption">@wo.TagNumber - Due: @wo.DueDate.ToString("yyyy-MM-dd")</MudText>
-                            </MudPaper>
-                        </MudListItem>
-                    }
-                </MudList>
-            </MudItem>
-        </MudGrid>
+        <MudCalendar T="SchedItem" Items="_items" MonthCellMinHeight="120"
+                     EnableDragItems="true" ItemDropped="OnItemDropped"
+                     StartTime="new TimeSpan(5, 0, 0)" EndTime="new TimeSpan(23, 0, 0)">
+            <ItemTemplate>
+                <div style="@GetItemStyle(context)" title="@context.WorkOrder.TagNumber">
+                    <MudText><b>@context.WorkOrder.WorkOrderNumber</b></MudText>
+                    <MudText Typo="Typo.caption">Due: @context.WorkOrder.DueDate.ToString("MMM dd")</MudText>
+                </div>
+            </ItemTemplate>
+        </MudCalendar>
     </MudStack>
 </MudPaper>
 
@@ -69,11 +50,9 @@
 
     private List<Machine> _machines = new();
     private List<WorkOrder> _all = new();
-    private List<WorkOrder> _unscheduled = new();
     private List<SchedItem> _items = new();
 
     private int _selectedMachineId;
-    private WorkOrder? _selectedWorkOrder;
     private HubConnection? _hub;
 
     protected override async Task OnInitializedAsync()
@@ -112,35 +91,48 @@
             .Where(w => _selectedMachineId == 0 || w.MachineId == _selectedMachineId)
             .ToList();
 
-        _unscheduled = _all.Where(w => w.ScheduledStartDate == null).ToList();
-        _items = _all.Where(w => w.ScheduledStartDate != null)
-            .Select(w => new SchedItem
+        _items = _all.Select(w => new SchedItem
             {
-                Start = w.ScheduledStartDate.Value,
-                End = w.ScheduledEndDate,
-                WorkOrder = w
+                Start = w.ScheduledStartDate ?? w.DueDate,
+                End = w.ScheduledEndDate ?? w.DueDate.AddMinutes(30),
+                WorkOrder = w,
+                Text = w.WorkOrderNumber // Required for Heron.MudCalendar
             }).ToList();
     }
 
-    private async Task OnCellClicked(DateTime date)
+    private async Task OnItemDropped(CalendarItem item, DateTime dropDate)
     {
-        if (_selectedWorkOrder == null)
-        {
-            Snackbar.Add("Please select a work order from the list first.", Severity.Info);
+        if (item is not SchedItem schedItem)
             return;
-        }
 
-        _selectedWorkOrder.ScheduledStartDate = date.Date.AddHours(5); // Default to 5 AM, start of shift
-        _selectedWorkOrder.ScheduledEndDate = _selectedWorkOrder.ScheduledStartDate.Value.AddHours(1); // Default to 1 hour duration
+        var workOrder = schedItem.WorkOrder;
 
-        await WorkOrderService.ScheduleAsync(_selectedWorkOrder.Id, _selectedWorkOrder.ScheduledStartDate.Value, _selectedWorkOrder.ScheduledEndDate);
+        // Preserve the original time of the event if it was already scheduled
+        var startTime = workOrder.ScheduledStartDate?.TimeOfDay ?? dropDate.TimeOfDay;
 
-        _selectedWorkOrder = null; // Deselect after scheduling
-        await LoadWorkOrders(null); // Reload all data
-        StateHasChanged();
+        workOrder.ScheduledStartDate = dropDate.Date + startTime;
+        workOrder.ScheduledEndDate = workOrder.ScheduledStartDate.Value.AddMinutes(30);
+
+        await WorkOrderService.ScheduleAsync(workOrder.Id, workOrder.ScheduledStartDate.Value, workOrder.ScheduledEndDate);
 
         if (_hub is not null)
-            await _hub.SendAsync("WorkOrderUpdated", 0); // Send a generic update signal
+        {
+            // Send a specific ID to allow other clients to potentially highlight the change
+            await _hub.SendAsync("WorkOrderUpdated", workOrder.Id);
+        }
+    }
+
+    private string GetItemStyle(SchedItem item)
+    {
+        var color = item.WorkOrder.ScheduledStartDate == null ? "var(--mud-palette-warning)" : "var(--mud-palette-primary)";
+        return $"width:100%; height:100%; border-left: 4px solid {color}; padding: 2px;";
+    }
+
+    private async Task OnSelectedMachineChanged(int value)
+    {
+        _selectedMachineId = value;
+        await LoadWorkOrders(null); // Assuming branchId is handled globally or not needed here
+        StateHasChanged();
     }
 
     public async ValueTask DisposeAsync()
@@ -148,11 +140,4 @@
         if (_hub is not null)
             await _hub.DisposeAsync();
     }
-
-    private async Task OnSelectedMachineChanged(int value)
-    {
-        await LoadWorkOrders(null);
-        StateHasChanged();
-    }
 }
-*@
