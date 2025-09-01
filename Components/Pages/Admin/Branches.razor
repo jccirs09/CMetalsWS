@@ -14,16 +14,12 @@
             <MudTh>Code</MudTh>
             <MudTh>Name</MudTh>
             <MudTh>City</MudTh>
-            <MudTh>Start Time</MudTh>
-            <MudTh>End Time</MudTh>
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Code">@context.Code</MudTd>
             <MudTd DataLabel="Name">@context.Name</MudTd>
             <MudTd DataLabel="City">@context.City</MudTd>
-            <MudTd DataLabel="Start Time">@context.StartTime?.ToString("HH:mm")</MudTd>
-            <MudTd DataLabel="End Time">@context.EndTime?.ToString("HH:mm")</MudTd>
             <MudTd DataLabel="Actions">
                 <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditBranch(context))"></MudIconButton>
                 <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteBranch(context))"></MudIconButton>
@@ -72,9 +68,7 @@
             City = branch.City,
             Province = branch.Province,
             Country = branch.Country,
-            PostalCode = branch.PostalCode,
-            StartTime = branch.StartTime,
-            EndTime = branch.EndTime
+            PostalCode = branch.PostalCode
         };
         var parameters = new DialogParameters
         {
@@ -104,15 +98,8 @@
             yesText: "Delete", cancelText: "Cancel");
         if (confirm == true)
         {
-            try
-            {
-                await BranchService.DeleteBranchAsync(branch.Id);
-                branches = await BranchService.GetBranchesAsync();
-            }
-            catch (InvalidOperationException ex)
-            {
-                await DialogService.ShowMessageBox("Delete Error", ex.Message);
-            }
+            await BranchService.DeleteBranchAsync(branch.Id);
+            branches = await BranchService.GetBranchesAsync();
         }
     }
 }

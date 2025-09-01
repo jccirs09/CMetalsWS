@@ -1,0 +1,24 @@
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+
+        if (user.Identity is not null && user.Identity.IsAuthenticated)
+        {
+            // User is logged in, redirect to home page
+            NavigationManager.NavigateTo("/", forceLoad: true);
+        }
+        else
+        {
+            // User is not logged in, redirect to login page
+            NavigationManager.NavigateTo("/Account/Login", forceLoad: true);
+        }
+    }
+}

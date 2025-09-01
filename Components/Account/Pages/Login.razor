@@ -1,4 +1,4 @@
-﻿@page "/Account/Login"
+@page "/Account/Login"
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authentication
@@ -13,40 +13,62 @@
 
 <PageTitle>Log in</PageTitle>
 
-<MudText Typo="Typo.h3" GutterBottom="true">Log in</MudText>
+<style>
+    .left-panel {
+        background-color: #009A4D; /* Green color from logo */
+        color: white;
+    }
+</style>
 
-<MudGrid>
-    <MudItem md="6">
-        <StatusMessage Message="@errorMessage" />
-        <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
-            <DataAnnotationsValidator />
+<MudGrid Justify="Justify.Center" AlignItems="AlignItems.Center" Style="height: 80vh;">
+    <MudItem xs="12" sm="10" md="8">
+        <MudPaper Elevation="3">
+            <MudGrid Spacing="0">
+                <MudItem xs="12" md="5" Class="left-panel d-flex flex-column justify-center align-center pa-4">
+                    <MudText Typo="Typo.h4" GutterBottom="true">Welcome Back!</MudText>
+                    <MudText Align="Align.Center">To keep connected with us please login with your personal info.</MudText>
+                </MudItem>
+                <MudItem xs="12" md="7">
+                    <div class="pa-8">
+                        <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+                            <DataAnnotationsValidator />
+                            <MudStack Spacing="3">
+                                <div class="d-flex justify-center mb-4">
+                                    <img src="https://www.cmetals.com/wp-content/uploads/2023/01/New-Cascadia-Metals-Logo-2022.png" alt="Cascadia Metals Logo" style="max-height: 50px;" />
+                                </div>
+                                <MudText Typo="Typo.h5" GutterBottom="true">Login</MudText>
+                                <StatusMessage Message="@errorMessage" />
 
-            <MudText GutterBottom="true" Typo="Typo.body1">Use a local account to log in.</MudText>
+                                <MudTextField @bind-Value="Input.Email"
+                                              For="@(() => Input.Email)"
+                                              Label="Email"
+                                              Variant="Variant.Outlined"
+                                              InputType="InputType.Email"
+                                              UserAttributes="@(new() { { "autocomplete", "username" } })" />
 
-            <MudGrid>
-                <MudItem md="12">
-                    <MudStaticTextField For="@(() => Input.Email)" @bind-Value="Input.Email"
-                                        Label="Email" Placeholder="name@example.com"
-                                        UserAttributes="@(new() { { "autocomplete", "username" }, { "aria-required", "true" } })" />
-                </MudItem>
-                <MudItem md="12">
-                    <MudStaticTextField For="@(() => Input.Password)" @bind-Value="Input.Password"
-                                        Label="Password" InputType="InputType.Password" Placeholder="password"
-                                        UserAttributes="@(new() { { "autocomplete", "current-password" }, { "aria-required", "true" } })" />
-                </MudItem>
-                <MudItem md="12">
-                    <MudStaticCheckBox For="@(() => Input.RememberMe)" @bind-Value="Input.RememberMe">Remember me</MudStaticCheckBox>
-                </MudItem>
-                <MudItem md="12">
-                    <MudStaticButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" FormAction="FormAction.Submit">Log in</MudStaticButton>
+                                <MudTextField @bind-Value="Input.Password"
+                                              For="@(() => Input.Password)"
+                                              Label="Password"
+                                              Variant="Variant.Outlined"
+                                              InputType="InputType.Password"
+                                              UserAttributes="@(new() { { "autocomplete", "current-password" } })" />
+
+                                <div class="d-flex justify-space-between align-center">
+                                    <MudCheckBox @bind-Value="Input.RememberMe" For="@(() => Input.RememberMe)" Label="Remember me?" Color="Color.Primary"></MudCheckBox>
+                                    <MudLink Href="Account/ForgotPassword">Forgot password?</MudLink>
+                                </div>
+
+                                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true">Log In</MudButton>
+
+                                <div class="d-flex justify-center mt-4">
+                                     <MudLink Href="Account/Register">Don't have an account? Sign Up</MudLink>
+                                </div>
+                            </MudStack>
+                        </EditForm>
+                    </div>
                 </MudItem>
             </MudGrid>
-        </EditForm>        
-    </MudItem>
-    <MudItem md="6">
-        <MudText GutterBottom="true" Typo="Typo.body1">Use another service to log in.</MudText>
-
-        <ExternalLoginPicker />
+        </MudPaper>
     </MudItem>
 </MudGrid>
 

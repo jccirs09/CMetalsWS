@@ -36,8 +36,6 @@
                     </MudSelect>
 
                     <MudTextField @bind-Value="Model.PostalCode" Label="Postal Code"></MudTextField>
-                    <MudTimePicker Label="Start Time" @bind-Time="StartTimeSpan" />
-                    <MudTimePicker Label="End Time" @bind-Time="EndTimeSpan" />
                 </MudStack>
             </MudForm>
         </MudPaper>
@@ -58,9 +56,6 @@
     private MudForm branchForm = default!;
 
     [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
-
-    private TimeSpan? StartTimeSpan { get; set; }
-    private TimeSpan? EndTimeSpan { get; set; }
 
     // Country list
     private List<string> Countries = new() { "Canada", "USA" };
@@ -103,15 +98,6 @@
         {
             Regions = new List<string>();
         }
-
-        if (Model.StartTime.HasValue)
-        {
-            StartTimeSpan = Model.StartTime.Value.ToTimeSpan();
-        }
-        if (Model.EndTime.HasValue)
-        {
-            EndTimeSpan = Model.EndTime.Value.ToTimeSpan();
-        }
     }
 
     private void OnCountryChanged(string value)
@@ -136,14 +122,6 @@
         await branchForm.Validate();
         if (branchForm.IsValid)
         {
-            if (StartTimeSpan.HasValue)
-            {
-                Model.StartTime = TimeOnly.FromTimeSpan(StartTimeSpan.Value);
-            }
-            if (EndTimeSpan.HasValue)
-            {
-                Model.EndTime = TimeOnly.FromTimeSpan(EndTimeSpan.Value);
-            }
             Dialog.Close(DialogResult.Ok(Model));
         }
     }
