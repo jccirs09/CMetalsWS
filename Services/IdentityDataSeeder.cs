@@ -129,12 +129,7 @@ namespace CMetalsWS.Services
 
         private async Task SeedBranchesAsync()
         {
-            if (await _context.Branches.AnyAsync())
-            {
-                return; // Branches have already been seeded
-            }
-
-            var branches = new List<Branch>
+            var branchesToSeed = new List<Branch>
             {
                 new Branch { Code = "DL", Name = "DELTA", AddressLine = "7630 Berg Road", City = "Delta", Province = "BC", PostalCode = "V4G 1G4" },
                 new Branch { Code = "SU", Name = "SURREY", AddressLine = "#104 - 19433 96th Avenue", City = "Surrey", Province = "BC", PostalCode = "V4N 4C4" },
@@ -151,14 +146,36 @@ namespace CMetalsWS.Services
             var startTime = new TimeOnly(5, 0); // 5 AM
             var endTime = new TimeOnly(23, 59); // Midnight
 
-            foreach (var branch in branches)
+            var existingBranches = await _context.Branches.ToDictionaryAsync(b => b.Code);
+
+            bool hasChanges = false;
+
+            foreach (var branchToSeed in branchesToSeed)
             {
-                branch.StartTime = startTime;
-                branch.EndTime = endTime;
+                if (existingBranches.TryGetValue(branchToSeed.Code, out var existingBranch))
+                {
+                    // Branch exists, check if working hours need to be updated.
+                    if (existingBranch.StartTime == null || existingBranch.EndTime == null)
+                    {
+                        existingBranch.StartTime = startTime;
+                        existingBranch.EndTime = endTime;
+                        hasChanges = true;
+                    }
+                }
+                else
+                {
+                    // Branch does not exist, add it.
+                    branchToSeed.StartTime = startTime;
+                    branchToSeed.EndTime = endTime;
+                    _context.Branches.Add(branchToSeed);
+                    hasChanges = true;
+                }
             }
 
-            _context.Branches.AddRange(branches);
-            await _context.SaveChangesAsync();
+            if (hasChanges)
+            {
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }
