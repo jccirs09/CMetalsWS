@@ -30,7 +30,7 @@
         <MudDropContainer T="WorkOrder" Items="_all" ItemDropped="HandleItemDropped" ItemsSelector="@((item,dropzone) => GetWorkOrderSelector(item) == dropzone)" Class="d-flex flex-grow-1">
             <ChildContent>
                 <MudItem xs="12" sm="9">
-                    <MudCalendar MonthCellMinHeight="120"
+                    <MudCalendar T="object" MonthCellMinHeight="120"
                                  StartTime="new TimeSpan(5, 0, 0)"
                                  EndTime="new TimeSpan(23, 0, 0)">
                         <CellTemplate>
