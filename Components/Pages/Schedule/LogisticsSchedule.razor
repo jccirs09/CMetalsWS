@@ -1,173 +1,148 @@
-﻿@page "/schedule/logistics"
+@page "/schedule/logistics"
+@using System.Linq
+@using MudBlazor
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using System.ComponentModel.DataAnnotations
 
-
+@inject LoadService LoadService
 @inject PickingListService PickingListService
-@inject NavigationManager Nav
-
-@implements IAsyncDisposable
+@inject TruckService TruckService
 
 <MudPaper Class="pa-4">
-    <MudStack Spacing="3">
-        <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
-            <MudText Typo="Typo.h5">Logistics Schedule (Picking Lists & Partial Lines)</MudText>
-            <MudSpacer />
-            <MudSwitch T="bool" @bind-checked="_showListEvents" Color="Color.Primary" Label="Lists" />
-            <MudSwitch T="bool" @bind-checked="_showItemEvents" Color="Color.Secondary" Label="Items" />
-        </MudStack>
-
-        <MudCalendar T="SchedItem"
-                     Items="_events"
-                     View="_view"
-                     MonthCellMinHeight="120"
-                     EnableDragItems="true"
-                     EnableResizeItems="true"
-                     CanDragItem="@(item => item.Start >= DateTime.Now)"
-                     CanDropItem="@((item, date, view) => (view == CalendarView.Month && date.Add(item.Start.TimeOfDay) >= DateTime.Now) || date >= DateTime.Now)"
-                     onItemDrop="HandleDrop"
-                     onItemClick="HandleClick">
-            <CellTemplate Context="evt">
-                @{
-                    var pl = evt.PickingList!;
-                    var truck = pl.Truck?.Name ?? "Unassigned";
-                    var header = evt.IsItem
-                    ? $"{pl.SalesOrderNumber} • L{evt.LineNumber}"
-                    : $"{pl.SalesOrderNumber}";
-                    var sub = evt.IsItem
-                    ? evt.ItemDescription
-                    : (pl.Customer?.CustomerName ?? pl.CustomerName ?? "");
-                    var stripe = evt.IsItem ? "var(--mud-palette-secondary)" : "var(--mud-palette-primary)";
-                }
-                <div style="width:100%;border:1px solid var(--mud-palette-lines-default);border-left:4px solid @stripe;border-radius:6px;overflow:hidden;">
-                    <div style="display:flex;align-items:center;gap:.5rem;padding:.25rem .5rem;">
-                        <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Size="Size.Small" />
-                        <MudText Typo="Typo.body2">@header</MudText>
-                        <MudSpacer />
-                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@truck</MudChip>
-                    </div>
-                    @if (!string.IsNullOrWhiteSpace(sub))
+    <MudDropContainer T="PickingList" Items="_pickingLists" ItemsSelector="@((item,zone) => GetPickingListZone(item) == zone)" ItemDropped="ItemDropped" Class="d-flex flex-row">
+        <ChildContent>
+            <MudPaper Class="pa-4" Elevation="0" MinWidth="300px">
+                <MudText Typo="Typo.h6">Pending Picking Lists</MudText>
+                <MudAccordion>
+                    @foreach (var group in _pendingGroups)
                     {
-                        <div style="padding:0 .5rem .5rem .5rem;">
-                            <MudText Typo="Typo.caption">@sub</MudText>
-                        </div>
+                        <MudExpansionPanel Text="@group.Key.ToString("yyyy-MM-dd")">
+                            <MudDropZone T="PickingList" Identifier="@group.Key.ToString("yyyy-MM-dd")" Class="d-flex flex-column flex-grow-1" Style="min-height: 100px;" />
+                        </MudExpansionPanel>
                     }
-                </div>
-            </CellTemplate>
-        </MudCalendar>
-    </MudStack>
+                </MudAccordion>
+            </MudPaper>
+            @foreach (var load in _loads)
+            {
+                <MudPaper Class="pa-4 ma-4 d-flex flex-column mud-background-gray rounded-lg" MinWidth="300px">
+                    <MudToolBar Gutters="false">
+                        <MudText Typo="Typo.subtitle1"><b>@load.LoadNumber</b></MudText>
+                        <MudSpacer />
+                        <MudText Typo="Typo.subtitle2">@load.Truck?.Name</MudText>
+                    </MudToolBar>
+                    <MudDropZone T="PickingList" Identifier="@load.Id.ToString()" Class="flex-grow-1" />
+                </MudPaper>
+            }
+            <MudPaper Class="pa-4" Elevation="0" Width="300px">
+                @if (_addLoadOpen)
+                {
+                    <MudPaper Elevation="0" Class="pa-4 d-flex flex-column mud-background-gray rounded-lg">
+                        <EditForm Model="_newLoadModel" OnValidSubmit="OnValidLoadSubmit">
+                            <DataAnnotationsValidator />
+                            <MudTextField @bind-Value="_newLoadModel.Name" For="@(() => _newLoadModel.Name)" Placeholder="New Load Name" Underline="false"></MudTextField>
+                            <MudSelect T="int" @bind-Value="_newLoadModel.TruckId" For="@(() => _newLoadModel.TruckId)" Label="Truck">
+                                @foreach (var truck in _trucks)
+                                {
+                                    <MudSelectItem T="int" Value="@truck.Id">@truck.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudButton ButtonType="ButtonType.Submit" Size="Size.Small" Color="Color.Primary" FullWidth="true" Class="mt-2">Add Load</MudButton>
+                        </EditForm>
+                    </MudPaper>
+                }
+                else
+                {
+                    <MudButton OnClick="() => _addLoadOpen = true" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" Class="rounded-lg py-2" FullWidth="true">Add Load</MudButton>
+                }
+            </MudPaper>
+        </ChildContent>
+        <ItemRenderer>
+            <MudPaper Elevation="25" Class="pa-2 ma-1">
+                <MudText>@context.SalesOrderNumber</MudText>
+                <MudText Typo="Typo.caption">@context.CustomerName</MudText>
+            </MudPaper>
+        </ItemRenderer>
+    </MudDropContainer>
 </MudPaper>
 
 @code {
-    // Custom calendar item carrying our payload
-    private sealed class SchedItem : CalendarItem
+    private List<PickingList> _pickingLists = new();
+    private List<Load> _loads = new();
+    private List<Truck> _trucks = new();
+    private IGrouping<DateTime, PickingList>[] _pendingGroups = Array.Empty<IGrouping<DateTime, PickingList>>();
+
+    private bool _addLoadOpen;
+    private NewLoadModel _newLoadModel = new();
+
+    protected override async Task OnInitializedAsync()
     {
-        public bool IsItem { get; init; }
-        public PickingList PickingList { get; init; } = default!;
-        public int LineNumber { get; init; }            // used when IsItem
-        public string? ItemDescription { get; init; }   // used when IsItem
-    }
-
-    private List<SchedItem> _events = new();
-    private CalendarView _view = CalendarView.Week;
-    private HubConnection? _hub;
-
-    private bool _showListEvents = true;
-    private bool _showItemEvents = true;
-
-    // Avoid direct generic event-args references; use dynamic
-    private async Task HandleDrop(object e)
-    {
-        dynamic d = e; // d.Item (SchedItem), d.NewStart (DateTime), d.NewEnd (DateTime?), d.View (CalendarView)
-        var item = (SchedItem)d.Item;
-        var newStart = (DateTime)d.NewStart;
-
-        if (item.IsItem)
-        {
-            var line = item.PickingList.Items?.FirstOrDefault(x => x.LineNumber == item.LineNumber);
-            if (line != null)
-                line.ScheduledShipDate = newStart;
-        }
-        else
-        {
-            item.PickingList.ShipDate = newStart;
-        }
-
-        await PickingListService.UpdateAsync(item.PickingList);
+        _trucks = await TruckService.GetTrucksAsync();
         await LoadData();
-        StateHasChanged();
-
-        if (_hub is not null)
-            await _hub.SendAsync("ScheduleChanged", item.PickingList.Id);
-    }
-
-    // OnItemClick supplies the item itself
-    private Task HandleClick(SchedItem item)
-    {
-        if (!item.IsItem)
-            Nav.NavigateTo($"/picking-lists?open={item.PickingList.Id}");
-        return Task.CompletedTask;
     }
 
     private async Task LoadData()
     {
-        var all = await PickingListService.GetAsync();
-        var evts = new List<SchedItem>();
+        _pickingLists = await PickingListService.GetAsync();
+        _loads = await LoadService.GetAsync();
 
-        if (_showListEvents)
-        {
-            foreach (var pl in all.Where(pl => pl.ShipDate != null))
-            {
-                var start = pl.ShipDate!.Value;
-                evts.Add(new SchedItem
-                {
-                    Start = start,
-                    End = start.AddHours(1),
-                    Text = $"{pl.SalesOrderNumber}",
-                    IsItem = false,
-                    PickingList = pl,
-                    AllDay = false
-                });
-            }
-        }
-
-        if (_showItemEvents)
-        {
-            foreach (var pl in all)
-            {
-                if (pl.Items is null) continue;
-                foreach (var line in pl.Items.Where(i => i.ScheduledShipDate != null))
-                {
-                    var start = line.ScheduledShipDate!.Value;
-                    evts.Add(new SchedItem
-                    {
-                        Start = start,
-                        End = start.AddHours(1),
-                        Text = $"{pl.SalesOrderNumber} • L{line.LineNumber}",
-                        IsItem = true,
-                        PickingList = pl,
-                        LineNumber = line.LineNumber,
-                        ItemDescription = line.ItemDescription,
-                        AllDay = false
-                    });
-                }
-            }
-        }
-
-        _events = evts;
+        _pendingGroups = _pickingLists
+            .Where(pl => pl.ShipDate.HasValue && pl.LoadId == null)
+            .GroupBy(pl => pl.ShipDate.Value.Date)
+            .ToArray();
     }
 
-    protected override async Task OnInitializedAsync()
+    private string GetPickingListZone(PickingList pl)
     {
+        if (pl.LoadId.HasValue)
+        {
+            return pl.LoadId.Value.ToString();
+        }
+        if (pl.ShipDate.HasValue)
+        {
+            return pl.ShipDate.Value.ToString("yyyy-MM-dd");
+        }
+        return "unscheduled"; // Should not happen with current logic
+    }
+
+    private async Task ItemDropped(MudItemDropInfo<PickingList> dropItem)
+    {
+        if (int.TryParse(dropItem.DropzoneIdentifier, out var loadId))
+        {
+            // Dropped on a load
+            dropItem.Item.LoadId = loadId;
+            await LoadService.AddPickingListToLoadAsync(loadId, dropItem.Item.Id);
+        }
+        else if (DateTime.TryParse(dropItem.DropzoneIdentifier, out var shipDate))
+        {
+            // Dropped on a date
+            dropItem.Item.LoadId = null;
+            // You might want to update the ShipDate here if needed
+            // await PickingListService.UpdateAsync(dropItem.Item);
+        }
+
         await LoadData();
-
-        _hub = new HubConnectionBuilder()
-            .WithUrl(Nav.ToAbsoluteUri("/hubs/schedule"))
-            .WithAutomaticReconnect()
-            .Build();
-        await _hub.StartAsync();
+        StateHasChanged();
     }
 
-    public async ValueTask DisposeAsync()
+    private async Task OnValidLoadSubmit()
     {
-        if (_hub is not null) await _hub.DisposeAsync();
+        var newLoad = new Load
+        {
+            LoadNumber = _newLoadModel.Name,
+            TruckId = _newLoadModel.TruckId
+        };
+        await LoadService.CreateAsync(newLoad);
+        _newLoadModel = new();
+        _addLoadOpen = false;
+        await LoadData();
+    }
+
+    public class NewLoadModel
+    {
+        [Required]
+        public string Name { get; set; }
+        [Required]
+        public int TruckId { get; set; }
     }
 }
