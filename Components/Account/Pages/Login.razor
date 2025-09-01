@@ -46,16 +46,9 @@
                                     UserAttributes="@(new() { { "autocomplete", "current-password" }, { "aria-required", "true" } })"
                                     Class="mb-4" />
 
-                <div class="d-flex justify-space-between align-center mb-4">
-                    <MudStaticCheckBox For="@(() => Input.RememberMe)" @bind-Value="Input.RememberMe">Remember me</MudStaticCheckBox>
-                    <MudLink Href="Account/ForgotPassword">Forgot password?</MudLink>
-                </div>
+                <MudStaticCheckBox For="@(() => Input.RememberMe)" @bind-Value="Input.RememberMe" Class="mb-4">Remember me</MudStaticCheckBox>
 
-                <MudStaticButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true">Log in</MudStaticButton>
-
-                <div class="d-flex justify-center mt-4">
-                    <MudText>Don't have an account? <MudLink Href="Account/Register">Sign Up</MudLink></MudText>
-                </div>
+                <MudStaticButton FormAction="FormAction.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true">Log in</MudStaticButton>
             </EditForm>
         </MudPaper>
     </MudItem>
