@@ -6,6 +6,7 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using MudBlazor.Utilities
 
 @inject WorkOrderService WorkOrderService
 @inject MachineService MachineService
@@ -32,12 +33,6 @@
         <MudCalendar T="SchedItem" Items="_items" MonthCellMinHeight="120"
                      EnableDragItems="true" ItemDropped="OnItemDropped"
                      StartTime="new TimeSpan(5, 0, 0)" EndTime="new TimeSpan(23, 0, 0)">
-            <ItemTemplate>
-                <div style="@GetItemStyle(context)" title="@context.WorkOrder.TagNumber">
-                    <MudText><b>@context.WorkOrder.WorkOrderNumber</b></MudText>
-                    <MudText Typo="Typo.caption">Due: @context.WorkOrder.DueDate.ToString("MMM dd")</MudText>
-                </div>
-            </ItemTemplate>
         </MudCalendar>
     </MudStack>
 </MudPaper>
@@ -46,6 +41,7 @@
     private sealed class SchedItem : CalendarItem
     {
         public WorkOrder WorkOrder { get; init; } = default!;
+        public Color Color { get; set; } = Color.Primary;
     }
 
     private List<Machine> _machines = new();
@@ -96,7 +92,8 @@
                 Start = w.ScheduledStartDate ?? w.DueDate,
                 End = w.ScheduledEndDate ?? w.DueDate.AddMinutes(30),
                 WorkOrder = w,
-                Text = w.WorkOrderNumber // Required for Heron.MudCalendar
+                Text = w.WorkOrderNumber, // Required for Heron.MudCalendar
+                Color = w.ScheduledStartDate == null ? Color.Warning : Color.Primary
             }).ToList();
     }
 
@@ -122,11 +119,6 @@
         }
     }
 
-    private string GetItemStyle(SchedItem item)
-    {
-        var color = item.WorkOrder.ScheduledStartDate == null ? "var(--mud-palette-warning)" : "var(--mud-palette-primary)";
-        return $"width:100%; height:100%; border-left: 4px solid {color}; padding: 2px;";
-    }
 
     private async Task OnSelectedMachineChanged(int value)
     {
