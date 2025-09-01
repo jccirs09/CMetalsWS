@@ -11,6 +11,7 @@
 @inject BranchService BranchService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
 
 @implements IAsyncDisposable
 
@@ -27,34 +28,34 @@
             </MudSelect>
         </MudStack>
 
-        <MudDropContainer T="WorkOrder" Items="_unscheduled" ItemDropped="HandleItemDropped" ItemsSelector="@((item,dropzone) => item.ScheduledStartDate == null)" Class="d-flex flex-grow-1">
-            <ChildContent>
-                <MudItem xs="12" sm="9">
-                    <MudCalendar T="SchedItem" Items="_items" MonthCellMinHeight="120"
-                                 StartTime="new TimeSpan(5, 0, 0)" EndTime="new TimeSpan(23, 0, 0)">
-                        <CellTemplate>
-                            <MudDropZone T="WorkOrder" Identifier="@context.Date.ToString("yyyy-MM-dd")" Class="d-flex flex-column flex-grow-1" Style="height: 100%;" />
-                        </CellTemplate>
-                        <ItemTemplate>
-                            <MudPaper Elevation="2" Class="pa-2 ma-1">
-                                <MudText>@context.Item.WorkOrder.WorkOrderNumber</MudText>
-                                <MudText Typo="Typo.caption">@context.Item.WorkOrder.TagNumber</MudText>
+        <MudGrid>
+            <MudItem xs="12" sm="9">
+                <MudCalendar T="SchedItem" Items="_items" MonthCellMinHeight="120"
+                             StartTime="new TimeSpan(5, 0, 0)" EndTime="new TimeSpan(23, 0, 0)"
+                             CellClicked="OnCellClicked">
+                    <ItemTemplate>
+                        <MudPaper Elevation="2" Class="pa-2 ma-1">
+                            <MudText>@context.Item.WorkOrder.WorkOrderNumber</MudText>
+                            <MudText Typo="Typo.caption">@context.Item.WorkOrder.TagNumber</MudText>
+                        </MudPaper>
+                    </ItemTemplate>
+                </MudCalendar>
+            </MudItem>
+            <MudItem xs="12" sm="3">
+                <MudText Typo="Typo.h6">Unscheduled Slitter Work Orders</MudText>
+                <MudList Clickable="true" @bind-SelectedItem="_selectedWorkOrder">
+                    @foreach (var wo in _unscheduled)
+                    {
+                        <MudListItem Value="wo">
+                            <MudPaper Elevation="2" Class="pa-2 ma-1" Style="@(wo == _selectedWorkOrder ? "background-color: var(--mud-palette-action-default);" : "")">
+                                <MudText>@wo.WorkOrderNumber</MudText>
+                                <MudText Typo="Typo.caption">@wo.TagNumber - Due: @wo.DueDate.ToString("yyyy-MM-dd")</MudText>
                             </MudPaper>
-                        </ItemTemplate>
-                    </MudCalendar>
-                </MudItem>
-                <MudItem xs="12" sm="3">
-                    <MudText Typo="Typo.h6">Unscheduled Slitter Work Orders</MudText>
-                    <MudDropZone T="WorkOrder" Identifier="unscheduled" Class="d-flex flex-column flex-grow-1 pa-4 mud-border-2 mud-border-dashed" />
-                </MudItem>
-            </ChildContent>
-            <ItemRenderer>
-                <MudPaper Elevation="2" Class="pa-2 ma-1">
-                    <MudText>@context.WorkOrderNumber</MudText>
-                    <MudText Typo="Typo.caption">@context.TagNumber - Due: @context.DueDate.ToString("yyyy-MM-dd")</MudText>
-                </MudPaper>
-            </ItemRenderer>
-        </MudDropContainer>
+                        </MudListItem>
+                    }
+                </MudList>
+            </MudItem>
+        </MudGrid>
     </MudStack>
 </MudPaper>
 
@@ -70,6 +71,7 @@
     private List<SchedItem> _items = new();
 
     private int _selectedMachineId;
+    private WorkOrder? _selectedWorkOrder;
     private HubConnection? _hub;
 
     protected override async Task OnInitializedAsync()
@@ -118,28 +120,25 @@
             }).ToList();
     }
 
-    private async Task HandleItemDropped(MudItemDropInfo<WorkOrder> dropItem)
+    private async Task OnCellClicked(DateTime date)
     {
-        var item = dropItem.Item;
-
-        if (dropItem.DropzoneIdentifier == "unscheduled")
+        if (_selectedWorkOrder == null)
         {
-            item.ScheduledStartDate = null;
-            item.ScheduledEndDate = null;
-            await WorkOrderService.UpdateAsync(item, "system");
-        }
-        else if (DateTime.TryParse(dropItem.DropzoneIdentifier, out var newDate))
-        {
-            item.ScheduledStartDate = newDate.Date.AddHours(5); // Default to 5 AM, start of shift
-            item.ScheduledEndDate = item.ScheduledStartDate.Value.AddHours(1); // Default to 1 hour duration
-            await WorkOrderService.ScheduleAsync(item.Id, item.ScheduledStartDate.Value, item.ScheduledEndDate);
+            Snackbar.Add("Please select a work order from the list first.", Severity.Info);
+            return;
         }
 
-        await LoadWorkOrders(null);
+        _selectedWorkOrder.ScheduledStartDate = date.Date.AddHours(5); // Default to 5 AM, start of shift
+        _selectedWorkOrder.ScheduledEndDate = _selectedWorkOrder.ScheduledStartDate.Value.AddHours(1); // Default to 1 hour duration
+
+        await WorkOrderService.ScheduleAsync(_selectedWorkOrder.Id, _selectedWorkOrder.ScheduledStartDate.Value, _selectedWorkOrder.ScheduledEndDate);
+
+        _selectedWorkOrder = null; // Deselect after scheduling
+        await LoadWorkOrders(null); // Reload all data
         StateHasChanged();
 
         if (_hub is not null)
-            await _hub.SendAsync("WorkOrderUpdated", item.Id);
+            await _hub.SendAsync("WorkOrderUpdated", 0); // Send a generic update signal
     }
 
     public async ValueTask DisposeAsync()
