@@ -31,9 +31,9 @@
                              CanDropItem="@((it, date, view) => (view == CalendarView.Month && date.Add(it.Start.TimeOfDay) >= DateTime.Now) || date >= DateTime.Now)"
                              onItemDrop="HandleDrop"
                              onItemClick="HandleClick">
-                    <ItemTemplate>
+                    <CellTemplate>
                         <PickingListCalendarItem PickingList="context.PickingList" />
-                    </ItemTemplate>
+                    </CellTemplate>
                 </MudCalendar>
             </MudItem>
             <MudItem xs="12" sm="3">

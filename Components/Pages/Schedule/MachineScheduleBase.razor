@@ -32,9 +32,9 @@
                 }
             </MudSelect>
         </ToolbarContent>
-        <ItemTemplate>
+        <CellTemplate>
             <WorkOrderCalendarItem WorkOrder="context.WorkOrder" Color="context.Color" />
-        </ItemTemplate>
+        </CellTemplate>
     </MudCalendar>
 </MudPaper>
 
@@ -68,7 +68,9 @@
         var branchId = user.IsInRole("Admin") ? (int?)null : branches.FirstOrDefault()?.Id;
 
         var branch = branches.FirstOrDefault();
-        _branchWorkHours = branch is not null ? (branch.WorkDayStart, branch.WorkDayEnd) : (new(5,0,0), new(23,0,0));
+        _branchWorkHours = branch is not null && branch.StartTime.HasValue && branch.EndTime.HasValue
+            ? (branch.StartTime.Value.ToTimeSpan(), branch.EndTime.Value.ToTimeSpan())
+            : (new(5,0,0), new(23,0,0));
 
         _machines = (await MachineService.GetMachinesAsync())
             .Where(m => m.Category == MachineCategory && (!branchId.HasValue || m.BranchId == branchId.Value))

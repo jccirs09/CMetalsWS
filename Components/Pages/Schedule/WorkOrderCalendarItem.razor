@@ -9,7 +9,7 @@
         <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">WO @WorkOrder.Id</MudChip>
     </div>
     <div style="padding:0 .5rem .5rem .5rem;">
-        <MudText Typo="Typo.caption">@WorkOrder.CustomerName</MudText>
+        <MudText Typo="Typo.caption">@WorkOrder.Items.FirstOrDefault()?.CustomerName</MudText>
     </div>
 </div>
 
