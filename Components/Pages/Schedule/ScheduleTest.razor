@@ -1,0 +1,47 @@
+@page "/schedule/test"
+@using MudBlazor
+@using Heron.MudCalendar
+@using System.ComponentModel.DataAnnotations
+
+<MudDropContainer T="DummyItem" Items="_items" ItemsSelector="@((item,zone) => item.Zone == zone)" ItemDropped="ItemDropped" Class="d-flex flex-grow-1">
+    <ChildContent>
+        <MudItem xs="12" sm="9">
+            <MudCalendar T="DummyItem" MonthCellMinHeight="120">
+                <CellTemplate>
+                    <MudDropZone T="DummyItem" Identifier="@context.ToString("yyyy-MM-dd")" Class="d-flex flex-column flex-grow-1" Style="height: 100%;" />
+                </CellTemplate>
+            </MudCalendar>
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudText Typo="Typo.h6">Unscheduled Items</MudText>
+            <MudDropZone T="DummyItem" Identifier="unscheduled" Class="d-flex flex-column flex-grow-1 pa-4 mud-border-2 mud-border-dashed" />
+        </MudItem>
+    </ChildContent>
+    <ItemRenderer>
+        <MudPaper Elevation="2" Class="pa-2 ma-1">
+            <MudText>@context.Name</MudText>
+        </MudPaper>
+    </ItemRenderer>
+</MudDropContainer>
+
+@code {
+    private List<DummyItem> _items = new()
+    {
+        new DummyItem { Name = "Item 1", Zone = "unscheduled" },
+        new DummyItem { Name = "Item 2", Zone = "unscheduled" },
+        new DummyItem { Name = "Item 3", Zone = DateTime.Today.ToString("yyyy-MM-dd") }
+    };
+
+    private void ItemDropped(MudItemDropInfo<DummyItem> dropItem)
+    {
+        dropItem.Item.Zone = dropItem.DropzoneIdentifier;
+        Console.WriteLine($"Item '{dropItem.Item.Name}' dropped in zone '{dropItem.DropzoneIdentifier}'");
+        StateHasChanged();
+    }
+
+    public class DummyItem
+    {
+        public string Name { get; set; }
+        public string Zone { get; set; }
+    }
+}
