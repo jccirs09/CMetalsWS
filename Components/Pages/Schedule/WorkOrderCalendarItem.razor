@@ -1,0 +1,38 @@
+@using CMetalsWS.Data
+@using MudBlazor
+
+<div style="@($"width:100%;border:1px solid var(--mud-palette-lines-default);border-left:4px solid {GetStripeClass()};border-radius:6px;overflow:hidden;")">
+    <div style="display:flex;align-items:center;gap:.5rem;padding:.25rem .5rem;">
+        <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Size="Size.Small" />
+        <MudText Typo="Typo.body2">@WorkOrder.WorkOrderNumber</MudText>
+        <MudSpacer />
+        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">WO @WorkOrder.Id</MudChip>
+    </div>
+    <div style="padding:0 .5rem .5rem .5rem;">
+        <MudText Typo="Typo.caption">@WorkOrder.CustomerName</MudText>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public WorkOrder WorkOrder { get; set; } = default!;
+
+    [Parameter]
+    public Color Color { get; set; } = Color.Primary;
+
+    private string GetStripeClass()
+    {
+        return Color switch
+        {
+            Color.Primary => "var(--mud-palette-primary)",
+            Color.Secondary => "var(--mud-palette-secondary)",
+            Color.Tertiary => "var(--mud-palette-tertiary)",
+            Color.Info => "var(--mud-palette-info)",
+            Color.Success => "var(--mud-palette-success)",
+            Color.Warning => "var(--mud-palette-warning)",
+            Color.Error => "var(--mud-palette-error)",
+            Color.Dark => "var(--mud-palette-dark)",
+            _ => "var(--mud-palette-lines-default)"
+        };
+    }
+}

@@ -31,24 +31,9 @@
                              CanDropItem="@((it, date, view) => (view == CalendarView.Month && date.Add(it.Start.TimeOfDay) >= DateTime.Now) || date >= DateTime.Now)"
                              onItemDrop="HandleDrop"
                              onItemClick="HandleClick">
-                    <CellTemplate Context="evt">
-                        @{
-                            var pl = evt.PickingList!;
-                            var stripe = "var(--mud-palette-info)";
-                            var sub = $"{pl.CustomerName} • Due {pl.ShipDate:yyyy-MM-dd}";
-                        }
-                        <div style="width:100%;border:1px solid var(--mud-palette-lines-default);border-left:4px solid @stripe;border-radius:6px;overflow:hidden;">
-                            <div style="display:flex;align-items:center;gap:.5rem;padding:.25rem .5rem;">
-                                <MudIcon Icon="@Icons.Material.Filled.PanTool" Size="Size.Small" />
-                                <MudText Typo="Typo.body2">@pl.SalesOrderNumber</MudText>
-                                <MudSpacer />
-                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">PL @pl.Id</MudChip>
-                            </div>
-                            <div style="padding:0 .5rem .5rem .5rem;">
-                                <MudText Typo="Typo.caption">@sub</MudText>
-                            </div>
-                        </div>
-                    </CellTemplate>
+                    <ItemTemplate>
+                        <PickingListCalendarItem PickingList="context.PickingList" />
+                    </ItemTemplate>
                 </MudCalendar>
             </MudItem>
             <MudItem xs="12" sm="3">
@@ -116,7 +101,6 @@
             .Where(p => p.ShipDate != null && p.ShipDate.Value.Date >= DateTime.Today)
             .Select(p => new SchedItem
             {
-                Text = p.SalesOrderNumber,
                 Start = p.ShipDate!.Value,
                 End = p.ShipDate!.Value.AddHours(1),
                 AllDay = false,
