@@ -10,18 +10,18 @@
 @inject TruckService TruckService
 
 <MudPaper Class="pa-4">
-    <MudDropContainer T="PickingList" Items="_pickingLists" ItemsSelector="@((item,zone) => GetPickingListZone(item) == zone)" ItemDropped="ItemDropped" Class="d-flex flex-row">
+    <MudDropContainer T="PickingList" Items="_allPickingLists" ItemDropped="ItemDropped" ItemsSelector="@((item,zone) => GetPickingListZone(item) == zone)" Class="d-flex flex-row">
         <ChildContent>
             <MudPaper Class="pa-4" Elevation="0" MinWidth="300px">
                 <MudText Typo="Typo.h6">Pending Picking Lists</MudText>
-                <MudAccordion>
+                <MudExpansionPanels>
                     @foreach (var group in _pendingGroups)
                     {
                         <MudExpansionPanel Text="@group.Key.ToString("yyyy-MM-dd")">
                             <MudDropZone T="PickingList" Identifier="@group.Key.ToString("yyyy-MM-dd")" Class="d-flex flex-column flex-grow-1" Style="min-height: 100px;" />
                         </MudExpansionPanel>
                     }
-                </MudAccordion>
+                </MudExpansionPanels>
             </MudPaper>
             @foreach (var load in _loads)
             {
@@ -67,7 +67,7 @@
 </MudPaper>
 
 @code {
-    private List<PickingList> _pickingLists = new();
+    private List<PickingList> _allPickingLists = new();
     private List<Load> _loads = new();
     private List<Truck> _trucks = new();
     private IGrouping<DateTime, PickingList>[] _pendingGroups = Array.Empty<IGrouping<DateTime, PickingList>>();
@@ -83,20 +83,23 @@
 
     private async Task LoadData()
     {
-        _pickingLists = await PickingListService.GetAsync();
-        _loads = await LoadService.GetAsync();
+        _allPickingLists = await PickingListService.GetAsync();
+        _loads = await LoadService.GetLoadsAsync();
 
-        _pendingGroups = _pickingLists
-            .Where(pl => pl.ShipDate.HasValue && pl.LoadId == null)
+        var loadedPickingListIds = _loads.SelectMany(l => l.Items.Select(i => i.PickingListId)).ToHashSet();
+
+        _pendingGroups = _allPickingLists
+            .Where(pl => pl.ShipDate.HasValue && !loadedPickingListIds.Contains(pl.Id))
             .GroupBy(pl => pl.ShipDate.Value.Date)
             .ToArray();
     }
 
     private string GetPickingListZone(PickingList pl)
     {
-        if (pl.LoadId.HasValue)
+        var load = _loads.FirstOrDefault(l => l.Items.Any(i => i.PickingListId == pl.Id));
+        if (load != null)
         {
-            return pl.LoadId.Value.ToString();
+            return load.Id.ToString();
         }
         if (pl.ShipDate.HasValue)
         {
@@ -110,15 +113,20 @@
         if (int.TryParse(dropItem.DropzoneIdentifier, out var loadId))
         {
             // Dropped on a load
-            dropItem.Item.LoadId = loadId;
-            await LoadService.AddPickingListToLoadAsync(loadId, dropItem.Item.Id);
+            var load = _loads.First(l => l.Id == loadId);
+            load.Items.Add(new LoadItem { PickingListId = dropItem.Item.Id });
+            await LoadService.UpdateAsync(load);
         }
         else if (DateTime.TryParse(dropItem.DropzoneIdentifier, out var shipDate))
         {
-            // Dropped on a date
-            dropItem.Item.LoadId = null;
-            // You might want to update the ShipDate here if needed
-            // await PickingListService.UpdateAsync(dropItem.Item);
+            // Dropped on a date (unscheduling)
+            var previousLoad = _loads.FirstOrDefault(l => l.Items.Any(i => i.PickingListId == dropItem.Item.Id));
+            if (previousLoad != null)
+            {
+                var itemToRemove = previousLoad.Items.First(i => i.PickingListId == dropItem.Item.Id);
+                previousLoad.Items.Remove(itemToRemove);
+                await LoadService.UpdateAsync(previousLoad);
+            }
         }
 
         await LoadData();
@@ -130,7 +138,8 @@
         var newLoad = new Load
         {
             LoadNumber = _newLoadModel.Name,
-            TruckId = _newLoadModel.TruckId
+            TruckId = _newLoadModel.TruckId,
+            BranchId = 1 // Assuming a default branch for now
         };
         await LoadService.CreateAsync(newLoad);
         _newLoadModel = new();

@@ -28,19 +28,21 @@
         </MudStack>
 
         <MudDropContainer T="WorkOrder" Items="_all" ItemDropped="HandleItemDropped" ItemsSelector="@((item,dropzone) => GetWorkOrderSelector(item) == dropzone)" Class="d-flex flex-grow-1">
-            <MudItem xs="12" sm="9">
-                <MudCalendar MonthCellMinHeight="120"
-                             StartTime="new TimeSpan(5, 0, 0)"
-                             EndTime="new TimeSpan(23, 0, 0)">
-                    <CellTemplate>
-                        <MudDropZone T="WorkOrder" Identifier="@context.Date.ToString("yyyy-MM-dd")" Class="d-flex flex-column flex-grow-1" Style="height: 100%;" />
-                    </CellTemplate>
-                </MudCalendar>
-            </MudItem>
-            <MudItem xs="12" sm="3">
-                <MudText Typo="Typo.h6">Unscheduled Slitter Work Orders</MudText>
-                <MudDropZone T="WorkOrder" Identifier="unscheduled" Class="d-flex flex-column flex-grow-1 pa-4 mud-border-2 mud-border-dashed" />
-            </MudItem>
+            <ChildContent>
+                <MudItem xs="12" sm="9">
+                    <MudCalendar MonthCellMinHeight="120"
+                                 StartTime="new TimeSpan(5, 0, 0)"
+                                 EndTime="new TimeSpan(23, 0, 0)">
+                        <CellTemplate>
+                            <MudDropZone T="WorkOrder" Identifier="@context.Date.ToString("yyyy-MM-dd")" Class="d-flex flex-column flex-grow-1" Style="height: 100%;" />
+                        </CellTemplate>
+                    </MudCalendar>
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudText Typo="Typo.h6">Unscheduled Slitter Work Orders</MudText>
+                    <MudDropZone T="WorkOrder" Identifier="unscheduled" Class="d-flex flex-column flex-grow-1 pa-4 mud-border-2 mud-border-dashed" />
+                </MudItem>
+            </ChildContent>
             <ItemRenderer>
                 <MudPaper Elevation="2" Class="pa-2 ma-1">
                     <MudText>@context.WorkOrderNumber</MudText>
