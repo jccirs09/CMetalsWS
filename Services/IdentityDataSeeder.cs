@@ -28,8 +28,6 @@ namespace CMetalsWS.Services
 
         public async Task SeedAsync()
         {
-            await _context.Database.EnsureCreatedAsync();
-
             await SeedBranchesAsync();
 
             // Create roles
