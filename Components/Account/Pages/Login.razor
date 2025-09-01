@@ -14,47 +14,35 @@
 
 <PageTitle>Log in</PageTitle>
 
-<style>
-    .full-page-bg {
-        background-image: url('https://www.cmetals.com/wp-content/uploads/2024/07/Coils-2024-scaled.jpg');
-        background-size: cover;
-        background-position: center;
-        height: 100vh;
-        width: 100vw;
-    }
-</style>
+<MudGrid Justify="Justify.Center" AlignItems="AlignItems.Center" Style="height: 100vh;">
+    <MudItem xs="12" sm="8" md="4">
+        <MudPaper Class="pa-8" Elevation="3">
+            <div class="d-flex justify-center mb-4">
+                <img src="https://www.cmetals.com/wp-content/uploads/2023/01/New-Cascadia-Metals-Logo-2022.png" alt="Cascadia Metals Logo" style="max-height: 60px;" />
+            </div>
+            <MudText Typo="Typo.h5" GutterBottom="true" Align="Align.Center">Welcome</MudText>
 
-<div class="full-page-bg">
-    <MudGrid Justify="Justify.Center" AlignItems="AlignItems.Center" Style="height: 100%;">
-        <MudItem xs="12" sm="8" md="4">
-            <MudPaper Class="pa-8" Elevation="3">
-                <div class="d-flex justify-center mb-4">
-                    <img src="https://www.cmetals.com/wp-content/uploads/2023/01/New-Cascadia-Metals-Logo-2022.png" alt="Cascadia Metals Logo" style="max-height: 60px;" />
-                </div>
-                <MudText Typo="Typo.h5" GutterBottom="true" Align="Align.Center">Welcome</MudText>
+            <StatusMessage Message="@errorMessage" />
+            <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+                <DataAnnotationsValidator />
 
-                <StatusMessage Message="@errorMessage" />
-                <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
-                    <DataAnnotationsValidator />
+                <MudStaticTextField For="@(() => Input.Email)" @bind-Value="Input.Email"
+                                    Label="Email"
+                                    UserAttributes="@(new() { { "autocomplete", "username" }, { "aria-required", "true" } })"
+                                    Class="mb-4" />
 
-                    <MudStaticTextField For="@(() => Input.Email)" @bind-Value="Input.Email"
-                                        Label="Email"
-                                        UserAttributes="@(new() { { "autocomplete", "username" }, { "aria-required", "true" } })"
-                                        Class="mb-4" />
+                <MudStaticTextField For="@(() => Input.Password)" @bind-Value="Input.Password"
+                                    Label="Password" InputType="InputType.Password"
+                                    UserAttributes="@(new() { { "autocomplete", "current-password" }, { "aria-required", "true" } })"
+                                    Class="mb-4" />
 
-                    <MudStaticTextField For="@(() => Input.Password)" @bind-Value="Input.Password"
-                                        Label="Password" InputType="InputType.Password"
-                                        UserAttributes="@(new() { { "autocomplete", "current-password" }, { "aria-required", "true" } })"
-                                        Class="mb-4" />
+                <MudStaticCheckBox For="@(() => Input.RememberMe)" @bind-Value="Input.RememberMe" Class="mb-4">Remember me</MudStaticCheckBox>
 
-                    <MudStaticCheckBox For="@(() => Input.RememberMe)" @bind-Value="Input.RememberMe" Class="mb-4">Remember me</MudStaticCheckBox>
-
-                    <MudStaticButton FormAction="FormAction.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true">Log in</MudStaticButton>
-                </EditForm>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
-</div>
+                <MudStaticButton FormAction="FormAction.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true">Log in</MudStaticButton>
+            </EditForm>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
 
 
 @code {
