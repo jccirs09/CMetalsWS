@@ -6,6 +6,7 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using MudBlazor.Utilities
 
 @inject WorkOrderService WorkOrderService
 @inject MachineService MachineService
@@ -13,63 +14,39 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 @implements IAsyncDisposable
 
-<MudDropContainer T="WorkOrder" Items="_allWorkOrders" ItemDropped="OnWorkOrderDropped" ItemsSelector="@((wo, zone) => GetWorkOrderZone(wo) == zone)" Class="d-flex flex-grow-1">
-    <ChildContent>
-        <MudGrid>
-            <MudItem xs="12" sm="9">
-                <MudCalendar T="WorkOrder" Items="_allWorkOrders.Where(wo => wo.ScheduledStartDate != null).ToList()"
-                             EnableDragItems="true" ItemResized="OnWorkOrderItemResized" ItemDropped="OnCalendarItemMoved"
-                             EnableResizeItems="true" MonthCellMinHeight="120"
-                             StartTime="new TimeSpan(5, 0, 0)" EndTime="new TimeSpan(23, 0, 0)">
-                    <CellTemplate>
-                        <div class="d-flex flex-column flex-grow-1" style="height: 100%">
-                            <MudDropZone T="WorkOrder" Identifier="@context.Date.ToString("yyyy-MM-dd")" Class="flex-grow-1" />
-                        </div>
-                    </CellTemplate>
-                    <ItemTemplate Context="workOrder">
-                        <div @onclick:ctrlKey="() => ToggleSelectItem(workOrder)" @onclick:metaKey="() => ToggleSelectItem(workOrder)" @onclick:preventDefault="true"
-                             style="@GetItemStyle(workOrder)" title="@workOrder.TagNumber">
-                            <MudText><b>@workOrder.WorkOrderNumber</b></MudText>
-                            <MudText Typo="Typo.caption">Due: @workOrder.DueDate.ToString("MMM dd")</MudText>
-                        </div>
-                    </ItemTemplate>
-                </MudCalendar>
-            </MudItem>
-            <MudItem xs="12" sm="3" Class="d-flex flex-column">
-                <MudText Typo="Typo.h6">Unscheduled CTL Work Orders</MudText>
-                <MudPaper Class="flex-grow-1 overflow-y-auto" Elevation="0">
-                    <MudDropZone T="WorkOrder" Identifier="unscheduled" Class="pa-4">
-                        @foreach (var wo in _allWorkOrders.Where(wo => wo.ScheduledStartDate == null))
-                        {
-                            <MudPaper Elevation="2" Class="pa-2 ma-1">
-                                <MudText>@wo.WorkOrderNumber</MudText>
-                                <MudText Typo="Typo.caption">@wo.TagNumber - Due: @wo.DueDate.ToString("yyyy-MM-dd")</MudText>
-                            </MudPaper>
-                        }
-                    </MudDropZone>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
-    </ChildContent>
-    <ItemRenderer>
-        <MudPaper Elevation="25" Class="pa-2 ma-1">
-            <MudText>@context.WorkOrderNumber</MudText>
-            <MudText Typo="Typo.caption">@context.TagNumber</MudText>
-        </MudPaper>
-    </ItemRenderer>
-</MudDropContainer>
+<MudPaper Class="pa-4" Style="height: 100%;" Elevation="0">
+    <MudCalendar T="ScheduleEvent" Items="_events"
+                 EnableDragItems="true" ItemResized="OnWorkOrderItemResized" ItemDropped="OnCalendarItemMoved"
+                 EnableResizeItems="true" MonthCellMinHeight="120"
+                 ItemClicked="OnItemClicked"
+                 StartTime="new TimeSpan(5, 0, 0)" EndTime="new TimeSpan(23, 0, 0)">
+        <ToolbarContent>
+            <MudText Typo="Typo.h5">CTL Schedule</MudText>
+            <MudSpacer />
+            <MudSelect T="int" Label="Machine" Value="_selectedMachineId" ValueChanged="OnSelectedMachineChanged" Dense="true" Margin="Margin.Dense" Style="min-width:240px">
+                @foreach (var m in _machines)
+                {
+                    <MudSelectItem T="int" Value="@m.Id">@m.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </ToolbarContent>
+    </MudCalendar>
+</MudPaper>
 
 @code {
+    private class ScheduleEvent : CalendarItem
+    {
+        public WorkOrder WorkOrder { get; init; } = default!;
+    }
+
     private List<Machine> _machines = new();
-    private List<WorkOrder> _allWorkOrders = new();
-    private List<WorkOrder> _selectedItems = new();
+    private List<ScheduleEvent> _events = new();
     private int _selectedMachineId;
     private HubConnection? _hub;
-
-    private string GetWorkOrderZone(WorkOrder wo) => wo.ScheduledStartDate == null ? "unscheduled" : "calendar";
 
     protected override async Task OnInitializedAsync()
     {
@@ -89,9 +66,18 @@
 
     private async Task LoadWorkOrders(int? branchId)
     {
-        _allWorkOrders = (await WorkOrderService.GetByCategoryAsync(MachineCategory.CTL, branchId))
+        var workOrders = (await WorkOrderService.GetByCategoryAsync(MachineCategory.CTL, branchId))
             .Where(w => _selectedMachineId == 0 || w.MachineId == _selectedMachineId)
             .ToList();
+
+        _events = workOrders.Select(wo => new ScheduleEvent
+        {
+            WorkOrder = wo,
+            Start = wo.ScheduledStartDate.Value, // All WOs are now scheduled
+            End = wo.ScheduledEndDate.Value,
+            Text = wo.WorkOrderNumber,
+            Color = Color.Primary
+        }).ToList();
     }
 
     private void SetupSignalR(int? branchId)
@@ -102,100 +88,42 @@
             .Build();
         _hub.On<int>("WorkOrderUpdated", async (id) => {
             await LoadWorkOrders(branchId);
-            _selectedItems.Clear(); // Clear selection on refresh
             StateHasChanged();
         });
         _hub.StartAsync();
     }
 
-    private void ToggleSelectItem(WorkOrder wo)
+    private async Task OnItemClicked(CalendarItem item)
     {
-        if (_selectedItems.Contains(wo))
+        if (item is ScheduleEvent scheduleEvent)
         {
-            _selectedItems.Remove(wo);
-        }
-        else
-        {
-            _selectedItems.Add(wo);
-        }
-        StateHasChanged();
-    }
-
-    private string GetItemStyle(WorkOrder wo)
-    {
-        var color = wo.ScheduledStartDate == null ? "var(--mud-palette-warning)" : "var(--mud-palette-primary)";
-        var style = $"width:100%; height:100%; border-left: 4px solid {color}; padding: 2px; cursor: pointer;";
-        if (_selectedItems.Contains(wo))
-        {
-            style += "background-color: var(--mud-palette-action-hover);";
-        }
-        return style;
-    }
-
-    private async Task OnWorkOrderDropped(MudItemDropInfo<WorkOrder> dropItem)
-    {
-        var workOrder = dropItem.Item;
-        if (dropItem.DropzoneIdentifier == "unscheduled")
-        {
-            workOrder.ScheduledStartDate = null;
-            workOrder.ScheduledEndDate = null;
-        }
-        else
-        {
-            if (DateTime.TryParse(dropItem.DropzoneIdentifier, out var dropDate))
+            var parameters = new DialogParameters<Dialogs.WorkOrderDetailsDialog>
             {
-                workOrder.ScheduledStartDate = dropDate.Date + workOrder.DueDate.TimeOfDay;
-                workOrder.ScheduledEndDate = workOrder.ScheduledStartDate.Value.AddMinutes(30);
-            }
+                { x => x.WorkOrderId, scheduleEvent.WorkOrder.Id }
+            };
+
+            await DialogService.ShowAsync<Dialogs.WorkOrderDetailsDialog>("Work Order Details", parameters);
         }
-        await WorkOrderService.ScheduleAsync(workOrder.Id, workOrder.ScheduledStartDate, workOrder.ScheduledEndDate);
-        if (_hub is not null) await _hub.SendAsync("WorkOrderUpdated", workOrder.Id);
     }
 
     private async Task OnCalendarItemMoved(CalendarItem item, DateTime newDate)
     {
-        if (item is not WorkOrder draggedWorkOrder)
-            return;
-
-        var tasks = new List<Task>();
-
-        // If the dragged item is part of a multi-selection, process all selected items.
-        if (_selectedItems.Count > 1 && _selectedItems.Contains(draggedWorkOrder))
+        if (item is ScheduleEvent scheduleEvent)
         {
-            // Calculate the offset from the single item that was actually dragged
-            var offset = newDate - draggedWorkOrder.ScheduledStartDate.Value;
-
-            foreach (var selectedWo in _selectedItems)
-            {
-                selectedWo.ScheduledStartDate = selectedWo.ScheduledStartDate.Value.Add(offset);
-                if (selectedWo.ScheduledEndDate.HasValue)
-                {
-                    selectedWo.ScheduledEndDate = selectedWo.ScheduledEndDate.Value.Add(offset);
-                }
-                tasks.Add(WorkOrderService.ScheduleAsync(selectedWo.Id, selectedWo.ScheduledStartDate, selectedWo.ScheduledEndDate));
-            }
-        }
-        else // Otherwise, just handle the single dragged item.
-        {
-            var duration = (draggedWorkOrder.ScheduledEndDate ?? draggedWorkOrder.ScheduledStartDate.Value.AddMinutes(30)) - draggedWorkOrder.ScheduledStartDate.Value;
-            draggedWorkOrder.ScheduledStartDate = newDate;
-            draggedWorkOrder.ScheduledEndDate = newDate.Add(duration);
-            tasks.Add(WorkOrderService.ScheduleAsync(draggedWorkOrder.Id, draggedWorkOrder.ScheduledStartDate, draggedWorkOrder.ScheduledEndDate));
-        }
-
-        await Task.WhenAll(tasks);
-        _selectedItems.Clear();
-
-        if (_hub is not null)
-        {
-            await _hub.SendAsync("WorkOrderUpdated", 0); // Send generic update since multiple items might have changed
+            var workOrder = scheduleEvent.WorkOrder;
+            var duration = workOrder.ScheduledEndDate.Value - workOrder.ScheduledStartDate.Value;
+            workOrder.ScheduledStartDate = newDate;
+            workOrder.ScheduledEndDate = newDate.Add(duration);
+            await WorkOrderService.ScheduleAsync(workOrder.Id, workOrder.ScheduledStartDate, workOrder.ScheduledEndDate);
+            if (_hub is not null) await _hub.SendAsync("WorkOrderUpdated", workOrder.Id);
         }
     }
 
     private async Task OnWorkOrderItemResized((CalendarItem Item, DateTime NewStart, DateTime? NewEnd) args)
     {
-        if (args.Item is WorkOrder workOrder && args.NewEnd.HasValue)
+        if (args.Item is ScheduleEvent scheduleEvent && args.NewEnd.HasValue)
         {
+            var workOrder = scheduleEvent.WorkOrder;
             workOrder.ScheduledStartDate = args.NewStart;
             workOrder.ScheduledEndDate = args.NewEnd.Value;
             await WorkOrderService.ScheduleAsync(workOrder.Id, workOrder.ScheduledStartDate, workOrder.ScheduledEndDate);

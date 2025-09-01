@@ -82,9 +82,52 @@ namespace CMetalsWS.Services
             if (workOrder.Status == 0)
                 workOrder.Status = WorkOrderStatus.Draft;
 
+            // Auto-scheduling logic
+            await AutoScheduleWorkOrder(workOrder);
+
             _db.WorkOrders.Add(workOrder);
             await _db.SaveChangesAsync();
             await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+        }
+
+        private (TimeOnly Start, TimeOnly End) GetBranchWorkingHours(int branchId)
+        {
+            // Per user instruction, hard-coded for now.
+            // This would ideally come from the Branch entity in the database.
+            return (new TimeOnly(5, 0), new TimeOnly(23, 59)); // 5 AM to 11:59 PM
+        }
+
+        private async Task AutoScheduleWorkOrder(WorkOrder workOrder)
+        {
+            var workingHours = GetBranchWorkingHours(workOrder.BranchId);
+
+            var otherWorkOrdersOnSameDay = await _db.WorkOrders
+                .Where(wo => wo.BranchId == workOrder.BranchId &&
+                             wo.MachineId == workOrder.MachineId &&
+                             wo.DueDate.Date == workOrder.DueDate.Date &&
+                             wo.ScheduledStartDate.HasValue)
+                .OrderByDescending(wo => wo.ScheduledEndDate)
+                .ToListAsync();
+
+            var lastScheduledEnd = otherWorkOrdersOnSameDay
+                .Select(wo => wo.ScheduledEndDate)
+                .FirstOrDefault();
+
+            DateTime nextStartTime;
+
+            if (lastScheduledEnd.HasValue)
+            {
+                // Start after the last one ends
+                nextStartTime = lastScheduledEnd.Value;
+            }
+            else
+            {
+                // Or start at the beginning of the working day
+                nextStartTime = workOrder.DueDate.Date + workingHours.Start.ToTimeSpan();
+            }
+
+            workOrder.ScheduledStartDate = nextStartTime;
+            workOrder.ScheduledEndDate = nextStartTime.AddHours(1);
         }
 
         public Task CreateAsync(WorkOrder workOrder, string createdBy, string userId)

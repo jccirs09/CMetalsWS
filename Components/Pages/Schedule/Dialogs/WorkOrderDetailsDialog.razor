@@ -1,0 +1,79 @@
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject WorkOrderService WorkOrderService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Work Order: @(_workOrder?.WorkOrderNumber)</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_workOrder == null)
+        {
+            <MudProgressCircular Indeterminate="true" />
+        }
+        else
+        {
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudText><b>Tag Number:</b> @_workOrder.TagNumber</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText><b>Due Date:</b> @_workOrder.DueDate.ToString("yyyy-MM-dd")</MudText>
+                </MudItem>
+
+                @foreach(var item in _workOrder.Items)
+                {
+                    <MudItem xs="12"><MudDivider /></MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText><b>Sales Order:</b> @item.SalesOrderNumber</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText><b>Customer:</b> @item.CustomerName</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudText><b>Quantity:</b> @item.OrderQuantity</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudText><b>Width:</b> @item.Width</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudText><b>Length:</b> @item.Length</MudText>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Close</MudButton>
+        <AuthorizeView Roles="Operator">
+            <MudButton Color="Color.Primary" OnClick="Process">Process</MudButton>
+        </AuthorizeView>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public int WorkOrderId { get; set; }
+
+    private WorkOrder? _workOrder;
+    private bool _canProcess;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _workOrder = await WorkOrderService.GetByIdAsync(WorkOrderId);
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _canProcess = authState.User.IsInRole("Operator");
+    }
+
+    private void Process()
+    {
+        // Logic to process the work order would go here.
+        // For now, we just close the dialog.
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
