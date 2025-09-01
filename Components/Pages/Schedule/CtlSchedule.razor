@@ -22,7 +22,7 @@
         <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
             <MudText Typo="Typo.h5">CTL Schedule</MudText>
             <MudSpacer />
-            <MudSelect T="int" Label="Machine" @bind-Value="_selectedMachineId" Dense="true" Style="min-width:240px" ValueChanged="OnSelectedMachineChanged">
+            <MudSelect T="int" Label="Machine" Value="_selectedMachineId" ValueChanged="OnSelectedMachineChanged" Dense="true" Style="min-width:240px">
                 @foreach (var m in _machines)
                 {
                     <MudSelectItem T="int" Value="@m.Id">@m.Name</MudSelectItem>
