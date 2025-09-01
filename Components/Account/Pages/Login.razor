@@ -1,5 +1,4 @@
 @page "/Account/Login"
-@rendermode InteractiveServer
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authentication
@@ -14,94 +13,57 @@
 
 <PageTitle>Log in</PageTitle>
 
-<style>
-    .left-panel {
-        background-color: #009A4D; /* Green color from logo */
-        color: white;
-    }
-</style>
+<div class="container" style="max-width: 500px; margin-top: 5em;">
+    <div style="text-align: center; margin-bottom: 2em;">
+        <img src="https://www.cmetals.com/wp-content/uploads/2023/01/New-Cascadia-Metals-Logo-2022.png" alt="Cascadia Metals Logo" style="max-height: 60px;" />
+        <h3 style="margin-top: 1em;">Log in</h3>
+    </div>
 
-<MudGrid Justify="Justify.Center" AlignItems="AlignItems.Center" Style="height: 80vh;">
-    <MudItem xs="12" sm="10" md="8">
-        <MudPaper Elevation="3">
-            <MudGrid Spacing="0">
-                <MudItem xs="12" md="5" Class="left-panel d-flex flex-column justify-center align-center pa-4">
-                    <MudText Typo="Typo.h4" GutterBottom="true">Welcome Back!</MudText>
-                    <MudText Align="Align.Center">To keep connected with us please login with your personal info.</MudText>
-                </MudItem>
-                <MudItem xs="12" md="7">
-                    <div class="pa-8">
-                        <EditForm Model="Input" OnValidSubmit="LoginUser" FormName="login">
-                            <DataAnnotationsValidator />
-                            <MudStack Spacing="3">
-                                <div class="d-flex justify-center mb-4">
-                                    <img src="https://www.cmetals.com/wp-content/uploads/2023/01/New-Cascadia-Metals-Logo-2022.png" alt="Cascadia Metals Logo" style="max-height: 50px;" />
-                                </div>
-                                <MudText Typo="Typo.h5" GutterBottom="true">Login</MudText>
-                                <StatusMessage Message="@errorMessage" />
+    <StatusMessage Message="@errorMessage" />
 
-                                <MudTextField @bind-Value="Input.Email"
-                                              For="@(() => Input.Email)"
-                                              Label="Email"
-                                              Variant="Variant.Outlined"
-                                              InputType="InputType.Email"
-                                              UserAttributes="@(new() { { "autocomplete", "username" } })" />
+    <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+        <DataAnnotationsValidator />
+        <div class="form-floating mb-3">
+            <input @bind="Input.Email" type="email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
+            <label for="email" class="form-label">Email</label>
+            <ValidationMessage For="() => Input.Email" class="text-danger" />
+        </div>
+        <div class="form-floating mb-3">
+            <input @bind="Input.Password" type="password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="password" />
+            <label for="password" class="form-label">Password</label>
+            <ValidationMessage For="() => Input.Password" class="text-danger" />
+        </div>
+        <div class="form-check mb-3">
+            <input @bind="Input.RememberMe" type="checkbox" class="form-check-input" />
+            <label class="form-check-label" for="remember-me">Remember me</label>
+        </div>
+        <div>
+            <button type="submit" class="w-100 btn btn-lg btn-primary">Log in</button>
+        </div>
+    </EditForm>
+</div>
 
-                                <MudTextField @bind-Value="Input.Password"
-                                              For="@(() => Input.Password)"
-                                              Label="Password"
-                                              Variant="Variant.Outlined"
-                                              InputType="@(isPasswordVisible ? InputType.Text : InputType.Password)"
-                                              Adornment="Adornment.End"
-                                              AdornmentIcon="@(isPasswordVisible ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
-                                              OnAdornmentClick="() => isPasswordVisible = !isPasswordVisible"
-                                              UserAttributes="@(new() { { "autocomplete", "current-password" } })" />
-
-                                <MudCheckBox @bind-Value="Input.RememberMe" For="@(() => Input.RememberMe)" Label="Remember me?" Color="Color.Primary"></MudCheckBox>
-
-                                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true">Log In</MudButton>
-                            </MudStack>
-                        </EditForm>
-                    </div>
-                </MudItem>
-            </MudGrid>
-        </MudPaper>
-    </MudItem>
-</MudGrid>
 
 @code {
     private string? errorMessage;
-    private bool isPasswordVisible;
 
-    [CascadingParameter]
-    private HttpContext HttpContext { get; set; } = default!;
-
-    private InputModel? Input { get; set; }
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
 
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        Input ??= new();
-        if (HttpContext is not null && HttpMethods.IsGet(HttpContext.Request.Method))
-        {
-            // Clear the existing external cookie to ensure a clean login process
-            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-        }
+        // Clear the existing external cookie to ensure a clean login process
+        await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
     }
 
     public async Task LoginUser()
     {
-        var user = await UserManager.FindByEmailAsync(Input.Email);
-        if (user is null)
-        {
-            errorMessage = "Error: Invalid login attempt.";
-            return;
-        }
-
-        var result = await SignInManager.PasswordSignInAsync(user, Input.Password, Input.RememberMe, lockoutOnFailure: false);
-
+        // This doesn't count login failures towards account lockout
+        // To enable password failures to trigger account lockout, set lockoutOnFailure: true
+        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
         if (result.Succeeded)
         {
             Logger.LogInformation("User logged in.");
