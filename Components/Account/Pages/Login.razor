@@ -50,19 +50,15 @@
                                               For="@(() => Input.Password)"
                                               Label="Password"
                                               Variant="Variant.Outlined"
-                                              InputType="InputType.Password"
+                                              InputType="@(isPasswordVisible ? InputType.Text : InputType.Password)"
+                                              Adornment="Adornment.End"
+                                              AdornmentIcon="@(isPasswordVisible ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                              OnAdornmentClick="() => isPasswordVisible = !isPasswordVisible"
                                               UserAttributes="@(new() { { "autocomplete", "current-password" } })" />
 
-                                <div class="d-flex justify-space-between align-center">
-                                    <MudCheckBox @bind-Value="Input.RememberMe" For="@(() => Input.RememberMe)" Label="Remember me?" Color="Color.Primary"></MudCheckBox>
-                                    <MudLink Href="Account/ForgotPassword">Forgot password?</MudLink>
-                                </div>
+                                <MudCheckBox @bind-Value="Input.RememberMe" For="@(() => Input.RememberMe)" Label="Remember me?" Color="Color.Primary"></MudCheckBox>
 
                                 <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true">Log In</MudButton>
-
-                                <div class="d-flex justify-center mt-4">
-                                     <MudLink Href="Account/Register">Don't have an account? Sign Up</MudLink>
-                                </div>
                             </MudStack>
                         </EditForm>
                     </div>
@@ -74,20 +70,23 @@
 
 @code {
     private string? errorMessage;
+    private bool isPasswordVisible;
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
 
     [SupplyParameterFromForm]
-    private InputModel Input { get; set; } = new();
+    private InputModel? Input { get; set; }
 
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
+        Input ??= new();
         if (HttpMethods.IsGet(HttpContext.Request.Method))
         {
+            // Clear the existing external cookie to ensure a clean login process
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
         }
     }
