@@ -101,17 +101,11 @@ namespace CMetalsWS.Services
         {
             var workingHours = GetBranchWorkingHours(workOrder.BranchId);
 
-            var otherWorkOrdersOnSameDay = await _db.WorkOrders
-                .Where(wo => wo.BranchId == workOrder.BranchId &&
-                             wo.MachineId == workOrder.MachineId &&
-                             wo.DueDate.Date == workOrder.DueDate.Date &&
-                             wo.ScheduledStartDate.HasValue)
-                .OrderByDescending(wo => wo.ScheduledEndDate)
-                .ToListAsync();
-
-            var lastScheduledEnd = otherWorkOrdersOnSameDay
-                .Select(wo => wo.ScheduledEndDate)
-                .FirstOrDefault();
+            // Find the latest end time for any existing work order on the same machine and day.
+            var lastScheduledEnd = await _db.WorkOrders
+                .Where(wo => wo.MachineId == workOrder.MachineId &&
+                             wo.DueDate.Date == workOrder.DueDate.Date)
+                .MaxAsync(wo => (DateTime?)wo.ScheduledEndDate); // Use nullable for MaxAsync to handle empty sets
 
             DateTime nextStartTime;
 

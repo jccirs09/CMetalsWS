@@ -41,6 +41,7 @@
     private class ScheduleEvent : CalendarItem
     {
         public WorkOrder WorkOrder { get; init; } = default!;
+        public Color Color { get; set; }
     }
 
     private List<Machine> _machines = new();
@@ -73,8 +74,8 @@
         _events = workOrders.Select(wo => new ScheduleEvent
         {
             WorkOrder = wo,
-            Start = wo.ScheduledStartDate.Value, // All WOs are now scheduled
-            End = wo.ScheduledEndDate.Value,
+            Start = wo.ScheduledStartDate, // All WOs are now scheduled
+            End = wo.ScheduledEndDate,
             Text = wo.WorkOrderNumber,
             Color = Color.Primary
         }).ToList();
@@ -111,7 +112,7 @@
         if (item is ScheduleEvent scheduleEvent)
         {
             var workOrder = scheduleEvent.WorkOrder;
-            var duration = workOrder.ScheduledEndDate.Value - workOrder.ScheduledStartDate.Value;
+            var duration = workOrder.ScheduledEndDate - workOrder.ScheduledStartDate;
             workOrder.ScheduledStartDate = newDate;
             workOrder.ScheduledEndDate = newDate.Add(duration);
             await WorkOrderService.ScheduleAsync(workOrder.Id, workOrder.ScheduledStartDate, workOrder.ScheduledEndDate);
