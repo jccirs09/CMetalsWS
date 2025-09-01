@@ -7,8 +7,8 @@
     <ChildContent>
         <MudItem xs="12" sm="9">
             <MudCalendar T="DummyItem" MonthCellMinHeight="120">
-                <CellTemplate Context="cell">
-                    <MudDropZone T="DummyItem" Identifier="@cell.Date.ToString("yyyy-MM-dd")" Class="d-flex flex-column flex-grow-1" Style="height: 100%;" />
+                <CellTemplate>
+                    <MudDropZone T="DummyItem" Identifier="@context.ToString("yyyy-MM-dd")" Class="d-flex flex-column flex-grow-1" Style="height: 100%;" />
                 </CellTemplate>
             </MudCalendar>
         </MudItem>
@@ -34,12 +34,9 @@
 
     private void ItemDropped(MudItemDropInfo<DummyItem> dropItem)
     {
-        if (dropItem.Item is not null)
-        {
-            dropItem.Item.Zone = dropItem.DropzoneIdentifier;
-            Console.WriteLine($"Item '{dropItem.Item.Name}' dropped in zone '{dropItem.DropzoneIdentifier}'");
-            StateHasChanged();
-        }
+        dropItem.Item.Zone = dropItem.DropzoneIdentifier;
+        Console.WriteLine($"Item '{dropItem.Item.Name}' dropped in zone '{dropItem.DropzoneIdentifier}'");
+        StateHasChanged();
     }
 
     public class DummyItem : CalendarItem
