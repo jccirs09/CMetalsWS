@@ -33,17 +33,17 @@
                 <MudCalendar T="SchedItem" Items="_items" MonthCellMinHeight="120"
                              StartTime="new TimeSpan(5, 0, 0)" EndTime="new TimeSpan(23, 0, 0)"
                              CellClicked="OnCellClicked">
-                    <ItemTemplate>
+                    <ItemTemplate Context="item">
                         <MudPaper Elevation="2" Class="pa-2 ma-1">
-                            <MudText>@context.Item.WorkOrder.WorkOrderNumber</MudText>
-                            <MudText Typo="Typo.caption">@context.Item.WorkOrder.TagNumber</MudText>
+                            <MudText>@item.WorkOrder.WorkOrderNumber</MudText>
+                            <MudText Typo="Typo.caption">@item.WorkOrder.TagNumber</MudText>
                         </MudPaper>
                     </ItemTemplate>
                 </MudCalendar>
             </MudItem>
             <MudItem xs="12" sm="3">
                 <MudText Typo="Typo.h6">Unscheduled CTL Work Orders</MudText>
-                <MudList Clickable="true" @bind-SelectedItem="_selectedWorkOrder">
+                <MudList T="WorkOrder" Clickable="true" @bind-SelectedItem="_selectedWorkOrder">
                     @foreach (var wo in _unscheduled)
                     {
                         <MudListItem Value="wo">
