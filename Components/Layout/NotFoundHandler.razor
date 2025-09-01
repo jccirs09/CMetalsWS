@@ -13,12 +13,12 @@
         if (user.Identity is not null && user.Identity.IsAuthenticated)
         {
             // User is logged in, redirect to home page
-            NavigationManager.NavigateTo("/", forceLoad: true);
+            NavigationManager.NavigateTo("/");
         }
         else
         {
             // User is not logged in, redirect to login page
-            NavigationManager.NavigateTo("/Account/Login", forceLoad: true);
+            NavigationManager.NavigateTo("/Account/Login");
         }
     }
 }
