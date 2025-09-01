@@ -17,6 +17,9 @@ namespace CMetalsWS.Data
         public string? Country { get; set; }
         public string? PostalCode { get; set; }
 
+        public TimeOnly? StartTime { get; set; }
+        public TimeOnly? EndTime { get; set; }
+
         // Navigation collections
         public ICollection<ApplicationUser> Users { get; set; } = new List<ApplicationUser>();
         public ICollection<Machine> Machines { get; set; } = new List<Machine>();

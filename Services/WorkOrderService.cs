@@ -90,34 +90,29 @@ namespace CMetalsWS.Services
             await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
         }
 
-        private (TimeOnly Start, TimeOnly End) GetBranchWorkingHours(int branchId)
-        {
-            // Per user instruction, hard-coded for now.
-            // This would ideally come from the Branch entity in the database.
-            return (new TimeOnly(5, 0), new TimeOnly(23, 59)); // 5 AM to 11:59 PM
-        }
-
         private async Task AutoScheduleWorkOrder(WorkOrder workOrder)
         {
-            var workingHours = GetBranchWorkingHours(workOrder.BranchId);
+            // Fetch the branch to get its specific working hours
+            var branch = await _db.Branches.FindAsync(workOrder.BranchId);
+            var workingHoursStart = branch?.StartTime ?? new TimeOnly(5, 0); // Default to 5 AM if not set
 
-            // Find the latest end time for any existing work order on the same machine and day.
+            // Find the latest end time for any existing work order on the same machine and day
             var lastScheduledEnd = await _db.WorkOrders
                 .Where(wo => wo.MachineId == workOrder.MachineId &&
                              wo.DueDate.Date == workOrder.DueDate.Date)
-                .MaxAsync(wo => (DateTime?)wo.ScheduledEndDate); // Use nullable for MaxAsync to handle empty sets
+                .MaxAsync(wo => (DateTime?)wo.ScheduledEndDate); // Use nullable for MaxAsync
 
             DateTime nextStartTime;
 
             if (lastScheduledEnd.HasValue)
             {
-                // Start after the last one ends
+                // Start immediately after the last work order finishes
                 nextStartTime = lastScheduledEnd.Value;
             }
             else
             {
-                // Or start at the beginning of the working day
-                nextStartTime = workOrder.DueDate.Date + workingHours.Start.ToTimeSpan();
+                // Or, if no orders for that day, start at the beginning of the working day
+                nextStartTime = workOrder.DueDate.Date + workingHoursStart.ToTimeSpan();
             }
 
             workOrder.ScheduledStartDate = nextStartTime;
