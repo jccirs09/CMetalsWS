@@ -56,7 +56,7 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public int WorkOrderId { get; set; }
 
     private WorkOrder? _workOrder;

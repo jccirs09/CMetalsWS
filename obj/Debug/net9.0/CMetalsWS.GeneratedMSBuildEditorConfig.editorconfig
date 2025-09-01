@@ -307,6 +307,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTY2hlZHVsZVxDdGxTY2hlZHVsZS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Schedule/Dialogs/WorkOrderDetailsDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTY2hlZHVsZVxEaWFsb2dzXFdvcmtPcmRlckRldGFpbHNEaWFsb2cucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/jccir/Documents/repos/CMetalsWS/Components/Pages/Schedule/LogisticsSchedule.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTY2hlZHVsZVxMb2dpc3RpY3NTY2hlZHVsZS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
