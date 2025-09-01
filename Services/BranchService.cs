@@ -40,9 +40,17 @@ namespace CMetalsWS.Services
 
         public async Task DeleteBranchAsync(int id)
         {
-            var entity = await _context.Branches.FindAsync(id);
+            var entity = await _context.Branches
+                .Include(b => b.Users)
+                .FirstOrDefaultAsync(b => b.Id == id);
+
             if (entity != null)
             {
+                if (entity.Users.Any())
+                {
+                    throw new InvalidOperationException("This branch cannot be deleted because it is associated with one or more users. Please reassign the users to a different branch before deleting.");
+                }
+
                 _context.Branches.Remove(entity);
                 await _context.SaveChangesAsync();
             }

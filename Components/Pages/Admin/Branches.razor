@@ -104,8 +104,15 @@
             yesText: "Delete", cancelText: "Cancel");
         if (confirm == true)
         {
-            await BranchService.DeleteBranchAsync(branch.Id);
-            branches = await BranchService.GetBranchesAsync();
+            try
+            {
+                await BranchService.DeleteBranchAsync(branch.Id);
+                branches = await BranchService.GetBranchesAsync();
+            }
+            catch (InvalidOperationException ex)
+            {
+                await DialogService.ShowMessageBox("Delete Error", ex.Message);
+            }
         }
     }
 }
