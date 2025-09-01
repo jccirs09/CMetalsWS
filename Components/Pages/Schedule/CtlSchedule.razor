@@ -27,15 +27,20 @@
             </MudSelect>
         </MudStack>
 
-        <MudDropContainer T="WorkOrder" Items="_all" ItemDropped="HandleItemDropped" ItemsSelector="@((item,dropzone) => GetWorkOrderSelector(item) == dropzone)" Class="d-flex flex-grow-1">
+        <MudDropContainer T="WorkOrder" Items="_unscheduled" ItemDropped="HandleItemDropped" ItemsSelector="@((item,dropzone) => item.ScheduledStartDate == null)" Class="d-flex flex-grow-1">
             <ChildContent>
                 <MudItem xs="12" sm="9">
-                    <MudCalendar T="object" MonthCellMinHeight="120"
-                                 StartTime="new TimeSpan(5, 0, 0)"
-                                 EndTime="new TimeSpan(23, 0, 0)">
+                    <MudCalendar T="SchedItem" Items="_items" MonthCellMinHeight="120"
+                                 StartTime="new TimeSpan(5, 0, 0)" EndTime="new TimeSpan(23, 0, 0)">
                         <CellTemplate>
                             <MudDropZone T="WorkOrder" Identifier="@context.Date.ToString("yyyy-MM-dd")" Class="d-flex flex-column flex-grow-1" Style="height: 100%;" />
                         </CellTemplate>
+                        <ItemTemplate>
+                            <MudPaper Elevation="2" Class="pa-2 ma-1">
+                                <MudText>@context.Item.WorkOrder.WorkOrderNumber</MudText>
+                                <MudText Typo="Typo.caption">@context.Item.WorkOrder.TagNumber</MudText>
+                            </MudPaper>
+                        </ItemTemplate>
                     </MudCalendar>
                 </MudItem>
                 <MudItem xs="12" sm="3">
@@ -54,8 +59,15 @@
 </MudPaper>
 
 @code {
+    private sealed class SchedItem : CalendarItem
+    {
+        public WorkOrder WorkOrder { get; init; } = default!;
+    }
+
     private List<Machine> _machines = new();
     private List<WorkOrder> _all = new();
+    private List<WorkOrder> _unscheduled = new();
+    private List<SchedItem> _items = new();
 
     private int _selectedMachineId;
     private HubConnection? _hub;
@@ -95,11 +107,15 @@
         _all = (await WorkOrderService.GetByCategoryAsync(MachineCategory.CTL, branchId))
             .Where(w => _selectedMachineId == 0 || w.MachineId == _selectedMachineId)
             .ToList();
-    }
 
-    private string GetWorkOrderSelector(WorkOrder wo)
-    {
-        return wo.ScheduledStartDate?.ToString("yyyy-MM-dd") ?? "unscheduled";
+        _unscheduled = _all.Where(w => w.ScheduledStartDate == null).ToList();
+        _items = _all.Where(w => w.ScheduledStartDate != null)
+            .Select(w => new SchedItem
+            {
+                Start = w.ScheduledStartDate.Value,
+                End = w.ScheduledEndDate,
+                WorkOrder = w
+            }).ToList();
     }
 
     private async Task HandleItemDropped(MudItemDropInfo<WorkOrder> dropItem)
@@ -119,6 +135,7 @@
             await WorkOrderService.ScheduleAsync(item.Id, item.ScheduledStartDate.Value, item.ScheduledEndDate);
         }
 
+        await LoadWorkOrders(null);
         StateHasChanged();
 
         if (_hub is not null)
