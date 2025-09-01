@@ -6,9 +6,9 @@
 <MudDropContainer T="DummyItem" Items="_items" ItemsSelector="@((item,zone) => item.Zone == zone)" ItemDropped="ItemDropped" Class="d-flex flex-grow-1">
     <ChildContent>
         <MudItem xs="12" sm="9">
-            <MudCalendar T="CalendarItem" MonthCellMinHeight="120">
-                <CellTemplate>
-                    <MudDropZone T="DummyItem" Identifier="@context.Date.ToString("yyyy-MM-dd")" Class="d-flex flex-column flex-grow-1" Style="height: 100%;" />
+            <MudCalendar T="DummyItem" MonthCellMinHeight="120">
+                <CellTemplate Context="cell">
+                    <MudDropZone T="DummyItem" Identifier="@cell.Date.ToString("yyyy-MM-dd")" Class="d-flex flex-column flex-grow-1" Style="height: 100%;" />
                 </CellTemplate>
             </MudCalendar>
         </MudItem>
