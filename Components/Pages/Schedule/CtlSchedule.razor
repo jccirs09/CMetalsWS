@@ -33,11 +33,11 @@
                 <MudCalendar T="SchedItem" Items="_items" MonthCellMinHeight="120"
                              StartTime="new TimeSpan(5, 0, 0)" EndTime="new TimeSpan(23, 0, 0)"
                              CellClicked="OnCellClicked">
-                    <ItemTemplate Context="item">
-                        <MudPaper Elevation="2" Class="pa-2 ma-1">
-                            <MudText>@item.WorkOrder.WorkOrderNumber</MudText>
-                            <MudText Typo="Typo.caption">@item.WorkOrder.TagNumber</MudText>
-                        </MudPaper>
+                    <ItemTemplate>
+                        <div style="width:100%; height:100%; border-left: 4px solid var(--mud-palette-primary);">
+                            <MudText>@context.WorkOrder.WorkOrderNumber</MudText>
+                            <MudText Typo="Typo.caption">@context.WorkOrder.TagNumber</MudText>
+                        </div>
                     </ItemTemplate>
                 </MudCalendar>
             </MudItem>
