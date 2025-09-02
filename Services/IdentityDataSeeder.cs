@@ -33,58 +33,78 @@ namespace CMetalsWS.Services
             await SeedBranchesAsync();
 
             // Create roles
-            string[] roles = { "Admin", "Planner", "Supervisor", "Manager", "Operator", "Driver", "BasicUser" };
+            string[] roles = { "Admin", "Planner", "Supervisor", "Manager", "Operator", "Driver", "Viewer" };
             foreach (var r in roles)
             {
                 if (!await _roleManager.RoleExistsAsync(r))
-                    await _roleManager.CreateAsync(new ApplicationRole { Name = r });
+                    await _roleManager.CreateAsync(new ApplicationRole { Name = r, Description = $"{r} role" });
             }
 
             // Permission maps
             var all = Permissions.All().ToList();
 
-            var manager = new[]
+            var plannerPermissions = new[]
+            {
+                Permissions.PickingLists.View, Permissions.PickingLists.Add, Permissions.PickingLists.Assign, Permissions.PickingLists.ManageLoads,
+                Permissions.WorkOrders.View, Permissions.WorkOrders.Add, Permissions.WorkOrders.Schedule,
+                Permissions.Trucks.View,
+                Permissions.Machines.View,
+                Permissions.Branches.View,
+                Permissions.Dashboards.View
+            };
+
+            var supervisorPermissions = plannerPermissions.Concat(new[]
+            {
+                Permissions.WorkOrders.Approve,
+                Permissions.PickingLists.Dispatch
+            }).Distinct().ToArray();
+
+            var managerPermissions = supervisorPermissions.Concat(new[]
             {
                 Permissions.Users.View,
                 Permissions.Roles.View,
-                Permissions.Branches.View, Permissions.Branches.Add, Permissions.Branches.Edit,
-                Permissions.Machines.View, Permissions.Machines.Add, Permissions.Machines.Edit,
-                Permissions.Trucks.View, Permissions.Trucks.Add, Permissions.Trucks.Edit,
-                Permissions.WorkOrders.View, Permissions.WorkOrders.Add, Permissions.WorkOrders.Edit,
-                Permissions.PickingLists.View, Permissions.PickingLists.Add, Permissions.PickingLists.Edit
+                Permissions.Branches.Edit,
+                Permissions.Machines.Edit,
+                Permissions.Trucks.Edit,
+                Permissions.PickingLists.Delete,
+                Permissions.WorkOrders.Delete,
+                Permissions.Reports.View,
+                Permissions.Reports.Export
+            }).Distinct().ToArray();
+
+            var operatorPermissions = new[]
+            {
+                Permissions.PickingLists.View,
+                Permissions.WorkOrders.View, Permissions.WorkOrders.Process
             };
 
-            var planner = new[]
+            var driverPermissions = new[]
             {
-                Permissions.WorkOrders.View, Permissions.WorkOrders.Add, Permissions.WorkOrders.Edit,
-                Permissions.PickingLists.View, Permissions.PickingLists.Add, Permissions.PickingLists.Edit
+                Permissions.PickingLists.View, Permissions.PickingLists.Dispatch
             };
 
-            var supervisor = new[]
+            var viewerPermissions = new[]
             {
-                Permissions.WorkOrders.View, Permissions.WorkOrders.Edit,
-                Permissions.PickingLists.View, Permissions.PickingLists.Edit
-            };
-
-            var oper = new[]
-            {
+                Permissions.Dashboards.View,
+                Permissions.Reports.View,
+                Permissions.Users.View,
+                Permissions.Roles.View,
+                Permissions.Branches.View,
+                Permissions.Machines.View,
+                Permissions.Trucks.View,
                 Permissions.WorkOrders.View,
-                Permissions.PickingLists.View
-            };
-
-            var driver = new[]
-            {
                 Permissions.PickingLists.View
             };
 
             var map = new Dictionary<string, IEnumerable<string>>
             {
                 ["Admin"] = all,
-                ["Manager"] = manager,
-                ["Planner"] = planner,
-                ["Supervisor"] = supervisor,
-                ["Operator"] = oper,
-                ["Driver"] = driver
+                ["Manager"] = managerPermissions,
+                ["Supervisor"] = supervisorPermissions,
+                ["Planner"] = plannerPermissions,
+                ["Operator"] = operatorPermissions,
+                ["Driver"] = driverPermissions,
+                ["Viewer"] = viewerPermissions
             };
 
             // Apply permission claims to each role

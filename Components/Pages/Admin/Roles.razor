@@ -1,15 +1,23 @@
-﻿@page "/roles"
+﻿@page "/admin/roles"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using CMetalsWS.Security
+@using Microsoft.AspNetCore.Authorization
 @using MudBlazor
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Policy = Permissions.Roles.View)]
 
 @inject RoleService RoleService
 @inject IDialogService DialogService
 
 <MudPaper Class="p-4">
-    <MudText Typo="Typo.h5">Roles</MudText>
-    <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRole">Add Role</MudButton>
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h5">Roles</MudText>
+        <AuthorizeView Policy="@Permissions.Roles.Add">
+            <Authorized>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRole">Add Role</MudButton>
+            </Authorized>
+        </AuthorizeView>
+    </MudStack>
     <MudTable Items="roles" Hover="true">
         <HeaderContent>
             <MudTh>Name</MudTh>
@@ -20,8 +28,16 @@
             <MudTd DataLabel="Name">@context.Name</MudTd>
             <MudTd DataLabel="Description">@context.Description</MudTd>
             <MudTd DataLabel="Actions">
-                <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditRole(context))"></MudIconButton>
-                <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteRole(context))"></MudIconButton>
+                <AuthorizeView Policy="@Permissions.Roles.Edit">
+                    <Authorized>
+                        <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditRole(context))"></MudIconButton>
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Policy="@Permissions.Roles.Delete">
+                    <Authorized>
+                        <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteRole(context))"></MudIconButton>
+                    </Authorized>
+                </AuthorizeView>
             </MudTd>
         </RowTemplate>
     </MudTable>

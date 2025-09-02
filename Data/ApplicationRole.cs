@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CMetalsWS.Data
 {
@@ -8,5 +9,7 @@ namespace CMetalsWS.Data
     public class ApplicationRole : IdentityRole
     {
         public string? Description { get; set; }
+        [NotMapped]
+        public List<string> Permissions { get; set; } = new();
     }
 }

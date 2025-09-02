@@ -2,6 +2,7 @@
 
 namespace CMetalsWS.Security
 {
+    // Defines all permissions for the application
     public static class Permissions
     {
         public const string ClaimType = "permission";
@@ -52,6 +53,9 @@ namespace CMetalsWS.Security
             public const string Add = "WorkOrders.Add";
             public const string Edit = "WorkOrders.Edit";
             public const string Delete = "WorkOrders.Delete";
+            public const string Schedule = "WorkOrders.Schedule";
+            public const string Process = "WorkOrders.Process";
+            public const string Approve = "WorkOrders.Approve";
         }
 
         public static class PickingLists
@@ -60,6 +64,20 @@ namespace CMetalsWS.Security
             public const string Add = "PickingLists.Add";
             public const string Edit = "PickingLists.Edit";
             public const string Delete = "PickingLists.Delete";
+            public const string Assign = "PickingLists.Assign";
+            public const string Dispatch = "PickingLists.Dispatch";
+            public const string ManageLoads = "PickingLists.ManageLoads";
+        }
+
+        public static class Dashboards
+        {
+            public const string View = "Dashboards.View";
+        }
+
+        public static class Reports
+        {
+            public const string View = "Reports.View";
+            public const string Export = "Reports.Export";
         }
 
         public static IEnumerable<string> All()
@@ -70,7 +88,11 @@ namespace CMetalsWS.Security
             yield return Machines.View; yield return Machines.Add; yield return Machines.Edit; yield return Machines.Delete;
             yield return Trucks.View; yield return Trucks.Add; yield return Trucks.Edit; yield return Trucks.Delete;
             yield return WorkOrders.View; yield return WorkOrders.Add; yield return WorkOrders.Edit; yield return WorkOrders.Delete;
+            yield return WorkOrders.Schedule; yield return WorkOrders.Process; yield return WorkOrders.Approve;
             yield return PickingLists.View; yield return PickingLists.Add; yield return PickingLists.Edit; yield return PickingLists.Delete;
+            yield return PickingLists.Assign; yield return PickingLists.Dispatch; yield return PickingLists.ManageLoads;
+            yield return Dashboards.View;
+            yield return Reports.View; yield return Reports.Export;
         }
     }
 }
