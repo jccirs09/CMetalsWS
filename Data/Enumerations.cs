@@ -23,6 +23,8 @@
         Completed,
         Canceled,
         WorkOrder,
-        Awaiting
+        Awaiting,
+        Shortage,
+        Damaged
     }
 }

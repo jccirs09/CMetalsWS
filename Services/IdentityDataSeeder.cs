@@ -122,7 +122,10 @@ namespace CMetalsWS.Services
                 foreach (var perm in kv.Value.Distinct())
                 {
                     if (!existingPerms.Contains(perm))
+                    {
                         await _roleManager.AddClaimAsync(role, new Claim(Permissions.ClaimType, perm));
+                        _logger.LogInformation("Added permission {Permission} to role {Role}", perm, role.Name);
+                    }
                 }
             }
 
