@@ -22,14 +22,23 @@
                     <MudText><b>Tag Number:</b> @_workOrder.TagNumber</MudText>
                 </MudItem>
                 <MudItem xs="12" sm="6">
+                    <MudText><b>Location:</b> @_parentItem?.Location</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
                     <MudText><b>Due Date:</b> @_workOrder.DueDate.ToString("yyyy-MM-dd")</MudText>
                 </MudItem>
+                    <MudItem xs="12">
+                        <MudText><b>Instructions:</b> @_workOrder.Instructions</MudText>
+                    </MudItem>
 
                 @foreach(var item in _workOrder.Items)
                 {
                     <MudItem xs="12"><MudDivider /></MudItem>
+                    <MudItem xs="12">
+                        <MudText><b>Description:</b> @item.Description</MudText>
+                    </MudItem>
                     <MudItem xs="12" sm="6">
-                        <MudText><b>Sales Order:</b> @item.SalesOrderNumber</MudText>
+                        <MudText><b>Sales Order:</b> @(item.PickingListItem?.PickingList?.SalesOrderNumber ?? item.SalesOrderNumber)</MudText>
                     </MudItem>
                     <MudItem xs="12" sm="6">
                         <MudText><b>Customer:</b> @item.CustomerName</MudText>
@@ -40,8 +49,14 @@
                     <MudItem xs="12" sm="4">
                         <MudText><b>Width:</b> @item.Width</MudText>
                     </MudItem>
+                    @if (_workOrder.MachineCategory == MachineCategory.CTL)
+                    {
+                        <MudItem xs="12" sm="4">
+                            <MudText><b>Length:</b> @item.Length</MudText>
+                        </MudItem>
+                    }
                     <MudItem xs="12" sm="4">
-                        <MudText><b>Length:</b> @item.Length</MudText>
+                        <MudText><b>Weight:</b> @item.OrderWeight</MudText>
                     </MudItem>
                 }
             </MudGrid>
@@ -62,9 +77,14 @@
     private WorkOrder? _workOrder;
     private bool _canProcess;
 
+    private InventoryItem? _parentItem;
     protected override async Task OnInitializedAsync()
     {
         _workOrder = await WorkOrderService.GetByIdAsync(WorkOrderId);
+        if (_workOrder is not null)
+        {
+            _parentItem = await WorkOrderService.GetParentItemAsync(_workOrder.TagNumber);
+        }
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         _canProcess = authState.User.IsInRole("Operator");
     }

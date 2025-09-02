@@ -16,13 +16,15 @@ namespace CMetalsWS.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHubContext<ScheduleHub> _hubContext;
         private readonly PickingListService _pickingListService;
+        private readonly InventoryService _inventoryService;
 
-        public WorkOrderService(IDbContextFactory<ApplicationDbContext> dbContextFactory, UserManager<ApplicationUser> userManager, IHubContext<ScheduleHub> hubContext, PickingListService pickingListService)
+        public WorkOrderService(IDbContextFactory<ApplicationDbContext> dbContextFactory, UserManager<ApplicationUser> userManager, IHubContext<ScheduleHub> hubContext, PickingListService pickingListService, InventoryService inventoryService)
         {
             _dbContextFactory = dbContextFactory;
             _userManager = userManager;
             _hubContext = hubContext;
             _pickingListService = pickingListService;
+            _inventoryService = inventoryService;
         }
 
         public async Task<List<WorkOrder>> GetAsync(int? branchId = null)
@@ -64,6 +66,8 @@ namespace CMetalsWS.Services
             using var db = _dbContextFactory.CreateDbContext();
             return await db.WorkOrders
                 .Include(w => w.Items)
+                    .ThenInclude(i => i.PickingListItem)
+                        .ThenInclude(pli => pli.PickingList)
                 .Include(w => w.Machine)
                 .FirstOrDefaultAsync(w => w.Id == id);
         }
@@ -301,6 +305,11 @@ namespace CMetalsWS.Services
 
             await db.SaveChangesAsync();
             await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+        }
+
+        public async Task<InventoryItem?> GetParentItemAsync(string tagNumber)
+        {
+            return await _inventoryService.GetByTagNumberAsync(tagNumber);
         }
     }
 }
