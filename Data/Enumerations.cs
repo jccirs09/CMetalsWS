@@ -25,4 +25,18 @@
         WorkOrder,
         Awaiting
     }
+
+    public enum TaskType
+    {
+        WorkOrder,
+        Pulling
+    }
+
+    public enum AuditEventType
+    {
+        Start,
+        Pause,
+        Resume,
+        Complete
+    }
 }

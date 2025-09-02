@@ -25,6 +25,7 @@ namespace CMetalsWS.Data
         public DbSet<TruckRoute> TruckRoutes => Set<TruckRoute>();
         public DbSet<Customer> Customers => Set<Customer>();
         public DbSet<TruckRouteStop> TruckRouteStops => Set<TruckRouteStop>();
+        public DbSet<TaskAuditEvent> TaskAuditEvents => Set<TaskAuditEvent>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -187,6 +188,13 @@ namespace CMetalsWS.Data
             modelBuilder.Entity<WorkOrderItem>().Property(w => w.ProducedQuantity).HasPrecision(18, 3);
             modelBuilder.Entity<WorkOrderItem>().Property(w => w.ProducedWeight).HasPrecision(18, 3);
             modelBuilder.Entity<WorkOrderItem>().Property(w => w.Width).HasPrecision(18, 3);
+
+            // TaskAuditEvent
+            modelBuilder.Entity<TaskAuditEvent>()
+                .HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

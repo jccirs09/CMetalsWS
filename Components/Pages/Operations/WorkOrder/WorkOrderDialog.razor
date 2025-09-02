@@ -8,6 +8,7 @@
 @inject ItemRelationshipService RelService
 @inject PickingListService PlService
 @inject WorkOrderService WorkOrderService
+@inject TaskAuditEventService AuditService
 
 <MudDialog Title="@Title">
     <DialogContent>
@@ -27,6 +28,9 @@
                                 <MudSelectItem T="int?" Value="m.Id">@m.Name (@m.Category)</MudSelectItem>
                             }
                         </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudTextField Label="Shift" @bind-Value="Model.Shift" Margin="Margin.Dense" IsReadOnly="@IsProcessing" />
                     </MudItem>
                 </MudGrid>
 
@@ -180,7 +184,19 @@
         <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
         @if (IsProcessing)
         {
-            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="MarkComplete">Mark as Complete</MudButton>
+            @if (_lastAuditEvent == null)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => HandleAuditEvent(AuditEventType.Start))" StartIcon="@Icons.Material.Filled.PlayArrow">Start</MudButton>
+            }
+            else if (_lastAuditEvent == AuditEventType.Start || _lastAuditEvent == AuditEventType.Resume)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@(() => HandleAuditEvent(AuditEventType.Pause))" StartIcon="@Icons.Material.Filled.Pause">Pause</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => HandleAuditEvent(AuditEventType.Complete))" StartIcon="@Icons.Material.Filled.Done">Complete</MudButton>
+            }
+            else if (_lastAuditEvent == AuditEventType.Pause)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => HandleAuditEvent(AuditEventType.Resume))" StartIcon="@Icons.Material.Filled.PlayArrow">Resume</MudButton>
+            }
         }
         else
         {
@@ -204,6 +220,7 @@
     private InventoryItem? _parentItem;
     private List<InventoryItem> _childItems = new();
     private bool _isMachineSelected;
+    private AuditEventType? _lastAuditEvent;
 
     private int? MachineId
     {
@@ -236,6 +253,11 @@
         if (IsEdit || IsProcessing)
         {
             await SearchByTag();
+        }
+
+        if (IsProcessing && Model.Id > 0)
+        {
+            _lastAuditEvent = await AuditService.GetLastEventTypeForTaskAsync(Model.Id, TaskType.WorkOrder);
         }
     }
 
@@ -453,12 +475,36 @@
         Model.Items.Remove(item);
     }
 
+    private async Task HandleAuditEvent(AuditEventType eventType)
+    {
+        var user = (await AuthState).User;
+        var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            Snackbar.Add("Could not identify user. Action aborted.", Severity.Error);
+            return;
+        }
+
+        await AuditService.CreateAuditEventAsync(Model.Id, TaskType.WorkOrder, eventType, userId);
+        _lastAuditEvent = eventType;
+        Snackbar.Add($"Task successfully {eventType.ToString().ToLower()}ed.", Severity.Success);
+
+        if (eventType == AuditEventType.Complete)
+        {
+            await MarkComplete();
+        }
+        else
+        {
+            StateHasChanged();
+        }
+    }
+
     private async Task MarkComplete()
     {
         var user = (await AuthState).User;
         var updatedBy = user.Identity?.Name ?? "Unknown";
         await WorkOrderService.MarkWorkOrderCompleteAsync(Model, updatedBy);
-        Snackbar.Add("Work Order marked as complete.", Severity.Success);
         MudDialog.Close(DialogResult.Ok(Model));
     }
 

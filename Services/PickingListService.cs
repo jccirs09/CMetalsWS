@@ -121,6 +121,8 @@ namespace CMetalsWS.Services
                         tgt.Weight = item.Weight;
                         tgt.MachineId = item.MachineId;
                         tgt.Status = item.Status;
+                        tgt.PulledQuantity = item.PulledQuantity;
+                        tgt.PulledWeight = item.PulledWeight;
                     }
                 }
             }
@@ -225,6 +227,34 @@ namespace CMetalsWS.Services
             }
 
             return await query.ToListAsync();
+        }
+
+        public async Task<List<PickingListItem>> GetPullingTasksAsync(int? branchId = null)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var query = db.PickingListItems
+                .Include(i => i.PickingList)
+                .Where(i => i.Status == PickingLineStatus.AssignedPulling)
+                .AsNoTracking();
+
+            if (branchId.HasValue)
+            {
+                query = query.Where(i => i.PickingList.BranchId == branchId.Value);
+            }
+
+            return await query.OrderBy(i => i.PickingList.ShipDate).ToListAsync();
+        }
+
+        public async Task UpdatePulledQuantitiesAsync(int itemId, decimal? pulledQuantity, decimal? pulledWeight)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.PulledQuantity = pulledQuantity;
+            item.PulledWeight = pulledWeight;
+
+            await db.SaveChangesAsync();
         }
     }
 

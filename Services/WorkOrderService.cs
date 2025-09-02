@@ -198,8 +198,10 @@ namespace CMetalsWS.Services
                 .FirstOrDefaultAsync(w => w.Id == id);
             if (workOrder is null) return;
 
+            var originalDuration = workOrder.ScheduledEndDate - workOrder.ScheduledStartDate;
             workOrder.ScheduledStartDate = start;
-            workOrder.ScheduledEndDate = end ?? start;
+            workOrder.ScheduledEndDate = end ?? (start + originalDuration);
+
             if (workOrder.Status == WorkOrderStatus.Draft)
                 workOrder.Status = WorkOrderStatus.Pending;
 

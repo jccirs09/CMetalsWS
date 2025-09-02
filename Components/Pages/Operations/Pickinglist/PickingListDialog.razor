@@ -149,7 +149,16 @@
                                 <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@inherit.ToString("yyyy-MM-dd HH:mm")</MudChip>
                             }
                         </MudTd>
-                        <MudTd DataLabel="Machine">@Machines.FirstOrDefault(m => m.Id == context.MachineId)?.Name</MudTd>
+                        <MudTd DataLabel="Machine">
+                            <MudSelect T="int?" @bind-Value="context.MachineId" Dense="true" Margin="Margin.Dense"
+                                       TValue="int?" ValueChanged="@((int? machineId) => OnMachineChanged(context, machineId))">
+                                <MudSelectItem T="int?" Value="@((int?)null)">None</MudSelectItem>
+                                @foreach (var m in Machines)
+                                {
+                                    <MudSelectItem T="int?" Value="@m.Id">@m.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudTd>
                         @if (CanAddOrEdit)
                         {
                             <MudTd DataLabel="Actions">
@@ -369,4 +378,22 @@
     }
 
     private void Cancel() => Dialog.Cancel();
+
+    private void OnMachineChanged(PickingListItem item, int? machineId)
+    {
+        item.MachineId = machineId;
+        if (machineId.HasValue)
+        {
+            item.Status = PickingLineStatus.AssignedPulling;
+        }
+        else
+        {
+            // Revert status if machine is unassigned
+            if (item.Status == PickingLineStatus.AssignedPulling)
+            {
+                item.Status = PickingLineStatus.Pending;
+            }
+        }
+        StateHasChanged();
+    }
 }

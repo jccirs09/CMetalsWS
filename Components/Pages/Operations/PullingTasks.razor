@@ -1,0 +1,120 @@
+@page "/pulling-tasks"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@inject PickingListService PickingListService
+@inject TaskAuditEventService AuditService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IDialogService DialogService
+
+<MudText Typo="Typo.h5" Class="mb-4">Pulling Tasks</MudText>
+
+<MudTable Items="_tasks" Hover="true">
+    <HeaderContent>
+        <MudTh>SO #</MudTh>
+        <MudTh>Item Code</MudTh>
+        <MudTh>Description</MudTh>
+        <MudTh>Qty</MudTh>
+        <MudTh>Weight</MudTh>
+        <MudTh>Location</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="SO #">@context.PickingList?.SalesOrderNumber</MudTd>
+        <MudTd DataLabel="Item Code">@context.ItemId</MudTd>
+        <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
+        <MudTd DataLabel="Qty">@context.Quantity</MudTd>
+        <MudTd DataLabel="Weight">@context.Weight</MudTd>
+        <MudTd DataLabel="Location">@context.Location</MudTd>
+        <MudTd DataLabel="Actions">
+            @if (!_auditEvents.ContainsKey(context.Id) || _auditEvents[context.Id] == null)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => HandleAuditEvent(context.Id, AuditEventType.Start))">Start</MudButton>
+            }
+            else if (_auditEvents[context.Id] == AuditEventType.Start || _auditEvents[context.Id] == AuditEventType.Resume)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small" OnClick="@(() => HandleAuditEvent(context.Id, AuditEventType.Pause))">Pause</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="@(() => ProcessTask(context))">Process</MudButton>
+            }
+            else if (_auditEvents[context.Id] == AuditEventType.Pause)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => HandleAuditEvent(context.Id, AuditEventType.Resume))">Resume</MudButton>
+            }
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No pulling tasks found.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private List<PickingListItem> _tasks = new();
+    private Dictionary<int, AuditEventType?> _auditEvents = new();
+    private string? _userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        await LoadTasks();
+    }
+
+    private async Task LoadTasks()
+    {
+        _tasks = await PickingListService.GetPullingTasksAsync();
+        if (_tasks.Any())
+        {
+            var taskIds = _tasks.Select(t => t.Id).ToList();
+            var lastEvents = await AuditService.GetLastEventTypesForTasksAsync(taskIds, TaskType.Pulling);
+
+            // The result from the service only contains tasks that HAVE events.
+            // We need to reconstruct the dictionary to include tasks that have NO events yet.
+            _auditEvents = _tasks.ToDictionary(
+                t => t.Id,
+                t => lastEvents.TryGetValue(t.Id, out var eventType) ? (AuditEventType?)eventType : null
+            );
+        }
+        else
+        {
+            _auditEvents.Clear();
+        }
+        StateHasChanged();
+    }
+
+    private async Task ProcessTask(PickingListItem item)
+    {
+        var parameters = new DialogParameters { ["Item"] = item };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<Dialogs.PullingTaskDetailDialog>("Process Task", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is (decimal? pulledQuantity, decimal? pulledWeight))
+        {
+            await PickingListService.UpdatePulledQuantitiesAsync(item.Id, pulledQuantity, pulledWeight);
+            await HandleAuditEvent(item.Id, AuditEventType.Complete, false); // Log completion
+            await PickingListService.SetLineStatusAsync(item.Id, PickingLineStatus.Completed);
+            await LoadTasks(); // Refresh the list
+        }
+    }
+
+    private async Task HandleAuditEvent(int taskId, AuditEventType eventType, bool stateHasChanged = true)
+    {
+        if (string.IsNullOrEmpty(_userId))
+        {
+            Snackbar.Add("Could not identify user. Action aborted.", Severity.Error);
+            return;
+        }
+
+        await AuditService.CreateAuditEventAsync(taskId, TaskType.Pulling, eventType, _userId);
+        _auditEvents[taskId] = eventType;
+        Snackbar.Add($"Task successfully {eventType.ToString().ToLower()}ed.", Severity.Success);
+
+        if (stateHasChanged)
+        {
+            StateHasChanged();
+        }
+    }
+}
