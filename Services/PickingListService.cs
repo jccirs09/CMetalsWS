@@ -15,11 +15,6 @@ namespace CMetalsWS.Services
             _dbContextFactory = dbContextFactory;
         }
 
-        // Constructor for use in services that don't have DI for the factory
-        public PickingListService(ApplicationDbContext db)
-        {
-            _dbContextFactory = new DesignTimeDbContextFactory(db);
-        }
 
         public async Task<List<PickingList>> GetAsync(int? branchId = null)
         {
@@ -233,14 +228,4 @@ namespace CMetalsWS.Services
         }
     }
 
-    // A helper class to allow creating a factory from an existing context, for use in places where DI is not available.
-    public class DesignTimeDbContextFactory : IDbContextFactory<ApplicationDbContext>
-    {
-        private readonly ApplicationDbContext _dbContext;
-        public DesignTimeDbContextFactory(ApplicationDbContext dbContext)
-        {
-            _dbContext = dbContext;
-        }
-        public ApplicationDbContext CreateDbContext() => _dbContext;
-    }
 }

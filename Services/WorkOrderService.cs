@@ -15,12 +15,14 @@ namespace CMetalsWS.Services
         private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHubContext<ScheduleHub> _hubContext;
+        private readonly PickingListService _pickingListService;
 
-        public WorkOrderService(IDbContextFactory<ApplicationDbContext> dbContextFactory, UserManager<ApplicationUser> userManager, IHubContext<ScheduleHub> hubContext)
+        public WorkOrderService(IDbContextFactory<ApplicationDbContext> dbContextFactory, UserManager<ApplicationUser> userManager, IHubContext<ScheduleHub> hubContext, PickingListService pickingListService)
         {
             _dbContextFactory = dbContextFactory;
             _userManager = userManager;
             _hubContext = hubContext;
+            _pickingListService = pickingListService;
         }
 
         public async Task<List<WorkOrder>> GetAsync(int? branchId = null)
@@ -207,9 +209,8 @@ namespace CMetalsWS.Services
             foreach (var li in plis)
                 li.Status = PickingLineStatus.WorkOrder;
 
-            var pickingService = new PickingListService(db);
             foreach (var grpId in plis.Select(p => p.PickingListId).Distinct())
-                await pickingService.UpdatePickingListStatusAsync(grpId);
+                await _pickingListService.UpdatePickingListStatusAsync(grpId);
 
             await db.SaveChangesAsync();
             await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
@@ -288,9 +289,8 @@ namespace CMetalsWS.Services
                     }
                 }
 
-                var pickingService = new PickingListService(db);
                 foreach (var grpId in plis.Select(p => p.PickingListId).Distinct())
-                    await pickingService.UpdatePickingListStatusAsync(grpId);
+                    await _pickingListService.UpdatePickingListStatusAsync(grpId);
             }
 
             await db.SaveChangesAsync();

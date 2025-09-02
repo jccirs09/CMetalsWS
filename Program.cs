@@ -35,10 +35,9 @@ builder.Services.AddAuthentication(options =>
 // EF Core
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
 ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
+builder.Services.AddScoped(p => p.GetRequiredService<IDbContextFactory<ApplicationDbContext>>().CreateDbContext());
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 // IdentityCore with Roles
