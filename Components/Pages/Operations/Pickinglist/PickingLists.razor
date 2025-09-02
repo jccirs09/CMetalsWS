@@ -1,11 +1,11 @@
-﻿@page "/picking-lists"
+﻿@page "/operations/pickinglists"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using CMetalsWS.Security
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
 @using MudBlazor
-@attribute [Authorize(Policy = CMetalsWS.Security.Permissions.PickingLists.View)]
+@attribute [Authorize(Policy = Permissions.PickingLists.View)]
 
 @inject PickingListService PickingListService
 @inject BranchService BranchService

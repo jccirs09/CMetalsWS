@@ -3,7 +3,8 @@
 @using CMetalsWS.Services
 @using CMetalsWS.Security
 @using MudBlazor
-@attribute [Authorize(Policy = CMetalsWS.Security.Permissions.Users.View)]
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = Permissions.Users.View)]
 
 @inject UserService UserService
 @inject BranchService BranchService

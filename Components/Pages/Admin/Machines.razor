@@ -3,7 +3,8 @@
 @using CMetalsWS.Services
 @using CMetalsWS.Security
 @using MudBlazor
-@attribute [Authorize(Policy = CMetalsWS.Security.Permissions.Machines.View)]
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = Permissions.Machines.View)]
 
 @inject MachineService MachineService
 @inject BranchService BranchService
