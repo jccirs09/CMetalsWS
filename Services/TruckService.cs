@@ -1,20 +1,21 @@
-﻿using CMetalsWS.Data;
+using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace CMetalsWS.Services
 {
     public class TruckService
     {
-        private readonly ApplicationDbContext _db;
+        private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
 
-        public TruckService(ApplicationDbContext db)
+        public TruckService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
         {
-            _db = db;
+            _dbContextFactory = dbContextFactory;
         }
 
         public async Task<List<Truck>> GetTrucksAsync(int? branchId = null)
         {
-            IQueryable<Truck> query = _db.Trucks
+            using var db = _dbContextFactory.CreateDbContext();
+            IQueryable<Truck> query = db.Trucks
                 .Include(t => t.Branch)
                 .Include(t => t.Driver)
                 .AsNoTracking();
@@ -28,7 +29,8 @@ namespace CMetalsWS.Services
         // Use AsNoTracking when fetching for edit to avoid tracking conflicts in the UI
         public async Task<Truck?> GetByIdAsync(int id)
         {
-            return await _db.Trucks
+            using var db = _dbContextFactory.CreateDbContext();
+            return await db.Trucks
                 .Include(t => t.Branch)
                 .Include(t => t.Driver)
                 .AsNoTracking()
@@ -37,14 +39,16 @@ namespace CMetalsWS.Services
 
         public async Task CreateAsync(Truck model)
         {
-            _db.Trucks.Add(model);
-            await _db.SaveChangesAsync();
+            using var db = _dbContextFactory.CreateDbContext();
+            db.Trucks.Add(model);
+            await db.SaveChangesAsync();
         }
 
         public async Task UpdateAsync(Truck model)
         {
+            using var db = _dbContextFactory.CreateDbContext();
             // Load the tracked entity, copy over fields, then save.
-            var existing = await _db.Trucks.FirstOrDefaultAsync(t => t.Id == model.Id);
+            var existing = await db.Trucks.FirstOrDefaultAsync(t => t.Id == model.Id);
             if (existing is null) return;
 
             existing.Name = model.Name;
@@ -56,16 +60,17 @@ namespace CMetalsWS.Services
             existing.BranchId = model.BranchId;
             existing.DriverId = model.DriverId;
 
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(int id)
         {
-            var entity = await _db.Trucks.FindAsync(id);
+            using var db = _dbContextFactory.CreateDbContext();
+            var entity = await db.Trucks.FindAsync(id);
             if (entity != null)
             {
-                _db.Trucks.Remove(entity);
-                await _db.SaveChangesAsync();
+                db.Trucks.Remove(entity);
+                await db.SaveChangesAsync();
             }
         }
     }

@@ -1,4 +1,4 @@
-﻿using CMetalsWS.Data;
+using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,13 +8,23 @@ namespace CMetalsWS.Services
 {
     public class PickingListService
     {
-        private readonly ApplicationDbContext _db;
+        private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
 
-        public PickingListService(ApplicationDbContext db) => _db = db;
+        public PickingListService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
+        {
+            _dbContextFactory = dbContextFactory;
+        }
+
+        // Constructor for use in services that don't have DI for the factory
+        public PickingListService(ApplicationDbContext db)
+        {
+            _dbContextFactory = new DesignTimeDbContextFactory(db);
+        }
 
         public async Task<List<PickingList>> GetAsync(int? branchId = null)
         {
-            var query = _db.PickingLists
+            using var db = _dbContextFactory.CreateDbContext();
+            var query = db.PickingLists
                 .Include(p => p.Branch)
                 .Include(p => p.Truck)
                 .Include(p => p.Customer)
@@ -29,7 +39,8 @@ namespace CMetalsWS.Services
 
         public async Task<PickingList?> GetByIdAsync(int id)
         {
-            return await _db.PickingLists
+            using var db = _dbContextFactory.CreateDbContext();
+            return await db.PickingLists
                 .Include(p => p.Customer)
                 .Include(p => p.Items).ThenInclude(i => i.Machine)
                 .Include(p => p.Truck)
@@ -39,13 +50,14 @@ namespace CMetalsWS.Services
 
         public async Task CreateAsync(PickingList model)
         {
+            using var db = _dbContextFactory.CreateDbContext();
             model.Status = PickingListStatus.Pending;
             foreach (var item in model.Items)
                 item.Status = item.Status == 0 ? PickingLineStatus.Pending : item.Status;
 
             if (model.CustomerId.HasValue && string.IsNullOrWhiteSpace(model.ShipToAddress))
             {
-                var cust = await _db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == model.CustomerId.Value);
+                var cust = await db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == model.CustomerId.Value);
                 if (cust != null)
                 {
                     model.CustomerName ??= cust.CustomerName;
@@ -53,13 +65,14 @@ namespace CMetalsWS.Services
                 }
             }
 
-            _db.PickingLists.Add(model);
-            await _db.SaveChangesAsync();
+            db.PickingLists.Add(model);
+            await db.SaveChangesAsync();
         }
 
         public async Task UpdateAsync(PickingList model)
         {
-            var existing = await _db.PickingLists
+            using var db = _dbContextFactory.CreateDbContext();
+            var existing = await db.PickingLists
                 .Include(p => p.Items)
                 .FirstOrDefaultAsync(p => p.Id == model.Id);
             if (existing is null) return;
@@ -78,7 +91,7 @@ namespace CMetalsWS.Services
             var incomingIds = model.Items.Select(i => i.Id).ToHashSet();
             var toDelete = existing.Items.Where(i => !incomingIds.Contains(i.Id)).ToList();
             if (toDelete.Count > 0)
-                _db.PickingListItems.RemoveRange(toDelete);
+                db.PickingListItems.RemoveRange(toDelete);
             var existingItems = existing.Items.ToDictionary(i => i.Id);
 
             foreach (var item in model.Items)
@@ -117,22 +130,24 @@ namespace CMetalsWS.Services
                 }
             }
 
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(int id)
         {
-            var entity = await _db.PickingLists.FindAsync(id);
+            using var db = _dbContextFactory.CreateDbContext();
+            var entity = await db.PickingLists.FindAsync(id);
             if (entity != null)
             {
-                _db.PickingLists.Remove(entity);
-                await _db.SaveChangesAsync();
+                db.PickingLists.Remove(entity);
+                await db.SaveChangesAsync();
             }
         }
 
         public async Task UpdatePickingListStatusAsync(int id)
         {
-            var list = await _db.PickingLists
+            using var db = _dbContextFactory.CreateDbContext();
+            var list = await db.PickingLists
                 .Include(p => p.Items)
                 .FirstOrDefaultAsync(p => p.Id == id);
             if (list is null) return;
@@ -148,36 +163,40 @@ namespace CMetalsWS.Services
             else
                 list.Status = PickingListStatus.Pending;
 
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
 
         public async Task SetLineStatusAsync(int itemId, PickingLineStatus status)
         {
-            var item = await _db.PickingListItems.FindAsync(itemId);
+            using var db = _dbContextFactory.CreateDbContext();
+            var item = await db.PickingListItems.FindAsync(itemId);
             if (item == null) return;
             item.Status = status;
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
             await UpdatePickingListStatusAsync(item.PickingListId);
         }
         public async Task ScheduleListAsync(int pickingListId, DateTime shipStart)
         {
-            var pl = await _db.PickingLists.Include(p => p.Items).FirstOrDefaultAsync(p => p.Id == pickingListId);
+            using var db = _dbContextFactory.CreateDbContext();
+            var pl = await db.PickingLists.Include(p => p.Items).FirstOrDefaultAsync(p => p.Id == pickingListId);
             if (pl is null) return;
             pl.ShipDate = shipStart;
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
 
         public async Task ScheduleLineAsync(int pickingListId, int lineId, DateTime shipStart)
         {
-            var line = await _db.PickingListItems.FirstOrDefaultAsync(i => i.Id == lineId && i.PickingListId == pickingListId);
+            using var db = _dbContextFactory.CreateDbContext();
+            var line = await db.PickingListItems.FirstOrDefaultAsync(i => i.Id == lineId && i.PickingListId == pickingListId);
             if (line is null) return;
             line.ScheduledShipDate = shipStart;
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
 
         public async Task<List<PickingListItem>> GetPendingItemsByItemIdsAsync(List<string> itemIds)
         {
-            return await _db.PickingListItems
+            using var db = _dbContextFactory.CreateDbContext();
+            return await db.PickingListItems
                 .Include(i => i.PickingList!)
                 .ThenInclude(pl => pl.Customer)
                 .Where(i => i.PickingList != null && (i.Status == PickingLineStatus.Pending || i.Status == PickingLineStatus.Awaiting) && itemIds.Contains(i.ItemId))
@@ -187,7 +206,8 @@ namespace CMetalsWS.Services
 
         public async Task<List<PickingListItem>> GetPendingItemsByParentItemIdAsync(string parentItemId)
         {
-            return await _db.PickingListItems
+            using var db = _dbContextFactory.CreateDbContext();
+            return await db.PickingListItems
                 .Include(i => i.PickingList!)
                 .ThenInclude(pl => pl.Customer)
                 .Where(i => i.PickingList != null && (i.Status == PickingLineStatus.Pending || i.Status == PickingLineStatus.Awaiting) && i.ItemId == parentItemId)
@@ -197,10 +217,11 @@ namespace CMetalsWS.Services
 
         public async Task<List<PickingList>> GetPendingPullingOrdersAsync(int? branchId = null)
         {
-            var query = _db.PickingLists
+            using var db = _dbContextFactory.CreateDbContext();
+            var query = db.PickingLists
                 .Include(p => p.Items)
                 .Where(p => p.Status == PickingListStatus.Pending &&
-                            !p.Items.Any(i => _db.WorkOrderItems.Any(wi => wi.PickingListItemId == i.Id)))
+                            !p.Items.Any(i => db.WorkOrderItems.Any(wi => wi.PickingListItemId == i.Id)))
                 .AsNoTracking();
 
             if (branchId.HasValue)
@@ -210,5 +231,16 @@ namespace CMetalsWS.Services
 
             return await query.ToListAsync();
         }
+    }
+
+    // A helper class to allow creating a factory from an existing context, for use in places where DI is not available.
+    public class DesignTimeDbContextFactory : IDbContextFactory<ApplicationDbContext>
+    {
+        private readonly ApplicationDbContext _dbContext;
+        public DesignTimeDbContextFactory(ApplicationDbContext dbContext)
+        {
+            _dbContext = dbContext;
+        }
+        public ApplicationDbContext CreateDbContext() => _dbContext;
     }
 }

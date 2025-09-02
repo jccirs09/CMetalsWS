@@ -1,4 +1,3 @@
-﻿// Services/BranchService.cs
 using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,42 +8,47 @@ namespace CMetalsWS.Services
     /// </summary>
     public class BranchService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
 
-        public BranchService(ApplicationDbContext context)
+        public BranchService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
         {
-            _context = context;
+            _dbContextFactory = dbContextFactory;
         }
 
         public async Task<List<Branch>> GetBranchesAsync()
         {
-            return await _context.Branches.AsNoTracking().ToListAsync();
+            using var db = _dbContextFactory.CreateDbContext();
+            return await db.Branches.AsNoTracking().ToListAsync();
         }
 
         public async Task<Branch?> GetBranchByIdAsync(int id)
         {
-            return await _context.Branches.FindAsync(id);
+            using var db = _dbContextFactory.CreateDbContext();
+            return await db.Branches.FindAsync(id);
         }
 
         public async Task AddBranchAsync(Branch branch)
         {
-            _context.Branches.Add(branch);
-            await _context.SaveChangesAsync();
+            using var db = _dbContextFactory.CreateDbContext();
+            db.Branches.Add(branch);
+            await db.SaveChangesAsync();
         }
 
         public async Task UpdateBranchAsync(Branch branch)
         {
-            _context.Branches.Update(branch);
-            await _context.SaveChangesAsync();
+            using var db = _dbContextFactory.CreateDbContext();
+            db.Branches.Update(branch);
+            await db.SaveChangesAsync();
         }
 
         public async Task DeleteBranchAsync(int id)
         {
-            var entity = await _context.Branches.FindAsync(id);
+            using var db = _dbContextFactory.CreateDbContext();
+            var entity = await db.Branches.FindAsync(id);
             if (entity != null)
             {
-                _context.Branches.Remove(entity);
-                await _context.SaveChangesAsync();
+                db.Branches.Remove(entity);
+                await db.SaveChangesAsync();
             }
         }
     }

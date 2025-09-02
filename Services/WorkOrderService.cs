@@ -12,20 +12,21 @@ namespace CMetalsWS.Services
 {
     public class WorkOrderService
     {
-        private readonly ApplicationDbContext _db;
+        private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHubContext<ScheduleHub> _hubContext;
 
-        public WorkOrderService(ApplicationDbContext db, UserManager<ApplicationUser> userManager, IHubContext<ScheduleHub> hubContext)
+        public WorkOrderService(IDbContextFactory<ApplicationDbContext> dbContextFactory, UserManager<ApplicationUser> userManager, IHubContext<ScheduleHub> hubContext)
         {
-            _db = db;
+            _dbContextFactory = dbContextFactory;
             _userManager = userManager;
             _hubContext = hubContext;
         }
 
         public async Task<List<WorkOrder>> GetAsync(int? branchId = null)
         {
-            IQueryable<WorkOrder> query = _db.WorkOrders
+            using var db = _dbContextFactory.CreateDbContext();
+            IQueryable<WorkOrder> query = db.WorkOrders
                 .Include(w => w.Items)
                 .Include(w => w.Machine)
                 .Include(w => w.Branch)
@@ -41,7 +42,8 @@ namespace CMetalsWS.Services
 
         public async Task<List<WorkOrder>> GetByCategoryAsync(MachineCategory category, int? branchId = null)
         {
-            IQueryable<WorkOrder> query = _db.WorkOrders
+            using var db = _dbContextFactory.CreateDbContext();
+            IQueryable<WorkOrder> query = db.WorkOrders
                 .Include(w => w.Items)
                 .Include(w => w.Machine)
                 .Where(w => w.MachineCategory == category)
@@ -57,7 +59,8 @@ namespace CMetalsWS.Services
 
         public async Task<WorkOrder?> GetByIdAsync(int id)
         {
-            return await _db.WorkOrders
+            using var db = _dbContextFactory.CreateDbContext();
+            return await db.WorkOrders
                 .Include(w => w.Items)
                 .Include(w => w.Machine)
                 .FirstOrDefaultAsync(w => w.Id == id);
@@ -65,6 +68,7 @@ namespace CMetalsWS.Services
 
         public async Task CreateAsync(WorkOrder workOrder, string userId)
         {
+            using var db = _dbContextFactory.CreateDbContext();
             var user = await _userManager.FindByIdAsync(userId)
                 ?? throw new InvalidOperationException("User not found.");
             if (!user.BranchId.HasValue)
@@ -83,26 +87,26 @@ namespace CMetalsWS.Services
                 workOrder.Status = WorkOrderStatus.Draft;
 
             // Auto-scheduling logic
-            await AutoScheduleWorkOrder(workOrder);
+            await AutoScheduleWorkOrder(db, workOrder);
 
-            _db.WorkOrders.Add(workOrder);
-            await _db.SaveChangesAsync();
+            db.WorkOrders.Add(workOrder);
+            await db.SaveChangesAsync();
             await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
         }
 
-        private (TimeOnly Start, TimeOnly End) GetBranchWorkingHours(int branchId)
+        private (TimeOnly Start, TimeOnly End) GetBranchWorkingHours(ApplicationDbContext db, int branchId)
         {
             // Per user instruction, hard-coded for now.
             // This would ideally come from the Branch entity in the database.
             return (new TimeOnly(5, 0), new TimeOnly(23, 59)); // 5 AM to 11:59 PM
         }
 
-        private async Task AutoScheduleWorkOrder(WorkOrder workOrder)
+        private async Task AutoScheduleWorkOrder(ApplicationDbContext db, WorkOrder workOrder)
         {
-            var workingHours = GetBranchWorkingHours(workOrder.BranchId);
+            var workingHours = GetBranchWorkingHours(db, workOrder.BranchId);
 
             // Find the latest end time for any existing work order on the same machine and day.
-            var lastScheduledEnd = await _db.WorkOrders
+            var lastScheduledEnd = await db.WorkOrders
                 .Where(wo => wo.MachineId == workOrder.MachineId &&
                              wo.DueDate.Date == workOrder.DueDate.Date)
                 .MaxAsync(wo => (DateTime?)wo.ScheduledEndDate); // Use nullable for MaxAsync to handle empty sets
@@ -129,7 +133,8 @@ namespace CMetalsWS.Services
 
         public async Task UpdateAsync(WorkOrder workOrder, string updatedBy)
         {
-            var existing = await _db.WorkOrders
+            using var db = _dbContextFactory.CreateDbContext();
+            var existing = await db.WorkOrders
                 .Include(w => w.Items)
                 .FirstOrDefaultAsync(w => w.Id == workOrder.Id);
 
@@ -146,7 +151,7 @@ namespace CMetalsWS.Services
 
             var incomingItemIds = workOrder.Items.Select(i => i.Id).ToHashSet();
             var itemsToRemove = existing.Items.Where(i => !incomingItemIds.Contains(i.Id)).ToList();
-            _db.WorkOrderItems.RemoveRange(itemsToRemove);
+            db.WorkOrderItems.RemoveRange(itemsToRemove);
 
             foreach (var item in workOrder.Items)
             {
@@ -173,13 +178,14 @@ namespace CMetalsWS.Services
                 }
             }
 
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
             await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
         }
 
         public async Task ScheduleAsync(int id, DateTime start, DateTime? end)
         {
-            var workOrder = await _db.WorkOrders
+            using var db = _dbContextFactory.CreateDbContext();
+            var workOrder = await db.WorkOrders
                 .Include(w => w.Items)
                 .FirstOrDefaultAsync(w => w.Id == id);
             if (workOrder is null) return;
@@ -195,31 +201,33 @@ namespace CMetalsWS.Services
                 .Where(i => i.PickingListItemId != null)
                 .Select(i => i.PickingListItemId!.Value)
                 .ToList();
-            var plis = await _db.PickingListItems
+            var plis = await db.PickingListItems
                 .Where(p => lineIds.Contains(p.Id))
                 .ToListAsync();
             foreach (var li in plis)
                 li.Status = PickingLineStatus.WorkOrder;
 
-            var pickingService = new PickingListService(_db);
+            var pickingService = new PickingListService(db);
             foreach (var grpId in plis.Select(p => p.PickingListId).Distinct())
                 await pickingService.UpdatePickingListStatusAsync(grpId);
 
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
             await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
         }
 
         private async Task<string> GenerateWorkOrderNumber(int branchId)
         {
-            var branch = await _db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == branchId);
+            using var db = _dbContextFactory.CreateDbContext();
+            var branch = await db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == branchId);
             var branchCode = branch?.Code ?? "00";
-            var next = await _db.WorkOrders.CountAsync(w => w.BranchId == branchId) + 1;
+            var next = await db.WorkOrders.CountAsync(w => w.BranchId == branchId) + 1;
             return $"W{branchCode}{next:0000000}";
         }
 
         public async Task MarkWorkOrderCompleteAsync(WorkOrder workOrder, string updatedBy)
         {
-            var existing = await _db.WorkOrders
+            using var db = _dbContextFactory.CreateDbContext();
+            var existing = await db.WorkOrders
                 .Include(w => w.Items)
                 .FirstOrDefaultAsync(w => w.Id == workOrder.Id);
 
@@ -240,7 +248,8 @@ namespace CMetalsWS.Services
 
         public async Task SetStatusAsync(int id, WorkOrderStatus status, string updatedBy)
         {
-            var workOrder = await _db.WorkOrders
+            using var db = _dbContextFactory.CreateDbContext();
+            var workOrder = await db.WorkOrders
                 .Include(w => w.Items)
                 .FirstOrDefaultAsync(w => w.Id == id);
 
@@ -257,7 +266,7 @@ namespace CMetalsWS.Services
 
             if (lineIds.Count > 0)
             {
-                var plis = await _db.PickingListItems
+                var plis = await db.PickingListItems
                     .Where(p => lineIds.Contains(p.Id))
                     .ToListAsync();
 
@@ -279,12 +288,12 @@ namespace CMetalsWS.Services
                     }
                 }
 
-                var pickingService = new PickingListService(_db);
+                var pickingService = new PickingListService(db);
                 foreach (var grpId in plis.Select(p => p.PickingListId).Distinct())
                     await pickingService.UpdatePickingListStatusAsync(grpId);
             }
 
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
             await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
         }
     }

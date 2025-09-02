@@ -1,4 +1,4 @@
-﻿using CMetalsWS.Data;
+using CMetalsWS.Data;
 using CMetalsWS.Services;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -10,26 +10,32 @@ namespace CMetalsWS.Services
 {
     public class CustomerService
     {
-        private readonly ApplicationDbContext _db;
-        public CustomerService(ApplicationDbContext db) => _db = db;
+        private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
+        public CustomerService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
+        {
+            _dbContextFactory = dbContextFactory;
+        }
 
         public async Task<Customer?> GetByIdAsync(int id)
         {
-            return await _db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
+            using var db = _dbContextFactory.CreateDbContext();
+            return await db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
         }
 
         public async Task<Customer?> GetByCodeAsync(string customerCode)
         {
+            using var db = _dbContextFactory.CreateDbContext();
             if (string.IsNullOrWhiteSpace(customerCode)) return null;
             var code = customerCode.Trim();
-            return await _db.Customers.AsNoTracking()
+            return await db.Customers.AsNoTracking()
                 .FirstOrDefaultAsync(c => c.CustomerCode == code);
         }
 
         public async Task<List<Customer>> SearchAsync(string term, int take = 20)
         {
+            using var db = _dbContextFactory.CreateDbContext();
             term = term?.Trim() ?? string.Empty;
-            IQueryable<Customer> q = _db.Customers.AsNoTracking().Where(c => c.IsActive);
+            IQueryable<Customer> q = db.Customers.AsNoTracking().Where(c => c.IsActive);
 
             if (!string.IsNullOrEmpty(term))
             {
@@ -47,7 +53,4 @@ namespace CMetalsWS.Services
                 .ToListAsync();
         }
     }
-
-
 }
-

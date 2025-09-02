@@ -1,20 +1,21 @@
-﻿using CMetalsWS.Data;
+using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace CMetalsWS.Services
 {
     public class MachineService
     {
-        private readonly ApplicationDbContext _db;
+        private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
 
-        public MachineService(ApplicationDbContext db)
+        public MachineService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
         {
-            _db = db;
+            _dbContextFactory = dbContextFactory;
         }
 
         public async Task<List<Machine>> GetMachinesAsync()
         {
-            return await _db.Machines
+            using var db = _dbContextFactory.CreateDbContext();
+            return await db.Machines
                 .Include(m => m.Branch)
                 .AsNoTracking()
                 .OrderBy(m => m.Name)
@@ -23,33 +24,37 @@ namespace CMetalsWS.Services
 
         public async Task<Machine?> GetByIdAsync(int id)
         {
-            return await _db.Machines.FindAsync(id);
+            using var db = _dbContextFactory.CreateDbContext();
+            return await db.Machines.FindAsync(id);
         }
 
         public async Task CreateAsync(Machine model)
         {
-            _db.Machines.Add(model);
-            await _db.SaveChangesAsync();
+            using var db = _dbContextFactory.CreateDbContext();
+            db.Machines.Add(model);
+            await db.SaveChangesAsync();
         }
 
         public async Task UpdateAsync(Machine model)
         {
-            var local = _db.Machines.Local.FirstOrDefault(x => x.Id == model.Id);
+            using var db = _dbContextFactory.CreateDbContext();
+            var local = db.Machines.Local.FirstOrDefault(x => x.Id == model.Id);
             if (local is not null)
-                _db.Entry(local).State = EntityState.Detached;
+                db.Entry(local).State = EntityState.Detached;
 
-            _db.Attach(model);
-            _db.Entry(model).State = EntityState.Modified;
-            await _db.SaveChangesAsync();
+            db.Attach(model);
+            db.Entry(model).State = EntityState.Modified;
+            await db.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(int id)
         {
-            var entity = await _db.Machines.FindAsync(id);
+            using var db = _dbContextFactory.CreateDbContext();
+            var entity = await db.Machines.FindAsync(id);
             if (entity != null)
             {
-                _db.Machines.Remove(entity);
-                await _db.SaveChangesAsync();
+                db.Machines.Remove(entity);
+                await db.SaveChangesAsync();
             }
         }
     }
