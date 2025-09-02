@@ -23,6 +23,7 @@
                  ItemClicked="OnItemClicked"
                  ItemChanged="OnItemChanged"
                  DayStartTime="_branchWorkHours.Start" EndTime="_branchWorkHours.End"
+                 DayTimeInterval="CalendarTimeInterval.Minutes15"
                  FirstDayOfWeek="_firstDayOfWeek" Height="1080">
         <ToolbarContent>
             <MudText Typo="Typo.h5">@Title</MudText>
@@ -60,7 +61,7 @@
     private List<ScheduleEvent> _events = new();
     private int _selectedMachineId;
     private HubConnection? _hub;
-    private (TimeSpan Start, TimeSpan End) _branchWorkHours;
+    private (TimeOnly Start, TimeOnly End) _branchWorkHours;
     private DayOfWeek _firstDayOfWeek = DayOfWeek.Monday;
 
     protected override async Task OnInitializedAsync()
@@ -72,7 +73,7 @@
 
         var branch = branches.FirstOrDefault();
         _branchWorkHours = branch is not null && branch.StartTime.HasValue && branch.EndTime.HasValue
-            ? (branch.StartTime.Value.ToTimeSpan(), branch.EndTime.Value.ToTimeSpan())
+            ? (branch.StartTime.Value, branch.EndTime.Value)
             : (new(5,0,0), new(23,0,0));
 
         _machines = (await MachineService.GetMachinesAsync())
