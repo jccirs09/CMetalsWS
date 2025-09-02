@@ -87,7 +87,6 @@ builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<LoadService>();
 builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddScoped<CustomerService>();
-builder.Services.AddScoped<TaskAuditEventService>();
 builder.Services.AddSignalR();
 
 var app = builder.Build();
