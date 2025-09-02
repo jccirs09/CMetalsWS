@@ -1,10 +1,7 @@
-﻿@page "/admin/branches"
+﻿@page "/branches"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using MudBlazor
-@using Microsoft.AspNetCore.Authorization
-@using CMetalsWS.Security
-@attribute [Authorize(Policy = Permissions.Branches.View)]
 
 @inject BranchService BranchService
 @inject IDialogService DialogService

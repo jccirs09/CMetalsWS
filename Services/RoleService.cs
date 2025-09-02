@@ -1,10 +1,5 @@
 ﻿using CMetalsWS.Data;
-using CMetalsWS.Security;
 using Microsoft.AspNetCore.Identity;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace CMetalsWS.Services
 {
@@ -20,27 +15,11 @@ namespace CMetalsWS.Services
         public List<ApplicationRole> GetRoles() => _roleManager.Roles.ToList();
 
         public async Task<ApplicationRole?> GetRoleByIdAsync(string id)
-        {
-            var role = await _roleManager.FindByIdAsync(id);
-            if (role != null)
-            {
-                var claims = await _roleManager.GetClaimsAsync(role);
-                role.Permissions = claims
-                    .Where(c => c.Type == Permissions.ClaimType)
-                    .Select(c => c.Value)
-                    .ToList();
-            }
-            return role;
-        }
+            => await _roleManager.FindByIdAsync(id);
 
         public async Task CreateRoleAsync(ApplicationRole role)
         {
-            var newRole = new ApplicationRole { Name = role.Name, Description = role.Description };
-            await _roleManager.CreateAsync(newRole);
-            foreach (var permission in role.Permissions)
-            {
-                await _roleManager.AddClaimAsync(newRole, new Claim(Permissions.ClaimType, permission));
-            }
+            await _roleManager.CreateAsync(role);
         }
 
         public async Task UpdateRoleAsync(ApplicationRole role)
@@ -51,19 +30,6 @@ namespace CMetalsWS.Services
                 existing.Name = role.Name;
                 existing.Description = role.Description;
                 await _roleManager.UpdateAsync(existing);
-
-                var claims = await _roleManager.GetClaimsAsync(existing);
-                var permissionClaims = claims.Where(c => c.Type == Permissions.ClaimType).ToList();
-
-                foreach (var claim in permissionClaims)
-                {
-                    await _roleManager.RemoveClaimAsync(existing, claim);
-                }
-
-                foreach (var permission in role.Permissions)
-                {
-                    await _roleManager.AddClaimAsync(existing, new Claim(Permissions.ClaimType, permission));
-                }
             }
         }
 

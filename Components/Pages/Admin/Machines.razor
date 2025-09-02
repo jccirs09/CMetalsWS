@@ -1,10 +1,9 @@
-﻿@page "/admin/machines"
+﻿@page "/machines"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using CMetalsWS.Security
 @using MudBlazor
-@using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Policy = Permissions.Machines.View)]
+@attribute [Authorize(Policy = CMetalsWS.Security.Permissions.Machines.View)]
 
 @inject MachineService MachineService
 @inject BranchService BranchService

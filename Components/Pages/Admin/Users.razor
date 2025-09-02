@@ -1,10 +1,9 @@
-﻿@page "/admin/users"
+﻿@page "/users"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using CMetalsWS.Security
 @using MudBlazor
-@using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Policy = Permissions.Users.View)]
+@attribute [Authorize(Policy = CMetalsWS.Security.Permissions.Users.View)]
 
 @inject UserService UserService
 @inject BranchService BranchService

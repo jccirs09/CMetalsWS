@@ -1,10 +1,8 @@
-﻿@page "/admin/roles"
+﻿@page "/roles"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
-@using CMetalsWS.Security
-@using Microsoft.AspNetCore.Authorization
 @using MudBlazor
-@attribute [Authorize(Policy = Permissions.Roles.View)]
+@attribute [Authorize(Roles = "Admin")]
 
 @inject RoleService RoleService
 @inject IDialogService DialogService

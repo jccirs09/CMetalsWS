@@ -1,10 +1,9 @@
-﻿@page "/admin/trucks"
+﻿@page "/trucks"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using CMetalsWS.Security
 @using MudBlazor
-@using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Policy = Permissions.Trucks.View)]
+@attribute [Authorize(Policy = CMetalsWS.Security.Permissions.Trucks.View)]
 
 @inject TruckService TruckService
 @inject BranchService BranchService

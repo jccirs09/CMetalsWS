@@ -54,10 +54,10 @@
             <MudTd>@(context.ScheduledEndDate.ToString("yyyy-MM-dd HH:mm"))</MudTd>
             <MudTd>
                 <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true">
-                    <AuthorizeView Policy="@Permissions.WorkOrders.Edit">
+                    <AuthorizeView Policy="@Permissions.WorkOrders.Edit" Context="auth">
                         <MudMenuItem OnClick="@(() => EditWorkOrderAsync(context))">Edit</MudMenuItem>
                     </AuthorizeView>
-                    <AuthorizeView Policy="@Permissions.WorkOrders.Process">
+                    <AuthorizeView Policy="@Permissions.WorkOrders.Process" Context="auth">
                         <MudMenuItem OnClick="@(() => ProcessWorkOrderAsync(context))">Process</MudMenuItem>
                     </AuthorizeView>
                 </MudMenu>

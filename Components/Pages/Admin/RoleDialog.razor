@@ -21,7 +21,7 @@
                             <MudExpansionPanel Text="@group.Key">
                                 @foreach (var permission in group)
                                 {
-                                    <MudCheckBox @bind-Checked="@_selectedPermissions[permission]" Label="@permission.Split('.').Last()" />
+                                    <MudCheckBox T="bool" @bind-Checked="@_selectedPermissions[permission]" Label="@permission.Split('.').Last()" />
                                 }
                             </MudExpansionPanel>
                         }
