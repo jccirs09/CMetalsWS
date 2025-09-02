@@ -6,6 +6,7 @@
 
 @inject RoleService RoleService
 @inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <MudPaper Class="p-4">
     <MudText Typo="Typo.h5">Roles</MudText>
@@ -30,9 +31,14 @@
 @code {
     private List<ApplicationRole> roles = new();
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        roles = RoleService.GetRoles();
+        await LoadRoles();
+    }
+
+    private async Task LoadRoles()
+    {
+        roles = await RoleService.GetRolesAsync();
     }
 
     private async Task AddRole()
@@ -50,18 +56,32 @@
             var result = await dialogRef.Result;
             if (result is not null && result.Data is ApplicationRole saved)
             {
-                await RoleService.CreateRoleAsync(saved);
-                roles = RoleService.GetRoles();
+                var identityResult = await RoleService.CreateRoleAsync(saved);
+                if (identityResult.Succeeded)
+                {
+                    Snackbar.Add("Role created successfully.", Severity.Success);
+                    await LoadRoles();
+                }
+                else
+                {
+                    Snackbar.Add(identityResult.Errors.FirstOrDefault()?.Description ?? "An error occurred creating the role.", Severity.Error);
+                }
             }
         }
     }
 
     private async Task EditRole(ApplicationRole role)
     {
-        var clone = new ApplicationRole { Id = role.Id, Name = role.Name, Description = role.Description };
+        var roleToEdit = await RoleService.GetRoleByIdAsync(role.Id);
+        if (roleToEdit == null)
+        {
+            Snackbar.Add("Role not found.", Severity.Error);
+            return;
+        }
+
         var parameters = new DialogParameters
         {
-            ["Model"] = clone,
+            ["Model"] = roleToEdit,
             ["IsEdit"] = true,
             ["Title"] = "Edit Role"
         };
@@ -72,9 +92,16 @@
             var result = await dialogRef.Result;
             if (result is not null && result.Data is ApplicationRole updated)
             {
-                updated.Id = role.Id;
-                await RoleService.UpdateRoleAsync(updated);
-                roles = RoleService.GetRoles();
+                var identityResult = await RoleService.UpdateRoleAsync(updated);
+                if (identityResult.Succeeded)
+                {
+                    Snackbar.Add("Role updated successfully.", Severity.Success);
+                    await LoadRoles();
+                }
+                else
+                {
+                    Snackbar.Add(identityResult.Errors.FirstOrDefault()?.Description ?? "An error occurred updating the role.", Severity.Error);
+                }
             }
         }
     }
@@ -85,7 +112,8 @@
         if (confirm == true)
         {
             await RoleService.DeleteRoleAsync(role.Id);
-            roles = RoleService.GetRoles();
+            Snackbar.Add("Role deleted.", Severity.Success);
+            await LoadRoles();
         }
     }
 }
