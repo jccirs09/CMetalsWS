@@ -143,6 +143,7 @@ namespace CMetalsWS.Services
             if (existing is null) return;
 
             existing.TagNumber = workOrder.TagNumber;
+            var dueDateChanged = existing.DueDate.Date != workOrder.DueDate.Date;
             existing.DueDate = workOrder.DueDate;
             existing.Instructions = workOrder.Instructions;
             existing.MachineId = workOrder.MachineId;
@@ -178,6 +179,11 @@ namespace CMetalsWS.Services
                     existingItem.Location = item.Location;
                     existingItem.PickingListItemId = item.PickingListItemId;
                 }
+            }
+
+            if (dueDateChanged)
+            {
+                await AutoScheduleWorkOrder(db, existing);
             }
 
             await db.SaveChangesAsync();

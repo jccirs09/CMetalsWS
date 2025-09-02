@@ -81,9 +81,12 @@
 
         _hub.On<int>("PickingListUpdated", async (id) =>
         {
-            await LoadPickingLists(branchId);
-            BuildCalendarItems();
-            StateHasChanged();
+            await InvokeAsync(async () =>
+            {
+                await LoadPickingLists(branchId);
+                BuildCalendarItems();
+                StateHasChanged();
+            });
         });
 
         await _hub.StartAsync();
