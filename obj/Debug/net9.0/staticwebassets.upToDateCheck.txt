@@ -1,2 +1,0 @@
-wwwroot\favicon.ico
-C:\Users\jccir\Documents\repos\CMetalsWS\wwwroot\favicon.ico

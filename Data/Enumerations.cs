@@ -1,6 +1,6 @@
 ﻿namespace CMetalsWS.Data
 {
-   
+
     public enum PickingListStatus
     {
         Pending,
@@ -39,4 +39,8 @@
         Resume,
         Complete
     }
+
 }
+
+
+

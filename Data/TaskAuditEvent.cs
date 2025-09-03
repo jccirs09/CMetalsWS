@@ -1,4 +1,6 @@
+
 using System;
+
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -28,4 +30,8 @@ namespace CMetalsWS.Data
 
         public string? Notes { get; set; }
     }
+
 }
+
+
+

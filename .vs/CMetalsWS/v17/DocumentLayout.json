@@ -1,50 +1,90 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\",
+  "WorkspaceRootPath": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\account\\pages\\login.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\account\\pages\\login.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\migrations\\20250901202459_addbranchworkinghours.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:migrations\\20250901202459_addbranchworkinghours.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\services\\identitydataseeder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\identitydataseeder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\admin\\branchdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\admin\\branchdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\data\\branch.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\branch.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\services\\workorderservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\workorderservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\schedule\\ctlschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\schedule\\ctlschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\data\\workorder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\data\\workorder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\workorder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\operations\\workorder\\workorders.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\data\\pickinglist.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\pickinglist.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\migrations\\applicationdbcontextmodelsnapshot.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:migrations\\applicationdbcontextmodelsnapshot.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\migrations\\20250902133851_addtaskauditevent.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:migrations\\20250902133851_addtaskauditevent.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\data\\applicationdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\applicationdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\pages\\operations\\pullingtasks.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\pullingtasks.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\pages\\operations\\pickinglist\\dialogs\\pullingtaskdetaildialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\pickinglist\\dialogs\\pullingtaskdetaildialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\pages\\operations\\pickinglist\\pickinglistdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\pickinglist\\pickinglistdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\data\\taskauditevent.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\taskauditevent.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\data\\enumerations.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\enumerations.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\pages\\schedule\\machineschedulebase.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\schedule\\machineschedulebase.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\pages\\schedule\\ctlschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\schedule\\ctlschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\pages\\operations\\workorder\\workorderdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\workorder\\workorderdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\app.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\app.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\pages\\operations\\workorder\\workorders.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\operations\\workorder\\workorders.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\pages\\schedule\\dialogs\\workorderdetailsdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\schedule\\dialogs\\workorderdetailsdialog.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\migrations\\20250901190012_initialcreate.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:migrations\\20250901190012_initialcreate.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\data\\load.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:data\\load.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\pages\\admin\\users.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\admin\\users.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\services\\pickinglistitemservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\pickinglistitemservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\services\\pickinglistservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:services\\pickinglistservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\pages\\schedule\\pullingschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\schedule\\pullingschedule.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     }
   ],
   "DocumentGroupContainers": [
@@ -54,141 +94,261 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 7,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "Login.razor",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Account\\Pages\\Login.razor",
-              "RelativeDocumentMoniker": "Components\\Account\\Pages\\Login.razor",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Account\\Pages\\Login.razor",
-              "RelativeToolTip": "Components\\Account\\Pages\\Login.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAwAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-09-01T23:25:29.841Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "20250901202459_AddBranchWorkingHours.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Migrations\\20250901202459_AddBranchWorkingHours.cs",
-              "RelativeDocumentMoniker": "Migrations\\20250901202459_AddBranchWorkingHours.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Migrations\\20250901202459_AddBranchWorkingHours.cs",
-              "RelativeToolTip": "Migrations\\20250901202459_AddBranchWorkingHours.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-09-01T20:24:59.266Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "BranchDialog.razor",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Admin\\BranchDialog.razor",
-              "RelativeDocumentMoniker": "Components\\Pages\\Admin\\BranchDialog.razor",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Admin\\BranchDialog.razor",
-              "RelativeToolTip": "Components\\Pages\\Admin\\BranchDialog.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABsAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-09-01T20:15:52.45Z"
-            },
-            {
-              "$type": "Document",
               "DocumentIndex": 2,
-              "Title": "IdentityDataSeeder.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\IdentityDataSeeder.cs",
-              "RelativeDocumentMoniker": "Services\\IdentityDataSeeder.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\IdentityDataSeeder.cs",
-              "RelativeToolTip": "Services\\IdentityDataSeeder.cs",
-              "ViewState": "AgIAABQAAAAAAAAAAAAqwIMAAAAsAAAAAAAAAA==",
+              "Title": "ApplicationDbContextModelSnapshot.cs",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Migrations\\ApplicationDbContextModelSnapshot.cs",
+              "RelativeDocumentMoniker": "Migrations\\ApplicationDbContextModelSnapshot.cs",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Migrations\\ApplicationDbContextModelSnapshot.cs",
+              "RelativeToolTip": "Migrations\\ApplicationDbContextModelSnapshot.cs",
+              "ViewState": "AgIAANMEAAAAAAAAAADwv+0EAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-09-01T20:14:52.552Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "Branch.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\Branch.cs",
-              "RelativeDocumentMoniker": "Data\\Branch.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\Branch.cs",
-              "RelativeToolTip": "Data\\Branch.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAqwBEAAAAIAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-09-01T19:55:33.464Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "CtlSchedule.razor",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\CtlSchedule.razor",
-              "RelativeDocumentMoniker": "Components\\Pages\\Schedule\\CtlSchedule.razor",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\CtlSchedule.razor",
-              "RelativeToolTip": "Components\\Pages\\Schedule\\CtlSchedule.razor",
-              "ViewState": "AgIAAHcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-09-01T19:02:39.542Z"
+              "WhenOpened": "2025-09-03T12:47:15.772Z"
             },
             {
               "$type": "Document",
               "DocumentIndex": 5,
-              "Title": "WorkOrderService.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\WorkOrderService.cs",
-              "RelativeDocumentMoniker": "Services\\WorkOrderService.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Services\\WorkOrderService.cs",
-              "RelativeToolTip": "Services\\WorkOrderService.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAACQAAAAMAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-09-01T19:02:23.614Z"
+              "Title": "PullingTasks.razor",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Operations\\PullingTasks.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\PullingTasks.razor",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Operations\\PullingTasks.razor",
+              "RelativeToolTip": "Components\\Pages\\Operations\\PullingTasks.razor",
+              "ViewState": "AgIAAA8AAAAAAAAAAAAiwB0AAAAtAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-09-02T16:14:04.156Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 12,
+              "Title": "WorkOrderDialog.razor",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Operations\\WorkOrder\\WorkOrderDialog.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\WorkOrder\\WorkOrderDialog.razor",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Operations\\WorkOrder\\WorkOrderDialog.razor",
+              "RelativeToolTip": "Components\\Pages\\Operations\\WorkOrder\\WorkOrderDialog.razor",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-09-02T14:49:25.309Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "App.razor",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\App.razor",
+              "RelativeDocumentMoniker": "Components\\App.razor",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\App.razor",
+              "RelativeToolTip": "Components\\App.razor",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-09-02T14:43:43.148Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "WorkOrders.razor",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Operations\\WorkOrder\\WorkOrders.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\WorkOrder\\WorkOrders.razor",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Operations\\WorkOrder\\WorkOrders.razor",
+              "RelativeToolTip": "Components\\Pages\\Operations\\WorkOrder\\WorkOrders.razor",
+              "ViewState": "AgIAAOQAAAAAAAAAAAAAACwAAAAVAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-09-02T13:41:38.497Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "ApplicationDbContext.cs",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Data\\ApplicationDbContext.cs",
+              "RelativeDocumentMoniker": "Data\\ApplicationDbContext.cs",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Data\\ApplicationDbContext.cs",
+              "RelativeToolTip": "Data\\ApplicationDbContext.cs",
+              "ViewState": "AgIAAK0AAAAAAAAAAADwv8cAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-02T12:18:33.582Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Pickinglist.cs",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Data\\Pickinglist.cs",
+              "RelativeDocumentMoniker": "Data\\Pickinglist.cs",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Data\\Pickinglist.cs",
+              "RelativeToolTip": "Data\\Pickinglist.cs",
+              "ViewState": "AgIAAFgAAAAAAAAAAAAgwG4AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-02T13:32:40.283Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
               "Title": "WorkOrder.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\WorkOrder.cs",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Data\\WorkOrder.cs",
               "RelativeDocumentMoniker": "Data\\WorkOrder.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Data\\WorkOrder.cs",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Data\\WorkOrder.cs",
               "RelativeToolTip": "Data\\WorkOrder.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAE4AAAAAAAAAAAAuwGAAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-09-01T19:02:17.834Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 10,
-              "Title": "20250901190012_INITIALCREATE.cs",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Migrations\\20250901190012_INITIALCREATE.cs",
-              "RelativeDocumentMoniker": "Migrations\\20250901190012_INITIALCREATE.cs",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Migrations\\20250901190012_INITIALCREATE.cs",
-              "RelativeToolTip": "Migrations\\20250901190012_INITIALCREATE.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-09-01T19:00:12.306Z"
+              "WhenOpened": "2025-09-02T13:37:04.875Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 8,
-              "Title": "WorkOrders.razor",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\WorkOrder\\WorkOrders.razor",
-              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\WorkOrder\\WorkOrders.razor",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Operations\\WorkOrder\\WorkOrders.razor",
-              "RelativeToolTip": "Components\\Pages\\Operations\\WorkOrder\\WorkOrders.razor",
-              "ViewState": "AgIAAE8AAAAAAAAAAAAAAD4AAAArAAAAAAAAAA==",
+              "Title": "TaskAuditEvent.cs",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Data\\TaskAuditEvent.cs",
+              "RelativeDocumentMoniker": "Data\\TaskAuditEvent.cs",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Data\\TaskAuditEvent.cs",
+              "RelativeToolTip": "Data\\TaskAuditEvent.cs",
+              "ViewState": "AgIAABYAAAAAAAAAAIA0wCMAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-02T16:13:25.155Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "20250902133851_AddTaskAuditEvent.cs",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Migrations\\20250902133851_AddTaskAuditEvent.cs",
+              "RelativeDocumentMoniker": "Migrations\\20250902133851_AddTaskAuditEvent.cs",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Migrations\\20250902133851_AddTaskAuditEvent.cs",
+              "RelativeToolTip": "Migrations\\20250902133851_AddTaskAuditEvent.cs",
+              "ViewState": "AgIAACQAAAAAAAAAAAAwwDgAAAAoAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-02T13:38:52.286Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "PullingTaskDetailDialog.razor",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Operations\\Pickinglist\\Dialogs\\PullingTaskDetailDialog.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\Pickinglist\\Dialogs\\PullingTaskDetailDialog.razor",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Operations\\Pickinglist\\Dialogs\\PullingTaskDetailDialog.razor",
+              "RelativeToolTip": "Components\\Pages\\Operations\\Pickinglist\\Dialogs\\PullingTaskDetailDialog.razor",
+              "ViewState": "AgIAAAgAAAAAAAAAAAAiwBYAAAA6AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-09-01T18:56:39.216Z"
+              "WhenOpened": "2025-09-02T16:13:33.078Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "PickingListDialog.razor",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Operations\\Pickinglist\\PickingListDialog.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Operations\\Pickinglist\\PickingListDialog.razor",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Operations\\Pickinglist\\PickingListDialog.razor",
+              "RelativeToolTip": "Components\\Pages\\Operations\\Pickinglist\\PickingListDialog.razor",
+              "ViewState": "AgIAAIsAAAAAAAAAAAAiwJkAAABDAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-09-02T16:13:44.671Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\appsettings.json",
+              "RelativeDocumentMoniker": "appsettings.json",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\appsettings.json",
+              "RelativeToolTip": "appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAIAAAAoAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-09-02T13:39:23.976Z"
             },
             {
               "$type": "Document",
               "DocumentIndex": 9,
-              "Title": "WorkOrderDetailsDialog.razor",
-              "DocumentMoniker": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\Dialogs\\WorkOrderDetailsDialog.razor",
-              "RelativeDocumentMoniker": "Components\\Pages\\Schedule\\Dialogs\\WorkOrderDetailsDialog.razor",
-              "ToolTip": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\Components\\Pages\\Schedule\\Dialogs\\WorkOrderDetailsDialog.razor",
-              "RelativeToolTip": "Components\\Pages\\Schedule\\Dialogs\\WorkOrderDetailsDialog.razor",
-              "ViewState": "AgIAACsAAAAAAAAAAAAEwDoAAAAaAAAAAAAAAA==",
+              "Title": "Enumerations.cs",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Data\\Enumerations.cs",
+              "RelativeDocumentMoniker": "Data\\Enumerations.cs",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Data\\Enumerations.cs",
+              "RelativeToolTip": "Data\\Enumerations.cs",
+              "ViewState": "AgIAACMAAAAAAAAAAAAgwC4AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-02T13:35:40.226Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "MachineScheduleBase.razor",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Schedule\\MachineScheduleBase.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Schedule\\MachineScheduleBase.razor",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Schedule\\MachineScheduleBase.razor",
+              "RelativeToolTip": "Components\\Pages\\Schedule\\MachineScheduleBase.razor",
+              "ViewState": "AgIAAEoAAAAAAAAAAAAAAIQAAAAkAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-09-01T18:56:19.057Z"
+              "WhenOpened": "2025-09-02T14:49:39.261Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "CtlSchedule.razor",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Schedule\\CtlSchedule.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Schedule\\CtlSchedule.razor",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Schedule\\CtlSchedule.razor",
+              "RelativeToolTip": "Components\\Pages\\Schedule\\CtlSchedule.razor",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-09-02T14:49:29.982Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 16,
+              "Title": "Load.cs",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Data\\Load.cs",
+              "RelativeDocumentMoniker": "Data\\Load.cs",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Data\\Load.cs",
+              "RelativeToolTip": "Data\\Load.cs",
+              "ViewState": "AgIAAB4AAAAAAAAAAAAuwDAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-02T13:33:01.313Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 18,
+              "Title": "PickingListItemService.cs",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Services\\PickingListItemService.cs",
+              "RelativeDocumentMoniker": "Services\\PickingListItemService.cs",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Services\\PickingListItemService.cs",
+              "RelativeToolTip": "Services\\PickingListItemService.cs",
+              "ViewState": "AgIAAAgAAAAAAAAAAAAxwDUAAABUAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-02T12:19:40.861Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 19,
+              "Title": "PickingListService.cs",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Services\\PickingListService.cs",
+              "RelativeDocumentMoniker": "Services\\PickingListService.cs",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Services\\PickingListService.cs",
+              "RelativeToolTip": "Services\\PickingListService.cs",
+              "ViewState": "AgIAAJoAAAAAAAAAAAAwwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-02T12:19:25.685Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 17,
+              "Title": "Users.razor",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Admin\\Users.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Admin\\Users.razor",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Admin\\Users.razor",
+              "RelativeToolTip": "Components\\Pages\\Admin\\Users.razor",
+              "ViewState": "AgIAAEYAAAAAAAAAAAAiwFQAAAA2AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-09-02T13:09:35.99Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 20,
+              "Title": "PullingSchedule.razor",
+              "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Schedule\\PullingSchedule.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Schedule\\PullingSchedule.razor",
+              "ToolTip": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Components\\Pages\\Schedule\\PullingSchedule.razor",
+              "RelativeToolTip": "Components\\Pages\\Schedule\\PullingSchedule.razor",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAA+AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-09-02T12:17:42.843Z"
             }
           ]
         }

@@ -47,19 +47,6 @@
           }
         }
       },
-      "BitMiracle.LibTiff.NET/2.4.649": {
-        "type": "package",
-        "compile": {
-          "lib/netstandard2.0/BitMiracle.LibTiff.NET.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.0/BitMiracle.LibTiff.NET.dll": {
-            "related": ".xml"
-          }
-        }
-      },
       "Extensions.MudBlazor.StaticInput/3.2.1": {
         "type": "package",
         "dependencies": {
@@ -442,203 +429,6 @@
         "runtime": {
           "lib/net6.0/Humanizer.dll": {
             "related": ".xml"
-          }
-        }
-      },
-      "IronOcr/2025.8.6": {
-        "type": "package",
-        "dependencies": {
-          "IronSoftware.Abstractions": "2025.4.2",
-          "IronSoftware.Common": "2025.3.1",
-          "IronSoftware.System.Drawing": "2025.8.1",
-          "Newtonsoft.Json": "13.0.3"
-        },
-        "compile": {
-          "lib/netstandard2.0/IronOcr.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.0/IronOcr.dll": {
-            "related": ".xml"
-          }
-        },
-        "build": {
-          "buildTransitive/netstandard2.0/IronOcr.targets": {}
-        },
-        "runtimeTargets": {
-          "runtimes/win-x64/native/IronOcrInterop.dll": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/Tesseract.Native.deployment.json": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/eng.base.traineddata": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/eng.best.traineddata": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/eng.fast.traineddata": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/eng.user-patterns": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/eng.user-words": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/liblept-5.dll": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/libtesseract-5.dll": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/osd.traineddata": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/pdf.ttf": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/pdf.ttx": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x86/native/IronOcrInterop.dll": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/Tesseract.Native.deployment.json": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/eng.base.traineddata": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/eng.best.traineddata": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/eng.fast.traineddata": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/eng.user-patterns": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/eng.user-words": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/liblept-5.dll": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/libtesseract-5.dll": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/osd.traineddata": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/pdf.ttf": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/pdf.ttx": {
-            "assetType": "native",
-            "rid": "win-x86"
-          }
-        }
-      },
-      "IronSoftware.Abstractions/2025.4.2": {
-        "type": "package",
-        "dependencies": {
-          "IronSoftware.Drawing.Abstractions": "2025.4.2"
-        },
-        "compile": {
-          "lib/netstandard2.0/IronSoftware.Abstractions.dll": {
-            "related": ".pdb;.xml"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.0/IronSoftware.Abstractions.dll": {
-            "related": ".pdb;.xml"
-          }
-        }
-      },
-      "IronSoftware.Common/2025.3.1": {
-        "type": "package",
-        "dependencies": {
-          "Google.Protobuf": "3.23.0",
-          "Grpc.Net.Client": "2.62.0",
-          "Microsoft.Extensions.Configuration.Binder": "6.0.1",
-          "Microsoft.Extensions.Configuration.Json": "6.0.1",
-          "Microsoft.Extensions.Logging.Abstractions": "6.0.4",
-          "System.Configuration.ConfigurationManager": "6.0.2",
-          "System.Memory": "4.5.5"
-        },
-        "compile": {
-          "lib/netstandard2.0/IronSoftware.Logger.dll": {
-            "related": ".pdb"
-          },
-          "lib/netstandard2.0/IronSoftware.Shared.dll": {
-            "related": ".pdb"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.0/IronSoftware.Logger.dll": {
-            "related": ".pdb"
-          },
-          "lib/netstandard2.0/IronSoftware.Shared.dll": {
-            "related": ".pdb"
-          }
-        }
-      },
-      "IronSoftware.Drawing.Abstractions/2025.4.2": {
-        "type": "package",
-        "compile": {
-          "lib/netstandard2.0/IronSoftware.Drawing.Abstractions.dll": {
-            "related": ".pdb;.xml"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.0/IronSoftware.Drawing.Abstractions.dll": {
-            "related": ".pdb;.xml"
-          }
-        }
-      },
-      "IronSoftware.System.Drawing/2025.8.1": {
-        "type": "package",
-        "dependencies": {
-          "BitMiracle.LibTiff.NET": "2.4.649",
-          "IronSoftware.Drawing.Abstractions": "2025.4.2",
-          "SixLabors.ImageSharp": "3.1.11",
-          "SixLabors.ImageSharp.Drawing": "2.1.7",
-          "System.Memory": "4.5.5"
-        },
-        "compile": {
-          "lib/net60/IronSoftware.Drawing.Common.dll": {
-            "related": ".deps.json;.pdb;.xml"
-          }
-        },
-        "runtime": {
-          "lib/net60/IronSoftware.Drawing.Common.dll": {
-            "related": ".deps.json;.pdb;.xml"
           }
         }
       },
@@ -1527,23 +1317,6 @@
           "buildTransitive/net8.0/_._": {}
         }
       },
-      "Microsoft.Extensions.Configuration/6.0.2": {
-        "type": "package",
-        "dependencies": {
-          "Microsoft.Extensions.Configuration.Abstractions": "6.0.1",
-          "Microsoft.Extensions.Primitives": "6.0.1"
-        },
-        "compile": {
-          "lib/netstandard2.0/Microsoft.Extensions.Configuration.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.0/Microsoft.Extensions.Configuration.dll": {
-            "related": ".xml"
-          }
-        }
-      },
       "Microsoft.Extensions.Configuration.Abstractions/9.0.8": {
         "type": "package",
         "dependencies": {
@@ -1561,62 +1334,6 @@
         },
         "build": {
           "buildTransitive/net8.0/_._": {}
-        }
-      },
-      "Microsoft.Extensions.Configuration.Binder/6.0.1": {
-        "type": "package",
-        "dependencies": {
-          "Microsoft.Extensions.Configuration.Abstractions": "6.0.1"
-        },
-        "compile": {
-          "lib/netstandard2.0/Microsoft.Extensions.Configuration.Binder.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.0/Microsoft.Extensions.Configuration.Binder.dll": {
-            "related": ".xml"
-          }
-        }
-      },
-      "Microsoft.Extensions.Configuration.FileExtensions/6.0.1": {
-        "type": "package",
-        "dependencies": {
-          "Microsoft.Extensions.Configuration": "6.0.2",
-          "Microsoft.Extensions.Configuration.Abstractions": "6.0.1",
-          "Microsoft.Extensions.FileProviders.Abstractions": "6.0.1",
-          "Microsoft.Extensions.FileProviders.Physical": "6.0.1",
-          "Microsoft.Extensions.Primitives": "6.0.1"
-        },
-        "compile": {
-          "lib/netstandard2.0/Microsoft.Extensions.Configuration.FileExtensions.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.0/Microsoft.Extensions.Configuration.FileExtensions.dll": {
-            "related": ".xml"
-          }
-        }
-      },
-      "Microsoft.Extensions.Configuration.Json/6.0.1": {
-        "type": "package",
-        "dependencies": {
-          "Microsoft.Extensions.Configuration": "6.0.2",
-          "Microsoft.Extensions.Configuration.Abstractions": "6.0.1",
-          "Microsoft.Extensions.Configuration.FileExtensions": "6.0.1",
-          "Microsoft.Extensions.FileProviders.Abstractions": "6.0.1",
-          "System.Text.Json": "6.0.11"
-        },
-        "compile": {
-          "lib/netstandard2.1/Microsoft.Extensions.Configuration.Json.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.1/Microsoft.Extensions.Configuration.Json.dll": {
-            "related": ".xml"
-          }
         }
       },
       "Microsoft.Extensions.DependencyInjection/9.0.8": {
@@ -1681,62 +1398,6 @@
           "lib/net9.0/Microsoft.Extensions.Features.dll": {
             "related": ".xml"
           }
-        }
-      },
-      "Microsoft.Extensions.FileProviders.Abstractions/6.0.1": {
-        "type": "package",
-        "dependencies": {
-          "Microsoft.Extensions.Primitives": "6.0.1"
-        },
-        "compile": {
-          "lib/net6.0/Microsoft.Extensions.FileProviders.Abstractions.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/net6.0/Microsoft.Extensions.FileProviders.Abstractions.dll": {
-            "related": ".xml"
-          }
-        },
-        "build": {
-          "buildTransitive/netcoreapp3.1/_._": {}
-        }
-      },
-      "Microsoft.Extensions.FileProviders.Physical/6.0.1": {
-        "type": "package",
-        "dependencies": {
-          "Microsoft.Extensions.FileProviders.Abstractions": "6.0.1",
-          "Microsoft.Extensions.FileSystemGlobbing": "6.0.0",
-          "Microsoft.Extensions.Primitives": "6.0.1"
-        },
-        "compile": {
-          "lib/net6.0/Microsoft.Extensions.FileProviders.Physical.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/net6.0/Microsoft.Extensions.FileProviders.Physical.dll": {
-            "related": ".xml"
-          }
-        },
-        "build": {
-          "buildTransitive/netcoreapp3.1/_._": {}
-        }
-      },
-      "Microsoft.Extensions.FileSystemGlobbing/6.0.0": {
-        "type": "package",
-        "compile": {
-          "lib/net6.0/Microsoft.Extensions.FileSystemGlobbing.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/net6.0/Microsoft.Extensions.FileSystemGlobbing.dll": {
-            "related": ".xml"
-          }
-        },
-        "build": {
-          "buildTransitive/netcoreapp3.1/_._": {}
         }
       },
       "Microsoft.Extensions.Identity.Core/9.0.8": {
@@ -2064,7 +1725,7 @@
       "Microsoft.Win32.SystemEvents/6.0.0": {
         "type": "package",
         "compile": {
-          "lib/net6.0/Microsoft.Win32.SystemEvents.dll": {
+          "lib/net6.0/_._": {
             "related": ".xml"
           }
         },
@@ -2141,101 +1802,6 @@
         },
         "runtime": {
           "lib/net6.0/Newtonsoft.Json.dll": {
-            "related": ".xml"
-          }
-        }
-      },
-      "PdfPig/0.1.8": {
-        "type": "package",
-        "compile": {
-          "lib/net6.0/UglyToad.PdfPig.Core.dll": {
-            "related": ".pdb;.xml"
-          },
-          "lib/net6.0/UglyToad.PdfPig.DocumentLayoutAnalysis.dll": {
-            "related": ".pdb;.xml"
-          },
-          "lib/net6.0/UglyToad.PdfPig.Fonts.dll": {
-            "related": ".pdb;.xml"
-          },
-          "lib/net6.0/UglyToad.PdfPig.Package.dll": {
-            "related": ".pdb;.xml"
-          },
-          "lib/net6.0/UglyToad.PdfPig.Tokenization.dll": {
-            "related": ".pdb;.xml"
-          },
-          "lib/net6.0/UglyToad.PdfPig.Tokens.dll": {
-            "related": ".pdb;.xml"
-          },
-          "lib/net6.0/UglyToad.PdfPig.dll": {
-            "related": ".Core.pdb;.Core.xml;.DocumentLayoutAnalysis.pdb;.DocumentLayoutAnalysis.xml;.Fonts.pdb;.Fonts.xml;.Package.pdb;.Package.xml;.pdb;.Tokenization.pdb;.Tokenization.xml;.Tokens.pdb;.Tokens.xml;.xml"
-          }
-        },
-        "runtime": {
-          "lib/net6.0/UglyToad.PdfPig.Core.dll": {
-            "related": ".pdb;.xml"
-          },
-          "lib/net6.0/UglyToad.PdfPig.DocumentLayoutAnalysis.dll": {
-            "related": ".pdb;.xml"
-          },
-          "lib/net6.0/UglyToad.PdfPig.Fonts.dll": {
-            "related": ".pdb;.xml"
-          },
-          "lib/net6.0/UglyToad.PdfPig.Package.dll": {
-            "related": ".pdb;.xml"
-          },
-          "lib/net6.0/UglyToad.PdfPig.Tokenization.dll": {
-            "related": ".pdb;.xml"
-          },
-          "lib/net6.0/UglyToad.PdfPig.Tokens.dll": {
-            "related": ".pdb;.xml"
-          },
-          "lib/net6.0/UglyToad.PdfPig.dll": {
-            "related": ".Core.pdb;.Core.xml;.DocumentLayoutAnalysis.pdb;.DocumentLayoutAnalysis.xml;.Fonts.pdb;.Fonts.xml;.Package.pdb;.Package.xml;.pdb;.Tokenization.pdb;.Tokenization.xml;.Tokens.pdb;.Tokens.xml;.xml"
-          }
-        }
-      },
-      "SixLabors.Fonts/2.1.3": {
-        "type": "package",
-        "compile": {
-          "lib/net6.0/SixLabors.Fonts.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/net6.0/SixLabors.Fonts.dll": {
-            "related": ".xml"
-          }
-        }
-      },
-      "SixLabors.ImageSharp/3.1.11": {
-        "type": "package",
-        "compile": {
-          "lib/net6.0/SixLabors.ImageSharp.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/net6.0/SixLabors.ImageSharp.dll": {
-            "related": ".xml"
-          }
-        },
-        "build": {
-          "build/SixLabors.ImageSharp.props": {}
-        }
-      },
-      "SixLabors.ImageSharp.Drawing/2.1.7": {
-        "type": "package",
-        "dependencies": {
-          "SixLabors.Fonts": "2.1.3",
-          "SixLabors.ImageSharp": "3.1.11"
-        },
-        "compile": {
-          "lib/net6.0/SixLabors.ImageSharp.Drawing.dll": {
-            "related": ".xml"
-          }
-        },
-        "runtime": {
-          "lib/net6.0/SixLabors.ImageSharp.Drawing.dll": {
             "related": ".xml"
           }
         }
@@ -2399,14 +1965,14 @@
           "buildTransitive/net6.0/_._": {}
         }
       },
-      "System.Configuration.ConfigurationManager/6.0.2": {
+      "System.Configuration.ConfigurationManager/6.0.1": {
         "type": "package",
         "dependencies": {
           "System.Security.Cryptography.ProtectedData": "6.0.0",
-          "System.Security.Permissions": "6.0.1"
+          "System.Security.Permissions": "6.0.0"
         },
         "compile": {
-          "lib/net6.0/System.Configuration.ConfigurationManager.dll": {
+          "lib/net6.0/_._": {
             "related": ".xml"
           }
         },
@@ -2444,7 +2010,7 @@
           "Microsoft.Win32.SystemEvents": "6.0.0"
         },
         "compile": {
-          "lib/net6.0/System.Drawing.Common.dll": {
+          "lib/net6.0/_._": {
             "related": ".xml"
           }
         },
@@ -2541,7 +2107,7 @@
           }
         }
       },
-      "System.Memory/4.5.5": {
+      "System.Memory/4.5.4": {
         "type": "package",
         "compile": {
           "ref/netcoreapp2.1/_._": {}
@@ -2664,6 +2230,28 @@
           "buildTransitive/netcoreapp3.1/_._": {}
         }
       },
+      "System.Security.AccessControl/6.0.0": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/_._": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/System.Security.AccessControl.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/netcoreapp3.1/_._": {}
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net6.0/System.Security.AccessControl.dll": {
+            "assetType": "runtime",
+            "rid": "win"
+          }
+        }
+      },
       "System.Security.Cryptography.Cng/5.0.0": {
         "type": "package",
         "dependencies": {
@@ -2708,13 +2296,14 @@
           }
         }
       },
-      "System.Security.Permissions/6.0.1": {
+      "System.Security.Permissions/6.0.0": {
         "type": "package",
         "dependencies": {
+          "System.Security.AccessControl": "6.0.0",
           "System.Windows.Extensions": "6.0.0"
         },
         "compile": {
-          "lib/net6.0/System.Security.Permissions.dll": {
+          "lib/net6.0/_._": {
             "related": ".xml"
           }
         },
@@ -2857,7 +2446,7 @@
           "System.Drawing.Common": "6.0.0"
         },
         "compile": {
-          "lib/net6.0/System.Windows.Extensions.dll": {
+          "lib/net6.0/_._": {
             "related": ".xml"
           }
         },
@@ -2912,21 +2501,6 @@
         "azureicon.png",
         "lib/netstandard2.0/Azure.Identity.dll",
         "lib/netstandard2.0/Azure.Identity.xml"
-      ]
-    },
-    "BitMiracle.LibTiff.NET/2.4.649": {
-      "sha512": "XCEdfCphKo0UAvSg1h/OzOFWtjkIGnPMAziYkNqV7NVrqb/tZJTBxJhxIEX7gpvQwg8GIRYt133SUncfkKfjLA==",
-      "type": "package",
-      "path": "bitmiracle.libtiff.net/2.4.649",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "bitmiracle.libtiff.net.2.4.649.nupkg.sha512",
-        "bitmiracle.libtiff.net.nuspec",
-        "lib/net40/BitMiracle.LibTiff.NET.dll",
-        "lib/net40/BitMiracle.LibTiff.NET.xml",
-        "lib/netstandard2.0/BitMiracle.LibTiff.NET.dll",
-        "lib/netstandard2.0/BitMiracle.LibTiff.NET.xml"
       ]
     },
     "Extensions.MudBlazor.StaticInput/3.2.1": {
@@ -3409,123 +2983,6 @@
         "lib/netstandard2.0/Humanizer.dll",
         "lib/netstandard2.0/Humanizer.xml",
         "logo.png"
-      ]
-    },
-    "IronOcr/2025.8.6": {
-      "sha512": "rSP/VCwxfx6++jsEr55xvHRESVJELuFgK9+LqXeQiepJOorWU6WNVWePh7wG/eWMpftxloRlUQjROq2pNTVXCw==",
-      "type": "package",
-      "path": "ironocr/2025.8.6",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "EULA.txt",
-        "README.txt",
-        "build/net/IronOcr.targets",
-        "build/netstandard2.0/IronOcr.targets",
-        "buildTransitive/net/IronOcr.targets",
-        "buildTransitive/netstandard2.0/IronOcr.targets",
-        "docs/README.md",
-        "images/iron-logo-128.png",
-        "ironocr.2025.8.6.nupkg.sha512",
-        "ironocr.nuspec",
-        "lib/netstandard2.0/IronOcr.dll",
-        "lib/netstandard2.0/IronOcr.xml",
-        "runtimes/win-x64/native/IronOcrInterop.dll",
-        "runtimes/win-x64/native/Tesseract.Native.deployment.json",
-        "runtimes/win-x64/native/eng.base.traineddata",
-        "runtimes/win-x64/native/eng.best.traineddata",
-        "runtimes/win-x64/native/eng.fast.traineddata",
-        "runtimes/win-x64/native/eng.user-patterns",
-        "runtimes/win-x64/native/eng.user-words",
-        "runtimes/win-x64/native/liblept-5.dll",
-        "runtimes/win-x64/native/libtesseract-5.dll",
-        "runtimes/win-x64/native/osd.traineddata",
-        "runtimes/win-x64/native/pdf.ttf",
-        "runtimes/win-x64/native/pdf.ttx",
-        "runtimes/win-x86/native/IronOcrInterop.dll",
-        "runtimes/win-x86/native/Tesseract.Native.deployment.json",
-        "runtimes/win-x86/native/eng.base.traineddata",
-        "runtimes/win-x86/native/eng.best.traineddata",
-        "runtimes/win-x86/native/eng.fast.traineddata",
-        "runtimes/win-x86/native/eng.user-patterns",
-        "runtimes/win-x86/native/eng.user-words",
-        "runtimes/win-x86/native/liblept-5.dll",
-        "runtimes/win-x86/native/libtesseract-5.dll",
-        "runtimes/win-x86/native/osd.traineddata",
-        "runtimes/win-x86/native/pdf.ttf",
-        "runtimes/win-x86/native/pdf.ttx"
-      ]
-    },
-    "IronSoftware.Abstractions/2025.4.2": {
-      "sha512": "EgqimuZ4eJCKuVlLMukhJ2S7A9H5ynj5SyF5R23NaV6t4cGhfq28I/j49HsUIvfao2vRqmCmplsM/dzS+F3MBw==",
-      "type": "package",
-      "path": "ironsoftware.abstractions/2025.4.2",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "docs/README.md",
-        "images/iron-logo-128.png",
-        "ironsoftware.abstractions.2025.4.2.nupkg.sha512",
-        "ironsoftware.abstractions.nuspec",
-        "lib/netstandard2.0/IronSoftware.Abstractions.dll",
-        "lib/netstandard2.0/IronSoftware.Abstractions.pdb",
-        "lib/netstandard2.0/IronSoftware.Abstractions.xml"
-      ]
-    },
-    "IronSoftware.Common/2025.3.1": {
-      "sha512": "vyTin5mjF06KoLQOA0wAUBw4v5sswGvTCNIghjwJnN/XFkPKl/zf7eryWk/UZwStbVsgRyVJcp/4m6CfOS1vGw==",
-      "type": "package",
-      "path": "ironsoftware.common/2025.3.1",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "docs/README.md",
-        "images/iron-logo-128.png",
-        "ironsoftware.common.2025.3.1.nupkg.sha512",
-        "ironsoftware.common.nuspec",
-        "lib/netstandard2.0/IronSoftware.Logger.dll",
-        "lib/netstandard2.0/IronSoftware.Logger.pdb",
-        "lib/netstandard2.0/IronSoftware.Shared.dll",
-        "lib/netstandard2.0/IronSoftware.Shared.pdb"
-      ]
-    },
-    "IronSoftware.Drawing.Abstractions/2025.4.2": {
-      "sha512": "LG60injPwdLwMWZXdZRDm5aTMJLw+XVmzsXpspBSsnK3SIMvhkNOspCfzmPvyTsMUr6bj1o6qgyjiZe5TJ6t3g==",
-      "type": "package",
-      "path": "ironsoftware.drawing.abstractions/2025.4.2",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "docs/README.md",
-        "images/iron-logo-128.png",
-        "ironsoftware.drawing.abstractions.2025.4.2.nupkg.sha512",
-        "ironsoftware.drawing.abstractions.nuspec",
-        "lib/netstandard2.0/IronSoftware.Drawing.Abstractions.dll",
-        "lib/netstandard2.0/IronSoftware.Drawing.Abstractions.pdb",
-        "lib/netstandard2.0/IronSoftware.Drawing.Abstractions.xml"
-      ]
-    },
-    "IronSoftware.System.Drawing/2025.8.1": {
-      "sha512": "gqmqh7aIYbvndLlBnYvXt3RLMchA8Cyzy4ZAxskUs5mOwXrxfgqJbpQ0CMfWzlU1QhnG2mtV7j8iXcF0YNM3Zw==",
-      "type": "package",
-      "path": "ironsoftware.system.drawing/2025.8.1",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "LICENSE.txt",
-        "README.txt",
-        "docs/README.md",
-        "images/ironsoftware-logo.png",
-        "ironsoftware.system.drawing.2025.8.1.nupkg.sha512",
-        "ironsoftware.system.drawing.nuspec",
-        "lib/net60/IronSoftware.Drawing.Common.deps.json",
-        "lib/net60/IronSoftware.Drawing.Common.dll",
-        "lib/net60/IronSoftware.Drawing.Common.pdb",
-        "lib/net60/IronSoftware.Drawing.Common.xml",
-        "lib/netstandard2.0/IronSoftware.Drawing.Common.deps.json",
-        "lib/netstandard2.0/IronSoftware.Drawing.Common.dll",
-        "lib/netstandard2.0/IronSoftware.Drawing.Common.pdb",
-        "lib/netstandard2.0/IronSoftware.Drawing.Common.xml"
       ]
     },
     "Microsoft.AspNetCore.Authorization/9.0.7": {
@@ -5159,25 +4616,6 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "Microsoft.Extensions.Configuration/6.0.2": {
-      "sha512": "2dpWx3Lxqq1lzLa9pY4lTOl6xg7VL45z0oe3r1xfXM0nQzR9XpuuMdk54B1LrC/AsyKbOukry+pdoQ7M7e/ezg==",
-      "type": "package",
-      "path": "microsoft.extensions.configuration/6.0.2",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "Icon.png",
-        "LICENSE.TXT",
-        "THIRD-PARTY-NOTICES.TXT",
-        "lib/net461/Microsoft.Extensions.Configuration.dll",
-        "lib/net461/Microsoft.Extensions.Configuration.xml",
-        "lib/netstandard2.0/Microsoft.Extensions.Configuration.dll",
-        "lib/netstandard2.0/Microsoft.Extensions.Configuration.xml",
-        "microsoft.extensions.configuration.6.0.2.nupkg.sha512",
-        "microsoft.extensions.configuration.nuspec",
-        "useSharedDesignerContext.txt"
-      ]
-    },
     "Microsoft.Extensions.Configuration.Abstractions/9.0.8": {
       "sha512": "yNou2KM35RvzOh4vUFtl2l33rWPvOCoba+nzEDJ+BgD8aOL/jew4WPCibQvntRfOJ2pJU8ARygSMD+pdjvDHuA==",
       "type": "package",
@@ -5203,65 +4641,6 @@
         "lib/netstandard2.0/Microsoft.Extensions.Configuration.Abstractions.xml",
         "microsoft.extensions.configuration.abstractions.9.0.8.nupkg.sha512",
         "microsoft.extensions.configuration.abstractions.nuspec",
-        "useSharedDesignerContext.txt"
-      ]
-    },
-    "Microsoft.Extensions.Configuration.Binder/6.0.1": {
-      "sha512": "akSVfaHcxSSlSjC/dVpHbPLDHvYd/l/x0dlp2v+9zQVtSaSH3BIfO8AXvGgDEN/VPCCGeHigfflqkH3v6+RI4Q==",
-      "type": "package",
-      "path": "microsoft.extensions.configuration.binder/6.0.1",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "Icon.png",
-        "LICENSE.TXT",
-        "THIRD-PARTY-NOTICES.TXT",
-        "lib/net461/Microsoft.Extensions.Configuration.Binder.dll",
-        "lib/net461/Microsoft.Extensions.Configuration.Binder.xml",
-        "lib/netstandard2.0/Microsoft.Extensions.Configuration.Binder.dll",
-        "lib/netstandard2.0/Microsoft.Extensions.Configuration.Binder.xml",
-        "microsoft.extensions.configuration.binder.6.0.1.nupkg.sha512",
-        "microsoft.extensions.configuration.binder.nuspec",
-        "useSharedDesignerContext.txt"
-      ]
-    },
-    "Microsoft.Extensions.Configuration.FileExtensions/6.0.1": {
-      "sha512": "2jaVZJqN6BvEV9DR/gqOnZUY1jjA/NaUcyJVl7Mp3Uvb9N0YE2uSJ6bdmiKxocsiGZxpfjqBe0SRISCCKhVecw==",
-      "type": "package",
-      "path": "microsoft.extensions.configuration.fileextensions/6.0.1",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "Icon.png",
-        "LICENSE.TXT",
-        "THIRD-PARTY-NOTICES.TXT",
-        "lib/net461/Microsoft.Extensions.Configuration.FileExtensions.dll",
-        "lib/net461/Microsoft.Extensions.Configuration.FileExtensions.xml",
-        "lib/netstandard2.0/Microsoft.Extensions.Configuration.FileExtensions.dll",
-        "lib/netstandard2.0/Microsoft.Extensions.Configuration.FileExtensions.xml",
-        "microsoft.extensions.configuration.fileextensions.6.0.1.nupkg.sha512",
-        "microsoft.extensions.configuration.fileextensions.nuspec",
-        "useSharedDesignerContext.txt"
-      ]
-    },
-    "Microsoft.Extensions.Configuration.Json/6.0.1": {
-      "sha512": "1jgLdq/UXJ71TE0toUF5VPn7yYaeyiN9sAdX2EZ6Z5DbUiWUKcMRAS5biExfu/ChYMvlGH/7ZlJijPY0zB1Vhg==",
-      "type": "package",
-      "path": "microsoft.extensions.configuration.json/6.0.1",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "Icon.png",
-        "LICENSE.TXT",
-        "THIRD-PARTY-NOTICES.TXT",
-        "lib/net461/Microsoft.Extensions.Configuration.Json.dll",
-        "lib/net461/Microsoft.Extensions.Configuration.Json.xml",
-        "lib/netstandard2.0/Microsoft.Extensions.Configuration.Json.dll",
-        "lib/netstandard2.0/Microsoft.Extensions.Configuration.Json.xml",
-        "lib/netstandard2.1/Microsoft.Extensions.Configuration.Json.dll",
-        "lib/netstandard2.1/Microsoft.Extensions.Configuration.Json.xml",
-        "microsoft.extensions.configuration.json.6.0.1.nupkg.sha512",
-        "microsoft.extensions.configuration.json.nuspec",
         "useSharedDesignerContext.txt"
       ]
     },
@@ -5370,75 +4749,6 @@
         "lib/netstandard2.0/Microsoft.Extensions.Features.xml",
         "microsoft.extensions.features.9.0.8.nupkg.sha512",
         "microsoft.extensions.features.nuspec"
-      ]
-    },
-    "Microsoft.Extensions.FileProviders.Abstractions/6.0.1": {
-      "sha512": "Kr8S/Uunxsjyhh5D91avbME3pITDrVYp/NACiymemtwhnvxpe82Jmr99cnPqiVridg2nIkcNNRVKzl/iP5/00g==",
-      "type": "package",
-      "path": "microsoft.extensions.fileproviders.abstractions/6.0.1",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "Icon.png",
-        "LICENSE.TXT",
-        "THIRD-PARTY-NOTICES.TXT",
-        "buildTransitive/netcoreapp2.0/Microsoft.Extensions.FileProviders.Abstractions.targets",
-        "buildTransitive/netcoreapp3.1/_._",
-        "lib/net461/Microsoft.Extensions.FileProviders.Abstractions.dll",
-        "lib/net461/Microsoft.Extensions.FileProviders.Abstractions.xml",
-        "lib/net6.0/Microsoft.Extensions.FileProviders.Abstractions.dll",
-        "lib/net6.0/Microsoft.Extensions.FileProviders.Abstractions.xml",
-        "lib/netstandard2.0/Microsoft.Extensions.FileProviders.Abstractions.dll",
-        "lib/netstandard2.0/Microsoft.Extensions.FileProviders.Abstractions.xml",
-        "microsoft.extensions.fileproviders.abstractions.6.0.1.nupkg.sha512",
-        "microsoft.extensions.fileproviders.abstractions.nuspec",
-        "useSharedDesignerContext.txt"
-      ]
-    },
-    "Microsoft.Extensions.FileProviders.Physical/6.0.1": {
-      "sha512": "k9h04ZJiQ7mr4hsLNCUc/CL4AwOAHKq0uam4JBfeZ33XSU5MHxn7l7Vpf+T5sd5HXI7us1MGrkB5awqfg5xyHw==",
-      "type": "package",
-      "path": "microsoft.extensions.fileproviders.physical/6.0.1",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "Icon.png",
-        "LICENSE.TXT",
-        "THIRD-PARTY-NOTICES.TXT",
-        "buildTransitive/netcoreapp2.0/Microsoft.Extensions.FileProviders.Physical.targets",
-        "buildTransitive/netcoreapp3.1/_._",
-        "lib/net461/Microsoft.Extensions.FileProviders.Physical.dll",
-        "lib/net461/Microsoft.Extensions.FileProviders.Physical.xml",
-        "lib/net6.0/Microsoft.Extensions.FileProviders.Physical.dll",
-        "lib/net6.0/Microsoft.Extensions.FileProviders.Physical.xml",
-        "lib/netstandard2.0/Microsoft.Extensions.FileProviders.Physical.dll",
-        "lib/netstandard2.0/Microsoft.Extensions.FileProviders.Physical.xml",
-        "microsoft.extensions.fileproviders.physical.6.0.1.nupkg.sha512",
-        "microsoft.extensions.fileproviders.physical.nuspec",
-        "useSharedDesignerContext.txt"
-      ]
-    },
-    "Microsoft.Extensions.FileSystemGlobbing/6.0.0": {
-      "sha512": "ip8jnL1aPiaPeKINCqaTEbvBFDmVx9dXQEBZ2HOBRXPD1eabGNqP/bKlsIcp7U2lGxiXd5xIhoFcmY8nM4Hdiw==",
-      "type": "package",
-      "path": "microsoft.extensions.filesystemglobbing/6.0.0",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "Icon.png",
-        "LICENSE.TXT",
-        "THIRD-PARTY-NOTICES.TXT",
-        "buildTransitive/netcoreapp2.0/Microsoft.Extensions.FileSystemGlobbing.targets",
-        "buildTransitive/netcoreapp3.1/_._",
-        "lib/net461/Microsoft.Extensions.FileSystemGlobbing.dll",
-        "lib/net461/Microsoft.Extensions.FileSystemGlobbing.xml",
-        "lib/net6.0/Microsoft.Extensions.FileSystemGlobbing.dll",
-        "lib/net6.0/Microsoft.Extensions.FileSystemGlobbing.xml",
-        "lib/netstandard2.0/Microsoft.Extensions.FileSystemGlobbing.dll",
-        "lib/netstandard2.0/Microsoft.Extensions.FileSystemGlobbing.xml",
-        "microsoft.extensions.filesystemglobbing.6.0.0.nupkg.sha512",
-        "microsoft.extensions.filesystemglobbing.nuspec",
-        "useSharedDesignerContext.txt"
       ]
     },
     "Microsoft.Extensions.Identity.Core/9.0.8": {
@@ -6049,232 +5359,6 @@
         "packageIcon.png"
       ]
     },
-    "PdfPig/0.1.8": {
-      "sha512": "lrqrQPAwziQV2E5uImAg1i3SpxDn5XdJ8q3sjRBgEdx1quq1ZftnKNyfp3sTY0J7OxpA14ryGBSSUdoGLGCHjw==",
-      "type": "package",
-      "path": "pdfpig/0.1.8",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "lib/net451/UglyToad.PdfPig.Core.dll",
-        "lib/net451/UglyToad.PdfPig.Core.pdb",
-        "lib/net451/UglyToad.PdfPig.Core.xml",
-        "lib/net451/UglyToad.PdfPig.DocumentLayoutAnalysis.dll",
-        "lib/net451/UglyToad.PdfPig.DocumentLayoutAnalysis.pdb",
-        "lib/net451/UglyToad.PdfPig.DocumentLayoutAnalysis.xml",
-        "lib/net451/UglyToad.PdfPig.Fonts.dll",
-        "lib/net451/UglyToad.PdfPig.Fonts.pdb",
-        "lib/net451/UglyToad.PdfPig.Fonts.xml",
-        "lib/net451/UglyToad.PdfPig.Package.dll",
-        "lib/net451/UglyToad.PdfPig.Package.pdb",
-        "lib/net451/UglyToad.PdfPig.Package.xml",
-        "lib/net451/UglyToad.PdfPig.Tokenization.dll",
-        "lib/net451/UglyToad.PdfPig.Tokenization.pdb",
-        "lib/net451/UglyToad.PdfPig.Tokenization.xml",
-        "lib/net451/UglyToad.PdfPig.Tokens.dll",
-        "lib/net451/UglyToad.PdfPig.Tokens.pdb",
-        "lib/net451/UglyToad.PdfPig.Tokens.xml",
-        "lib/net451/UglyToad.PdfPig.dll",
-        "lib/net451/UglyToad.PdfPig.pdb",
-        "lib/net451/UglyToad.PdfPig.xml",
-        "lib/net452/UglyToad.PdfPig.Core.dll",
-        "lib/net452/UglyToad.PdfPig.Core.pdb",
-        "lib/net452/UglyToad.PdfPig.Core.xml",
-        "lib/net452/UglyToad.PdfPig.DocumentLayoutAnalysis.dll",
-        "lib/net452/UglyToad.PdfPig.DocumentLayoutAnalysis.pdb",
-        "lib/net452/UglyToad.PdfPig.DocumentLayoutAnalysis.xml",
-        "lib/net452/UglyToad.PdfPig.Fonts.dll",
-        "lib/net452/UglyToad.PdfPig.Fonts.pdb",
-        "lib/net452/UglyToad.PdfPig.Fonts.xml",
-        "lib/net452/UglyToad.PdfPig.Package.dll",
-        "lib/net452/UglyToad.PdfPig.Package.pdb",
-        "lib/net452/UglyToad.PdfPig.Package.xml",
-        "lib/net452/UglyToad.PdfPig.Tokenization.dll",
-        "lib/net452/UglyToad.PdfPig.Tokenization.pdb",
-        "lib/net452/UglyToad.PdfPig.Tokenization.xml",
-        "lib/net452/UglyToad.PdfPig.Tokens.dll",
-        "lib/net452/UglyToad.PdfPig.Tokens.pdb",
-        "lib/net452/UglyToad.PdfPig.Tokens.xml",
-        "lib/net452/UglyToad.PdfPig.dll",
-        "lib/net452/UglyToad.PdfPig.pdb",
-        "lib/net452/UglyToad.PdfPig.xml",
-        "lib/net46/UglyToad.PdfPig.Core.dll",
-        "lib/net46/UglyToad.PdfPig.Core.pdb",
-        "lib/net46/UglyToad.PdfPig.Core.xml",
-        "lib/net46/UglyToad.PdfPig.DocumentLayoutAnalysis.dll",
-        "lib/net46/UglyToad.PdfPig.DocumentLayoutAnalysis.pdb",
-        "lib/net46/UglyToad.PdfPig.DocumentLayoutAnalysis.xml",
-        "lib/net46/UglyToad.PdfPig.Fonts.dll",
-        "lib/net46/UglyToad.PdfPig.Fonts.pdb",
-        "lib/net46/UglyToad.PdfPig.Fonts.xml",
-        "lib/net46/UglyToad.PdfPig.Package.dll",
-        "lib/net46/UglyToad.PdfPig.Package.pdb",
-        "lib/net46/UglyToad.PdfPig.Package.xml",
-        "lib/net46/UglyToad.PdfPig.Tokenization.dll",
-        "lib/net46/UglyToad.PdfPig.Tokenization.pdb",
-        "lib/net46/UglyToad.PdfPig.Tokenization.xml",
-        "lib/net46/UglyToad.PdfPig.Tokens.dll",
-        "lib/net46/UglyToad.PdfPig.Tokens.pdb",
-        "lib/net46/UglyToad.PdfPig.Tokens.xml",
-        "lib/net46/UglyToad.PdfPig.dll",
-        "lib/net46/UglyToad.PdfPig.pdb",
-        "lib/net46/UglyToad.PdfPig.xml",
-        "lib/net461/UglyToad.PdfPig.Core.dll",
-        "lib/net461/UglyToad.PdfPig.Core.pdb",
-        "lib/net461/UglyToad.PdfPig.Core.xml",
-        "lib/net461/UglyToad.PdfPig.DocumentLayoutAnalysis.dll",
-        "lib/net461/UglyToad.PdfPig.DocumentLayoutAnalysis.pdb",
-        "lib/net461/UglyToad.PdfPig.DocumentLayoutAnalysis.xml",
-        "lib/net461/UglyToad.PdfPig.Fonts.dll",
-        "lib/net461/UglyToad.PdfPig.Fonts.pdb",
-        "lib/net461/UglyToad.PdfPig.Fonts.xml",
-        "lib/net461/UglyToad.PdfPig.Package.dll",
-        "lib/net461/UglyToad.PdfPig.Package.pdb",
-        "lib/net461/UglyToad.PdfPig.Package.xml",
-        "lib/net461/UglyToad.PdfPig.Tokenization.dll",
-        "lib/net461/UglyToad.PdfPig.Tokenization.pdb",
-        "lib/net461/UglyToad.PdfPig.Tokenization.xml",
-        "lib/net461/UglyToad.PdfPig.Tokens.dll",
-        "lib/net461/UglyToad.PdfPig.Tokens.pdb",
-        "lib/net461/UglyToad.PdfPig.Tokens.xml",
-        "lib/net461/UglyToad.PdfPig.dll",
-        "lib/net461/UglyToad.PdfPig.pdb",
-        "lib/net461/UglyToad.PdfPig.xml",
-        "lib/net462/UglyToad.PdfPig.Core.dll",
-        "lib/net462/UglyToad.PdfPig.Core.pdb",
-        "lib/net462/UglyToad.PdfPig.Core.xml",
-        "lib/net462/UglyToad.PdfPig.DocumentLayoutAnalysis.dll",
-        "lib/net462/UglyToad.PdfPig.DocumentLayoutAnalysis.pdb",
-        "lib/net462/UglyToad.PdfPig.DocumentLayoutAnalysis.xml",
-        "lib/net462/UglyToad.PdfPig.Fonts.dll",
-        "lib/net462/UglyToad.PdfPig.Fonts.pdb",
-        "lib/net462/UglyToad.PdfPig.Fonts.xml",
-        "lib/net462/UglyToad.PdfPig.Package.dll",
-        "lib/net462/UglyToad.PdfPig.Package.pdb",
-        "lib/net462/UglyToad.PdfPig.Package.xml",
-        "lib/net462/UglyToad.PdfPig.Tokenization.dll",
-        "lib/net462/UglyToad.PdfPig.Tokenization.pdb",
-        "lib/net462/UglyToad.PdfPig.Tokenization.xml",
-        "lib/net462/UglyToad.PdfPig.Tokens.dll",
-        "lib/net462/UglyToad.PdfPig.Tokens.pdb",
-        "lib/net462/UglyToad.PdfPig.Tokens.xml",
-        "lib/net462/UglyToad.PdfPig.dll",
-        "lib/net462/UglyToad.PdfPig.pdb",
-        "lib/net462/UglyToad.PdfPig.xml",
-        "lib/net47/UglyToad.PdfPig.Core.dll",
-        "lib/net47/UglyToad.PdfPig.Core.pdb",
-        "lib/net47/UglyToad.PdfPig.Core.xml",
-        "lib/net47/UglyToad.PdfPig.DocumentLayoutAnalysis.dll",
-        "lib/net47/UglyToad.PdfPig.DocumentLayoutAnalysis.pdb",
-        "lib/net47/UglyToad.PdfPig.DocumentLayoutAnalysis.xml",
-        "lib/net47/UglyToad.PdfPig.Fonts.dll",
-        "lib/net47/UglyToad.PdfPig.Fonts.pdb",
-        "lib/net47/UglyToad.PdfPig.Fonts.xml",
-        "lib/net47/UglyToad.PdfPig.Package.dll",
-        "lib/net47/UglyToad.PdfPig.Package.pdb",
-        "lib/net47/UglyToad.PdfPig.Package.xml",
-        "lib/net47/UglyToad.PdfPig.Tokenization.dll",
-        "lib/net47/UglyToad.PdfPig.Tokenization.pdb",
-        "lib/net47/UglyToad.PdfPig.Tokenization.xml",
-        "lib/net47/UglyToad.PdfPig.Tokens.dll",
-        "lib/net47/UglyToad.PdfPig.Tokens.pdb",
-        "lib/net47/UglyToad.PdfPig.Tokens.xml",
-        "lib/net47/UglyToad.PdfPig.dll",
-        "lib/net47/UglyToad.PdfPig.pdb",
-        "lib/net47/UglyToad.PdfPig.xml",
-        "lib/net6.0/UglyToad.PdfPig.Core.dll",
-        "lib/net6.0/UglyToad.PdfPig.Core.pdb",
-        "lib/net6.0/UglyToad.PdfPig.Core.xml",
-        "lib/net6.0/UglyToad.PdfPig.DocumentLayoutAnalysis.dll",
-        "lib/net6.0/UglyToad.PdfPig.DocumentLayoutAnalysis.pdb",
-        "lib/net6.0/UglyToad.PdfPig.DocumentLayoutAnalysis.xml",
-        "lib/net6.0/UglyToad.PdfPig.Fonts.dll",
-        "lib/net6.0/UglyToad.PdfPig.Fonts.pdb",
-        "lib/net6.0/UglyToad.PdfPig.Fonts.xml",
-        "lib/net6.0/UglyToad.PdfPig.Package.dll",
-        "lib/net6.0/UglyToad.PdfPig.Package.pdb",
-        "lib/net6.0/UglyToad.PdfPig.Package.xml",
-        "lib/net6.0/UglyToad.PdfPig.Tokenization.dll",
-        "lib/net6.0/UglyToad.PdfPig.Tokenization.pdb",
-        "lib/net6.0/UglyToad.PdfPig.Tokenization.xml",
-        "lib/net6.0/UglyToad.PdfPig.Tokens.dll",
-        "lib/net6.0/UglyToad.PdfPig.Tokens.pdb",
-        "lib/net6.0/UglyToad.PdfPig.Tokens.xml",
-        "lib/net6.0/UglyToad.PdfPig.dll",
-        "lib/net6.0/UglyToad.PdfPig.pdb",
-        "lib/net6.0/UglyToad.PdfPig.xml",
-        "lib/netstandard2.0/UglyToad.PdfPig.Core.dll",
-        "lib/netstandard2.0/UglyToad.PdfPig.Core.pdb",
-        "lib/netstandard2.0/UglyToad.PdfPig.Core.xml",
-        "lib/netstandard2.0/UglyToad.PdfPig.DocumentLayoutAnalysis.dll",
-        "lib/netstandard2.0/UglyToad.PdfPig.DocumentLayoutAnalysis.pdb",
-        "lib/netstandard2.0/UglyToad.PdfPig.DocumentLayoutAnalysis.xml",
-        "lib/netstandard2.0/UglyToad.PdfPig.Fonts.dll",
-        "lib/netstandard2.0/UglyToad.PdfPig.Fonts.pdb",
-        "lib/netstandard2.0/UglyToad.PdfPig.Fonts.xml",
-        "lib/netstandard2.0/UglyToad.PdfPig.Package.dll",
-        "lib/netstandard2.0/UglyToad.PdfPig.Package.pdb",
-        "lib/netstandard2.0/UglyToad.PdfPig.Package.xml",
-        "lib/netstandard2.0/UglyToad.PdfPig.Tokenization.dll",
-        "lib/netstandard2.0/UglyToad.PdfPig.Tokenization.pdb",
-        "lib/netstandard2.0/UglyToad.PdfPig.Tokenization.xml",
-        "lib/netstandard2.0/UglyToad.PdfPig.Tokens.dll",
-        "lib/netstandard2.0/UglyToad.PdfPig.Tokens.pdb",
-        "lib/netstandard2.0/UglyToad.PdfPig.Tokens.xml",
-        "lib/netstandard2.0/UglyToad.PdfPig.dll",
-        "lib/netstandard2.0/UglyToad.PdfPig.pdb",
-        "lib/netstandard2.0/UglyToad.PdfPig.xml",
-        "pdfpig.0.1.8.nupkg.sha512",
-        "pdfpig.nuspec",
-        "pdfpig.png"
-      ]
-    },
-    "SixLabors.Fonts/2.1.3": {
-      "sha512": "ORWbZ5BHrC/LZvo+Y09MnoJq5VUKD85LsYALk+YI7CHFra+m5arCkz00IntDM6SrAiB22bvSdKtKmuCyHOKlqg==",
-      "type": "package",
-      "path": "sixlabors.fonts/2.1.3",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "LICENSE",
-        "lib/net6.0/SixLabors.Fonts.dll",
-        "lib/net6.0/SixLabors.Fonts.xml",
-        "sixlabors.fonts.128.png",
-        "sixlabors.fonts.2.1.3.nupkg.sha512",
-        "sixlabors.fonts.nuspec"
-      ]
-    },
-    "SixLabors.ImageSharp/3.1.11": {
-      "sha512": "JfPLyigLthuE50yi6tMt7Amrenr/fA31t2CvJyhy/kQmfulIBAqo5T/YFUSRHtuYPXRSaUHygFeh6Qd933EoSw==",
-      "type": "package",
-      "path": "sixlabors.imagesharp/3.1.11",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "LICENSE",
-        "build/SixLabors.ImageSharp.props",
-        "lib/net6.0/SixLabors.ImageSharp.dll",
-        "lib/net6.0/SixLabors.ImageSharp.xml",
-        "sixlabors.imagesharp.128.png",
-        "sixlabors.imagesharp.3.1.11.nupkg.sha512",
-        "sixlabors.imagesharp.nuspec"
-      ]
-    },
-    "SixLabors.ImageSharp.Drawing/2.1.7": {
-      "sha512": "9KwCo9Fa350cx6ckpsy8NqXQZKwir4RQ8Kj0sdCmJA7wsK9FMyfgC527Sn4l/D6bj2ditSHlhS7dGzcgGszvSQ==",
-      "type": "package",
-      "path": "sixlabors.imagesharp.drawing/2.1.7",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "LICENSE",
-        "lib/net6.0/SixLabors.ImageSharp.Drawing.dll",
-        "lib/net6.0/SixLabors.ImageSharp.Drawing.xml",
-        "sixlabors.imagesharp.drawing.128.png",
-        "sixlabors.imagesharp.drawing.2.1.7.nupkg.sha512",
-        "sixlabors.imagesharp.drawing.nuspec"
-      ]
-    },
     "System.ClientModel/1.0.0": {
       "sha512": "I3CVkvxeqFYjIVEP59DnjbeoGNfo/+SZrCLpRz2v/g0gpCHaEMPtWSY0s9k/7jR1rAsLNg2z2u1JRB76tPjnIw==",
       "type": "package",
@@ -6505,10 +5589,10 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "System.Configuration.ConfigurationManager/6.0.2": {
-      "sha512": "LtqgY79MRntWIM0AeQf4uj1mGyqpVhR7O9N1+UODQu/EGQwRTERqMqpYTeedE7VTK2ngoCtxzAaTn9gRDa+6Qw==",
+    "System.Configuration.ConfigurationManager/6.0.1": {
+      "sha512": "jXw9MlUu/kRfEU0WyTptAVueupqIeE3/rl0EZDMlf8pcvJnitQ8HeVEp69rZdaStXwTV72boi/Bhw8lOeO+U2w==",
       "type": "package",
-      "path": "system.configuration.configurationmanager/6.0.2",
+      "path": "system.configuration.configurationmanager/6.0.1",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -6525,7 +5609,7 @@
         "lib/netstandard2.0/System.Configuration.ConfigurationManager.xml",
         "runtimes/win/lib/net461/System.Configuration.ConfigurationManager.dll",
         "runtimes/win/lib/net461/System.Configuration.ConfigurationManager.xml",
-        "system.configuration.configurationmanager.6.0.2.nupkg.sha512",
+        "system.configuration.configurationmanager.6.0.1.nupkg.sha512",
         "system.configuration.configurationmanager.nuspec",
         "useSharedDesignerContext.txt"
       ]
@@ -6700,10 +5784,10 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "System.Memory/4.5.5": {
-      "sha512": "XIWiDvKPXaTveaB7HVganDlOCRoj03l+jrwNvcge/t8vhGYKvqV+dMv6G4SAX2NoNmN0wZfVPTAlFwZcZvVOUw==",
+    "System.Memory/4.5.4": {
+      "sha512": "1MbJTHS1lZ4bS4FmsJjnuGJOu88ZzTT2rLvrhW7Ygic+pC0NWA+3hgAen0HRdsocuQXCkUTdFn9yHJJhsijDXw==",
       "type": "package",
-      "path": "system.memory/4.5.5",
+      "path": "system.memory/4.5.4",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -6717,7 +5801,7 @@
         "lib/netstandard2.0/System.Memory.dll",
         "lib/netstandard2.0/System.Memory.xml",
         "ref/netcoreapp2.1/_._",
-        "system.memory.4.5.5.nupkg.sha512",
+        "system.memory.4.5.4.nupkg.sha512",
         "system.memory.nuspec",
         "useSharedDesignerContext.txt",
         "version.txt"
@@ -6998,6 +6082,35 @@
         "useSharedDesignerContext.txt"
       ]
     },
+    "System.Security.AccessControl/6.0.0": {
+      "sha512": "AUADIc0LIEQe7MzC+I0cl0rAT8RrTAKFHl53yHjEUzNVIaUlhFY11vc2ebiVJzVBuOzun6F7FBA+8KAbGTTedQ==",
+      "type": "package",
+      "path": "system.security.accesscontrol/6.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/netcoreapp2.0/System.Security.AccessControl.targets",
+        "buildTransitive/netcoreapp3.1/_._",
+        "lib/net461/System.Security.AccessControl.dll",
+        "lib/net461/System.Security.AccessControl.xml",
+        "lib/net6.0/System.Security.AccessControl.dll",
+        "lib/net6.0/System.Security.AccessControl.xml",
+        "lib/netstandard2.0/System.Security.AccessControl.dll",
+        "lib/netstandard2.0/System.Security.AccessControl.xml",
+        "runtimes/win/lib/net461/System.Security.AccessControl.dll",
+        "runtimes/win/lib/net461/System.Security.AccessControl.xml",
+        "runtimes/win/lib/net6.0/System.Security.AccessControl.dll",
+        "runtimes/win/lib/net6.0/System.Security.AccessControl.xml",
+        "runtimes/win/lib/netstandard2.0/System.Security.AccessControl.dll",
+        "runtimes/win/lib/netstandard2.0/System.Security.AccessControl.xml",
+        "system.security.accesscontrol.6.0.0.nupkg.sha512",
+        "system.security.accesscontrol.nuspec",
+        "useSharedDesignerContext.txt"
+      ]
+    },
     "System.Security.Cryptography.Cng/5.0.0": {
       "sha512": "jIMXsKn94T9JY7PvPq/tMfqa6GAaHpElRDpmG+SuL+D3+sTw2M8VhnibKnN8Tq+4JqbPJ/f+BwtLeDMEnzAvRg==",
       "type": "package",
@@ -7114,10 +6227,10 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "System.Security.Permissions/6.0.1": {
-      "sha512": "QufGNXopGXxdXbkDn87hta4ajdNKNI3a1+HoJbKkmBbMtYPhEgEJKSiPZHGjI0zQpgZ7gi5L0gSV3PeewKRtew==",
+    "System.Security.Permissions/6.0.0": {
+      "sha512": "T/uuc7AklkDoxmcJ7LGkyX1CcSviZuLCa4jg3PekfJ7SU0niF0IVTXwUiNVP9DSpzou2PpxJ+eNY2IfDM90ZCg==",
       "type": "package",
-      "path": "system.security.permissions/6.0.1",
+      "path": "system.security.permissions/6.0.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -7138,7 +6251,7 @@
         "lib/netstandard2.0/System.Security.Permissions.xml",
         "runtimes/win/lib/net461/System.Security.Permissions.dll",
         "runtimes/win/lib/net461/System.Security.Permissions.xml",
-        "system.security.permissions.6.0.1.nupkg.sha512",
+        "system.security.permissions.6.0.0.nupkg.sha512",
         "system.security.permissions.nuspec",
         "useSharedDesignerContext.txt"
       ]
@@ -7508,35 +6621,33 @@
       "Google.Maps.RouteOptimization.V1 >= 1.2.0",
       "Heron.MudCalendar >= 3.2.0",
       "Heron.MudTotalCalendar >= 3.1.0",
-      "IronOcr >= 2025.8.6",
       "Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore >= 9.*",
       "Microsoft.AspNetCore.Identity.EntityFrameworkCore >= 9.*",
       "Microsoft.AspNetCore.SignalR.Client >= 9.0.8",
       "Microsoft.EntityFrameworkCore.SqlServer >= 9.*",
       "Microsoft.EntityFrameworkCore.Tools >= 9.*",
       "MiniExcel >= 1.41.3",
-      "MudBlazor >= 8.*",
-      "PdfPig >= 0.1.8"
+      "MudBlazor >= 8.*"
     ]
   },
   "packageFolders": {
-    "C:\\Users\\jccir\\.nuget\\packages\\": {},
+    "C:\\Users\\Jessie\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\CMetalsWS.csproj",
+      "projectUniqueName": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\CMetalsWS.csproj",
       "projectName": "CMetalsWS",
-      "projectPath": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\CMetalsWS.csproj",
-      "packagesPath": "C:\\Users\\jccir\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\jccir\\Documents\\repos\\CMetalsWS\\obj\\",
+      "projectPath": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\CMetalsWS.csproj",
+      "packagesPath": "C:\\Users\\Jessie\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\jccir\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\Jessie\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -7586,10 +6697,6 @@
             "target": "Package",
             "version": "[3.1.0, )"
           },
-          "IronOcr": {
-            "target": "Package",
-            "version": "[2025.8.6, )"
-          },
           "Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore": {
             "target": "Package",
             "version": "[9.*, )"
@@ -7617,10 +6724,6 @@
           "MudBlazor": {
             "target": "Package",
             "version": "[8.*, )"
-          },
-          "PdfPig": {
-            "target": "Package",
-            "version": "[0.1.8, )"
           }
         },
         "imports": [
