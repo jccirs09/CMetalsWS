@@ -1,4 +1,5 @@
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 C:\Users\Jessie\Documents\GitHub\CMetalsWS\obj\Debug\net9.0\CMetalsWS.csproj.AssemblyReference.cache
 C:\Users\Jessie\Documents\GitHub\CMetalsWS\obj\Debug\net9.0\rpswa.dswa.cache.json
 C:\Users\Jessie\Documents\GitHub\CMetalsWS\obj\Debug\net9.0\CMetalsWS.GeneratedMSBuildEditorConfig.editorconfig
@@ -276,6 +277,8 @@ C:\Users\Jessie\Documents\GitHub\CMetalsWS\obj\Debug\net9.0\refint\CMetalsWS.dll
 C:\Users\Jessie\Documents\GitHub\CMetalsWS\obj\Debug\net9.0\CMetalsWS.pdb
 C:\Users\Jessie\Documents\GitHub\CMetalsWS\obj\Debug\net9.0\CMetalsWS.genruntimeconfig.cache
 C:\Users\Jessie\Documents\GitHub\CMetalsWS\obj\Debug\net9.0\ref\CMetalsWS.dll
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 C:\Users\jccir\Documents\repos\CMetalsWS\obj\Debug\net9.0\CMetalsWS.csproj.AssemblyReference.cache

@@ -215,5 +215,9 @@ namespace CMetalsWS.Services
 }
 =======
 
+<<<<<<< Updated upstream
+}
+>>>>>>> Stashed changes
+=======
 }
 >>>>>>> Stashed changes

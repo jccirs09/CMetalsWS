@@ -4,6 +4,7 @@
   "Documents": [
     {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
       "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\components\\account\\pages\\login.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\account\\pages\\login.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
@@ -47,6 +48,8 @@
       "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jccir\\documents\\repos\\cmetalsws\\migrations\\20250901190012_initialcreate.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:migrations\\20250901190012_initialcreate.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
 =======
+=======
+>>>>>>> Stashed changes
       "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\pages\\schedule\\machineschedulebase.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\schedule\\machineschedulebase.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
@@ -61,6 +64,9 @@
     {
       "AbsoluteMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|c:\\users\\jessie\\documents\\github\\cmetalsws\\components\\pages\\schedule\\scheduletest.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{4045E4D0-1530-4A26-9336-0D0E81F6E687}|CMetalsWS.csproj|solutionrelative:components\\pages\\schedule\\scheduletest.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     }
   ],
@@ -71,6 +77,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
           "SelectedChildIndex": 0,
           "Children": [
@@ -212,6 +219,13 @@
             {
               "$type": "Document",
               "DocumentIndex": 1,
+=======
+          "SelectedChildIndex": 3,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+>>>>>>> Stashed changes
               "Title": "Load.cs",
               "DocumentMoniker": "C:\\Users\\Jessie\\Documents\\GitHub\\CMetalsWS\\Data\\Load.cs",
               "RelativeDocumentMoniker": "Data\\Load.cs",
@@ -258,6 +272,9 @@
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
               "WhenOpened": "2025-09-03T20:21:13.524Z",
               "EditorCaption": ""
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
             }
           ]
