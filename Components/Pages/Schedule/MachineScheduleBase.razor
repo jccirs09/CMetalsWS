@@ -35,9 +35,6 @@
                 }
             </MudSelect>
         </ToolbarContent>
-        <CellTemplate>
-            <WorkOrderCalendarItem WorkOrder="context.WorkOrder" Color="context.Color" />
-        </CellTemplate>
     </MudCalendar>
 </MudPaper>
 
@@ -96,6 +93,7 @@
             WorkOrder = wo,
             Start = wo.ScheduledStartDate,
             End = wo.ScheduledEndDate,
+            Text = wo.WorkOrderNumber,
             Color = this.Color
         }).ToList();
     }
