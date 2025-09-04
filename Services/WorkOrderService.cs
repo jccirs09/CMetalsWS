@@ -225,10 +225,10 @@ namespace CMetalsWS.Services
 
             if (existing is null) return;
 
-            foreach(var item in workOrder.Items)
+            foreach (var item in workOrder.Items)
             {
                 var existingItem = existing.Items.FirstOrDefault(i => i.Id == item.Id);
-                if(existingItem != null)
+                if (existingItem != null)
                 {
                     existingItem.ProducedQuantity = item.ProducedQuantity;
                     existingItem.ProducedWeight = item.ProducedWeight;

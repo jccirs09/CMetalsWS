@@ -211,4 +211,9 @@ namespace CMetalsWS.Services
             return await query.ToListAsync();
         }
     }
+<<<<<<< Updated upstream
 }
+=======
+
+}
+>>>>>>> Stashed changes

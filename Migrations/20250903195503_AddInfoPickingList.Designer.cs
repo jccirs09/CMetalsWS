@@ -4,6 +4,7 @@ using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250903195503_AddInfoPickingList")]
+    partial class AddInfoPickingList
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -564,6 +567,40 @@ namespace CMetalsWS.Migrations
                     b.ToTable("PickingListItems");
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.TaskAuditEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("EventType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TaskId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TaskType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("TaskAuditEvents");
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.Truck", b =>
                 {
                     b.Property<int>("Id")
@@ -745,6 +782,10 @@ namespace CMetalsWS.Migrations
 
                     b.Property<DateTime>("ScheduledStartDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Shift")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -1048,6 +1089,17 @@ namespace CMetalsWS.Migrations
                     b.Navigation("Machine");
 
                     b.Navigation("PickingList");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.TaskAuditEvent", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.Truck", b =>

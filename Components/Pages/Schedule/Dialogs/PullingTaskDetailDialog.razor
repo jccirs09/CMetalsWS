@@ -1,0 +1,58 @@
+﻿@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Complete Pulling Task</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid Spacing="2">
+            <MudItem xs="12">
+                <MudText><strong>Item:</strong> @Item.ItemId</MudText>
+            </MudItem>
+            <MudItem xs="12">
+                <MudText><strong>Description:</strong> @Item.ItemDescription</MudText>
+            </MudItem>
+            <MudItem xs="6">
+                <MudText><strong>Target Qty:</strong> @Item.Quantity</MudText>
+            </MudItem>
+            <MudItem xs="6">
+                <MudText><strong>Target Wt:</strong> @Item.Weight</MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="PulledQuantity" Label="Actual Quantity Pulled" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="PulledWeight" Label="Actual Weight Pulled" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="Complete">Complete Task</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public PickingListItem Item { get; set; } = new();
+
+    public decimal? PulledQuantity { get; set; }
+    public decimal? PulledWeight { get; set; }
+
+    protected override void OnInitialized()
+    {
+        // Pre-fill the pulled values with the target values for convenience
+        PulledQuantity = Item.Quantity;
+        PulledWeight = Item.Weight;
+    }
+
+    private void Complete()
+    {
+        // Return a tuple with both values
+        MudDialog.Close(DialogResult.Ok((PulledQuantity, PulledWeight)));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

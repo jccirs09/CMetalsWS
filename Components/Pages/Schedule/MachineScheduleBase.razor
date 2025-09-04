@@ -1,0 +1,167 @@
+@using System.Linq
+@using MudBlazor
+@using Heron.MudCalendar
+@using Microsoft.AspNetCore.SignalR.Client
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using MudBlazor.Utilities
+
+@inject WorkOrderService WorkOrderService
+@inject MachineService MachineService
+@inject BranchService BranchService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+@implements IAsyncDisposable
+
+<MudPaper Class="d-flex flex-grow-1 pa-4" Elevation="0">
+    <MudCalendar T="ScheduleEvent" Items="_events"
+                 EnableDragItems="true"
+                 EnableResizeItems="true" MonthCellMinHeight="120"
+                 DayStartTime="_branchWorkHours.Start"
+                 ItemChanged="OnItemChanged"
+                 ItemClicked="OnItemClicked"
+                 DayTimeInterval="CalendarTimeInterval.Minutes15"
+                 FirstDayOfWeek="_firstDayOfWeek">       
+        <ToolbarContent>
+            <MudSelect T="int" Label="Machine" Value="_selectedMachineId" ValueChanged="OnSelectedMachineChanged" Dense="true" Margin="Margin.Dense" Style="min-width:240px">
+                @foreach (var m in _machines)
+                {
+                    <MudSelectItem T="int" Value="@m.Id">@m.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </ToolbarContent>
+    </MudCalendar>
+</MudPaper>
+
+@code {
+    private class ScheduleEvent : CalendarItem
+    {
+        public WorkOrder WorkOrder { get; init; } = default!;
+        public Color Color { get; set; }
+    }
+
+    [Parameter]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public MachineCategory MachineCategory { get; set; }
+
+    [Parameter]
+    public Color Color { get; set; } = Color.Primary;
+
+    private List<Machine> _machines = new();
+    private List<ScheduleEvent> _events = new();
+    private int _selectedMachineId;
+    private HubConnection? _hub;
+    private (TimeOnly Start, TimeOnly End) _branchWorkHours;
+    private DayOfWeek _firstDayOfWeek = DayOfWeek.Monday;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = auth.User;
+        var branches = await BranchService.GetBranchesAsync();
+        var branchId = user.IsInRole("Admin") ? (int?)null : branches.FirstOrDefault()?.Id;
+
+        var branch = branches.FirstOrDefault();
+        _branchWorkHours = branch is not null && branch.StartTime.HasValue && branch.EndTime.HasValue
+            ? (branch.StartTime.Value, branch.EndTime.Value)
+            : (new(5, 0, 0), new(23, 0, 0));
+
+        _machines = (await MachineService.GetMachinesAsync())
+            .Where(m => m.Category == MachineCategory && (!branchId.HasValue || m.BranchId == branchId.Value))
+            .ToList();
+        if (_machines.Any()) _selectedMachineId = _machines.First().Id;
+
+        await LoadWorkOrders(branchId);
+        SetupSignalR(branchId);
+    }
+
+    private async Task LoadWorkOrders(int? branchId)
+    {
+        var workOrders = (await WorkOrderService.GetByCategoryAsync(MachineCategory, branchId))
+            .Where(w => _selectedMachineId == 0 || w.MachineId == _selectedMachineId)
+            .ToList();
+
+        _events = workOrders.Select(wo => new ScheduleEvent
+        {
+            WorkOrder = wo,
+            Start = wo.ScheduledStartDate,
+            End = wo.ScheduledEndDate,
+            Color = this.Color
+        }).ToList();
+    }
+
+    private void SetupSignalR(int? branchId)
+    {
+        _hub = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/schedule"))
+            .WithAutomaticReconnect()
+            .Build();
+        _hub.On<int>("WorkOrderUpdated", async (id) =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadWorkOrders(branchId);
+                StateHasChanged();
+            });
+        });
+        _hub.StartAsync();
+    }
+
+    private async Task OnItemClicked(CalendarItem item)
+    {
+        if (item is ScheduleEvent scheduleEvent)
+        {
+            var parameters = new DialogParameters<Dialogs.WorkOrderDetailsDialog>
+            {
+                { x => x.WorkOrderId, scheduleEvent.WorkOrder.Id }
+            };
+
+            await DialogService.ShowAsync<Dialogs.WorkOrderDetailsDialog>("Work Order Details", parameters);
+        }
+    }
+
+    private async Task OnItemChanged(CalendarItem item)
+    {
+        if (item is ScheduleEvent scheduleEvent)
+        {
+            try
+            {
+                await WorkOrderService.ScheduleAsync(scheduleEvent.WorkOrder.Id, item.Start, item.End);
+                Snackbar.Add("Work Order updated successfully!", Severity.Success);
+                await ReloadDataAndRefresh();
+                if (_hub is not null) await _hub.SendAsync("WorkOrderUpdated", scheduleEvent.WorkOrder.Id);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error updating Work Order: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task ReloadDataAndRefresh()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = auth.User;
+        var branches = await BranchService.GetBranchesAsync();
+        var branchId = user.IsInRole("Admin") ? (int?)null : branches.FirstOrDefault()?.Id;
+        await LoadWorkOrders(branchId);
+        StateHasChanged();
+    }
+
+    private async Task OnSelectedMachineChanged(int value)
+    {
+        _selectedMachineId = value;
+        await LoadWorkOrders(null);
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null) await _hub.DisposeAsync();
+    }
+}
