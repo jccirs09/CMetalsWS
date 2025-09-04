@@ -30,7 +30,7 @@
                     <MudToolBar Gutters="false">
                         <MudText Typo="Typo.subtitle1"><b>@load.LoadNumber</b></MudText>
                         <MudSpacer />
-                        <MudText Typo="Typo.subtitle2">@load.Truck?.Name</MudText>
+                        <MudText Typo="Typo.subtitle2">@load.Truck?.Description</MudText>
                     </MudToolBar>
                     <MudDropZone T="PickingList" Identifier="@load.Id.ToString()" Class="flex-grow-1" />
                 </MudPaper>
@@ -45,7 +45,7 @@
                             <MudSelect T="int" @bind-Value="_newLoadModel.TruckId" For="@(() => _newLoadModel.TruckId)" Label="Truck">
                                 @foreach (var truck in _trucks)
                                 {
-                                    <MudSelectItem T="int" Value="@truck.Id">@truck.Name</MudSelectItem>
+                                    <MudSelectItem T="int" Value="@truck.Id">@truck.Description</MudSelectItem>
                                 }
                             </MudSelect>
                             <MudButton ButtonType="ButtonType.Submit" Size="Size.Small" Color="Color.Primary" FullWidth="true" Class="mt-2">Add Load</MudButton>
@@ -139,7 +139,7 @@
         {
             LoadNumber = _newLoadModel.Name,
             TruckId = _newLoadModel.TruckId,
-            BranchId = 1 // Assuming a default branch for now
+            OriginBranchId = 1 // Assuming a default branch for now
         };
         await LoadService.CreateAsync(newLoad);
         _newLoadModel = new();

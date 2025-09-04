@@ -12,12 +12,12 @@
             <MudStack Spacing="3">
                 <MudTextField Label="Load Number" Value="@Model.LoadNumber" Disabled="true" />
 
-                <MudDatePicker Label="Scheduled Date" @bind-Date="ScheduledDateProxy" Required="true" />
+                <MudDatePicker Label="Shipping Date" @bind-Date="ShippingDateProxy" Required="true" />
 
                 <MudSelect T="int" Label="Truck" @bind-Value="Model.TruckId" Required="true">
                     @foreach (var t in _trucks)
                     {
-                        <MudSelectItem Value="t.Id">@t.Name</MudSelectItem>
+                        <MudSelectItem Value="t.Id">@t.Description</MudSelectItem>
                     }
                 </MudSelect>
 
@@ -32,21 +32,21 @@
                 <MudText Typo="Typo.h6">Load Items</MudText>
                 <MudTable Items="Model.Items" Hover="true" Dense="true">
                     <HeaderContent>
+                        <MudTh>Stop</MudTh>
                         <MudTh>Picking List</MudTh>
-                        <MudTh>Weight</MudTh>
-                        <MudTh>Destination</MudTh>
+                        <MudTh>Shipped Weight</MudTh>
                     </HeaderContent>
                     <RowTemplate>
+                        <MudTd><MudNumericField T="int" @bind-Value="context.StopSequence" /></MudTd>
                         <MudTd>
-                            <MudSelect T="int" @bind-Value="context.PickingListId">
+                            <MudSelect T="int?" @bind-Value="context.PickingListId">
                                 @foreach (var pl in _pickingLists)
                                 {
                                     <MudSelectItem Value="pl.Id">@pl.SalesOrderNumber - @pl.CustomerName</MudSelectItem>
                                 }
                             </MudSelect>
                         </MudTd>
-                        <MudTd><MudTextField T="decimal" @bind-Value="context.Weight" /></MudTd>
-                        <MudTd><MudTextField T="string" @bind-Value="context.Destination" /></MudTd>
+                        <MudTd><MudTextField T="decimal" @bind-Value="context.ShippedWeight" /></MudTd>
                     </RowTemplate>
                 </MudTable>
                 <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1">
@@ -71,10 +71,10 @@
     private List<Truck> _trucks = new();
     private List<PickingList> _pickingLists = new();
 
-    private DateTime? ScheduledDateProxy
+    private DateTime? ShippingDateProxy
     {
-        get => Model.ScheduledDate;
-        set => Model.ScheduledDate = value ?? Model.ScheduledDate;
+        get => Model.ShippingDate;
+        set => Model.ShippingDate = value ?? Model.ShippingDate;
     }
 
     protected override async Task OnInitializedAsync()
@@ -87,9 +87,9 @@
     {
         Model.Items.Add(new LoadItem
         {
-            PickingListId = 0,
-            Weight = 0,
-            Destination = string.Empty
+            PickingListId = null,
+            ShippedWeight = 0,
+            StopSequence = (Model.Items.Count > 0 ? Model.Items.Max(i => i.StopSequence) : 0) + 1
         });
     }
 

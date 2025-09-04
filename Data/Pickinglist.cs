@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -14,35 +14,37 @@ namespace CMetalsWS.Data
 
         [Required]
         public int BranchId { get; set; }
-        public Branch? Branch { get; set; }
+        public virtual Branch Branch { get; set; }
 
         public int? CustomerId { get; set; }
-        public Customer? Customer { get; set; }
+        public virtual Customer? Customer { get; set; }
 
+        // ... other existing fields like OrderDate, ShipDate, CustomerName, ShipToAddress...
         [Required]
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
-
         public DateTime? ShipDate { get; set; }
-
         [MaxLength(128)]
         public string? CustomerName { get; set; }
-
         [MaxLength(256)]
         public string? ShipToAddress { get; set; }
-
-        [MaxLength(64)]
-        public string? ShippingMethod { get; set; }
-
-      
         [MaxLength(128)]
         public string? SalesRep { get; set; }
-
-        public PickingListStatus Status { get; set; } = PickingListStatus.Pending;
-
         public int? TruckId { get; set; }
-        public Truck? Truck { get; set; }
+        public virtual Truck? Truck { get; set; }
 
-        public ICollection<PickingListItem> Items { get; set; } = new List<PickingListItem>();
+        // --- ENHANCEMENTS ---
+        public ShippingGroup ShippingGroup { get; set; } // Replaces string 'ShippingMethod'
+        [MaxLength(64)]
+        public string? DestinationRegion { get; set; } // For filtering/grouping
+        [Precision(18, 3)]
+        public decimal TotalWeight { get; set; } // Calculated from Items, stored for performance
+        [Precision(18, 3)]
+        public decimal RemainingWeight { get; set; } // To track partial shipments
+
+        public PickingListStatus Status { get; set; }
+        [MaxLength(512)]
+        public string? Notes { get; set; }
+        public virtual ICollection<PickingListItem> Items { get; set; } = new List<PickingListItem>();
     }
 
     public class PickingListItem : IEquatable<PickingListItem>
@@ -50,7 +52,7 @@ namespace CMetalsWS.Data
         public int Id { get; set; }
 
         public int PickingListId { get; set; }
-        public PickingList? PickingList { get; set; }
+        public virtual PickingList? PickingList { get; set; }
 
         public int LineNumber { get; set; }
 
@@ -88,7 +90,7 @@ namespace CMetalsWS.Data
         public DateTime? EffectiveShipDate => ScheduledShipDate ?? PickingList?.ShipDate;
 
         public int? MachineId { get; set; }
-        public Machine? Machine { get; set; }
+        public virtual Machine? Machine { get; set; }
 
         public bool Equals(PickingListItem? other)
         {

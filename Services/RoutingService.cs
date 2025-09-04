@@ -25,9 +25,8 @@ namespace CMetalsWS.Services
 
             var loads = await _loads.GetLoadsAsync(branchId, date);
 
-            // ScheduledStart is non-nullable: treat default(DateTime) as "unset"
             var eligible = loads
-                .Where(l => l.ScheduledStart.HasValue && l.ScheduledStart.Value.Date == date)
+                .Where(l => l.ShippingDate.Date == date)
                 .Where(l => l.Status == LoadStatus.Scheduled || l.Status == LoadStatus.Pending)
                 .ToList();
 
@@ -59,9 +58,8 @@ namespace CMetalsWS.Services
                     Status = RouteStatus.Planned
                 };
 
-                // ReadyDate, ScheduledEnd may be nullable; ScheduledStart is a DateTime (default means unset)
                 var orderedLoads = g
-                    .OrderBy(l => l.ReadyDate ?? l.ScheduledEnd ?? l.ScheduledStart)
+                    .OrderBy(l => l.ShippingDate)
                     .ThenBy(l => l.LoadNumber)
                     .ToList();
 
@@ -72,8 +70,8 @@ namespace CMetalsWS.Services
                     {
                         LoadId = l.Id,
                         StopOrder = order++,
-                        PlannedStart = l.ScheduledStart != default ? l.ScheduledStart : null,
-                        PlannedEnd = l.ScheduledEnd
+                        PlannedStart = l.ShippingDate,
+                        // PlannedEnd = l.ShippingDate // No end date in new model
                     });
                 }
 

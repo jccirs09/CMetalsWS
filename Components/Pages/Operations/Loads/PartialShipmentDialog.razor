@@ -1,0 +1,38 @@
+@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Partial Shipment</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText>How much weight from picking list @PickingList.SalesOrderNumber do you want to add to this load?</MudText>
+        <MudNumericField @bind-Value="_shippedWeight" Label="Weight to add" Required="true" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Add to Load</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public PickingList PickingList { get; set; } = new();
+
+    private decimal _shippedWeight;
+
+    protected override void OnInitialized()
+    {
+        _shippedWeight = PickingList.RemainingWeight;
+    }
+
+    private void Submit()
+    {
+        if (_shippedWeight > 0 && _shippedWeight <= PickingList.RemainingWeight)
+        {
+            MudDialog.Close(DialogResult.Ok(_shippedWeight));
+        }
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}
