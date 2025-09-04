@@ -22,12 +22,15 @@
 <MudPaper Class="d-flex flex-grow-1 pa-4" Elevation="0">
     <MudCalendar T="ScheduleEvent" Items="_events"
                  EnableDragItems="true"
-                 EnableResizeItems="true" MonthCellMinHeight="120"
+                 EnableResizeItems="true"
+                 MonthCellMinHeight="120"
                  ItemClicked="OnItemClicked"
                  ItemChanged="OnItemChanged"
-                 DayStartTime="_branchWorkHours.Start" EndTime="_branchWorkHours.End"
+                 DayStartTime="_branchWorkHours.Start"
+                 DayEndTime="_branchWorkHours.End"
                  DayTimeInterval="CalendarTimeInterval.Minutes15"
-                 FirstDayOfWeek="_firstDayOfWeek" Height="1080">
+                 FirstDayOfWeek="_firstDayOfWeek"
+                 Height="1080">
         <ToolbarContent>
             <MudText Typo="Typo.h5">@Title</MudText>
             <MudSpacer />
@@ -49,7 +52,7 @@
     }
 
     [Parameter]
-    public string Title { get; set; } = "";
+    public string Title { get; set; } = string.Empty;
 
     [Parameter]
     public MachineCategory MachineCategory { get; set; }
@@ -63,26 +66,27 @@
     private HubConnection? _hub;
     private (TimeOnly Start, TimeOnly End) _branchWorkHours;
     private DayOfWeek _firstDayOfWeek = DayOfWeek.Monday;
+    private int? _currentBranchId;
 
     protected override async Task OnInitializedAsync()
     {
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(auth.User);
-        var branchId = user?.BranchId;
+        _currentBranchId = user?.BranchId;
 
         var branches = await BranchService.GetBranchesAsync();
-        var branch = branches.FirstOrDefault(b => b.Id == branchId);
+        var branch = branches.FirstOrDefault(b => b.Id == _currentBranchId);
         _branchWorkHours = branch is not null && branch.StartTime.HasValue && branch.EndTime.HasValue
             ? (branch.StartTime.Value, branch.EndTime.Value)
-            : (new(5,0,0), new(23,0,0));
+            : (new(5, 0, 0), new(23, 0, 0));
 
         _machines = (await MachineService.GetMachinesAsync())
-            .Where(m => m.Category == MachineCategory && (!branchId.HasValue || m.BranchId == branchId.Value))
+            .Where(m => m.Category == MachineCategory && (!_currentBranchId.HasValue || m.BranchId == _currentBranchId.Value))
             .ToList();
         if (_machines.Any()) _selectedMachineId = _machines.First().Id;
 
-        await LoadWorkOrders(branchId);
-        SetupSignalR(branchId);
+        await LoadWorkOrders(_currentBranchId);
+        await SetupSignalRAsync(_currentBranchId);
     }
 
     private async Task LoadWorkOrders(int? branchId)
@@ -101,12 +105,13 @@
         }).ToList();
     }
 
-    private void SetupSignalR(int? branchId)
+    private async Task SetupSignalRAsync(int? branchId)
     {
         _hub = new HubConnectionBuilder()
             .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/schedule"))
             .WithAutomaticReconnect()
             .Build();
+
         _hub.On<int>("WorkOrderUpdated", async (id) =>
         {
             await InvokeAsync(async () =>
@@ -115,31 +120,41 @@
                 StateHasChanged();
             });
         });
-        _hub.StartAsync();
+
+        try
+        {
+            await _hub.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"SignalR connection failed: {ex.Message}", Severity.Warning);
+        }
     }
 
     private async Task OnItemClicked(CalendarItem item)
     {
-        if (item is ScheduleEvent scheduleEvent)
+        if (item is not ScheduleEvent scheduleEvent)
+            return;
+
+        // Unified flow: open a details dialog that returns an action string (e.g., "edit", "process")
+        var detailsParams = new DialogParameters { ["WorkOrderId"] = scheduleEvent.WorkOrder.Id };
+        var detailsDialog = await DialogService.ShowAsync<Dialogs.WorkOrderDetailsDialog>("Work Order Details", detailsParams);
+        var detailsResult = await detailsDialog.Result;
+
+        if (detailsResult is null || detailsResult.Canceled)
+            return;
+
+        if (detailsResult.Data is string action && (action == "edit" || action == "process"))
         {
-            var parameters = new DialogParameters
-            {
-                ["Model"] = scheduleEvent.WorkOrder
-            };
-
-            var dialog = await DialogService.ShowAsync<WorkOrderDetailsDialog>("Work Order Details", parameters, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
-            var result = await dialog.Result;
-
-            if (result is not null && !result.Canceled && result.Data is bool shouldEdit && shouldEdit)
-            {
-                await EditWorkOrderAsync(scheduleEvent.WorkOrder);
-            }
+            await ShowWorkOrderDialogAsync(scheduleEvent.WorkOrder, action);
         }
     }
 
-    private async Task EditWorkOrderAsync(WorkOrder wo)
+    private async Task ShowWorkOrderDialogAsync(WorkOrder wo, string mode)
     {
-        var branches = await BranchService.GetBranchesAsync();
+        var isProcessing = string.Equals(mode, "process", StringComparison.OrdinalIgnoreCase);
+
+        // Clone the model to avoid 2-way binding side-effects before save
         var clone = new WorkOrder
         {
             Id = wo.Id,
@@ -176,65 +191,79 @@
         var parameters = new DialogParameters
         {
             ["Model"] = clone,
-            ["Machines"] = _machines.Where(m => m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter).ToList(),
-            ["Branches"] = branches,
-            ["Title"] = $"Edit {wo.WorkOrderNumber}",
-            ["IsEdit"] = true
+            ["Machines"] = _machines,
+            ["Branches"] = await BranchService.GetBranchesAsync(),
+            ["Title"] = isProcessing ? $"Process {wo.WorkOrderNumber}" : $"Edit {wo.WorkOrderNumber}",
+            ["IsEdit"] = true,          // Keep IsEdit to disable tag search
+            ["IsProcessing"] = isProcessing
         };
 
-        var dialog = await DialogService.ShowAsync<WorkOrderDialog>("Edit Work Order", parameters, new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
-        if(dialog is not null)
-        {
-            var result = await dialog.Result;
-            if (result is not null && !result.Canceled && result.Data is WorkOrder updated)
-            {
-                var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-                var user = auth.User;
-                var updatedBy = user?.Identity?.Name ?? "system";
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, DisableBackdropClick = true };
+        var dialog = await DialogService.ShowAsync<WorkOrderDialog>(isProcessing ? "Process Work Order" : "Edit Work Order", parameters, options);
+        var result = await dialog.Result;
 
-                await WorkOrderService.UpdateAsync(updated, updatedBy);
-                Snackbar.Add("Work order updated.", Severity.Success);
-                await ReloadDataAndRefresh();
+        if (result is not null && !result.Canceled)
+        {
+            // If your dialog handles persistence internally, simply reload.
+            // If it returns a WorkOrder for manual save, handle it below.
+            if (result.Data is WorkOrder updated)
+            {
+                try
+                {
+                    var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+                    var user = auth.User;
+                    var updatedBy = user?.Identity?.Name ?? "system";
+                    await WorkOrderService.UpdateAsync(updated, updatedBy);
+                    Snackbar.Add("Work order updated.", Severity.Success);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Failed to update: {ex.Message}", Severity.Error);
+                }
             }
+
+            await ReloadDataAndRefresh();
         }
     }
 
     private async Task OnItemChanged(CalendarItem item)
     {
-        if (item is ScheduleEvent scheduleEvent)
+        if (item is not ScheduleEvent scheduleEvent)
+            return;
+
+        try
         {
-            try
-            {
-                await WorkOrderService.ScheduleAsync(scheduleEvent.WorkOrder.Id, item.Start, item.End);
-                Snackbar.Add("Work Order updated successfully!", Severity.Success);
-                await ReloadDataAndRefresh();
-                if (_hub is not null) await _hub.SendAsync("WorkOrderUpdated", scheduleEvent.WorkOrder.Id);
-            }
-            catch (Exception ex)
-            {
-                Snackbar.Add($"Error updating Work Order: {ex.Message}", Severity.Error);
-            }
+            await WorkOrderService.ScheduleAsync(scheduleEvent.WorkOrder.Id, item.Start, item.End);
+            Snackbar.Add("Work Order updated successfully!", Severity.Success);
+            await ReloadDataAndRefresh();
+            if (_hub is not null)
+                await _hub.SendAsync("WorkOrderUpdated", scheduleEvent.WorkOrder.Id);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error updating Work Order: {ex.Message}", Severity.Error);
         }
     }
 
     private async Task ReloadDataAndRefresh()
     {
-        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = await UserManager.GetUserAsync(auth.User);
-        var branchId = user?.BranchId;
-        await LoadWorkOrders(branchId);
+        await LoadWorkOrders(_currentBranchId);
         StateHasChanged();
     }
 
     private async Task OnSelectedMachineChanged(int value)
     {
         _selectedMachineId = value;
-        await LoadWorkOrders(null);
+        await LoadWorkOrders(_currentBranchId);
         StateHasChanged();
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_hub is not null) await _hub.DisposeAsync();
+        if (_hub is not null)
+        {
+            try { await _hub.DisposeAsync(); }
+            catch { /* ignored */ }
+        }
     }
 }
