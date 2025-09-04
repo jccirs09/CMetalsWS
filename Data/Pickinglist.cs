@@ -33,7 +33,7 @@ namespace CMetalsWS.Data
         [MaxLength(64)]
         public string? ShippingMethod { get; set; }
 
-        // Sales representative parsed from ship via lines like "JASON PAYNE TRUCK"
+      
         [MaxLength(128)]
         public string? SalesRep { get; set; }
 
