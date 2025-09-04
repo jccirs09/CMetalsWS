@@ -9,7 +9,7 @@
         <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">PL @PickingList.Id</MudChip>
     </div>
     <div style="padding:0 .5rem .5rem .5rem;">
-        <MudText Typo="Typo.caption">@PickingList.CustomerName • Due @PickingList.ShipDate?.ToString("yyyy-MM-dd")</MudText>
+        <MudText Typo="Typo.caption">@PickingList.Customer?.CustomerName</MudText>
     </div>
 </div>
 

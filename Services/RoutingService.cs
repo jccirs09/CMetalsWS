@@ -26,7 +26,7 @@ namespace CMetalsWS.Services
             var loads = await _loads.GetLoadsAsync(branchId, date);
 
             var eligible = loads
-                .Where(l => l.ShippingDate.Date == date)
+                .Where(l => l.ShippingDate.HasValue && l.ShippingDate.Value.Date == date)
                 .Where(l => l.Status == LoadStatus.Scheduled || l.Status == LoadStatus.Pending)
                 .ToList();
 
@@ -59,7 +59,7 @@ namespace CMetalsWS.Services
                 };
 
                 var orderedLoads = g
-                    .OrderBy(l => l.ShippingDate)
+                    .OrderBy(l => l.ShippingDate ?? DateTime.MaxValue)
                     .ThenBy(l => l.LoadNumber)
                     .ToList();
 
@@ -70,7 +70,7 @@ namespace CMetalsWS.Services
                     {
                         LoadId = l.Id,
                         StopOrder = order++,
-                        PlannedStart = l.ShippingDate,
+                        PlannedStart = l.ShippingDate ?? route.RouteDate,
                         // PlannedEnd = l.ShippingDate // No end date in new model
                     });
                 }

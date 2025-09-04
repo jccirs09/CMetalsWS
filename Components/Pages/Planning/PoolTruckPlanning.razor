@@ -1,0 +1,304 @@
+@page "/planning/pool"
+@using CMetalsWS.Data
+@using System.Linq
+@using MudBlazor
+
+@inject CMetalsWS.Services.PickingListService PickingListService
+@inject CMetalsWS.Services.TruckService TruckService
+@inject CMetalsWS.Services.LoadService LoadService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudGrid>
+    <MudItem xs="12" md="7">
+        <MudPaper Class="pa-4" Style="height: 100%;">
+            <MudText Typo="Typo.h6">Available Picking Lists (Pool Truck)</MudText>
+
+            <MudExpansionPanels MultiExpansion="true">
+                @foreach (var group in _groupedPickingLists)
+                {
+                    <MudExpansionPanel>
+                        <TitleContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center">
+                                <MudCheckBox T="bool" Value="@(_selectedGroups.Contains(group))" ValueChanged="@((bool val) => OnGroupChecked(val, group))" />
+                                <MudText>SO: @group.Key</MudText>
+                                <MudText>Customer: @group.First().Customer?.CustomerName</MudText>
+                                <MudText>Weight: @group.SelectMany(pl => pl.Items).Sum(pli => pli.PulledWeight) lbs</MudText>
+                                <MudText>Status: @group.First().Status</MudText>
+                                <MudIconButton Icon="@Icons.Material.Filled.Splitscreen" Size="Size.Small" OnClick="@(() => OpenPartialLoadDialog(group.ToList()))" />
+                            </MudStack>
+                        </TitleContent>
+                        <ChildContent>
+                            <MudSimpleTable Dense="true" Striped="true">
+                                <thead>
+                                    <tr>
+                                        <th>Item ID</th>
+                                        <th>Description</th>
+                                        <th>Pulled Wt.</th>
+                                        <th>Pulled Qty.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in group.SelectMany(pl => pl.Items).OrderBy(i => i.Id))
+                                    {
+                                        <tr>
+                                            <td>@item.ItemId</td>
+                                            <td>@item.ItemDescription</td>
+                                            <td>@item.PulledWeight</td>
+                                            <td>@item.PulledQuantity</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        </ChildContent>
+                    </MudExpansionPanel>
+                }
+            </MudExpansionPanels>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!_selectedGroups.Any())" OnClick="CreateLoadFromSelected" Class="mt-4">Create Load with Selected</MudButton>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" md="5">
+        <MudPaper Class="pa-4" Style="height: 100%;">
+            <MudText Typo="Typo.h6">Load Builder</MudText>
+            @if (_load != null)
+            {
+                <MudSelect T="int?" Label="Truck" Value="_load.TruckId" ValueChanged="@OnTruckChanged" For="@(() => _load.TruckId)">
+                    @foreach (var truck in _trucks)
+                    {
+                        <MudSelectItem Value="@truck.Id">@truck.Name (@truck.CapacityWeight lbs)</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudDatePicker Label="Shipping Date" @bind-Date="_load.ShippingDate" />
+                <MudTextField Label="Notes" @bind-Value="_load.Notes" Lines="2" />
+                <MudText Typo="Typo.caption" Class="mt-2">Load Capacity:</MudText>
+                <MudProgressLinear Color="@_loadCapacityColor" Value="@((double)_loadCapacity)" Class="my-1" />
+                <MudText Typo="Typo.body2"><strong>Total Weight:</strong> @_load.TotalWeight lbs</MudText>
+
+                <MudPaper Class="mt-4" Outlined="true">
+                    <MudToolBar>
+                        <MudText Typo="Typo.subtitle1">Items in Load</MudText>
+                    </MudToolBar>
+                    <MudContainer Style="max-height: 300px; overflow-y: auto">
+                        @foreach (var item in _itemsInLoad)
+                        {
+                            <MudDropZone T="LoadItem" OnItemDropped="ItemDropped" Identifier="@(item.PickingListItemId.ToString())">
+                                <MudPaper Elevation="2" Class="pa-2 ma-1">
+                                    <MudGrid>
+                                        <MudItem xs="1">@item.StopSequence</MudItem>
+                                        <MudItem xs="3">@item.PickingListItem.PickingList.SalesOrderNumber</MudItem>
+                                        <MudItem xs="4">@item.PickingListItem.PickingList.Customer.CustomerName</MudItem>
+                                        <MudItem xs="2" Style="text-align:right">@item.ShippedWeight.ToString("N2")</MudItem>
+                                        <MudItem xs="1">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => RemoveItemFromLoad(item))" />
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudPaper>
+                            </MudDropZone>
+                        }
+                    </MudContainer>
+                </MudPaper>
+
+                <MudStack Row="true" Class="mt-4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveLoad" Disabled="@(_load.TruckId == null)">Save Load</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="ClearLoad">Clear</MudButton>
+                </MudStack>
+            }
+            else
+            {
+                <MudText>Select picking lists or use the partial load action to start building a load.</MudText>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private DestinationRegionCategory _regionCategory = DestinationRegionCategory.POOL_TRUCK;
+    private List<IGrouping<string, PickingList>> _groupedPickingLists = new();
+    private HashSet<IGrouping<string, PickingList>> _selectedGroups = new();
+    private Load? _load;
+    private List<LoadItem> _itemsInLoad = new();
+    private List<Truck> _trucks = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        var allPickingLists = await PickingListService.GetAvailableForLoadingAsync();
+        _groupedPickingLists = allPickingLists
+            .Where(p => p.Customer?.DestinationRegionCategory == _regionCategory)
+            .GroupBy(p => p.SalesOrderNumber)
+            .ToList();
+        _trucks = await TruckService.GetTrucksAsync();
+    }
+
+    private void OnGroupChecked(bool isChecked, IGrouping<string, PickingList> group)
+    {
+        if (isChecked)
+        {
+            _selectedGroups.Add(group);
+        }
+        else
+        {
+            _selectedGroups.Remove(group);
+        }
+        StateHasChanged();
+    }
+
+    private void CreateLoadFromSelected()
+    {
+        if (!_selectedGroups.Any()) return;
+
+        _load = new Load { ShippingDate = DateTime.Today };
+        _itemsInLoad.Clear();
+
+        var allItems = _selectedGroups.SelectMany(g => g).SelectMany(pl => pl.Items);
+        foreach (var item in allItems)
+        {
+            _itemsInLoad.Add(new LoadItem
+            {
+                PickingListItemId = item.Id,
+                PickingListItem = item,
+                ShippedWeight = item.PulledWeight
+            });
+        }
+        RecalculateStopSequence();
+        UpdateLoadCapacity();
+    }
+
+    private void AddToLoad(IEnumerable<PickingListItem> itemsToAdd)
+    {
+        _load ??= new Load { ShippingDate = DateTime.Today };
+
+        foreach (var item in itemsToAdd)
+        {
+            if (!_itemsInLoad.Any(li => li.PickingListItemId == item.Id))
+            {
+                _itemsInLoad.Add(new LoadItem
+                {
+                    PickingListItemId = item.Id,
+                    PickingListItem = item,
+                    ShippedWeight = item.PulledWeight
+                });
+            }
+        }
+        RecalculateStopSequence();
+        UpdateLoadCapacity();
+    }
+
+    private void RemoveItemFromLoad(LoadItem item)
+    {
+        _itemsInLoad.Remove(item);
+        RecalculateStopSequence();
+        UpdateLoadCapacity();
+    }
+
+    private async Task SaveLoad()
+    {
+        if (_load is null) return;
+
+        _load.Items = _itemsInLoad;
+        try
+        {
+            await LoadService.CreateAsync(_load);
+            Snackbar.Add("Load saved successfully!", Severity.Success);
+            await LoadData();
+            ClearLoad();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save load: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void ClearLoad()
+    {
+        _load = null;
+        _itemsInLoad.Clear();
+        _selectedGroups.Clear();
+        _loadCapacity = 0;
+        StateHasChanged();
+    }
+
+    private void ItemDropped(MudItemDropInfo<LoadItem> dropItem)
+    {
+        if (dropItem.Item == null || dropItem.DropzoneIdentifier == null) return;
+
+        var itemToMove = dropItem.Item;
+        var targetIdentifier = dropItem.DropzoneIdentifier;
+        var targetItem = _itemsInLoad.FirstOrDefault(x => x.PickingListItemId.ToString() == targetIdentifier);
+
+        if (targetItem == null) return;
+
+        _itemsInLoad.Remove(itemToMove);
+        var targetIndex = _itemsInLoad.IndexOf(targetItem);
+        _itemsInLoad.Insert(targetIndex, itemToMove);
+
+        RecalculateStopSequence();
+        StateHasChanged();
+    }
+
+    private void RecalculateStopSequence()
+    {
+        for (int i = 0; i < _itemsInLoad.Count; i++)
+        {
+            _itemsInLoad[i].StopSequence = i + 1;
+        }
+    }
+
+    private decimal _loadCapacity;
+    private Color _loadCapacityColor = Color.Success;
+
+    private void OnTruckChanged(int? truckId)
+    {
+        if (_load != null)
+        {
+            _load.TruckId = truckId;
+            UpdateLoadCapacity();
+        }
+    }
+
+    private void UpdateLoadCapacity()
+    {
+        if (_load == null)
+        {
+            _loadCapacity = 0;
+            return;
+        }
+
+        _load.TotalWeight = _itemsInLoad.Sum(i => i.ShippedWeight);
+        var truck = _trucks.FirstOrDefault(t => t.Id == _load.TruckId);
+
+        if (truck == null || truck.CapacityWeight == 0)
+        {
+            _loadCapacity = _load.TotalWeight > 0 ? 100 : 0;
+        }
+        else
+        {
+            _loadCapacity = (_load.TotalWeight / truck.CapacityWeight) * 100;
+        }
+
+        if (_loadCapacity > 100) _loadCapacityColor = Color.Error;
+        else if (_loadCapacity > 85) _loadCapacityColor = Color.Warning;
+        else _loadCapacityColor = Color.Success;
+    }
+
+    private async Task OpenPartialLoadDialog(List<PickingList> pickingLists)
+    {
+        var parameters = new DialogParameters
+        {
+            ["PickingListItems"] = pickingLists.SelectMany(g => g.Items).ToList()
+        };
+
+        var dialog = await DialogService.ShowAsync<PartialLoadDialog>("Partial Load Selection", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is List<PickingListItem> selectedItems)
+        {
+            AddToLoad(selectedItems);
+        }
+    }
+}

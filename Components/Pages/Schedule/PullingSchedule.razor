@@ -39,12 +39,12 @@
             <MudItem xs="12" sm="3">
                 <MudText Typo="Typo.h6">Unscheduled Pulling Orders</MudText>
                 <MudList T="PickingList" Dense="true">
-                    @foreach (var pl in _unscheduled)
+                    @* @foreach (var pl in _unscheduled)
                     {
                         <MudListItem T="PickingList" Value="@pl">
-                            @pl.SalesOrderNumber - @pl.CustomerName - Due: @pl.ShipDate?.ToString("yyyy-MM-dd")
+                            @pl.SalesOrderNumber - @pl.Customer.CustomerName - Due: @pl.Id
                         </MudListItem>
-                    }
+                    } *@
                 </MudList>
             </MudItem>
         </MudGrid>
@@ -71,8 +71,8 @@
         var branches = await BranchService.GetBranchesAsync();
         int? branchId = user.IsInRole("Admin") ? null : branches.FirstOrDefault()?.Id;
 
-        await LoadPickingLists(branchId);
-        BuildCalendarItems();
+        // await LoadPickingLists(branchId);
+        // BuildCalendarItems();
 
         _hub = new HubConnectionBuilder()
             .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/schedule"))
@@ -83,8 +83,8 @@
         {
             await InvokeAsync(async () =>
             {
-                await LoadPickingLists(branchId);
-                BuildCalendarItems();
+                // await LoadPickingLists(branchId);
+                // BuildCalendarItems();
                 StateHasChanged();
             });
         });
@@ -95,21 +95,21 @@
     private async Task LoadPickingLists(int? branchId)
     {
         _all = await PickingListService.GetPendingPullingOrdersAsync(branchId);
-        _unscheduled = _all.Where(p => p.ShipDate == null || p.ShipDate.Value.Date < DateTime.Today).ToList();
+        // _unscheduled = _all.Where(p => p.ShipDate == null || p.ShipDate.Value.Date < DateTime.Today).ToList();
     }
 
     private void BuildCalendarItems()
     {
-        _items = _all
-            .Where(p => p.ShipDate != null && p.ShipDate.Value.Date >= DateTime.Today)
-            .Select(p => new SchedItem
-            {
-                Start = p.ShipDate!.Value,
-                End = p.ShipDate!.Value.AddHours(1),
-                AllDay = false,
-                PickingList = p
-            })
-            .ToList();
+        // _items = _all
+        //     .Where(p => p.ShipDate != null && p.ShipDate.Value.Date >= DateTime.Today)
+        //     .Select(p => new SchedItem
+        //     {
+        //         Start = p.ShipDate!.Value,
+        //         End = p.ShipDate!.Value.AddHours(1),
+        //         AllDay = false,
+        //         PickingList = p
+        //     })
+        //     .ToList();
     }
 
     private async Task HandleItemChanged(CalendarItem e)
@@ -117,17 +117,17 @@
         if (e is SchedItem item)
         {
             var pl = item.PickingList;
-            pl.ShipDate = item.Start;
+            // pl.ShipDate = item.Start;
 
-            await PickingListService.ScheduleListAsync(pl.Id, item.Start);
+            // await PickingListService.ScheduleListAsync(pl.Id, item.Start);
 
             var auth = await AuthStateProvider.GetAuthenticationStateAsync();
             var user = auth.User;
             var branches = await BranchService.GetBranchesAsync();
             var branchId = user.IsInRole("Admin") ? (int?)null : branches.FirstOrDefault()?.Id;
 
-            await LoadPickingLists(branchId);
-            BuildCalendarItems();
+            // await LoadPickingLists(branchId);
+            // BuildCalendarItems();
             StateHasChanged();
 
             if (_hub is not null)

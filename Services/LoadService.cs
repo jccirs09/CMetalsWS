@@ -30,7 +30,7 @@ namespace CMetalsWS.Services
             if (onlyDate.HasValue)
             {
                 var d = onlyDate.Value.Date;
-                query = query.Where(l => l.ShippingDate.Date == d);
+                query = query.Where(l => l.ShippingDate.HasValue && l.ShippingDate.Value.Date == d);
             }
 
             return await query
@@ -74,7 +74,6 @@ namespace CMetalsWS.Services
             existing.ShippingDate = load.ShippingDate;
             existing.TruckId = load.TruckId;
             existing.Notes = load.Notes;
-            existing.LoadType = load.LoadType;
             existing.DestinationBranchId = load.DestinationBranchId;
 
             existing.Items.Clear();

@@ -96,13 +96,6 @@ namespace CMetalsWS.Data
                 .HasForeignKey(p => p.BranchId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // PickingList -> Truck
-            modelBuilder.Entity<PickingList>()
-                .HasOne(p => p.Truck)
-                .WithMany()
-                .HasForeignKey(p => p.TruckId)
-                .OnDelete(DeleteBehavior.SetNull);
-
             // Load relationships (NEW)
             modelBuilder.Entity<Load>(e =>
             {
@@ -130,19 +123,11 @@ namespace CMetalsWS.Data
                     .HasForeignKey(i => i.PickingListId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                e.HasOne(li => li.TransferItem)
+                e.HasOne(i => i.PickingListItem)
                     .WithMany()
-                    .HasForeignKey(li => li.TransferItemId)
+                    .HasForeignKey(i => i.PickingListItemId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
-
-            // Date types
-            modelBuilder.Entity<PickingList>()
-                .Property(p => p.OrderDate)
-                .HasColumnType("datetime2");
-            modelBuilder.Entity<PickingList>()
-                .Property(p => p.ShipDate)
-                .HasColumnType("datetime2");
 
             // PickingListItem -> PickingList
             modelBuilder.Entity<PickingListItem>()

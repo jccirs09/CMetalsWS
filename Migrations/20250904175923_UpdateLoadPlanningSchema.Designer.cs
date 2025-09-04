@@ -4,6 +4,7 @@ using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250904175923_UpdateLoadPlanningSchema")]
+    partial class UpdateLoadPlanningSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -346,7 +349,7 @@ namespace CMetalsWS.Migrations
                     b.Property<int>("OriginBranchId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("ShippingDate")
+                    b.Property<DateTime>("ShippingDate")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("Status")
@@ -356,7 +359,7 @@ namespace CMetalsWS.Migrations
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 
-                    b.Property<int?>("TruckId")
+                    b.Property<int>("TruckId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -528,6 +531,9 @@ namespace CMetalsWS.Migrations
                         .HasColumnType("decimal(18,3)");
 
                     b.Property<DateTime?>("ScheduledShipDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ShipDate")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("Status")
@@ -1032,7 +1038,9 @@ namespace CMetalsWS.Migrations
 
                     b.HasOne("CMetalsWS.Data.Truck", "Truck")
                         .WithMany()
-                        .HasForeignKey("TruckId");
+                        .HasForeignKey("TruckId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("DestinationBranch");
 

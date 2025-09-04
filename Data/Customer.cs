@@ -25,8 +25,7 @@ namespace CMetalsWS.Data
         public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
         public DateTime? ModifiedUtc { get; set; }
 
-        // NEW: Fields to store default shipping info to speed up order entry.
-        public ShippingGroup? DefaultShippingGroup { get; set; }
-        public string? DefaultDestinationRegion { get; set; }
+        // NEW: The primary driver for which planning page an order appears on.
+        public DestinationRegionCategory DestinationRegionCategory { get; set; }
     }
 }

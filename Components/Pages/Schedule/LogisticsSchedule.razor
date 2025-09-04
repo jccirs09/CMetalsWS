@@ -11,7 +11,7 @@
 @inject TruckService TruckService
 
 <MudPaper Class="pa-4">
-    <MudDropContainer T="PickingList" Items="_allPickingLists" ItemDropped="ItemDropped" ItemsSelector="@((item,zone) => GetPickingListZone(item) == zone)" Class="d-flex flex-row">
+    <MudDropContainer T="PickingList" Items="_allPickingLists" ItemsSelector="@((item,zone) => GetPickingListZone(item) == zone)" Class="d-flex flex-row">
         <ChildContent>
             <MudPaper Class="pa-4" Elevation="0" MinWidth="300px">
                 <MudText Typo="Typo.h6">Pending Picking Lists</MudText>
@@ -86,10 +86,10 @@
 
         var loadedPickingListIds = _loads.SelectMany(l => l.Items.Select(i => i.PickingListId)).ToHashSet();
 
-        _pendingGroups = _allPickingLists
-            .Where(pl => pl.ShipDate.HasValue && !loadedPickingListIds.Contains(pl.Id))
-            .GroupBy(pl => pl.ShipDate!.Value.Date)
-            .ToArray();
+        // _pendingGroups = _allPickingLists
+        //     .Where(pl => pl.ShipDate.HasValue && !loadedPickingListIds.Contains(pl.Id))
+        //     .GroupBy(pl => pl.ShipDate!.Value.Date)
+        //     .ToArray();
     }
 
     private string GetPickingListZone(PickingList pl)
@@ -99,39 +99,13 @@
         {
             return load.Id.ToString();
         }
-        if (pl.ShipDate.HasValue)
-        {
-            return pl.ShipDate.Value.ToString("yyyy-MM-dd");
-        }
+        // if (pl.ShipDate.HasValue)
+        // {
+        //     return pl.ShipDate.Value.ToString("yyyy-MM-dd");
+        // }
         return "unscheduled"; // Should not happen with current logic
     }
 
-    private async Task ItemDropped(MudItemDropInfo<PickingList> dropItem)
-    {
-        if (dropItem.Item is null) return;
-
-        if (int.TryParse(dropItem.DropzoneIdentifier, out var loadId))
-        {
-            // Dropped on a load
-            var load = _loads.First(l => l.Id == loadId);
-            load.Items.Add(new LoadItem { PickingListId = dropItem.Item.Id });
-            await LoadService.UpdateAsync(load);
-        }
-        else if (DateTime.TryParse(dropItem.DropzoneIdentifier, out var shipDate))
-        {
-            // Dropped on a date (unscheduling)
-            var previousLoad = _loads.FirstOrDefault(l => l.Items.Any(i => i.PickingListId == dropItem.Item.Id));
-            if (previousLoad != null)
-            {
-                var itemToRemove = previousLoad.Items.First(i => i.PickingListId == dropItem.Item.Id);
-                previousLoad.Items.Remove(itemToRemove);
-                await LoadService.UpdateAsync(previousLoad);
-            }
-        }
-
-        await LoadData();
-        StateHasChanged();
-    }
 
     private async Task OnValidLoadSubmit()
     {

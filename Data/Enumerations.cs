@@ -1,6 +1,6 @@
 ﻿namespace CMetalsWS.Data
 {
-
+    public enum DestinationRegionCategory { LOCAL, POOL_TRUCK, OUT_OF_TOWN }
     public enum PickingListStatus
     {
         Pending,
@@ -12,7 +12,8 @@
         Completed,
         ReadyToShip,
         Shipped,
-        Cancelled
+        Cancelled,
+        Ready
     }
     public enum PickingLineStatus
     {

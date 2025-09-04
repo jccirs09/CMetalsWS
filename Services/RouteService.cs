@@ -21,7 +21,7 @@ namespace CMetalsWS.Services
                 .Select((item, index) => new RouteStopDtp
                 {
                     StopNumber = item.StopSequence,
-                    Destination = item.PickingList?.DestinationRegion ?? "N/A",
+                    Destination = item.PickingList?.Customer?.DestinationRegionCategory.ToString() ?? "N/A",
                     PickingListNumber = item.PickingList?.SalesOrderNumber ?? "",
                     Weight = item.ShippedWeight
                 });

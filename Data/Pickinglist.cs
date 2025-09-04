@@ -8,42 +8,19 @@ namespace CMetalsWS.Data
     public class PickingList
     {
         public int Id { get; set; }
-
         [Required, MaxLength(64)]
         public string SalesOrderNumber { get; set; } = default!;
-
         [Required]
         public int BranchId { get; set; }
-        public virtual Branch Branch { get; set; }
-
+        public virtual Branch Branch { get; set; } = null!;
         public int? CustomerId { get; set; }
         public virtual Customer? Customer { get; set; }
 
-        // ... other existing fields like OrderDate, ShipDate, CustomerName, ShipToAddress...
-        [Required]
-        public DateTime OrderDate { get; set; } = DateTime.UtcNow;
-        public DateTime? ShipDate { get; set; }
-        [MaxLength(128)]
-        public string? CustomerName { get; set; }
-        [MaxLength(256)]
-        public string? ShipToAddress { get; set; }
-        [MaxLength(128)]
-        public string? SalesRep { get; set; }
-        public int? TruckId { get; set; }
-        public virtual Truck? Truck { get; set; }
-
-        // --- ENHANCEMENTS ---
-        public ShippingGroup ShippingGroup { get; set; } // Replaces string 'ShippingMethod'
-        [MaxLength(64)]
-        public string? DestinationRegion { get; set; } // For filtering/grouping
         [Precision(18, 3)]
-        public decimal TotalWeight { get; set; } // Calculated from Items, stored for performance
+        public decimal TotalWeight { get; set; }
         [Precision(18, 3)]
-        public decimal RemainingWeight { get; set; } // To track partial shipments
-
+        public decimal RemainingWeight { get; set; }
         public PickingListStatus Status { get; set; }
-        [MaxLength(512)]
-        public string? Notes { get; set; }
         public virtual ICollection<PickingListItem> Items { get; set; } = new List<PickingListItem>();
     }
 
@@ -81,13 +58,14 @@ namespace CMetalsWS.Data
         public decimal? PulledQuantity { get; set; }
 
         [Precision(18, 3)]
-        public decimal? PulledWeight { get; set; }
+        public decimal PulledWeight { get; set; }
 
         public PickingLineStatus Status { get; set; } = PickingLineStatus.Pending;
         public DateTime? ScheduledShipDate { get; set; }
 
         [NotMapped]
-        public DateTime? EffectiveShipDate => ScheduledShipDate ?? PickingList?.ShipDate;
+        public DateTime? EffectiveShipDate => ScheduledShipDate;
+
 
         public int? MachineId { get; set; }
         public virtual Machine? Machine { get; set; }

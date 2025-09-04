@@ -93,7 +93,7 @@
 
         if (result is not null && !result.Canceled && result.Data is ValueTuple<decimal?, decimal?> data)
         {
-            await PickingListService.UpdatePulledQuantitiesAsync(item.Id, data.Item1, data.Item2);
+            await PickingListService.UpdatePulledQuantitiesAsync(item.Id, data.Item1, data.Item2 ?? 0);
             await HandleAuditEvent(item.Id, AuditEventType.Complete, false); // Log completion
             await PickingListService.SetLineStatusAsync(item.Id, PickingLineStatus.Completed);
             await LoadTasks(); // Refresh the list
