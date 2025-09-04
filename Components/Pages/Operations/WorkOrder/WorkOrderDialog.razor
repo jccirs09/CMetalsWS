@@ -184,18 +184,21 @@
         <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
         @if (IsProcessing)
         {
-            @if (_lastAuditEvent == null)
+            if (Model.Status == WorkOrderStatus.Pending)
             {
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => HandleAuditEvent(AuditEventType.Start))" StartIcon="@Icons.Material.Filled.PlayArrow">Start</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StartTaskAsync" StartIcon="@Icons.Material.Filled.PlayArrow">Start Task</MudButton>
             }
-            else if (_lastAuditEvent == AuditEventType.Start || _lastAuditEvent == AuditEventType.Resume)
+            else if (Model.Status == WorkOrderStatus.InProgress)
             {
-                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@(() => HandleAuditEvent(AuditEventType.Pause))" StartIcon="@Icons.Material.Filled.Pause">Pause</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => HandleAuditEvent(AuditEventType.Complete))" StartIcon="@Icons.Material.Filled.Done">Complete</MudButton>
-            }
-            else if (_lastAuditEvent == AuditEventType.Pause)
-            {
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => HandleAuditEvent(AuditEventType.Resume))" StartIcon="@Icons.Material.Filled.PlayArrow">Resume</MudButton>
+                if (_lastAuditEvent == AuditEventType.Pause)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ResumeTaskAsync" StartIcon="@Icons.Material.Filled.PlayArrow">Resume Task</MudButton>
+                }
+                else
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="PauseTaskAsync" StartIcon="@Icons.Material.Filled.Pause">Pause Task</MudButton>
+                }
+                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="CompleteTaskAsync" StartIcon="@Icons.Material.Filled.Done">Complete Task</MudButton>
             }
         }
         else
@@ -481,7 +484,32 @@
         Model.Items.Remove(item);
     }
 
-    private async Task HandleAuditEvent(AuditEventType eventType)
+    private async Task StartTaskAsync()
+    {
+        Model.Status = WorkOrderStatus.InProgress;
+        await CreateAuditEventAsync(AuditEventType.Start);
+        await WorkOrderService.UpdateAsync(Model, (await AuthState).User.Identity?.Name ?? "Unknown");
+    }
+
+    private async Task PauseTaskAsync()
+    {
+        await CreateAuditEventAsync(AuditEventType.Pause);
+    }
+
+    private async Task ResumeTaskAsync()
+    {
+        await CreateAuditEventAsync(AuditEventType.Resume);
+    }
+
+    private async Task CompleteTaskAsync()
+    {
+        Model.Status = WorkOrderStatus.Completed;
+        await CreateAuditEventAsync(AuditEventType.End);
+        await WorkOrderService.UpdateAsync(Model, (await AuthState).User.Identity?.Name ?? "Unknown");
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private async Task CreateAuditEventAsync(AuditEventType eventType)
     {
         var user = (await AuthState).User;
         var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -495,23 +523,7 @@
         await AuditService.CreateAuditEventAsync(Model.Id, TaskType.WorkOrder, eventType, userId);
         _lastAuditEvent = eventType;
         Snackbar.Add($"Task successfully {eventType.ToString().ToLower()}ed.", Severity.Success);
-
-        if (eventType == AuditEventType.Complete)
-        {
-            await MarkComplete();
-        }
-        else
-        {
-            StateHasChanged();
-        }
-    }
-
-    private async Task MarkComplete()
-    {
-        var user = (await AuthState).User;
-        var updatedBy = user.Identity?.Name ?? "Unknown";
-        await WorkOrderService.MarkWorkOrderCompleteAsync(Model, updatedBy);
-        MudDialog.Close(DialogResult.Ok(Model));
+        StateHasChanged();
     }
 
     private static readonly Dictionary<int, double> GaugeLookup = new()

@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using CMetalsWS.Components.Pages.Operations.WorkOrder
 @using MudBlazor.Utilities
 
 @inject WorkOrderService WorkOrderService
@@ -117,15 +118,41 @@
 
     private async Task OnItemClicked(CalendarItem item)
     {
-        if (item is ScheduleEvent scheduleEvent)
-        {
-            var parameters = new DialogParameters<Dialogs.WorkOrderDetailsDialog>
-            {
-                { x => x.WorkOrderId, scheduleEvent.WorkOrder.Id },
-                { x => x.MachineCategory, this.MachineCategory }
-            };
+        if (item is not ScheduleEvent scheduleEvent) return;
 
-            await DialogService.ShowAsync<Dialogs.WorkOrderDetailsDialog>("Work Order Details", parameters);
+        var detailsParams = new DialogParameters { ["WorkOrderId"] = scheduleEvent.WorkOrder.Id };
+        var detailsDialog = await DialogService.ShowAsync<Dialogs.WorkOrderDetailsDialog>("Work Order Details", detailsParams);
+        var detailsResult = await detailsDialog.Result;
+
+        if (detailsResult is not null && !detailsResult.Canceled && detailsResult.Data is string action)
+        {
+            if (action == "edit" || action == "process")
+            {
+                await ShowWorkOrderDialogAsync(scheduleEvent.WorkOrder, action);
+            }
+        }
+    }
+
+    private async Task ShowWorkOrderDialogAsync(WorkOrder wo, string mode)
+    {
+        var isProcessing = mode == "process";
+        var parameters = new DialogParameters
+        {
+            ["Model"] = wo,
+            ["Machines"] = _machines,
+            ["Branches"] = await BranchService.GetBranchesAsync(),
+            ["Title"] = isProcessing ? $"Process {wo.WorkOrderNumber}" : $"Edit {wo.WorkOrderNumber}",
+            ["IsEdit"] = true, // Keep IsEdit to disable tag search
+            ["IsProcessing"] = isProcessing
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, DisableBackdropClick = true };
+        var dialog = await DialogService.ShowAsync<WorkOrderDialog>(isProcessing ? "Process Work Order" : "Edit Work Order", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await ReloadDataAndRefresh();
         }
     }
 
