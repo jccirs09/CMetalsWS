@@ -4,12 +4,15 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using CMetalsWS.Components.Pages.Operations.WorkOrder
 @using MudBlazor.Utilities
 
+@using Microsoft.AspNetCore.Identity
 @inject WorkOrderService WorkOrderService
 @inject MachineService MachineService
 @inject BranchService BranchService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -64,11 +67,11 @@
     protected override async Task OnInitializedAsync()
     {
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = auth.User;
-        var branches = await BranchService.GetBranchesAsync();
-        var branchId = user.IsInRole("Admin") ? (int?)null : branches.FirstOrDefault()?.Id;
+        var user = await UserManager.GetUserAsync(auth.User);
+        var branchId = user?.BranchId;
 
-        var branch = branches.FirstOrDefault();
+        var branches = await BranchService.GetBranchesAsync();
+        var branch = branches.FirstOrDefault(b => b.Id == branchId);
         _branchWorkHours = branch is not null && branch.StartTime.HasValue && branch.EndTime.HasValue
             ? (branch.StartTime.Value, branch.EndTime.Value)
             : (new(5,0,0), new(23,0,0));
@@ -119,13 +122,80 @@
     {
         if (item is ScheduleEvent scheduleEvent)
         {
-            var parameters = new DialogParameters<Dialogs.WorkOrderDetailsDialog>
+            var parameters = new DialogParameters
             {
-                { x => x.WorkOrderId, scheduleEvent.WorkOrder.Id },
-                { x => x.MachineCategory, this.MachineCategory }
+                ["Model"] = scheduleEvent.WorkOrder
             };
 
-            await DialogService.ShowAsync<Dialogs.WorkOrderDetailsDialog>("Work Order Details", parameters);
+            var dialog = await DialogService.ShowAsync<WorkOrderDetailsDialog>("Work Order Details", parameters, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+            var result = await dialog.Result;
+
+            if (result is not null && !result.Canceled && result.Data is bool shouldEdit && shouldEdit)
+            {
+                await EditWorkOrderAsync(scheduleEvent.WorkOrder);
+            }
+        }
+    }
+
+    private async Task EditWorkOrderAsync(WorkOrder wo)
+    {
+        var branches = await BranchService.GetBranchesAsync();
+        var clone = new WorkOrder
+        {
+            Id = wo.Id,
+            WorkOrderNumber = wo.WorkOrderNumber,
+            TagNumber = wo.TagNumber,
+            BranchId = wo.BranchId,
+            MachineId = wo.MachineId,
+            MachineCategory = wo.MachineCategory,
+            DueDate = wo.DueDate,
+            Instructions = wo.Instructions,
+            Status = wo.Status,
+            ScheduledStartDate = wo.ScheduledStartDate,
+            ScheduledEndDate = wo.ScheduledEndDate,
+            Items = wo.Items.Select(i => new WorkOrderItem
+            {
+                Id = i.Id,
+                WorkOrderId = wo.Id,
+                PickingListItemId = i.PickingListItemId,
+                ItemCode = i.ItemCode,
+                Description = i.Description,
+                SalesOrderNumber = i.SalesOrderNumber,
+                CustomerName = i.CustomerName,
+                OrderQuantity = i.OrderQuantity,
+                OrderWeight = i.OrderWeight,
+                Width = i.Width,
+                Length = i.Length,
+                ProducedQuantity = i.ProducedQuantity,
+                ProducedWeight = i.ProducedWeight,
+                Unit = i.Unit,
+                Location = i.Location
+            }).ToList()
+        };
+
+        var parameters = new DialogParameters
+        {
+            ["Model"] = clone,
+            ["Machines"] = _machines.Where(m => m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter).ToList(),
+            ["Branches"] = branches,
+            ["Title"] = $"Edit {wo.WorkOrderNumber}",
+            ["IsEdit"] = true
+        };
+
+        var dialog = await DialogService.ShowAsync<WorkOrderDialog>("Edit Work Order", parameters, new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
+        if(dialog is not null)
+        {
+            var result = await dialog.Result;
+            if (result is not null && !result.Canceled && result.Data is WorkOrder updated)
+            {
+                var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+                var user = auth.User;
+                var updatedBy = user?.Identity?.Name ?? "system";
+
+                await WorkOrderService.UpdateAsync(updated, updatedBy);
+                Snackbar.Add("Work order updated.", Severity.Success);
+                await ReloadDataAndRefresh();
+            }
         }
     }
 
@@ -150,9 +220,8 @@
     private async Task ReloadDataAndRefresh()
     {
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = auth.User;
-        var branches = await BranchService.GetBranchesAsync();
-        var branchId = user.IsInRole("Admin") ? (int?)null : branches.FirstOrDefault()?.Id;
+        var user = await UserManager.GetUserAsync(auth.User);
+        var branchId = user?.BranchId;
         await LoadWorkOrders(branchId);
         StateHasChanged();
     }

@@ -54,6 +54,7 @@
             <MudTd>@(context.ScheduledEndDate.ToString("yyyy-MM-dd HH:mm"))</MudTd>
             <MudTd>
                 <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true">
+                    <MudMenuItem OnClick="@(() => ViewWorkOrderAsync(context))">Details</MudMenuItem>
                     <AuthorizeView Policy="@Permissions.WorkOrders.Edit" Context="auth">
                         <MudMenuItem OnClick="@(() => EditWorkOrderAsync(context))">Edit</MudMenuItem>
                     </AuthorizeView>
@@ -71,7 +72,6 @@
     private string _searchString = "";
     private List<Machine> _machines = new();
     private List<Branch> _branches = new();
-    private bool _isAdmin;
     private int? _userBranchId;
     private HubConnection? _hubConnection;
 
@@ -87,7 +87,6 @@
     {
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(auth.User);
-        _isAdmin = auth.User.IsInRole("Admin");
         _userBranchId = user?.BranchId;
 
         _machines = await MachineService.GetMachinesAsync();
@@ -113,7 +112,7 @@
 
     private async Task LoadAsync()
     {
-        var branchFilter = _isAdmin ? null : _userBranchId;
+        var branchFilter = _userBranchId;
         _workOrders = await WorkOrderService.GetAsync(branchFilter);
         StateHasChanged();
     }
@@ -153,6 +152,21 @@
                 Snackbar.Add("Work order created.", Severity.Success);
                 await LoadAsync();
             }
+        }
+    }
+    private async Task ViewWorkOrderAsync(WorkOrder wo)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Model"] = wo
+        };
+
+        var dialog = await DialogService.ShowAsync<WorkOrderDetailsDialog>("Work Order Details", parameters, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is bool shouldEdit && shouldEdit)
+        {
+            await EditWorkOrderAsync(wo);
         }
     }
 
