@@ -35,8 +35,9 @@ builder.Services.AddAuthentication(options =>
 // EF Core
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
 ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-options.UseSqlServer(connectionString));
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
+    options.UseSqlServer(connectionString));
+builder.Services.AddScoped(p => p.GetRequiredService<IDbContextFactory<ApplicationDbContext>>().CreateDbContext());
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 // IdentityCore with Roles
@@ -85,10 +86,9 @@ builder.Services.AddTransient<IdentityDataSeeder>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<LoadService>();
 builder.Services.AddScoped<WorkOrderService>();
-builder.Services.AddTransient<IWorkOrderPdfParser, WorkOrderPdfParser>();
 builder.Services.AddScoped<CustomerService>();
+builder.Services.AddScoped<TaskAuditEventService>();
 builder.Services.AddSignalR();
-builder.Services.AddScoped<IPickingListPdfParser, PickingListPdfParser>();
 
 var app = builder.Build();
 

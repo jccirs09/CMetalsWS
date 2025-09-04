@@ -1,30 +1,35 @@
-﻿using CMetalsWS.Data;
+using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace CMetalsWS.Services
 {
     public class InventoryService
     {
-        private readonly ApplicationDbContext _db;
-        public InventoryService(ApplicationDbContext db) => _db = db;
+        private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
+        public InventoryService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
+        {
+            _dbContextFactory = dbContextFactory;
+        }
 
         public async Task<InventoryItem?> GetByTagNumberAsync(string tagNumber, CancellationToken ct = default)
         {
+            using var db = _dbContextFactory.CreateDbContext();
             tagNumber = tagNumber?.Trim() ?? "";
             if (string.IsNullOrWhiteSpace(tagNumber))
                 return null;
 
-            return await _db.InventoryItems
+            return await db.InventoryItems
                 .AsNoTracking()
                 .FirstOrDefaultAsync(i => i.TagNumber == tagNumber, ct);
         }
 
         public async Task<List<InventoryItem>> GetByItemIdsAsync(List<string> itemIds, CancellationToken ct = default)
         {
+            using var db = _dbContextFactory.CreateDbContext();
             if (itemIds == null || itemIds.Count == 0)
                 return new List<InventoryItem>();
 
-            return await _db.InventoryItems
+            return await db.InventoryItems
                 .AsNoTracking()
                 .Where(i => itemIds.Contains(i.ItemId))
                 .ToListAsync(ct);
@@ -33,6 +38,7 @@ namespace CMetalsWS.Services
         // Upsert by (BranchId, TagNumber)
         public async Task<(int inserted, int updated)> UpsertAsync(IEnumerable<InventoryItem> rows, CancellationToken ct = default)
         {
+            using var db = _dbContextFactory.CreateDbContext();
             if (rows == null) return (0, 0);
 
             var list = rows
@@ -52,7 +58,7 @@ namespace CMetalsWS.Services
             var branchId = list.First().BranchId;
             var tags = list.Select(x => x.TagNumber).Distinct().ToList();
 
-            var existing = await _db.InventoryItems
+            var existing = await db.InventoryItems
                 .Where(i => i.BranchId == branchId && tags.Contains(i.TagNumber!))
                 .ToDictionaryAsync(e => e.TagNumber!, ct);
 
@@ -62,7 +68,7 @@ namespace CMetalsWS.Services
             {
                 if (!existing.TryGetValue(incoming.TagNumber!, out var current))
                 {
-                    _db.InventoryItems.Add(new InventoryItem
+                    db.InventoryItems.Add(new InventoryItem
                     {
                         BranchId = incoming.BranchId,
                         ItemId = incoming.ItemId,
@@ -87,7 +93,7 @@ namespace CMetalsWS.Services
                 }
             }
 
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
             return (ins, upd);
         }
     }

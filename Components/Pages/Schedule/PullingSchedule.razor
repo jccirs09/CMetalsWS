@@ -29,25 +29,10 @@
                              EnableResizeItems="true"
                              CanDragItem="@(it => it.Start >= DateTime.Now)"
                              CanDropItem="@((it, date, view) => (view == CalendarView.Month && date.Add(it.Start.TimeOfDay) >= DateTime.Now) || date >= DateTime.Now)"
-                             onItemDrop="HandleDrop"
+                             ItemChanged="HandleItemChanged"
                              onItemClick="HandleClick">
-                    <CellTemplate Context="evt">
-                        @{
-                            var pl = evt.PickingList!;
-                            var stripe = "var(--mud-palette-info)";
-                            var sub = $"{pl.CustomerName} • Due {pl.ShipDate:yyyy-MM-dd}";
-                        }
-                        <div style="width:100%;border:1px solid var(--mud-palette-lines-default);border-left:4px solid @stripe;border-radius:6px;overflow:hidden;">
-                            <div style="display:flex;align-items:center;gap:.5rem;padding:.25rem .5rem;">
-                                <MudIcon Icon="@Icons.Material.Filled.PanTool" Size="Size.Small" />
-                                <MudText Typo="Typo.body2">@pl.SalesOrderNumber</MudText>
-                                <MudSpacer />
-                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">PL @pl.Id</MudChip>
-                            </div>
-                            <div style="padding:0 .5rem .5rem .5rem;">
-                                <MudText Typo="Typo.caption">@sub</MudText>
-                            </div>
-                        </div>
+                    <CellTemplate>
+                        <PickingListCalendarItem PickingList="context.PickingList" />
                     </CellTemplate>
                 </MudCalendar>
             </MudItem>
@@ -96,9 +81,12 @@
 
         _hub.On<int>("PickingListUpdated", async (id) =>
         {
-            await LoadPickingLists(branchId);
-            BuildCalendarItems();
-            StateHasChanged();
+            await InvokeAsync(async () =>
+            {
+                await LoadPickingLists(branchId);
+                BuildCalendarItems();
+                StateHasChanged();
+            });
         });
 
         await _hub.StartAsync();
@@ -116,7 +104,6 @@
             .Where(p => p.ShipDate != null && p.ShipDate.Value.Date >= DateTime.Today)
             .Select(p => new SchedItem
             {
-                Text = p.SalesOrderNumber,
                 Start = p.ShipDate!.Value,
                 End = p.ShipDate!.Value.AddHours(1),
                 AllDay = false,
@@ -125,22 +112,27 @@
             .ToList();
     }
 
-    private async Task HandleDrop(object e)
+    private async Task HandleItemChanged(CalendarItem e)
     {
-        dynamic d = e;
-        var item = (SchedItem)d.Item;
-        var newStart = (DateTime)d.NewStart;
+        if (e is SchedItem item)
+        {
+            var pl = item.PickingList;
+            pl.ShipDate = item.Start;
 
-        var pl = item.PickingList;
-        pl.ShipDate = newStart;
+            await PickingListService.ScheduleListAsync(pl.Id, item.Start);
 
-        await PickingListService.ScheduleListAsync(pl.Id, newStart);
-        await LoadPickingLists(null);
-        BuildCalendarItems();
-        StateHasChanged();
+            var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = auth.User;
+            var branches = await BranchService.GetBranchesAsync();
+            var branchId = user.IsInRole("Admin") ? (int?)null : branches.FirstOrDefault()?.Id;
 
-        if (_hub is not null)
-            await _hub.SendAsync("PickingListUpdated", pl.Id);
+            await LoadPickingLists(branchId);
+            BuildCalendarItems();
+            StateHasChanged();
+
+            if (_hub is not null)
+                await _hub.SendAsync("PickingListUpdated", pl.Id);
+        }
     }
 
     private Task HandleClick(SchedItem item)

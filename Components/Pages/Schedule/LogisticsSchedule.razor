@@ -4,6 +4,7 @@
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using System.ComponentModel.DataAnnotations
+@using CMetalsWS.Components.Pages.Schedule
 
 @inject LoadService LoadService
 @inject PickingListService PickingListService
@@ -58,10 +59,7 @@
             </MudPaper>
         </ChildContent>
         <ItemRenderer>
-            <MudPaper Elevation="25" Class="pa-2 ma-1">
-                <MudText>@context.SalesOrderNumber</MudText>
-                <MudText Typo="Typo.caption">@context.CustomerName</MudText>
-            </MudPaper>
+            <PickingListCalendarItem PickingList="context" />
         </ItemRenderer>
     </MudDropContainer>
 </MudPaper>

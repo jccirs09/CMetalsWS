@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -9,12 +9,16 @@ namespace CMetalsWS.Services
 {
     public class LoadService
     {
-        private readonly ApplicationDbContext _db;
-        public LoadService(ApplicationDbContext db) => _db = db;
+        private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
+        public LoadService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
+        {
+            _dbContextFactory = dbContextFactory;
+        }
 
         public async Task<List<Load>> GetLoadsAsync(int? branchId = null, DateTime? onlyDate = null)
         {
-            IQueryable<Load> query = _db.Loads
+            using var db = _dbContextFactory.CreateDbContext();
+            IQueryable<Load> query = db.Loads
                 .Include(l => l.Truck)
                 .Include(l => l.Items)
                     .ThenInclude(i => i.PickingList)
@@ -38,7 +42,8 @@ namespace CMetalsWS.Services
 
         public async Task<Load?> GetByIdAsync(int id)
         {
-            return await _db.Loads
+            using var db = _dbContextFactory.CreateDbContext();
+            return await db.Loads
                 .Include(l => l.Truck)
                 .Include(l => l.Items)
                     .ThenInclude(i => i.PickingList)
@@ -48,19 +53,21 @@ namespace CMetalsWS.Services
 
         public async Task CreateAsync(Load load)
         {
-            load.LoadNumber = await GenerateLoadNumber(load.BranchId);
+            using var db = _dbContextFactory.CreateDbContext();
+            load.LoadNumber = await GenerateLoadNumber(db, load.BranchId);
 
             if (load.ReadyDate == null)
-                load.ReadyDate = await DeriveReadyDateFromPickingListsAsync(load);
+                load.ReadyDate = await DeriveReadyDateFromPickingListsAsync(db, load);
 
-            await RecalculateReadyDateFromWorkOrdersAsync(load);
-            _db.Loads.Add(load);
-            await _db.SaveChangesAsync();
+            await RecalculateReadyDateFromWorkOrdersAsync(db, load);
+            db.Loads.Add(load);
+            await db.SaveChangesAsync();
         }
 
         public async Task UpdateAsync(Load load)
         {
-            var existing = await _db.Loads
+            using var db = _dbContextFactory.CreateDbContext();
+            var existing = await db.Loads
                 .Include(l => l.Items)
                 .FirstOrDefaultAsync(l => l.Id == load.Id);
             if (existing is null) return;
@@ -77,15 +84,16 @@ namespace CMetalsWS.Services
                 existing.Items.Add(item);
 
             if (existing.ReadyDate == null)
-                existing.ReadyDate = await DeriveReadyDateFromPickingListsAsync(existing);
+                existing.ReadyDate = await DeriveReadyDateFromPickingListsAsync(db, existing);
 
-            await RecalculateReadyDateFromWorkOrdersAsync(existing);
-            await _db.SaveChangesAsync();
+            await RecalculateReadyDateFromWorkOrdersAsync(db, existing);
+            await db.SaveChangesAsync();
         }
 
         public async Task ScheduleAsync(int loadId, DateTime start, DateTime? end = null)
         {
-            var load = await _db.Loads
+            using var db = _dbContextFactory.CreateDbContext();
+            var load = await db.Loads
                 .Include(l => l.Items)
                 .FirstOrDefaultAsync(l => l.Id == loadId);
             if (load is null) return;
@@ -100,11 +108,11 @@ namespace CMetalsWS.Services
                 load.Status = LoadStatus.Scheduled;
 
             if (load.ReadyDate == null)
-                load.ReadyDate = await DeriveReadyDateFromPickingListsAsync(load);
+                load.ReadyDate = await DeriveReadyDateFromPickingListsAsync(db, load);
 
-            await SetPickingListsScheduledForLoadAsync(load.Id);
-            await RecalculateReadyDateFromWorkOrdersAsync(load);
-            await _db.SaveChangesAsync();
+            await SetPickingListsScheduledForLoadAsync(db, load.Id);
+            await RecalculateReadyDateFromWorkOrdersAsync(db, load);
+            await db.SaveChangesAsync();
         }
 
         public static string GetLoadRegionCode(Load load)
@@ -123,7 +131,8 @@ namespace CMetalsWS.Services
 
         public async Task<DateTime?> GetPlannedReadyAsync(int loadId)
         {
-            var pickingListIds = await _db.LoadItems
+            using var db = _dbContextFactory.CreateDbContext();
+            var pickingListIds = await db.LoadItems
                 .Where(li => li.LoadId == loadId)
                 .Select(li => li.PickingListId)
                 .Distinct()
@@ -132,7 +141,7 @@ namespace CMetalsWS.Services
             if (pickingListIds.Count == 0)
                 return null;
 
-            var pickingItemIds = await _db.PickingListItems
+            var pickingItemIds = await db.PickingListItems
                 .Where(pli => pickingListIds.Contains(pli.PickingListId))
                 .Select(pli => pli.Id)
                 .ToListAsync();
@@ -140,7 +149,7 @@ namespace CMetalsWS.Services
             if (pickingItemIds.Count == 0)
                 return null;
 
-            var workTimes = await _db.WorkOrders
+            var workTimes = await db.WorkOrders
                 .Where(wo => wo.Items.Any(wi => wi.PickingListItemId != null &&
                                                 pickingItemIds.Contains(wi.PickingListItemId.Value)))
                 .Select(wo =>
@@ -158,9 +167,9 @@ namespace CMetalsWS.Services
             return ready == default ? null : ready;
         }
 
-        public async Task RecalculateReadyDateFromWorkOrdersAsync(Load load)
+        public async Task RecalculateReadyDateFromWorkOrdersAsync(ApplicationDbContext db, Load load)
         {
-            var pickingListIdsOnLoad = await _db.LoadItems
+            var pickingListIdsOnLoad = await db.LoadItems
                 .Where(li => li.LoadId == load.Id)
                 .Select(li => li.PickingListId)
                 .Distinct()
@@ -172,7 +181,7 @@ namespace CMetalsWS.Services
                 return;
             }
 
-            var pickingItemIds = await _db.PickingListItems
+            var pickingItemIds = await db.PickingListItems
                 .Where(pli => pickingListIdsOnLoad.Contains(pli.PickingListId))
                 .Select(pli => pli.Id)
                 .ToListAsync();
@@ -183,7 +192,7 @@ namespace CMetalsWS.Services
                 return;
             }
 
-            var relatedWorkTimes = await _db.WorkOrders
+            var relatedWorkTimes = await db.WorkOrders
                 .Where(wo => wo.Items.Any(wi => wi.PickingListItemId != null &&
                                                 pickingItemIds.Contains(wi.PickingListItemId.Value)))
                 .Select(wo =>
@@ -201,9 +210,9 @@ namespace CMetalsWS.Services
             load.ReadyDate = maxReady == default ? null : maxReady;
         }
 
-        private async Task SetPickingListsScheduledForLoadAsync(int loadId)
+        private async Task SetPickingListsScheduledForLoadAsync(ApplicationDbContext db, int loadId)
         {
-            var pickingListIds = await _db.LoadItems
+            var pickingListIds = await db.LoadItems
                 .Where(li => li.LoadId == loadId)
                 .Select(li => li.PickingListId)
                 .Distinct()
@@ -211,7 +220,7 @@ namespace CMetalsWS.Services
 
             if (pickingListIds.Count == 0) return;
 
-            var lists = await _db.PickingLists
+            var lists = await db.PickingLists
                 .Where(p => pickingListIds.Contains(p.Id))
                 .ToListAsync();
 
@@ -228,12 +237,12 @@ namespace CMetalsWS.Services
             }
         }
 
-        private async Task<DateTime?> DeriveReadyDateFromPickingListsAsync(Load load)
+        private async Task<DateTime?> DeriveReadyDateFromPickingListsAsync(ApplicationDbContext db, Load load)
         {
             var pickingListIds = load.Items.Select(i => i.PickingListId).Distinct().ToList();
             if (pickingListIds.Count == 0) return null;
 
-            var lists = await _db.PickingLists
+            var lists = await db.PickingLists
                 .Include(p => p.Items)
                 .Where(p => pickingListIds.Contains(p.Id))
                 .ToListAsync();
@@ -258,11 +267,11 @@ namespace CMetalsWS.Services
             return candidates.Max();
         }
 
-        private async Task<string> GenerateLoadNumber(int branchId)
+        private async Task<string> GenerateLoadNumber(ApplicationDbContext db, int branchId)
         {
-            var branch = await _db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == branchId);
+            var branch = await db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == branchId);
             var code = branch?.Code ?? "00";
-            var next = await _db.Loads.CountAsync(l => l.BranchId == branchId) + 1;
+            var next = await db.Loads.CountAsync(l => l.BranchId == branchId) + 1;
             return $"L{code}{next:000000}";
         }
     }

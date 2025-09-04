@@ -1,9 +1,11 @@
-@page "/workorders"
+@page "/operations/workorders"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.SignalR.Client
+@using CMetalsWS.Security
+@attribute [Authorize(Policy = Permissions.WorkOrders.View)]
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager
 @inject WorkOrderService WorkOrderService
@@ -19,7 +21,11 @@
         <MudText Typo="Typo.h5">Work Orders</MudText>
         <MudSpacer />
         <MudTextField @bind-Value="_searchString" Label="Search by WO# or SO#" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" OnAdornmentClick="LoadAsync" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateWorkOrderAsync">New</MudButton>
+        <AuthorizeView Policy="@Permissions.WorkOrders.Add">
+            <Authorized>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateWorkOrderAsync">New</MudButton>
+            </Authorized>
+        </AuthorizeView>
         <MudButton Variant="Variant.Outlined" OnClick="LoadAsync">Refresh</MudButton>
     </MudStack>
 
@@ -48,8 +54,12 @@
             <MudTd>@(context.ScheduledEndDate.ToString("yyyy-MM-dd HH:mm"))</MudTd>
             <MudTd>
                 <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true">
-                    <MudMenuItem OnClick="@(() => EditWorkOrderAsync(context))">Edit</MudMenuItem>
-                    <MudMenuItem OnClick="@(() => ProcessWorkOrderAsync(context))">Process</MudMenuItem>
+                    <AuthorizeView Policy="@Permissions.WorkOrders.Edit" Context="auth">
+                        <MudMenuItem OnClick="@(() => EditWorkOrderAsync(context))">Edit</MudMenuItem>
+                    </AuthorizeView>
+                    <AuthorizeView Policy="@Permissions.WorkOrders.Process" Context="auth">
+                        <MudMenuItem OnClick="@(() => ProcessWorkOrderAsync(context))">Process</MudMenuItem>
+                    </AuthorizeView>
                 </MudMenu>
             </MudTd>
         </RowTemplate>

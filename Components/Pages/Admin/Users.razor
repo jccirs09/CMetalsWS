@@ -82,7 +82,7 @@
     private async Task AddUser()
     {
         var branches = await BranchService.GetBranchesAsync();
-        var roles = RoleService.GetRoles();
+        var roles = await RoleService.GetRolesAsync();
 
         var parameters = new DialogParameters
         {
@@ -117,7 +117,7 @@
     private async Task EditUser(ApplicationUser user)
     {
         var branches = await BranchService.GetBranchesAsync();
-        var roles = RoleService.GetRoles();
+        var roles = await RoleService.GetRolesAsync();
         var userRoles = await UserService.GetRolesForUserAsync(user);
 
         var clone = new ApplicationUser

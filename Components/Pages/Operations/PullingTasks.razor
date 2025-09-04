@@ -18,6 +18,7 @@
         <MudTh>Description</MudTh>
         <MudTh>Qty</MudTh>
         <MudTh>Weight</MudTh>
+        <MudTh>Location</MudTh>
         <MudTh>Actions</MudTh>
     </HeaderContent>
     <RowTemplate>
@@ -26,6 +27,7 @@
         <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
         <MudTd DataLabel="Qty">@context.Quantity</MudTd>
         <MudTd DataLabel="Weight">@context.Weight</MudTd>
+        <MudTd DataLabel="Location">@context.Location</MudTd>
         <MudTd DataLabel="Actions">
             @if (!_auditEvents.ContainsKey(context.Id) || _auditEvents[context.Id] == null)
             {
@@ -68,7 +70,8 @@
             var taskIds = _tasks.Select(t => t.Id).ToList();
             var lastEvents = await AuditService.GetLastEventTypesForTasksAsync(taskIds, TaskType.Pulling);
 
-            
+            // The result from the service only contains tasks that HAVE events.
+            // We need to reconstruct the dictionary to include tasks that have NO events yet.
             _auditEvents = _tasks.ToDictionary(
                 t => t.Id,
                 t => lastEvents.TryGetValue(t.Id, out var eventType) ? (AuditEventType?)eventType : null
@@ -85,16 +88,15 @@
     {
         var parameters = new DialogParameters { ["Item"] = item };
         var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
-        var dialog = await DialogService.ShowAsync<PullingTaskDetailDialog>("Process Task", parameters, options);
+        var dialog = await DialogService.ShowAsync<Dialogs.PullingTaskDetailDialog>("Process Task", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Canceled && result.Data != null)
+        if (!result.Canceled && result.Data is (decimal? pulledQuantity, decimal? pulledWeight))
         {
-            var (pulledQuantity, pulledWeight) = ((decimal?, decimal?))result.Data;
             await PickingListService.UpdatePulledQuantitiesAsync(item.Id, pulledQuantity, pulledWeight);
-            await HandleAuditEvent(item.Id, AuditEventType.Complete, false);
+            await HandleAuditEvent(item.Id, AuditEventType.Complete, false); // Log completion
             await PickingListService.SetLineStatusAsync(item.Id, PickingLineStatus.Completed);
-            await LoadTasks(); 
+            await LoadTasks(); // Refresh the list
         }
     }
 

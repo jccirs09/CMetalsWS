@@ -75,6 +75,12 @@ namespace CMetalsWS.Data
         [Precision(18, 3)]
         public decimal? Weight { get; set; }
 
+        [Precision(18, 3)]
+        public decimal? PulledQuantity { get; set; }
+
+        [Precision(18, 3)]
+        public decimal? PulledWeight { get; set; }
+
         public PickingLineStatus Status { get; set; } = PickingLineStatus.Pending;
         public DateTime? ScheduledShipDate { get; set; }
 

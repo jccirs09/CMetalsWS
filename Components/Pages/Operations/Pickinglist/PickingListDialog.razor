@@ -149,11 +149,8 @@
                                 <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@inherit.ToString("yyyy-MM-dd HH:mm")</MudChip>
                             }
                         </MudTd>
-<<<<<<< Updated upstream
-                        <MudTd DataLabel="Machine">@Machines.FirstOrDefault(m => m.Id == context.MachineId)?.Name</MudTd>
-=======
                         <MudTd DataLabel="Machine">
-                            <MudSelect T="int?" Value="context.MachineId" Dense="true" Margin="Margin.Dense"
+                            <MudSelect T="int?" @bind-Value="context.MachineId" Dense="true" Margin="Margin.Dense"
                                        TValue="int?" ValueChanged="@((int? machineId) => OnMachineChanged(context, machineId))">
                                 <MudSelectItem T="int?" Value="@((int?)null)">None</MudSelectItem>
                                 @foreach (var m in Machines)
@@ -162,7 +159,6 @@
                                 }
                             </MudSelect>
                         </MudTd>
->>>>>>> Stashed changes
                         @if (CanAddOrEdit)
                         {
                             <MudTd DataLabel="Actions">
@@ -382,9 +378,6 @@
     }
 
     private void Cancel() => Dialog.Cancel();
-<<<<<<< Updated upstream
-}
-=======
 
     private void OnMachineChanged(PickingListItem item, int? machineId)
     {
@@ -403,13 +396,4 @@
         }
         StateHasChanged();
     }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 }
->>>>>>> Stashed changes
-=======
-}
->>>>>>> Stashed changes
-=======
-}
->>>>>>> Stashed changes

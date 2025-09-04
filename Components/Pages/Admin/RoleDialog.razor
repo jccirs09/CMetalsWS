@@ -1,5 +1,8 @@
 ﻿@using CMetalsWS.Data
+@using CMetalsWS.Security
 @using MudBlazor
+@using System.Collections.Generic
+@using System.Linq
 
 <MudDialog>
     <TitleContent>
@@ -11,6 +14,18 @@
                 <MudStack Spacing="2">
                     <MudTextField @bind-Value="Model.Name" Label="Role Name" Required="true"></MudTextField>
                     <MudTextField @bind-Value="Model.Description" Label="Description"></MudTextField>
+                    <MudText Typo="Typo.h6" Class="mt-4">Permissions</MudText>
+                    <MudExpansionPanels MultiExpansion="true">
+                        @foreach (var group in _permissionGroups)
+                        {
+                            <MudExpansionPanel Text="@group.Key">
+                                @foreach (var permission in group)
+                                {
+                                    <MudCheckBox T="bool" @bind-Checked="@_selectedPermissions[permission]" Label="@permission.Split('.').Last()" />
+                                }
+                            </MudExpansionPanel>
+                        }
+                    </MudExpansionPanels>
                 </MudStack>
             </MudForm>
         </MudPaper>
@@ -30,11 +45,21 @@
     private MudForm form = default!;
     [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
 
+    private ILookup<string, string> _permissionGroups = default!;
+    private Dictionary<string, bool> _selectedPermissions = new();
+
+    protected override void OnInitialized()
+    {
+        _permissionGroups = Permissions.All().ToLookup(p => p.Split('.').First());
+        _selectedPermissions = Permissions.All().ToDictionary(p => p, p => Model.Permissions.Contains(p));
+    }
+
     private async Task Save()
     {
         await form.Validate();
         if (form.IsValid)
         {
+            Model.Permissions = _selectedPermissions.Where(p => p.Value).Select(p => p.Key).ToList();
             Dialog.Close(DialogResult.Ok(Model));
         }
     }

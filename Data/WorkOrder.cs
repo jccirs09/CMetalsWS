@@ -50,6 +50,9 @@ namespace CMetalsWS.Data
 
         public WorkOrderStatus Status { get; set; } = WorkOrderStatus.Draft;
 
+        [MaxLength(32)]
+        public string? Shift { get; set; }
+
         public ICollection<WorkOrderItem> Items { get; set; } = new List<WorkOrderItem>();
     }
 
