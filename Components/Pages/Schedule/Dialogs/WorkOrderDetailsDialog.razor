@@ -1,18 +1,23 @@
 @using MudBlazor
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using CMetalsWS.Security
+@using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
 
 @inject WorkOrderService WorkOrderService
-@inject AuthenticationStateProvider AuthStateProvider
-@inject TaskAuditEventService AuditEventService
+@inject InventoryService InvService
+@inject IAuthorizationService AuthorizationService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IAuditEventService AuditEventService
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">Work Order: @(_workOrder?.WorkOrderNumber)</MudText>
+        <MudText Typo="Typo.h6">Work Order Details - #@(_workOrder?.WorkOrderNumber)</MudText>
     </TitleContent>
+
     <DialogContent>
         @if (_workOrder == null)
         {
@@ -22,75 +27,135 @@
         {
             <MudGrid Spacing="2">
                 <MudItem xs="12">
-                    <MudText><b>Tag Number:</b> @_workOrder.TagNumber</MudText>
+                    <MudCard>
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">Pull Info</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudGrid>
+                                <MudItem xs="12" sm="6"><MudText><b>Tag Number:</b> @_workOrder.TagNumber</MudText></MudItem>
+                                <MudItem xs="12" sm="6"><MudText><b>Weight:</b> @_parentItem?.Snapshot</MudText></MudItem>
+                                <MudItem xs="12" sm="6"><MudText><b>Location:</b> @_parentItem?.Location</MudText></MudItem>
+                                <MudItem xs="12" sm="6"><MudText><b>Description:</b> @_parentItem?.Description</MudText></MudItem>
+                            </MudGrid>
+                        </MudCardContent>
+                    </MudCard>
                 </MudItem>
 
-                @foreach(var item in _workOrder.Items)
-                {
-                    <MudItem xs="12"><MudDivider /></MudItem>
-                    <MudItem xs="12">
-                        <MudText><b>Description:</b> @item.Description</MudText>
-                    </MudItem>
-                    <MudItem xs="12" sm="6">
-                        <MudText><b>Sales Order:</b> @item.SalesOrderNumber</MudText>
-                    </MudItem>
-                    <MudItem xs="12" sm="6">
-                        <MudText><b>Customer:</b> @item.CustomerName</MudText>
-                    </MudItem>
-                    <MudItem xs="12" sm="3">
-                        <MudText><b>Quantity:</b> @item.OrderQuantity</MudText>
-                    </MudItem>
-                    <MudItem xs="12" sm="3">
-                        <MudText><b>Weight:</b> @item.OrderWeight</MudText>
-
-                    </MudItem>
-                    <MudItem xs="12" sm="3">
-                        <MudText><b>Width:</b> @item.Width</MudText>
-                    </MudItem>
-
-                    @if (MachineCategory == MachineCategory.CTL)
-                    {
-                        <MudItem xs="12" sm="3">
-                            <MudText><b>Length:</b> @item.Length</MudText>
-                        </MudItem>
-                    }
-                }
+                <MudItem xs="12">
+                    <MudCard>
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">Picking List</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudTable Items="_workOrder.Items" Dense="true" Hover="true">
+                                <HeaderContent>
+                                    <MudTh>Item Code</MudTh>
+                                    <MudTh>Description</MudTh>
+                                    <MudTh>Sales Order #</MudTh>
+                                    <MudTh>Customer</MudTh>
+                                    <MudTh>Order Qty</MudTh>
+                                    <MudTh>Order Wt</MudTh>
+                                    <MudTh>Width</MudTh>
+                                    <MudTh>Length</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="Item Code">@context.ItemCode</MudTd>
+                                    <MudTd DataLabel="Description">@context.Description</MudTd>
+                                    <MudTd DataLabel="Sales Order #">@context.SalesOrderNumber</MudTd>
+                                    <MudTd DataLabel="Customer">@context.CustomerName</MudTd>
+                                    <MudTd DataLabel="Order Qty">@context.OrderQuantity</MudTd>
+                                    <MudTd DataLabel="Order Wt">@context.OrderWeight</MudTd>
+                                    <MudTd DataLabel="Width">@context.Width</MudTd>
+                                    <MudTd DataLabel="Length">@context.Length</MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
             </MudGrid>
         }
     </DialogContent>
+
     <DialogActions>
         <MudButton OnClick="Cancel">Close</MudButton>
-        <AuthorizeView Roles="Planner, Supervisor, Manager, Admin">
+
+        @if (_canEdit)
+        {
             <MudButton Color="Color.Secondary" OnClick="Edit">Edit</MudButton>
-        </AuthorizeView>
-        <AuthorizeView Roles="Operator">
+        }
+
+        @if (_canProcess)
+        {
             <MudButton Color="Color.Primary" OnClick="Process">Process</MudButton>
-        </AuthorizeView>
+        }
     </DialogActions>
 </MudDialog>
 
 @code {
-    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
     [Parameter] public int WorkOrderId { get; set; }
-    [Parameter] public MachineCategory MachineCategory { get; set; }
 
     private WorkOrder? _workOrder;
+    private InventoryItem? _parentItem;
+    private bool _canEdit;
+    private bool _canProcess;
 
     protected override async Task OnInitializedAsync()
     {
+        // Permissions from main
+        var user = (await AuthState).User;
+        _canEdit = (await AuthorizationService.AuthorizeAsync(user, Permissions.WorkOrders.Edit)).Succeeded;
+        _canProcess = (await AuthorizationService.AuthorizeAsync(user, Permissions.WorkOrders.Process)).Succeeded;
+
+        // Load data
         _workOrder = await WorkOrderService.GetByIdAsync(WorkOrderId);
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var userId = authState.User.Identity?.Name ?? "Unknown";
-        await AuditEventService.CreateAuditEventAsync(WorkOrderId, TaskType.WorkOrder, AuditEventType.Start, userId, $"Work Order Details Viewed.");
+        if (_workOrder != null && !string.IsNullOrWhiteSpace(_workOrder.TagNumber))
+        {
+            _parentItem = await InvService.GetByTagNumberAsync(_workOrder.TagNumber);
+        }
+
+        // Audit "viewed" from feature branch
+        try
+        {
+            var userId = user.Identity?.Name ?? "Unknown";
+            await AuditEventService.CreateAuditEventAsync(
+                WorkOrderId,
+                TaskType.WorkOrder,
+                AuditEventType.Start,
+                userId,
+                "Work Order Details Viewed."
+            );
+        }
+        catch
+        {
+            // Keep UI resilient; no-op on audit failures
+        }
     }
 
     private async Task Edit()
     {
         if (_workOrder is null) return;
 
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var userId = authState.User.Identity?.Name ?? "Unknown";
-        await AuditEventService.CreateAuditEventAsync(WorkOrderId, TaskType.WorkOrder, AuditEventType.Start, userId, $"Work Order opened for editing.");
+        // Audit
+        try
+        {
+            var user = (await AuthState).User;
+            var userId = user.Identity?.Name ?? "Unknown";
+            await AuditEventService.CreateAuditEventAsync(
+                WorkOrderId,
+                TaskType.WorkOrder,
+                AuditEventType.Start,
+                userId,
+                "Work Order opened for editing."
+            );
+        }
+        catch { }
 
         var parameters = new DialogParameters
         {
@@ -101,9 +166,10 @@
         };
         var options = new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
 
-        var dialog = await DialogService.ShowAsync<CMetalsWS.Components.Pages.Operations.WorkOrder.WorkOrderDialog>("Edit Work Order", parameters, options);
-        var result = await dialog.Result;
+        var dialog = await DialogService.ShowAsync<CMetalsWS.Components.Pages.Operations.WorkOrder.WorkOrderDialog>(
+            "Edit Work Order", parameters, options);
 
+        var result = await dialog.Result;
         if (result is not null && !result.Canceled)
         {
             MudDialog.Close(DialogResult.Ok(true));
@@ -114,9 +180,20 @@
     {
         if (_workOrder is null) return;
 
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var userId = authState.User.Identity?.Name ?? "Unknown";
-        await AuditEventService.CreateAuditEventAsync(WorkOrderId, TaskType.WorkOrder, AuditEventType.Start, userId, $"Work Order opened for processing.");
+        // Audit
+        try
+        {
+            var user = (await AuthState).User;
+            var userId = user.Identity?.Name ?? "Unknown";
+            await AuditEventService.CreateAuditEventAsync(
+                WorkOrderId,
+                TaskType.WorkOrder,
+                AuditEventType.Start,
+                userId,
+                "Work Order opened for processing."
+            );
+        }
+        catch { }
 
         var parameters = new DialogParameters
         {
@@ -127,9 +204,10 @@
         };
         var options = new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
 
-        var dialog = await DialogService.ShowAsync<CMetalsWS.Components.Pages.Operations.WorkOrder.WorkOrderDialog>("Process Work Order", parameters, options);
-        var result = await dialog.Result;
+        var dialog = await DialogService.ShowAsync<CMetalsWS.Components.Pages.Operations.WorkOrder.WorkOrderDialog>(
+            "Process Work Order", parameters, options);
 
+        var result = await dialog.Result;
         if (result is not null && !result.Canceled)
         {
             MudDialog.Close(DialogResult.Ok(true));
