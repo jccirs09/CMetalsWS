@@ -6,8 +6,9 @@
 @using CMetalsWS.Services
 @using CMetalsWS.Components.Pages.Operations.WorkOrder
 @using MudBlazor.Utilities
-
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
+
 @inject WorkOrderService WorkOrderService
 @inject MachineService MachineService
 @inject BranchService BranchService
@@ -133,16 +134,12 @@
 
     private async Task OnItemClicked(CalendarItem item)
     {
-        if (item is not ScheduleEvent scheduleEvent)
-            return;
+        if (item is not ScheduleEvent scheduleEvent) return;
 
-        // Unified flow: open a details dialog that returns an action string (e.g., "edit", "process")
         var detailsParams = new DialogParameters { ["WorkOrderId"] = scheduleEvent.WorkOrder.Id };
         var detailsDialog = await DialogService.ShowAsync<Dialogs.WorkOrderDetailsDialog>("Work Order Details", detailsParams);
         var detailsResult = await detailsDialog.Result;
-
-        if (detailsResult is null || detailsResult.Canceled)
-            return;
+        if (detailsResult is null || detailsResult.Canceled) return;
 
         if (detailsResult.Data is string action && (action == "edit" || action == "process"))
         {
@@ -154,7 +151,7 @@
     {
         var isProcessing = string.Equals(mode, "process", StringComparison.OrdinalIgnoreCase);
 
-        // Clone the model to avoid 2-way binding side-effects before save
+        // Clone to avoid side-effects from two-way binding before save
         var clone = new WorkOrder
         {
             Id = wo.Id,
@@ -194,7 +191,7 @@
             ["Machines"] = _machines,
             ["Branches"] = await BranchService.GetBranchesAsync(),
             ["Title"] = isProcessing ? $"Process {wo.WorkOrderNumber}" : $"Edit {wo.WorkOrderNumber}",
-            ["IsEdit"] = true,          // Keep IsEdit to disable tag search
+            ["IsEdit"] = true,
             ["IsProcessing"] = isProcessing
         };
 
@@ -204,8 +201,6 @@
 
         if (result is not null && !result.Canceled)
         {
-            // If your dialog handles persistence internally, simply reload.
-            // If it returns a WorkOrder for manual save, handle it below.
             if (result.Data is WorkOrder updated)
             {
                 try
@@ -228,8 +223,7 @@
 
     private async Task OnItemChanged(CalendarItem item)
     {
-        if (item is not ScheduleEvent scheduleEvent)
-            return;
+        if (item is not ScheduleEvent scheduleEvent) return;
 
         try
         {
