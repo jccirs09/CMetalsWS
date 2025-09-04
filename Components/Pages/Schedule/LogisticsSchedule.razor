@@ -86,10 +86,10 @@
 
         var loadedPickingListIds = _loads.SelectMany(l => l.Items.Select(i => i.PickingListId)).ToHashSet();
 
-        // _pendingGroups = _allPickingLists
-        //     .Where(pl => pl.ShipDate.HasValue && !loadedPickingListIds.Contains(pl.Id))
-        //     .GroupBy(pl => pl.ShipDate!.Value.Date)
-        //     .ToArray();
+        _pendingGroups = _allPickingLists
+            .Where(pl => pl.Items.Any(i => i.ScheduledShipDate.HasValue) && !loadedPickingListIds.Contains(pl.Id))
+            .GroupBy(pl => pl.Items.Where(i => i.ScheduledShipDate.HasValue).Min(i => i.ScheduledShipDate)!.Value.Date)
+            .ToArray();
     }
 
     private string GetPickingListZone(PickingList pl)
@@ -99,10 +99,11 @@
         {
             return load.Id.ToString();
         }
-        // if (pl.ShipDate.HasValue)
-        // {
-        //     return pl.ShipDate.Value.ToString("yyyy-MM-dd");
-        // }
+        var minDate = pl.Items.Where(i => i.ScheduledShipDate.HasValue).Min(i => i.ScheduledShipDate);
+        if (minDate.HasValue)
+        {
+            return minDate.Value.ToString("yyyy-MM-dd");
+        }
         return "unscheduled"; // Should not happen with current logic
     }
 

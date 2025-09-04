@@ -7,6 +7,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject TaskAuditEventService AuditEventService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <MudDialog>
     <TitleContent>
@@ -59,7 +60,7 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Close</MudButton>
-        <AuthorizeView Roles="Planner, Admin">
+        <AuthorizeView Roles="Planner, Supervisor, Manager, Admin">
             <MudButton Color="Color.Secondary" OnClick="Edit">Edit</MudButton>
         </AuthorizeView>
         <AuthorizeView Roles="Operator">
@@ -78,33 +79,60 @@
     protected override async Task OnInitializedAsync()
     {
         _workOrder = await WorkOrderService.GetByIdAsync(WorkOrderId);
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.Identity?.Name ?? "Unknown";
+        await AuditEventService.CreateAuditEventAsync(WorkOrderId, TaskType.WorkOrder, AuditEventType.Start, userId, $"Work Order Details Viewed.");
     }
 
-    private void Edit()
+    private async Task Edit()
     {
-        // Logic for editing the work order would go here.
-        throw new NotImplementedException("Editing a work order is not yet implemented.");
+        if (_workOrder is null) return;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.Identity?.Name ?? "Unknown";
+        await AuditEventService.CreateAuditEventAsync(WorkOrderId, TaskType.WorkOrder, AuditEventType.Start, userId, $"Work Order opened for editing.");
+
+        var parameters = new DialogParameters
+        {
+            ["Model"] = _workOrder,
+            ["IsEdit"] = true,
+            ["IsProcessing"] = false,
+            ["Title"] = $"Edit Work Order: {_workOrder.WorkOrderNumber}"
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
+
+        var dialog = await DialogService.ShowAsync<CMetalsWS.Components.Pages.Operations.WorkOrder.WorkOrderDialog>("Edit Work Order", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            MudDialog.Close(DialogResult.Ok(true));
+        }
     }
 
     private async Task Process()
     {
         if (_workOrder is null) return;
 
-        try
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.Identity?.Name ?? "Unknown";
+        await AuditEventService.CreateAuditEventAsync(WorkOrderId, TaskType.WorkOrder, AuditEventType.Start, userId, $"Work Order opened for processing.");
+
+        var parameters = new DialogParameters
         {
-            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var user = authState.User;
-            var userId = user.Identity?.Name ?? "Unknown";
+            ["Model"] = _workOrder,
+            ["IsEdit"] = false,
+            ["IsProcessing"] = true,
+            ["Title"] = $"Process Work Order: {_workOrder.WorkOrderNumber}"
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
 
-            await WorkOrderService.SetStatusAsync(_workOrder.Id, WorkOrderStatus.InProgress, userId);
-            await AuditEventService.CreateAuditEventAsync(_workOrder.Id, TaskType.WorkOrder, AuditEventType.Start, userId, $"Work Order {_workOrder.WorkOrderNumber} processing started.");
+        var dialog = await DialogService.ShowAsync<CMetalsWS.Components.Pages.Operations.WorkOrder.WorkOrderDialog>("Process Work Order", parameters, options);
+        var result = await dialog.Result;
 
-            Snackbar.Add("Work Order processing started.", Severity.Success);
+        if (result is not null && !result.Canceled)
+        {
             MudDialog.Close(DialogResult.Ok(true));
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Error processing Work Order: {ex.Message}", Severity.Error);
         }
     }
 
