@@ -92,10 +92,10 @@
                                    @bind-Value="_selectedRole"
                                    Clearable="true"
                                    Class="mb-2">
-                            <MudSelectItem T="string" Value="@((string)null)" Disabled="true">Select Role</MudSelectItem>
+                            <MudSelectItem T="string?" Value="@((string?)null)" Disabled="true">Select Role</MudSelectItem>
                             @foreach (var role in Roles)
                             {
-                                <MudSelectItem T="string" Value="@role.Name">@role.Name</MudSelectItem>
+                                <MudSelectItem T="string?" Value="@role.Name">@role.Name</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>

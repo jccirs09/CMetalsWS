@@ -281,8 +281,10 @@
 
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
         var dlg = await DialogService.ShowAsync<PickingListItemDialog>("Add Line", parameters, options);
+        if (dlg is null) return;
+
         var res = await dlg.Result;
-        if (res.Canceled) return;
+        if (res is null || res.Canceled) return;
 
         if (res.Data is PickingListItem item)
         {
@@ -322,8 +324,10 @@
 
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
         var dlg = await DialogService.ShowAsync<PickingListItemDialog>("Edit Line", parameters, options);
+        if (dlg is null) return;
+
         var res = await dlg.Result;
-        if (res.Canceled) return;
+        if (res is null || res.Canceled) return;
 
         if (res.Data is PickingListItem updated)
         {

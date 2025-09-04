@@ -87,9 +87,11 @@
         var parameters = new DialogParameters { ["Item"] = item };
         var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
         var dialog = await DialogService.ShowAsync<PullingTaskDetailDialog>("Process Task", parameters, options);
+        if (dialog is null) return;
+
         var result = await dialog.Result;
 
-        if (!result.Canceled && result.Data is ValueTuple<decimal?, decimal?> data)
+        if (result is not null && !result.Canceled && result.Data is ValueTuple<decimal?, decimal?> data)
         {
             await PickingListService.UpdatePulledQuantitiesAsync(item.Id, data.Item1, data.Item2);
             await HandleAuditEvent(item.Id, AuditEventType.Complete, false); // Log completion

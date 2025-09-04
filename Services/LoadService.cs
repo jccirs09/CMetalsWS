@@ -22,7 +22,7 @@ namespace CMetalsWS.Services
                 .Include(l => l.Truck)
                 .Include(l => l.Items)
                     .ThenInclude(i => i.PickingList)
-                        .ThenInclude(p => p.Customer);
+                        .ThenInclude(p => p!.Customer);
 
             if (branchId.HasValue)
                 query = query.Where(l => l.BranchId == branchId.Value);
@@ -47,7 +47,7 @@ namespace CMetalsWS.Services
                 .Include(l => l.Truck)
                 .Include(l => l.Items)
                     .ThenInclude(i => i.PickingList)
-                        .ThenInclude(p => p.Customer)
+                        .ThenInclude(p => p!.Customer)
                 .FirstOrDefaultAsync(l => l.Id == id);
         }
 

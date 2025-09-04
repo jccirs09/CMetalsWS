@@ -72,8 +72,10 @@
             ["IsEdit"] = false
         }, new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true });
 
+        if (dlg is null) return;
+
         var result = await dlg.Result;
-        if (!result.Canceled && result.Data is Load saved)
+        if (result is not null && !result.Canceled && result.Data is Load saved)
         {
             await LoadService.CreateAsync(saved);
             Snackbar.Add("Load created.", Severity.Success);
@@ -92,8 +94,10 @@
             ["IsEdit"] = true
         }, new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true });
 
+        if (dlg is null) return;
+
         var result = await dlg.Result;
-        if (!result.Canceled && result.Data is Load updated)
+        if (result is not null && !result.Canceled && result.Data is Load updated)
         {
             await LoadService.UpdateAsync(updated);
             Snackbar.Add("Load updated.", Severity.Success);

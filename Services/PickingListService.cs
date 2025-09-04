@@ -234,15 +234,15 @@ namespace CMetalsWS.Services
             using var db = await _dbContextFactory.CreateDbContextAsync();
             var query = db.PickingListItems
                 .Include(i => i.PickingList)
-                .Where(i => i.Status == PickingLineStatus.AssignedPulling)
+                .Where(i => i.PickingList != null && i.Status == PickingLineStatus.AssignedPulling)
                 .AsNoTracking();
 
             if (branchId.HasValue)
             {
-                query = query.Where(i => i.PickingList.BranchId == branchId.Value);
+                query = query.Where(i => i.PickingList!.BranchId == branchId.Value);
             }
 
-            return await query.OrderBy(i => i.PickingList.ShipDate).ToListAsync();
+            return await query.OrderBy(i => i.PickingList!.ShipDate).ToListAsync();
         }
 
         public async Task UpdatePulledQuantitiesAsync(int itemId, decimal? pulledQuantity, decimal? pulledWeight)

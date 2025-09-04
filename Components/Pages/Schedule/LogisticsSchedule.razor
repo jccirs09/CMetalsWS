@@ -88,7 +88,7 @@
 
         _pendingGroups = _allPickingLists
             .Where(pl => pl.ShipDate.HasValue && !loadedPickingListIds.Contains(pl.Id))
-            .GroupBy(pl => pl.ShipDate.Value.Date)
+            .GroupBy(pl => pl.ShipDate!.Value.Date)
             .ToArray();
     }
 
@@ -108,6 +108,8 @@
 
     private async Task ItemDropped(MudItemDropInfo<PickingList> dropItem)
     {
+        if (dropItem.Item is null) return;
+
         if (int.TryParse(dropItem.DropzoneIdentifier, out var loadId))
         {
             // Dropped on a load
@@ -148,7 +150,7 @@
     public class NewLoadModel
     {
         [Required]
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         [Required]
         public int TruckId { get; set; }
     }
