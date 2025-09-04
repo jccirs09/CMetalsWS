@@ -79,7 +79,7 @@ namespace CMetalsWS.Services
             existing.ShipDate = model.ShipDate;
             existing.CustomerName = model.CustomerName;
             existing.ShipToAddress = model.ShipToAddress;
-            existing.ShippingMethod = model.ShippingMethod;
+            existing.ShippingGroup = model.ShippingGroup;
             existing.Status = model.Status;
             existing.TruckId = model.TruckId;
 

@@ -24,8 +24,8 @@
             </HeaderContent>
             <RowTemplate>
                 <MudTd>@context.LoadNumber</MudTd>
-                <MudTd>@context.Truck?.Name</MudTd>
-                <MudTd>@($"{context.ScheduledDate:yyyy-MM-dd}")</MudTd>
+                <MudTd>@context.Truck?.Description</MudTd>
+                <MudTd>@($"{context.ShippingDate:yyyy-MM-dd}")</MudTd>
                 <MudTd>@context.Status</MudTd>
                 <MudTd>
                     <MudButton Variant="Variant.Text" OnClick="@(async () => await EditLoad(context))">Edit</MudButton>
@@ -62,8 +62,8 @@
     {
         var load = new Load
         {
-            BranchId = _branchId ?? 0,
-            ScheduledDate = DateTime.UtcNow.Date
+            OriginBranchId = _branchId ?? 0,
+            ShippingDate = DateTime.UtcNow.Date
         };
 
         var dlg = await DialogService.ShowAsync<LoadDialog>("New Load", new DialogParameters

@@ -17,13 +17,13 @@ namespace CMetalsWS.Services
         public IEnumerable<RouteStopDtp> BuildRouteForLoad(Load load)
         {
             return load.Items
-                .OrderBy(i => i.Destination)
+                .OrderBy(i => i.StopSequence)
                 .Select((item, index) => new RouteStopDtp
                 {
-                    StopNumber = index + 1,
-                    Destination = item.Destination,
+                    StopNumber = item.StopSequence,
+                    Destination = item.PickingList?.DestinationRegion ?? "N/A",
                     PickingListNumber = item.PickingList?.SalesOrderNumber ?? "",
-                    Weight = item.Weight
+                    Weight = item.ShippedWeight
                 });
         }
     }

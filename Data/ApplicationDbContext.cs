@@ -26,6 +26,7 @@ namespace CMetalsWS.Data
         public DbSet<Customer> Customers => Set<Customer>();
         public DbSet<TruckRouteStop> TruckRouteStops => Set<TruckRouteStop>();
         public DbSet<TaskAuditEvent> TaskAuditEvents => Set<TaskAuditEvent>();
+        public DbSet<TransferItem> TransferItems => Set<TransferItem>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -102,18 +103,38 @@ namespace CMetalsWS.Data
                 .HasForeignKey(p => p.TruckId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // Load relationships
-            modelBuilder.Entity<Load>()
-                .HasMany(l => l.Items)
-                .WithOne(i => i.Load)
-                .HasForeignKey(i => i.LoadId)
-                .OnDelete(DeleteBehavior.Cascade);
+            // Load relationships (NEW)
+            modelBuilder.Entity<Load>(e =>
+            {
+                e.HasMany(l => l.Items)
+                    .WithOne(i => i.Load)
+                    .HasForeignKey(i => i.LoadId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<LoadItem>()
-                .HasOne(i => i.PickingList)
-                .WithMany()
-                .HasForeignKey(i => i.PickingListId)
-                .OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(l => l.OriginBranch)
+                    .WithMany()
+                    .HasForeignKey(l => l.OriginBranchId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(l => l.DestinationBranch)
+                    .WithMany()
+                    .HasForeignKey(l => l.DestinationBranchId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // LoadItem relationships (NEW)
+            modelBuilder.Entity<LoadItem>(e =>
+            {
+                e.HasOne(i => i.PickingList)
+                    .WithMany()
+                    .HasForeignKey(i => i.PickingListId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(li => li.TransferItem)
+                    .WithMany()
+                    .HasForeignKey(li => li.TransferItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
 
             // Date types
             modelBuilder.Entity<PickingList>()
@@ -122,18 +143,6 @@ namespace CMetalsWS.Data
             modelBuilder.Entity<PickingList>()
                 .Property(p => p.ShipDate)
                 .HasColumnType("datetime2");
-
-            modelBuilder.Entity<Load>()
-                .Property(l => l.ScheduledDate)
-                .HasColumnType("datetime2");
-            modelBuilder.Entity<Load>()
-                .Property(l => l.ScheduledStart)
-                .HasColumnType("datetime2");
-            modelBuilder.Entity<Load>()
-                .Property(l => l.ScheduledEnd)
-                .HasColumnType("datetime2");
-            // If your Load has ReadyDate in the model, this mapping will apply automatically.
-            // If not present, this line will compile-time fail, so it is intentionally omitted.
 
             // PickingListItem -> PickingList
             modelBuilder.Entity<PickingListItem>()
@@ -170,6 +179,8 @@ namespace CMetalsWS.Data
             modelBuilder.Entity<PickingListItem>().Property(i => i.Width).HasPrecision(18, 3);
             modelBuilder.Entity<PickingListItem>().Property(i => i.Length).HasPrecision(18, 3);
             modelBuilder.Entity<PickingListItem>().Property(i => i.Weight).HasPrecision(18, 3);
+            modelBuilder.Entity<PickingList>().Property(pl => pl.TotalWeight).HasPrecision(18, 3);
+            modelBuilder.Entity<PickingList>().Property(pl => pl.RemainingWeight).HasPrecision(18, 3);
 
             modelBuilder.Entity<Truck>().Property(t => t.CapacityWeight).HasPrecision(18, 2);
             modelBuilder.Entity<Truck>().Property(t => t.CapacityVolume).HasPrecision(18, 2);
@@ -179,7 +190,9 @@ namespace CMetalsWS.Data
             modelBuilder.Entity<InventoryItem>().Property(p => p.Snapshot).HasPrecision(18, 3);
 
             // LoadItem
-            modelBuilder.Entity<LoadItem>().Property(li => li.Weight).HasPrecision(18, 3);
+            modelBuilder.Entity<Load>().Property(l => l.TotalWeight).HasPrecision(18, 3);
+            modelBuilder.Entity<LoadItem>().Property(li => li.ShippedWeight).HasPrecision(18, 3);
+            modelBuilder.Entity<TransferItem>().Property(ti => ti.Weight).HasPrecision(18, 3);
 
             // WorkOrderItem numeric fields
             modelBuilder.Entity<WorkOrderItem>().Property(w => w.Length).HasPrecision(18, 3);

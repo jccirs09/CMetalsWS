@@ -67,8 +67,8 @@
             <MudTd DataLabel="Order">@context.OrderDate.ToString("yyyy-MM-dd")</MudTd>
             <MudTd DataLabel="Ship">@context.ShipDate?.ToString("yyyy-MM-dd")</MudTd>
             <MudTd DataLabel="Status">@context.Status</MudTd>
-            <MudTd DataLabel="Truck">@context.Truck?.Name</MudTd>
-            <MudTd DataLabel="Total Wt" Class="text-right">@GetTotalWeight(context).ToString("N3")</MudTd>
+            <MudTd DataLabel="Truck">@context.Truck?.Description</MudTd>
+            <MudTd DataLabel="Total Wt" Class="text-right">@context.TotalWeight.ToString("N3")</MudTd>
             <MudTd DataLabel="Actions">
                 <AuthorizeView Policy="@Permissions.PickingLists.Edit">
                     <Authorized Context="authEdit">
@@ -268,9 +268,6 @@
         }
     }
 
-    private decimal GetTotalWeight(PickingList pl) =>
-        pl?.Items?.Sum(i => i.Weight ?? 0m) ?? 0m;
-
     private static PickingList Clone(PickingList src) =>
         new()
         {
@@ -283,9 +280,12 @@
             Customer = src.Customer,
             CustomerName = src.CustomerName,
             ShipToAddress = src.ShipToAddress,
-            ShippingMethod = src.ShippingMethod,
+            ShippingGroup = src.ShippingGroup,
             Status = src.Status,
             TruckId = src.TruckId,
+            TotalWeight = src.TotalWeight,
+            RemainingWeight = src.RemainingWeight,
+            DestinationRegion = src.DestinationRegion,
             Items = src.Items.Select(i => new PickingListItem
             {
                 Id = i.Id,
