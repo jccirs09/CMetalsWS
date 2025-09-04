@@ -16,8 +16,12 @@
   <ImportGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     <Import Project="$(NuGetPackageRoot)sixlabors.imagesharp\3.1.11\build\SixLabors.ImageSharp.props" Condition="Exists('$(NuGetPackageRoot)sixlabors.imagesharp\3.1.11\build\SixLabors.ImageSharp.props')" />
     <Import Project="$(NuGetPackageRoot)mudblazor\8.11.0\buildTransitive\MudBlazor.props" Condition="Exists('$(NuGetPackageRoot)mudblazor\8.11.0\buildTransitive\MudBlazor.props')" />
+=======
+    <Import Project="$(NuGetPackageRoot)mudblazor\8.12.0\buildTransitive\MudBlazor.props" Condition="Exists('$(NuGetPackageRoot)mudblazor\8.12.0\buildTransitive\MudBlazor.props')" />
+>>>>>>> Stashed changes
 =======
     <Import Project="$(NuGetPackageRoot)mudblazor\8.12.0\buildTransitive\MudBlazor.props" Condition="Exists('$(NuGetPackageRoot)mudblazor\8.12.0\buildTransitive\MudBlazor.props')" />
 >>>>>>> Stashed changes

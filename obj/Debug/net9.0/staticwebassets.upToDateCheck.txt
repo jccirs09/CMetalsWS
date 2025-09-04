@@ -1,7 +1,11 @@
 wwwroot\favicon.ico
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 C:\Users\jccir\Documents\repos\CMetalsWS\wwwroot\favicon.ico
+=======
+C:\Users\Jessie\Documents\GitHub\CMetalsWS\wwwroot\favicon.ico
+>>>>>>> Stashed changes
 =======
 C:\Users\Jessie\Documents\GitHub\CMetalsWS\wwwroot\favicon.ico
 >>>>>>> Stashed changes
