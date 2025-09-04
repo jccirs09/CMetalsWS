@@ -1,16 +1,17 @@
-@using MudBlazor
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using CMetalsWS.Security
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
 
 @inject WorkOrderService WorkOrderService
-@inject AuthenticationStateProvider AuthStateProvider
-@inject TaskAuditEventService AuditEventService
+@inject InventoryService InvService
+@inject IAuthorizationService AuthorizationService
 @inject ISnackbar Snackbar
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">Work Order: @(_workOrder?.WorkOrderNumber)</MudText>
+        <MudText Typo="Typo.h6">Work Order Details - #@(_workOrder?.WorkOrderNumber)</MudText>
     </TitleContent>
     <DialogContent>
         @if (_workOrder == null)
@@ -21,92 +22,89 @@
         {
             <MudGrid Spacing="2">
                 <MudItem xs="12">
-                    <MudText><b>Tag Number:</b> @_workOrder.TagNumber</MudText>
+                    <MudCard>
+                        <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Pull Info</MudText></CardHeaderContent></MudCardHeader>
+                        <MudCardContent>
+                            <MudGrid>
+                                <MudItem xs="12" sm="6"><MudText><b>Tag Number:</b> @_workOrder.TagNumber</MudText></MudItem>
+                                <MudItem xs="12" sm="6"><MudText><b>Weight:</b> @_parentItem?.Snapshot</MudText></MudItem>
+                                <MudItem xs="12" sm="6"><MudText><b>Location:</b> @_parentItem?.Location</MudText></MudItem>
+                                <MudItem xs="12" sm="6"><MudText><b>Description:</b> @_parentItem?.Description</MudText></MudItem>
+                            </MudGrid>
+                        </MudCardContent>
+                    </MudCard>
                 </MudItem>
-
-                @foreach(var item in _workOrder.Items)
-                {
-                    <MudItem xs="12"><MudDivider /></MudItem>
-                    <MudItem xs="12">
-                        <MudText><b>Description:</b> @item.Description</MudText>
-                    </MudItem>
-                    <MudItem xs="12" sm="6">
-                        <MudText><b>Sales Order:</b> @item.SalesOrderNumber</MudText>
-                    </MudItem>
-                    <MudItem xs="12" sm="6">
-                        <MudText><b>Customer:</b> @item.CustomerName</MudText>
-                    </MudItem>
-                    <MudItem xs="12" sm="3">
-                        <MudText><b>Quantity:</b> @item.OrderQuantity</MudText>
-                    </MudItem>
-                    <MudItem xs="12" sm="3">
-                        <MudText><b>Weight:</b> @item.OrderWeight</MudText>
-
-                    </MudItem>
-                    <MudItem xs="12" sm="3">
-                        <MudText><b>Width:</b> @item.Width</MudText>
-                    </MudItem>
-
-                    @if (MachineCategory == MachineCategory.CTL)
-                    {
-                        <MudItem xs="12" sm="3">
-                            <MudText><b>Length:</b> @item.Length</MudText>
-                        </MudItem>
-                    }
-                }
+                <MudItem xs="12">
+                    <MudCard>
+                        <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Picking List</MudText></CardHeaderContent></MudCardHeader>
+                        <MudCardContent>
+                            <MudTable Items="_workOrder.Items" Dense="true" Hover="true">
+                                <HeaderContent>
+                                    <MudTh>Item Code</MudTh>
+                                    <MudTh>Description</MudTh>
+                                    <MudTh>Sales Order #</MudTh>
+                                    <MudTh>Customer</MudTh>
+                                    <MudTh>Order Qty</MudTh>
+                                    <MudTh>Order Wt</MudTh>
+                                    <MudTh>Width</MudTh>
+                                    <MudTh>Length</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="Item Code">@context.ItemCode</MudTd>
+                                    <MudTd DataLabel="Description">@context.Description</MudTd>
+                                    <MudTd DataLabel="Sales Order #">@context.SalesOrderNumber</MudTd>
+                                    <MudTd DataLabel="Customer">@context.CustomerName</MudTd>
+                                    <MudTd DataLabel="Order Qty">@context.OrderQuantity</MudTd>
+                                    <MudTd DataLabel="Order Wt">@context.OrderWeight</MudTd>
+                                    <MudTd DataLabel="Width">@context.Width</MudTd>
+                                    <MudTd DataLabel="Length">@context.Length</MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
             </MudGrid>
         }
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Close</MudButton>
-        <AuthorizeView Roles="Planner, Admin">
+        @if (_canEdit)
+        {
             <MudButton Color="Color.Secondary" OnClick="Edit">Edit</MudButton>
-        </AuthorizeView>
-        <AuthorizeView Roles="Operator">
+        }
+        @if (_canProcess)
+        {
             <MudButton Color="Color.Primary" OnClick="Process">Process</MudButton>
-        </AuthorizeView>
+        }
     </DialogActions>
 </MudDialog>
 
 @code {
-    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
     [Parameter] public int WorkOrderId { get; set; }
-    [Parameter] public MachineCategory MachineCategory { get; set; }
 
     private WorkOrder? _workOrder;
+    private InventoryItem? _parentItem;
+    private bool _canEdit;
+    private bool _canProcess;
 
     protected override async Task OnInitializedAsync()
     {
+        var user = (await AuthState).User;
+        _canEdit = (await AuthorizationService.AuthorizeAsync(user, Permissions.WorkOrders.Edit)).Succeeded;
+        _canProcess = (await AuthorizationService.AuthorizeAsync(user, Permissions.WorkOrders.Process)).Succeeded;
+
         _workOrder = await WorkOrderService.GetByIdAsync(WorkOrderId);
-    }
-
-    private void Edit()
-    {
-        // Logic for editing the work order would go here.
-        throw new NotImplementedException("Editing a work order is not yet implemented.");
-    }
-
-    private async Task Process()
-    {
-        if (_workOrder is null) return;
-
-        try
+        if (_workOrder != null && !string.IsNullOrEmpty(_workOrder.TagNumber))
         {
-            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var user = authState.User;
-            var userId = user.Identity?.Name ?? "Unknown";
-
-            await WorkOrderService.SetStatusAsync(_workOrder.Id, WorkOrderStatus.InProgress, userId);
-            await AuditEventService.CreateAuditEventAsync(_workOrder.Id, TaskType.WorkOrder, AuditEventType.Start, userId, $"Work Order {_workOrder.WorkOrderNumber} processing started.");
-
-            Snackbar.Add("Work Order processing started.", Severity.Success);
-            MudDialog.Close(DialogResult.Ok(true));
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Error processing Work Order: {ex.Message}", Severity.Error);
+            _parentItem = await InvService.GetByTagNumberAsync(_workOrder.TagNumber);
         }
     }
+
+    private void Edit() => MudDialog.Close(DialogResult.Ok("edit"));
+
+    private void Process() => MudDialog.Close(DialogResult.Ok("process"));
 
     private void Cancel() => MudDialog.Cancel();
 }
