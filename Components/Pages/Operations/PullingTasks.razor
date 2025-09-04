@@ -18,7 +18,6 @@
         <MudTh>Description</MudTh>
         <MudTh>Qty</MudTh>
         <MudTh>Weight</MudTh>
-        <MudTh>Location</MudTh>
         <MudTh>Actions</MudTh>
     </HeaderContent>
     <RowTemplate>
@@ -27,7 +26,6 @@
         <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
         <MudTd DataLabel="Qty">@context.Quantity</MudTd>
         <MudTd DataLabel="Weight">@context.Weight</MudTd>
-        <MudTd DataLabel="Location">@context.Location</MudTd>
         <MudTd DataLabel="Actions">
             @if (!_auditEvents.ContainsKey(context.Id) || _auditEvents[context.Id] == null)
             {
@@ -88,12 +86,12 @@
     {
         var parameters = new DialogParameters { ["Item"] = item };
         var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
-        var dialog = await DialogService.ShowAsync<Dialogs.PullingTaskDetailDialog>("Process Task", parameters, options);
+        var dialog = await DialogService.ShowAsync<PullingTaskDetailDialog>("Process Task", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Canceled && result.Data is (decimal? pulledQuantity, decimal? pulledWeight))
+        if (!result.Canceled && result.Data is ValueTuple<decimal?, decimal?> data)
         {
-            await PickingListService.UpdatePulledQuantitiesAsync(item.Id, pulledQuantity, pulledWeight);
+            await PickingListService.UpdatePulledQuantitiesAsync(item.Id, data.Item1, data.Item2);
             await HandleAuditEvent(item.Id, AuditEventType.Complete, false); // Log completion
             await PickingListService.SetLineStatusAsync(item.Id, PickingLineStatus.Completed);
             await LoadTasks(); // Refresh the list
