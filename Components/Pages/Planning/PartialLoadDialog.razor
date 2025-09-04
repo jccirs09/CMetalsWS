@@ -1,0 +1,57 @@
+@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Partial Load Selection</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudSimpleTable Dense="true" Hover="true">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Stock #</th>
+                    <th>Description</th>
+                    <th style="text-align:right">Weight</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in PickingListItems)
+                {
+                    <tr>
+                        <td><MudCheckBox T="bool" Value="@(_selectedItems.Contains(item))" ValueChanged="@((bool val) => OnItemChecked(val, item))" /></td>
+                        <td>@item.ItemId</td>
+                        <td>@item.ItemDescription</td>
+                        <td style="text-align:right">@item.PulledWeight.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!_selectedItems.Any())">Add to Load</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public List<PickingListItem> PickingListItems { get; set; } = new();
+
+    private HashSet<PickingListItem> _selectedItems = new();
+
+    private void OnItemChecked(bool isChecked, PickingListItem item)
+    {
+        if (isChecked)
+        {
+            _selectedItems.Add(item);
+        }
+        else
+        {
+            _selectedItems.Remove(item);
+        }
+    }
+
+    private void Submit() => MudDialog.Close(DialogResult.Ok(_selectedItems.ToList()));
+    private void Cancel() => MudDialog.Cancel();
+}

@@ -358,7 +358,7 @@
             {
                 PickingListItemId = selectedItem.Id,
                 SalesOrderNumber = selectedItem.PickingList?.SalesOrderNumber,
-                CustomerName = selectedItem.PickingList?.CustomerName,
+                CustomerName = selectedItem.PickingList?.Customer?.CustomerName,
                 ItemCode = selectedItem.ItemId,
                 Description = selectedItem.ItemDescription,
                 Width = selectedItem.Width,
@@ -409,7 +409,7 @@
         {
             PickingListItemId = itemToCopy.PickingListItemId,
             SalesOrderNumber = itemToCopy.SalesOrderNumber,
-            CustomerName = itemToCopy.CustomerName,
+            CustomerName = itemToCopy.PickingListItem?.PickingList?.Customer?.CustomerName,
             ItemCode = itemToCopy.ItemCode,
             Description = itemToCopy.Description,
             Width = itemToCopy.Width,

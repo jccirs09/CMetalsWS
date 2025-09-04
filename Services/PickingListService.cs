@@ -21,7 +21,6 @@ namespace CMetalsWS.Services
             using var db = _dbContextFactory.CreateDbContext();
             var query = db.PickingLists
                 .Include(p => p.Branch)
-                .Include(p => p.Truck)
                 .Include(p => p.Customer)
                 .Include(p => p.Items).ThenInclude(i => i.Machine)
                 .AsNoTracking();
@@ -29,7 +28,32 @@ namespace CMetalsWS.Services
             if (branchId.HasValue)
                 query = query.Where(p => p.BranchId == branchId.Value);
 
-            return await query.OrderByDescending(p => p.OrderDate).ToListAsync();
+            return await query.OrderByDescending(p => p.Id).ToListAsync();
+        }
+
+        public async Task<List<PickingList>> GetAvailableForLoadingAsync(int? branchId = null)
+        {
+            using var db = _dbContextFactory.CreateDbContext();
+
+            var loadedItemIds = await db.LoadItems
+                .Select(li => li.PickingListItemId)
+                .Distinct()
+                .ToListAsync();
+
+            var query = db.PickingLists
+                .Include(p => p.Customer)
+                .Include(p => p.Items)
+                .Include(p => p.Branch)
+                .Where(p => p.Status == PickingListStatus.Completed &&
+                             p.Items.Any(i => !loadedItemIds.Contains(i.Id)))
+                .AsNoTracking();
+
+            if (branchId.HasValue)
+            {
+                query = query.Where(p => p.BranchId == branchId.Value);
+            }
+
+            return await query.OrderByDescending(p => p.Id).ToListAsync();
         }
 
         public async Task<PickingList?> GetByIdAsync(int id)
@@ -38,7 +62,6 @@ namespace CMetalsWS.Services
             return await db.PickingLists
                 .Include(p => p.Customer)
                 .Include(p => p.Items).ThenInclude(i => i.Machine)
-                .Include(p => p.Truck)
                 .Include(p => p.Branch)
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
@@ -49,16 +72,6 @@ namespace CMetalsWS.Services
             model.Status = PickingListStatus.Pending;
             foreach (var item in model.Items)
                 item.Status = item.Status == 0 ? PickingLineStatus.Pending : item.Status;
-
-            if (model.CustomerId.HasValue && string.IsNullOrWhiteSpace(model.ShipToAddress))
-            {
-                var cust = await db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == model.CustomerId.Value);
-                if (cust != null)
-                {
-                    model.CustomerName ??= cust.CustomerName;
-                    model.ShipToAddress = cust.Address;
-                }
-            }
 
             db.PickingLists.Add(model);
             await db.SaveChangesAsync();
@@ -75,13 +88,7 @@ namespace CMetalsWS.Services
             existing.SalesOrderNumber = model.SalesOrderNumber;
             existing.BranchId = model.BranchId;
             existing.CustomerId = model.CustomerId;
-            existing.OrderDate = model.OrderDate;
-            existing.ShipDate = model.ShipDate;
-            existing.CustomerName = model.CustomerName;
-            existing.ShipToAddress = model.ShipToAddress;
-            existing.ShippingGroup = model.ShippingGroup;
             existing.Status = model.Status;
-            existing.TruckId = model.TruckId;
 
             var incomingIds = model.Items.Select(i => i.Id).ToHashSet();
             var toDelete = existing.Items.Where(i => !incomingIds.Contains(i.Id)).ToList();
@@ -172,14 +179,15 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
             await UpdatePickingListStatusAsync(item.PickingListId);
         }
-        public async Task ScheduleListAsync(int pickingListId, DateTime shipStart)
-        {
-            using var db = _dbContextFactory.CreateDbContext();
-            var pl = await db.PickingLists.Include(p => p.Items).FirstOrDefaultAsync(p => p.Id == pickingListId);
-            if (pl is null) return;
-            pl.ShipDate = shipStart;
-            await db.SaveChangesAsync();
-        }
+        //TODO: Refactor this method to work with the new data model
+        //public async Task ScheduleListAsync(int pickingListId, DateTime shipStart)
+        //{
+        //    using var db = _dbContextFactory.CreateDbContext();
+        //    var pl = await db.PickingLists.Include(p => p.Items).FirstOrDefaultAsync(p => p.Id == pickingListId);
+        //    if (pl is null) return;
+        //    //pl.ShipDate = shipStart;
+        //    await db.SaveChangesAsync();
+        //}
 
         public async Task ScheduleLineAsync(int pickingListId, int lineId, DateTime shipStart)
         {
@@ -242,10 +250,10 @@ namespace CMetalsWS.Services
                 query = query.Where(i => i.PickingList!.BranchId == branchId.Value);
             }
 
-            return await query.OrderBy(i => i.PickingList!.ShipDate).ToListAsync();
+            return await query.OrderBy(i => i.PickingList!.Id).ToListAsync();
         }
 
-        public async Task UpdatePulledQuantitiesAsync(int itemId, decimal? pulledQuantity, decimal? pulledWeight)
+        public async Task UpdatePulledQuantitiesAsync(int itemId, decimal? pulledQuantity, decimal pulledWeight)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
             var item = await db.PickingListItems.FindAsync(itemId);

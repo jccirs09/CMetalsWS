@@ -55,40 +55,6 @@
                                          CoerceValue="true" />
                     </MudItem>
 
-                    <MudItem xs="12" sm="6">
-                        <MudTextField @bind-Value="Model.CustomerName" Label="Customer Name" />
-                    </MudItem>
-
-                    <MudItem xs="12" sm="6">
-                        <MudTextField @bind-Value="Model.ShipToAddress" Label="Ship To Address" Lines="2" />
-                    </MudItem>
-
-                    <MudItem xs="12" sm="3">
-                        <MudSelect T="ShippingGroup" Label="Shipping Group" @bind-Value="Model.ShippingGroup">
-                            @foreach (var s in Enum.GetValues<ShippingGroup>())
-                            {
-                                <MudSelectItem T="ShippingGroup" Value="@s">@s</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudItem>
-
-                    <MudItem xs="12" sm="3">
-                        <MudSelect T="int?" Label="Truck" @bind-Value="Model.TruckId" Clearable="true">
-                            <MudSelectItem T="int?" Value="@((int?)null)" Disabled="true">Unassigned</MudSelectItem>
-                            @foreach (var t in Trucks)
-                            {
-                                <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Description</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudItem>
-
-                    <MudItem xs="12" sm="3">
-                        <MudDatePicker @bind-Date="OrderDateValue" Label="Order Date" Required="true" />
-                    </MudItem>
-
-                    <MudItem xs="12" sm="3">
-                        <MudDatePicker @bind-Date="ShipDateValue" Label="Ship Date (List)" />
-                    </MudItem>
 
                     <MudItem xs="12" sm="3">
                         <MudSelect T="PickingListStatus" Label="Status" @bind-Value="Model.Status">
@@ -148,10 +114,6 @@
                             @if (context.ScheduledShipDate is DateTime d)
                             {
                                 <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@d.ToString("yyyy-MM-dd HH:mm")</MudChip>
-                            }
-                            else if (Model.ShipDate is DateTime inherit)
-                            {
-                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@inherit.ToString("yyyy-MM-dd HH:mm")</MudChip>
                             }
                         </MudTd>
                         <MudTd DataLabel="Machine">
@@ -228,17 +190,6 @@
             _selectedCustomer = await CustomerService.GetByIdAsync(Model.CustomerId.Value);
     }
 
-    private DateTime? OrderDateValue
-    {
-        get => Model.OrderDate;
-        set => Model.OrderDate = value ?? Model.OrderDate;
-    }
-
-    private DateTime? ShipDateValue
-    {
-        get => Model.ShipDate;
-        set => Model.ShipDate = value;
-    }
 
     private async Task<IEnumerable<Customer>> SearchCustomers(string value, CancellationToken _)
     {
@@ -258,12 +209,6 @@
         }
 
         Model.CustomerId = c.Id;
-
-        if (string.IsNullOrWhiteSpace(Model.CustomerName))
-            Model.CustomerName = c.CustomerName;
-
-        if (string.IsNullOrWhiteSpace(Model.ShipToAddress))
-            Model.ShipToAddress = c.Address;
     }
 
     private async Task AddItem()
@@ -358,10 +303,10 @@
         StateHasChanged();
     }
 
-    // Split-ship: set a line-level schedule to the list's ShipDate (or today 08:00 if none)
+    // Split-ship: set a line-level schedule to today at 08:00
     private async Task SplitShip(PickingListItem line)
     {
-        var when = Model.ShipDate ?? DateTime.Today.AddHours(8);
+        var when = DateTime.Today.AddHours(8);
         line.ScheduledShipDate = when;
 
         await PickingListService.UpdateAsync(Model);

@@ -56,6 +56,15 @@
         </MudNavGroup>
     }
 
+    @if (canPickingLists)
+    {
+        <MudNavGroup text="Load Planning" Icon="@Icons.Material.Filled.LocalShipping" Title="Load Planning">
+            <MudNavLink Href="/planning/local" Icon="@Icons.Material.Filled.LocationOn">Local Delivery</MudNavLink>
+            <MudNavLink Href="/planning/pool" Icon="@Icons.Material.Filled.Pool">Pool Truck</MudNavLink>
+            <MudNavLink Href="/planning/out-of-town" Icon="@Icons.Material.Filled.Commute">Out of Town</MudNavLink>
+        </MudNavGroup>
+    }
+
     @if (canWorkOrders)
     {
         <MudNavGroup text="Schedule" Icon="@Icons.Material.Filled.EventNote" Title="Scheduling">

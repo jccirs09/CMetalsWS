@@ -14,10 +14,10 @@
 
                 <MudDatePicker Label="Shipping Date" @bind-Date="ShippingDateProxy" Required="true" />
 
-                <MudSelect T="int" Label="Truck" @bind-Value="Model.TruckId" Required="true">
+                <MudSelect T="int?" Label="Truck" @bind-Value="Model.TruckId" Required="true">
                     @foreach (var t in _trucks)
                     {
-                        <MudSelectItem Value="t.Id">@t.Description</MudSelectItem>
+                        <MudSelectItem Value="@t.Id">@t.Description</MudSelectItem>
                     }
                 </MudSelect>
 
@@ -39,10 +39,10 @@
                     <RowTemplate>
                         <MudTd><MudNumericField T="int" @bind-Value="context.StopSequence" /></MudTd>
                         <MudTd>
-                            <MudSelect T="int?" @bind-Value="context.PickingListId">
+                            <MudSelect T="int" @bind-Value="context.PickingListId">
                                 @foreach (var pl in _pickingLists)
                                 {
-                                    <MudSelectItem Value="pl.Id">@pl.SalesOrderNumber - @pl.CustomerName</MudSelectItem>
+                                    <MudSelectItem Value="pl.Id">@pl.SalesOrderNumber - @pl.Customer?.CustomerName</MudSelectItem>
                                 }
                             </MudSelect>
                         </MudTd>
@@ -87,7 +87,7 @@
     {
         Model.Items.Add(new LoadItem
         {
-            PickingListId = null,
+            PickingListId = _pickingLists.FirstOrDefault()?.Id ?? 0,
             ShippedWeight = 0,
             StopSequence = (Model.Items.Count > 0 ? Model.Items.Max(i => i.StopSequence) : 0) + 1
         });
