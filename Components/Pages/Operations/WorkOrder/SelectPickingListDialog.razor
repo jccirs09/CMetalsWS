@@ -28,8 +28,8 @@
                     <MudTh>Weight</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="SO">@context.PickingList.SalesOrderNumber</MudTd>
-                    <MudTd DataLabel="Customer">@context.PickingList.CustomerName</MudTd>
+                    <MudTd DataLabel="SO">@context.PickingList?.SalesOrderNumber</MudTd>
+                    <MudTd DataLabel="Customer">@context.PickingList?.CustomerName</MudTd>
                     <MudTd DataLabel="Item ID">@context.ItemId</MudTd>
                     <MudTd DataLabel="Qty">@context.Quantity</MudTd>
                     <MudTd DataLabel="Unit">@context.Unit</MudTd>

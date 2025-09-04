@@ -314,6 +314,12 @@
 
     private async Task AssociatePickingLists()
     {
+        if (_parentItem is null)
+        {
+            Snackbar.Add("Please search for a valid parent tag first.", Severity.Warning);
+            return;
+        }
+
         var childItemIds = _childItems.Select(c => c.ItemId).ToList();
         if (!childItemIds.Any())
         {
@@ -331,7 +337,7 @@
                 ["ShowLength"] = false
             }, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
             var result = await dialog.Result;
-            if (result.Canceled || result.Data is not List<PickingListItem> data) return;
+            if (result is null || result.Canceled || result.Data is not List<PickingListItem> data) return;
             selectedPlItems = data;
         }
         else
@@ -341,7 +347,7 @@
                 ["RequiredItemIds"] = childItemIds
             }, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
             var result = await dialog.Result;
-            if (result.Canceled || result.Data is not List<PickingListItem> data) return;
+            if (result is null || result.Canceled || result.Data is not List<PickingListItem> data) return;
             selectedPlItems = data;
         }
 
@@ -380,7 +386,7 @@
             Width = child.Width,
             Length = child.Length,
             OrderQuantity = orderQty,
-            OrderWeight = weight,
+            OrderWeight = weight ?? 0m,
             IsStockItem = true,
             Unit = Model.MachineCategory == MachineCategory.Slitter ? "LBS" : "PCS"
         });
@@ -408,7 +414,7 @@
             Description = itemToCopy.Description,
             Width = itemToCopy.Width,
             Length = itemToCopy.Length,
-            OrderWeight = itemToCopy.OrderWeight,
+            OrderWeight = itemToCopy.OrderWeight ?? 0m,
             OrderQuantity = itemToCopy.OrderQuantity
         });
     }
@@ -431,7 +437,7 @@
         if (!item.IsStockItem) return;
 
         var qty = item.OrderQuantity ?? 0;
-        item.OrderWeight = CalculateWeight(item.Description, item.Width, item.Length, (int)qty);
+        item.OrderWeight = CalculateWeight(item.Description, item.Width, item.Length, (int)qty) ?? 0m;
         StateHasChanged();
     }
 
