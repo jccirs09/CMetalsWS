@@ -4,6 +4,8 @@
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
 @using CMetalsWS.Components.Pages.Schedule
 
 @inject LoadService LoadService
@@ -11,19 +13,40 @@
 @inject TruckService TruckService
 
 <MudPaper Class="pa-4">
-    <MudDropContainer T="PickingList" Items="_allPickingLists" ItemsSelector="@((item,zone) => GetPickingListZone(item) == zone)" Class="d-flex flex-row">
+    <MudDropContainer T="PickingList"
+                      Items="_allPickingLists"
+                      ItemsSelector="@((item, zone) => GetPickingListZone(item) == zone)"
+                      Class="d-flex flex-row">
         <ChildContent>
+            <!-- Pending by date -->
             <MudPaper Class="pa-4" Elevation="0" MinWidth="300px">
                 <MudText Typo="Typo.h6">Pending Picking Lists</MudText>
+
                 <MudExpansionPanels>
                     @foreach (var group in _pendingGroups)
                     {
-                        <MudExpansionPanel Text="@group.Key.ToString("yyyy-MM-dd")">
-                            <MudDropZone T="PickingList" Identifier="@group.Key.ToString("yyyy-MM-dd")" Class="d-flex flex-column flex-grow-1" Style="min-height: 100px;" />
+                        var dateKey = group.Key.ToString("yyyy-MM-dd");
+                        <MudExpansionPanel Text="@dateKey">
+                            <MudDropZone T="PickingList"
+                                         Identifier="@dateKey"
+                                         Class="d-flex flex-column flex-grow-1"
+                                         Style="min-height: 100px;" />
+                        </MudExpansionPanel>
+                    }
+
+                    @if (_hasUnscheduled)
+                    {
+                        <MudExpansionPanel Text="Unscheduled">
+                            <MudDropZone T="PickingList"
+                                         Identifier="unscheduled"
+                                         Class="d-flex flex-column flex-grow-1"
+                                         Style="min-height: 100px;" />
                         </MudExpansionPanel>
                     }
                 </MudExpansionPanels>
             </MudPaper>
+
+            <!-- Existing loads -->
             @foreach (var load in _loads)
             {
                 <MudPaper Class="pa-4 ma-4 d-flex flex-column mud-background-gray rounded-lg" MinWidth="300px">
@@ -32,32 +55,55 @@
                         <MudSpacer />
                         <MudText Typo="Typo.subtitle2">@load.Truck?.Description</MudText>
                     </MudToolBar>
-                    <MudDropZone T="PickingList" Identifier="@load.Id.ToString()" Class="flex-grow-1" />
+
+                    <MudDropZone T="PickingList"
+                                 Identifier="@load.Id.ToString()"
+                                 Class="flex-grow-1" />
                 </MudPaper>
             }
+
+            <!-- Add Load panel -->
             <MudPaper Class="pa-4" Elevation="0" Width="300px">
                 @if (_addLoadOpen)
                 {
                     <MudPaper Elevation="0" Class="pa-4 d-flex flex-column mud-background-gray rounded-lg">
                         <EditForm Model="_newLoadModel" OnValidSubmit="OnValidLoadSubmit">
                             <DataAnnotationsValidator />
-                            <MudTextField @bind-Value="_newLoadModel.Name" For="@(() => _newLoadModel.Name)" Placeholder="New Load Name" Underline="false"></MudTextField>
-                            <MudSelect T="int" @bind-Value="_newLoadModel.TruckId" For="@(() => _newLoadModel.TruckId)" Label="Truck">
+                            <MudTextField @bind-Value="_newLoadModel.Name"
+                                          For="@(() => _newLoadModel.Name)"
+                                          Placeholder="New Load Name"
+                                          Underline="false" />
+                            <MudSelect T="int"
+                                       @bind-Value="_newLoadModel.TruckId"
+                                       For="@(() => _newLoadModel.TruckId)"
+                                       Label="Truck">
                                 @foreach (var truck in _trucks)
                                 {
                                     <MudSelectItem T="int" Value="@truck.Id">@truck.Description</MudSelectItem>
                                 }
                             </MudSelect>
-                            <MudButton ButtonType="ButtonType.Submit" Size="Size.Small" Color="Color.Primary" FullWidth="true" Class="mt-2">Add Load</MudButton>
+                            <MudButton ButtonType="ButtonType.Submit"
+                                       Size="Size.Small"
+                                       Color="Color.Primary"
+                                       FullWidth="true"
+                                       Class="mt-2">Add Load</MudButton>
                         </EditForm>
                     </MudPaper>
                 }
                 else
                 {
-                    <MudButton OnClick="() => _addLoadOpen = true" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" Class="rounded-lg py-2" FullWidth="true">Add Load</MudButton>
+                    <MudButton OnClick="() => _addLoadOpen = true"
+                               Variant="Variant.Outlined"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               Color="Color.Primary"
+                               Class="rounded-lg py-2"
+                               FullWidth="true">
+                        Add Load
+                    </MudButton>
                 }
             </MudPaper>
         </ChildContent>
+
         <ItemRenderer>
             <PickingListCalendarItem PickingList="context" />
         </ItemRenderer>
@@ -69,6 +115,7 @@
     private List<Load> _loads = new();
     private List<Truck> _trucks = new();
     private IGrouping<DateTime, PickingList>[] _pendingGroups = Array.Empty<IGrouping<DateTime, PickingList>>();
+    private bool _hasUnscheduled;
 
     private bool _addLoadOpen;
     private NewLoadModel _newLoadModel = new();
@@ -84,28 +131,61 @@
         _allPickingLists = await PickingListService.GetAsync();
         _loads = await LoadService.GetLoadsAsync();
 
-        var loadedPickingListIds = _loads.SelectMany(l => l.Items.Select(i => i.PickingListId)).ToHashSet();
+        var loadedPickingListIds = _loads
+            .SelectMany(l => l.Items.Select(i => i.PickingListId))
+            .ToHashSet();
 
-        // _pendingGroups = _allPickingLists
-        //     .Where(pl => pl.ShipDate.HasValue && !loadedPickingListIds.Contains(pl.Id))
-        //     .GroupBy(pl => pl.ShipDate!.Value.Date)
-        //     .ToArray();
+        // Prefer item-level ScheduledShipDate; fallback to PickingList.ShipDate if none.
+        var pending = _allPickingLists
+            .Where(pl => !loadedPickingListIds.Contains(pl.Id))
+            .Select(pl =>
+            {
+                var itemMin = pl.Items
+                    .Where(i => i.ScheduledShipDate.HasValue)
+                    .Select(i => i.ScheduledShipDate!.Value.Date)
+                    .DefaultIfEmpty()
+                    .Min();
+
+                var effectiveDate = itemMin != default
+                    ? itemMin
+                    : (pl.ShipDate?.Date ?? default);
+
+                return new { pl, effectiveDate };
+            })
+            .ToList();
+
+        _pendingGroups = pending
+            .Where(x => x.effectiveDate != default)
+            .GroupBy(x => x.effectiveDate, x => x.pl)
+            .OrderBy(g => g.Key)
+            .ToArray();
+
+        _hasUnscheduled = pending.Any(x => x.effectiveDate == default);
     }
 
     private string GetPickingListZone(PickingList pl)
     {
+        // If already assigned to a load, zone = that load id
         var load = _loads.FirstOrDefault(l => l.Items.Any(i => i.PickingListId == pl.Id));
         if (load != null)
-        {
             return load.Id.ToString();
-        }
-        // if (pl.ShipDate.HasValue)
-        // {
-        //     return pl.ShipDate.Value.ToString("yyyy-MM-dd");
-        // }
-        return "unscheduled"; // Should not happen with current logic
-    }
 
+        // Otherwise, use the earliest item ScheduledShipDate, fallback to PickingList.ShipDate
+        var minItemDate = pl.Items
+            .Where(i => i.ScheduledShipDate.HasValue)
+            .Select(i => i.ScheduledShipDate!.Value.Date)
+            .DefaultIfEmpty()
+            .Min();
+
+        if (minItemDate != default)
+            return minItemDate.ToString("yyyy-MM-dd");
+
+        if (pl.ShipDate.HasValue)
+            return pl.ShipDate.Value.Date.ToString("yyyy-MM-dd");
+
+        // Last resort: Unscheduled bucket
+        return "unscheduled";
+    }
 
     private async Task OnValidLoadSubmit()
     {
@@ -113,8 +193,9 @@
         {
             LoadNumber = _newLoadModel.Name,
             TruckId = _newLoadModel.TruckId,
-            OriginBranchId = 1 // Assuming a default branch for now
+            OriginBranchId = 1 // TODO: bind to actual selected branch when available
         };
+
         await LoadService.CreateAsync(newLoad);
         _newLoadModel = new();
         _addLoadOpen = false;
@@ -125,6 +206,7 @@
     {
         [Required]
         public string Name { get; set; } = string.Empty;
+
         [Required]
         public int TruckId { get; set; }
     }

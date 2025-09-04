@@ -2,6 +2,8 @@
 @using System.Linq
 @using MudBlazor
 @using Heron.MudCalendar
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.SignalR.Client
 @using CMetalsWS.Data
 @using CMetalsWS.Services
@@ -30,21 +32,22 @@
                              CanDragItem="@(it => it.Start >= DateTime.Now)"
                              CanDropItem="@((it, date, view) => (view == CalendarView.Month && date.Add(it.Start.TimeOfDay) >= DateTime.Now) || date >= DateTime.Now)"
                              ItemChanged="HandleItemChanged"
-                             onItemClick="HandleClick">
+                             ItemClicked="HandleItemClick">
                     <CellTemplate>
                         <PickingListCalendarItem PickingList="context.PickingList" />
                     </CellTemplate>
                 </MudCalendar>
             </MudItem>
+
             <MudItem xs="12" sm="3">
                 <MudText Typo="Typo.h6">Unscheduled Pulling Orders</MudText>
                 <MudList T="PickingList" Dense="true">
-                    @* @foreach (var pl in _unscheduled)
+                    @foreach (var pl in _unscheduled)
                     {
                         <MudListItem T="PickingList" Value="@pl">
-                            @pl.SalesOrderNumber - @pl.Customer.CustomerName - Due: @pl.Id
+                            @pl.SalesOrderNumber - @pl.Customer.CustomerName
                         </MudListItem>
-                    } *@
+                    }
                 </MudList>
             </MudItem>
         </MudGrid>
@@ -71,20 +74,20 @@
         var branches = await BranchService.GetBranchesAsync();
         int? branchId = user.IsInRole("Admin") ? null : branches.FirstOrDefault()?.Id;
 
-        // await LoadPickingLists(branchId);
-        // BuildCalendarItems();
+        await LoadPickingLists(branchId);
+        BuildCalendarItems();
 
         _hub = new HubConnectionBuilder()
             .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/schedule"))
             .WithAutomaticReconnect()
             .Build();
 
-        _hub.On<int>("PickingListUpdated", async (id) =>
+        _hub.On<int>("PickingListUpdated", async _ =>
         {
             await InvokeAsync(async () =>
             {
-                // await LoadPickingLists(branchId);
-                // BuildCalendarItems();
+                await LoadPickingLists(branchId);
+                BuildCalendarItems();
                 StateHasChanged();
             });
         });
@@ -95,49 +98,69 @@
     private async Task LoadPickingLists(int? branchId)
     {
         _all = await PickingListService.GetPendingPullingOrdersAsync(branchId);
-        // _unscheduled = _all.Where(p => p.ShipDate == null || p.ShipDate.Value.Date < DateTime.Today).ToList();
+
+        // Unscheduled = no item has a ScheduledShipDate
+        _unscheduled = _all
+            .Where(p => !p.Items.Any(i => i.ScheduledShipDate.HasValue))
+            .OrderBy(p => p.SalesOrderNumber)
+            .ToList();
     }
 
     private void BuildCalendarItems()
     {
-        // _items = _all
-        //     .Where(p => p.ShipDate != null && p.ShipDate.Value.Date >= DateTime.Today)
-        //     .Select(p => new SchedItem
-        //     {
-        //         Start = p.ShipDate!.Value,
-        //         End = p.ShipDate!.Value.AddHours(1),
-        //         AllDay = false,
-        //         PickingList = p
-        //     })
-        //     .ToList();
+        // Scheduled = use the earliest item-level ScheduledShipDate
+        _items = _all
+            .Select(p => new
+            {
+                PL = p,
+                Min = p.Items
+                    .Where(i => i.ScheduledShipDate.HasValue)
+                    .Select(i => i.ScheduledShipDate!.Value)
+                    .DefaultIfEmpty()
+                    .Min()
+            })
+            .Where(x => x.Min != default)
+            .Select(x => new SchedItem
+            {
+                Start = x.Min,
+                End = x.Min.AddHours(1),
+                AllDay = false,
+                PickingList = x.PL,
+                Text = $"{x.PL.SalesOrderNumber} - {x.PL.Customer.CustomerName}"
+            })
+            .OrderBy(i => i.Start)
+            .ToList();
     }
 
     private async Task HandleItemChanged(CalendarItem e)
     {
-        if (e is SchedItem item)
-        {
-            var pl = item.PickingList;
-            // pl.ShipDate = item.Start;
+        if (e is not SchedItem item) return;
 
-            // await PickingListService.ScheduleListAsync(pl.Id, item.Start);
+        var pl = item.PickingList;
 
-            var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-            var user = auth.User;
-            var branches = await BranchService.GetBranchesAsync();
-            var branchId = user.IsInRole("Admin") ? (int?)null : branches.FirstOrDefault()?.Id;
+        // Update all PL items' ScheduledShipDate to the new start
+        foreach (var pli in pl.Items)
+            pli.ScheduledShipDate = item.Start;
 
-            // await LoadPickingLists(branchId);
-            // BuildCalendarItems();
-            StateHasChanged();
+        await PickingListService.UpdateAsync(pl);
 
-            if (_hub is not null)
-                await _hub.SendAsync("PickingListUpdated", pl.Id);
-        }
+        // Refresh
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = auth.User;
+        var branches = await BranchService.GetBranchesAsync();
+        int? branchId = user.IsInRole("Admin") ? null : branches.FirstOrDefault()?.Id;
+
+        await LoadPickingLists(branchId);
+        BuildCalendarItems();
+        StateHasChanged();
+
+        if (_hub is not null)
+            await _hub.SendAsync("PickingListUpdated", pl.Id);
     }
 
-    private Task HandleClick(SchedItem item)
+    private Task HandleItemClick(SchedItem item)
     {
-        // For consistency, could navigate to a picking list detail view
+        // If you want to navigate to details later, uncomment:
         // NavigationManager.NavigateTo($"/picking-lists/{item.PickingList.Id}");
         return Task.CompletedTask;
     }
