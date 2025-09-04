@@ -1,0 +1,158 @@
+@page "/profile"
+@using CMetalsWS.Data
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using System.ComponentModel.DataAnnotations
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h5" GutterBottom="true">My Profile</MudText>
+
+@if (_user == null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <EditForm Model="_input" OnValidSubmit="UpdateProfileAsync">
+        <DataAnnotationsValidator />
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_input.FirstName" Label="First Name" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_input.LastName" Label="Last Name" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField Value="_user.Email" Label="Email" ReadOnly="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_input.PhoneNumber" Label="Phone Number" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">Save Changes</MudButton>
+            </MudItem>
+        </MudGrid>
+    </EditForm>
+
+    <MudText Typo="Typo.h6" GutterBottom="true" Class="mt-6">Change Password</MudText>
+    <EditForm Model="_passwordInput" OnValidSubmit="ChangePasswordAsync">
+        <DataAnnotationsValidator />
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_passwordInput.OldPassword" Label="Current Password" InputType="InputType.Password" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_passwordInput.NewPassword" Label="New Password" InputType="InputType.Password" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_passwordInput.ConfirmPassword" Label="Confirm New Password" InputType="InputType.Password" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">Change Password</MudButton>
+            </MudItem>
+        </MudGrid>
+    </EditForm>
+}
+
+@code {
+    private ApplicationUser? _user;
+    private InputModel _input = new();
+    private PasswordInputModel _passwordInput = new();
+
+    public class PasswordInputModel
+    {
+        [Required]
+        [DataType(DataType.Password)]
+        public string OldPassword { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        public string NewPassword { get; set; } = string.Empty;
+
+        [DataType(DataType.Password)]
+        [Compare("NewPassword", ErrorMessage = "The new password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+
+    public class InputModel
+    {
+        [Required]
+        [Display(Name = "First Name")]
+        public string? FirstName { get; set; }
+
+        [Required]
+        [Display(Name = "Last Name")]
+        public string? LastName { get; set; }
+
+        [Phone]
+        [Display(Name = "Phone number")]
+        public string? PhoneNumber { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userPrincipal = authState.User;
+        if (userPrincipal.Identity?.IsAuthenticated ?? false)
+        {
+            _user = await UserManager.GetUserAsync(userPrincipal);
+            if (_user != null)
+            {
+                _input = new InputModel
+                {
+                    FirstName = _user.FirstName,
+                    LastName = _user.LastName,
+                    PhoneNumber = _user.PhoneNumber
+                };
+            }
+        }
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        if (_user == null) return;
+
+        var result = await UserManager.ChangePasswordAsync(_user, _passwordInput.OldPassword, _passwordInput.NewPassword);
+
+        if (result.Succeeded)
+        {
+            Snackbar.Add("Password changed successfully.", Severity.Success);
+            _passwordInput = new(); // Clear the form
+        }
+        else
+        {
+            foreach (var error in result.Errors)
+            {
+                Snackbar.Add(error.Description, Severity.Error);
+            }
+        }
+    }
+
+    private async Task UpdateProfileAsync()
+    {
+        if (_user == null) return;
+
+        _user.FirstName = _input.FirstName;
+        _user.LastName = _input.LastName;
+        _user.PhoneNumber = _input.PhoneNumber;
+
+        var result = await UserManager.UpdateAsync(_user);
+
+        if (result.Succeeded)
+        {
+            Snackbar.Add("Profile updated successfully.", Severity.Success);
+        }
+        else
+        {
+            foreach (var error in result.Errors)
+            {
+                Snackbar.Add(error.Description, Severity.Error);
+            }
+        }
+    }
+}
