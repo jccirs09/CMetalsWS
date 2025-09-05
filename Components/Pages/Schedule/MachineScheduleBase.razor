@@ -195,7 +195,7 @@
             ["IsProcessing"] = isProcessing
         };
 
-        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, DisableBackdropClick = true };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, BackdropClick = false };
         var dialog = await DialogService.ShowAsync<WorkOrderDialog>(isProcessing ? "Process Work Order" : "Edit Work Order", parameters, options);
         var result = await dialog.Result;
 

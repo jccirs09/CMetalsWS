@@ -9,7 +9,8 @@ namespace CMetalsWS.Data
     {
         public int Id { get; set; }
         [Required, MaxLength(64)]
-        public string SalesOrderNumber { get; set; } = default!;
+        public required string SalesOrderNumber { get; set; }
+        public DateTime? ShipDate { get; set; }
         [Required]
         public int BranchId { get; set; }
         public virtual Branch Branch { get; set; } = null!;
@@ -34,10 +35,10 @@ namespace CMetalsWS.Data
         public int LineNumber { get; set; }
 
         [Required, MaxLength(64)]
-        public string ItemId { get; set; } = default!;
+        public required string ItemId { get; set; }
 
         [Required, MaxLength(256)]
-        public string ItemDescription { get; set; } = default!;
+        public required string ItemDescription { get; set; }
 
         [Precision(18, 3)]
         public decimal Quantity { get; set; }

@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace CMetalsWS.Services
 {
-    public class TaskAuditEventService
+    public class TaskAuditEventService : ITaskAuditEventService
     {
         private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
 

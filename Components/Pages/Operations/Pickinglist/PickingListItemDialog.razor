@@ -72,7 +72,7 @@
 
 @code {
     [Parameter] public string Title { get; set; } = "Line Item";
-    [Parameter] public PickingListItem Item { get; set; } = new();
+    [Parameter] public PickingListItem Item { get; set; }
     [Parameter] public List<Machine> Machines { get; set; } = new();
 
     [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;

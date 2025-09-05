@@ -8,7 +8,7 @@
 @inject ItemRelationshipService RelService
 @inject PickingListService PlService
 @inject WorkOrderService WorkOrderService
-@inject TaskAuditEventService AuditService
+@inject ITaskAuditEventService AuditService
 
 <MudDialog Title="@Title">
     <DialogContent>
@@ -504,7 +504,7 @@
     private async Task CompleteTaskAsync()
     {
         Model.Status = WorkOrderStatus.Completed;
-        await CreateAuditEventAsync(AuditEventType.End);
+        await CreateAuditEventAsync(AuditEventType.Complete);
         await WorkOrderService.UpdateAsync(Model, (await AuthState).User.Identity?.Name ?? "Unknown");
         MudDialog.Close(DialogResult.Ok(true));
     }
