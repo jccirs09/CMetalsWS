@@ -1,0 +1,223 @@
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.AspNetCore.Components.Authorization
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using MudBlazor
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IChatService ChatService
+
+<style>
+    .chat-bubble {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+    }
+
+    .chat-window {
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        width: 400px;
+        height: 500px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: white;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+    }
+</style>
+
+<div class="chat-bubble">
+    <MudFab Color="Color.Primary" Icon="@Icons.Material.Filled.Chat" OnClick="ToggleChatWindow" />
+</div>
+
+@if (_isChatWindowVisible)
+{
+    <div class="chat-window">
+        <MudAppBar Dense="true">
+            @if (_selectedUser != null)
+            {
+                <MudText Typo="Typo.h6">@_selectedUser.UserName</MudText>
+            }
+            else if (_selectedGroup != null)
+            {
+                <MudText Typo="Typo.h6">@_selectedGroup.Name</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.h6">Chat</MudText>
+            }
+            <MudSpacer />
+            <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="ToggleChatWindow" />
+        </MudAppBar>
+        <div style="flex: 1; display: flex;">
+            <div style="width: 150px; border-right: 1px solid #ccc; overflow-y: auto;">
+                <MudTextField @bind-Value="_searchQuery" Label="Search Users" Variant="Variant.Text" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+                <MudList Clickable="true">
+                    <MudListSubheader>Users</MudListSubheader>
+                    @foreach (var user in _filteredUsers.Where(u => u.Id != _currentUserId))
+                    {
+                        <MudListItem OnClick="() => SelectUser(user)">
+                            @user.UserName
+                        </MudListItem>
+                    }
+                </MudList>
+                <MudList Clickable="true">
+                    <MudListSubheader>Groups</MudListSubheader>
+                    @foreach (var group in _groups)
+                    {
+                        <MudListItem OnClick="() => SelectGroup(group)">
+                            @group.Name
+                        </MudListItem>
+                    }
+                </MudList>
+            </div>
+            <div style="flex: 1; overflow-y: auto; padding: 10px;">
+                @if (_selectedUser != null || _selectedGroup != null)
+                {
+                    @foreach (var message in _messages)
+                    {
+                        <div class="@(message.SenderId == _currentUserId ? "d-flex flex-row-reverse" : "")">
+                            <MudAvatar>@GetAvatarText(message.Sender?.UserName)</MudAvatar>
+                            <MudPaper Class="pa-2 ma-2" Elevation="3">
+                                <MudText>@message.Content</MudText>
+                                <MudText Typo="Typo.caption" Class="text-right">@message.Timestamp.ToLocalTime().ToString("t")</MudText>
+                            </MudPaper>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <MudText>Select a user or group to start chatting.</MudText>
+                }
+            </div>
+        </div>
+        <div style="padding: 10px; border-top: 1px solid #ccc;">
+            <MudTextField @bind-Value="_message" Label="Type a message" Variant="Variant.Outlined" OnKeyPress="OnKeyPress" />
+            <MudIconButton Icon="@Icons.Material.Filled.Send" OnClick="SendMessage" />
+        </div>
+    </div>
+}
+
+@code {
+    private bool _isChatWindowVisible = false;
+    private string? _message;
+    private HubConnection? _hubConnection;
+    private List<ApplicationUser> _users = new();
+    private List<ChatGroup> _groups = new();
+    private ApplicationUser? _selectedUser;
+    private ChatGroup? _selectedGroup;
+    private List<ChatMessage> _messages = new();
+    private string? _currentUserId;
+    private string _searchQuery = "";
+    private List<ApplicationUser> _filteredUsers =>
+        string.IsNullOrWhiteSpace(_searchQuery)
+            ? _users
+            : _users.Where(u => u.UserName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+        _currentUserId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (_currentUserId != null)
+        {
+            _users = await ChatService.GetUsersAsync();
+            _groups = await ChatService.GetUserGroupsAsync(_currentUserId);
+
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/chat"))
+                .Build();
+
+            _hubConnection.On<string, string>("ReceiveMessage", async (userId, message) =>
+            {
+                if ((_selectedUser != null && _selectedUser.Id == userId) || userId == _currentUserId)
+                {
+                    var sender = await ChatService.GetUserDetailsAsync(userId);
+                    _messages.Add(new ChatMessage { SenderId = userId, Sender = sender, Content = message, Timestamp = DateTime.Now });
+                    await InvokeAsync(StateHasChanged);
+                }
+            });
+
+            _hubConnection.On<string, int, string>("ReceiveGroupMessage", async (userId, groupId, message) =>
+            {
+                if (_selectedGroup != null && _selectedGroup.Id == groupId)
+                {
+                    var sender = await ChatService.GetUserDetailsAsync(userId);
+                    _messages.Add(new ChatMessage { SenderId = userId, Sender = sender, ChatGroupId = groupId, Content = message, Timestamp = DateTime.Now });
+                    await InvokeAsync(StateHasChanged);
+                }
+            });
+
+            await _hubConnection.StartAsync();
+        }
+    }
+
+    private void ToggleChatWindow()
+    {
+        _isChatWindowVisible = !_isChatWindowVisible;
+    }
+
+    private async Task SelectUser(ApplicationUser user)
+    {
+        _selectedUser = user;
+        _selectedGroup = null;
+        if (_currentUserId != null)
+        {
+            _messages = await ChatService.GetConversationAsync(_currentUserId, _selectedUser.Id);
+        }
+    }
+
+    private async Task SelectGroup(ChatGroup group)
+    {
+        _selectedGroup = group;
+        _selectedUser = null;
+        _messages = await ChatService.GetGroupConversationAsync(_selectedGroup.Id);
+    }
+
+    private async Task OnKeyPress(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SendMessage();
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (!string.IsNullOrEmpty(_message) && _hubConnection != null)
+        {
+            if (_selectedUser != null)
+            {
+                await _hubConnection.SendAsync("SendMessageToUser", _selectedUser.Id, _message);
+            }
+            else if (_selectedGroup != null)
+            {
+                await _hubConnection.SendAsync("SendMessageToGroup", _selectedGroup.Id, _message);
+            }
+            _message = string.Empty;
+        }
+    }
+
+    private string GetAvatarText(string userName)
+    {
+        if (string.IsNullOrWhiteSpace(userName))
+            return "?";
+        return userName[0].ToString().ToUpper();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}
