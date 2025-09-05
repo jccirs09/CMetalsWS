@@ -162,6 +162,7 @@
 
         var model = new PickingList
         {
+            SalesOrderNumber = string.Empty,
             Status = PickingListStatus.Pending,
             BranchId = (!isAdmin && userBranchId.HasValue) ? userBranchId.Value : (branches.FirstOrDefault()?.Id ?? 0)
         };

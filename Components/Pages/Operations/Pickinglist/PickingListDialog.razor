@@ -161,7 +161,7 @@
 </MudDialog>
 
 @code {
-    [Parameter] public PickingList Model { get; set; } = new();
+    [Parameter] public PickingList Model { get; set; }
     [Parameter] public bool IsEdit { get; set; }
     [Parameter] public string Title { get; set; } = "";
     [Parameter] public List<Branch> Branches { get; set; } = new();
@@ -219,6 +219,8 @@
         {
             ["Item"] = new PickingListItem
             {
+                ItemId = string.Empty,
+                ItemDescription = string.Empty,
                 LineNumber = (Model.Items.Any() ? Model.Items.Max(i => i.LineNumber) : 0) + 1,
                 Unit = "EA",
                 Status = PickingLineStatus.Pending
