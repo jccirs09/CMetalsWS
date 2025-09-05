@@ -4,6 +4,7 @@ using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250905161845_AddPickingListHeaderFields")]
+    partial class AddPickingListHeaderFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -168,78 +171,6 @@ namespace CMetalsWS.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Branches");
-                });
-
-            modelBuilder.Entity("CMetalsWS.Data.ChatGroup", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("BranchId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BranchId");
-
-                    b.ToTable("ChatGroups");
-                });
-
-            modelBuilder.Entity("CMetalsWS.Data.ChatGroupUser", b =>
-                {
-                    b.Property<string>("UserId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("ChatGroupId")
-                        .HasColumnType("int");
-
-                    b.HasKey("UserId", "ChatGroupId");
-
-                    b.HasIndex("ChatGroupId");
-
-                    b.ToTable("ChatGroupUsers");
-                });
-
-            modelBuilder.Entity("CMetalsWS.Data.ChatMessage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("ChatGroupId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RecipientId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("SenderId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ChatGroupId");
-
-                    b.HasIndex("RecipientId");
-
-                    b.HasIndex("SenderId");
-
-                    b.ToTable("ChatMessages");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.Customer", b =>
@@ -1116,59 +1047,6 @@ namespace CMetalsWS.Migrations
                     b.Navigation("Branch");
                 });
 
-            modelBuilder.Entity("CMetalsWS.Data.ChatGroup", b =>
-                {
-                    b.HasOne("CMetalsWS.Data.Branch", "Branch")
-                        .WithMany()
-                        .HasForeignKey("BranchId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Branch");
-                });
-
-            modelBuilder.Entity("CMetalsWS.Data.ChatGroupUser", b =>
-                {
-                    b.HasOne("CMetalsWS.Data.ChatGroup", "ChatGroup")
-                        .WithMany("ChatGroupUsers")
-                        .HasForeignKey("ChatGroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CMetalsWS.Data.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ChatGroup");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("CMetalsWS.Data.ChatMessage", b =>
-                {
-                    b.HasOne("CMetalsWS.Data.ChatGroup", "ChatGroup")
-                        .WithMany("Messages")
-                        .HasForeignKey("ChatGroupId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.HasOne("CMetalsWS.Data.ApplicationUser", "Recipient")
-                        .WithMany()
-                        .HasForeignKey("RecipientId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("CMetalsWS.Data.ApplicationUser", "Sender")
-                        .WithMany()
-                        .HasForeignKey("SenderId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("ChatGroup");
-
-                    b.Navigation("Recipient");
-
-                    b.Navigation("Sender");
-                });
-
             modelBuilder.Entity("CMetalsWS.Data.Load", b =>
                 {
                     b.HasOne("CMetalsWS.Data.Branch", "DestinationBranch")
@@ -1420,13 +1298,6 @@ namespace CMetalsWS.Migrations
                     b.Navigation("Users");
 
                     b.Navigation("WorkOrders");
-                });
-
-            modelBuilder.Entity("CMetalsWS.Data.ChatGroup", b =>
-                {
-                    b.Navigation("ChatGroupUsers");
-
-                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.Load", b =>
