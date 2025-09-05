@@ -1,6 +1,11 @@
-namespace CMetalsWS.Services;
+using CMetalsWS.Services.Dto;
+using System.IO;
+using System.Threading.Tasks;
 
-public interface IPdfParsingService
+namespace CMetalsWS.Services
 {
-    Task<string> ParsePdfAsync(Stream pdfStream);
+    public interface IPdfParsingService
+    {
+        Task<PickingListExtraction?> ParsePdfAsync(Stream pdfStream);
+    }
 }

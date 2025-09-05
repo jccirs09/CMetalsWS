@@ -1,7 +1,6 @@
 using CMetalsWS.Components;
 using CMetalsWS.Components.Account;
 using CMetalsWS.Data;
-using CMetalsWS.Hubs;
 using CMetalsWS.Security;
 using CMetalsWS.Services;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -92,8 +91,10 @@ builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();
 builder.Services.AddScoped<ITaskAuditEventService, TaskAuditEventService>();
+
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddSignalR();
+
 
 var app = builder.Build();
 
@@ -115,8 +116,9 @@ else
     app.UseHsts();
 }
 
+
 app.MapHub<ScheduleHub>("/hubs/schedule");
-app.MapHub<ChatHub>("/hubs/chat");
+
 app.UseHttpsRedirection();
 
 // Authentication/Authorization for endpoints that may use policies
@@ -132,23 +134,31 @@ app.MapRazorComponents<App>()
 // Identity /Account endpoints for Razor Components
 app.MapAdditionalIdentityEndpoints();
 
-app.MapPost("api/pdf/parse", async (IFormFile file, IPdfParsingService pdfParser) =>
+app.MapPost("api/pdf/parse", async (IFormFile file, IPdfParsingService pdfParser, ILogger<Program> logger) =>
 {
     if (file is null || file.Length == 0)
     {
         return Results.BadRequest("No file uploaded.");
     }
+    if (file.Length > 25_000_000) // 25 MB limit
+    {
+        return Results.BadRequest("File size exceeds 25 MB limit.");
+    }
 
     try
     {
         await using var stream = file.OpenReadStream();
-        var text = await pdfParser.ParsePdfAsync(stream);
-        var jsonResult = JsonSerializer.Serialize(new { text });
-        return Results.Content(jsonResult, "application/json");
+        var extractionResult = await pdfParser.ParsePdfAsync(stream);
+        if (extractionResult is null)
+        {
+            return Results.Problem("Failed to parse the PDF.");
+        }
+        return Results.Ok(extractionResult);
     }
     catch (Exception ex)
     {
-        return Results.Problem($"An error occurred: {ex.Message}");
+        logger.LogError(ex, "Error parsing PDF for file {FileName}", file.FileName);
+        return Results.Problem($"An error occurred while processing the PDF: {ex.Message}");
     }
 })
 .DisableAntiforgery();
