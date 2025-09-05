@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
+using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -87,6 +89,7 @@ builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<LoadService>();
 builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddScoped<CustomerService>();
+builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();
 builder.Services.AddScoped<ITaskAuditEventService, TaskAuditEventService>();
 builder.Services.AddSignalR();
 
@@ -125,5 +128,26 @@ app.MapRazorComponents<App>()
 
 // Identity /Account endpoints for Razor Components
 app.MapAdditionalIdentityEndpoints();
+
+app.MapPost("api/pdf/parse", async (IFormFile file, IPdfParsingService pdfParser) =>
+{
+    if (file is null || file.Length == 0)
+    {
+        return Results.BadRequest("No file uploaded.");
+    }
+
+    try
+    {
+        await using var stream = file.OpenReadStream();
+        var text = await pdfParser.ParsePdfAsync(stream);
+        var jsonResult = JsonSerializer.Serialize(new { text });
+        return Results.Content(jsonResult, "application/json");
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"An error occurred: {ex.Message}");
+    }
+})
+.DisableAntiforgery();
 
 app.Run();
