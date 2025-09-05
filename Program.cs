@@ -1,7 +1,6 @@
 using CMetalsWS.Components;
 using CMetalsWS.Components.Account;
 using CMetalsWS.Data;
-using CMetalsWS.Hubs;
 using CMetalsWS.Security;
 using CMetalsWS.Services;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -72,6 +71,7 @@ builder.Services.AddAuthorization(options =>
             policy.RequireClaim(Permissions.ClaimType, perm);
         });
     }
+    options.AddPolicy("Manager", policy => policy.RequireRole("Manager"));
 });
 
 // App services
@@ -91,7 +91,6 @@ builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();
 builder.Services.AddScoped<ITaskAuditEventService, TaskAuditEventService>();
-builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -113,7 +112,6 @@ else
     app.UseHsts();
 }
 
-app.MapHub<ScheduleHub>("/hubs/schedule");
 app.UseHttpsRedirection();
 
 // Authentication/Authorization for endpoints that may use policies
