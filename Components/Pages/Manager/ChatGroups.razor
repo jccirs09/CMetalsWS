@@ -62,7 +62,7 @@
         var userId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (userId != null)
         {
-            _currentUser = await UserService.GetUserDetailsAsync(userId);
+            _currentUser = await UserService.GetUserByIdAsync(userId);
             await LoadGroupsAsync();
         }
     }
@@ -90,7 +90,7 @@
         var dialog = DialogService.Show<ChatGroupDialog>("Add Group", parameters);
         var result = await dialog.Result;
 
-        if (!result.Cancelled)
+        if (!result.Canceled)
         {
             var dialogResult = (ChatGroupDialog.ChatGroupDialogResult)result.Data;
             dialogResult.Group.BranchId = _currentUser.BranchId;
@@ -115,7 +115,7 @@
         var dialog = DialogService.Show<ChatGroupDialog>("Edit Group", parameters);
         var result = await dialog.Result;
 
-        if (!result.Cancelled)
+        if (!result.Canceled)
         {
             var dialogResult = (ChatGroupDialog.ChatGroupDialogResult)result.Data;
             await ChatService.UpdateGroupAsync(dialogResult.Group, dialogResult.SelectedUsers);
@@ -137,7 +137,7 @@
         var dialog = DialogService.Show<MudMessageBox>("Delete Group", parameters);
         var result = await dialog.Result;
 
-        if (!result.Cancelled)
+        if (!result.Canceled)
         {
             await ChatService.DeleteGroupAsync(group.Id);
             await LoadGroupsAsync();

@@ -74,7 +74,7 @@
         var dialog = DialogService.Show<ChatGroupDialog>("Add Group", parameters);
         var result = await dialog.Result;
 
-        if (!result.Cancelled)
+        if (!result.Canceled)
         {
             var dialogResult = (ChatGroupDialog.ChatGroupDialogResult)result.Data;
             await ChatService.CreateGroupAsync(dialogResult.Group.Name, dialogResult.Group.BranchId, dialogResult.SelectedUsers);
@@ -98,7 +98,7 @@
         var dialog = DialogService.Show<ChatGroupDialog>("Edit Group", parameters);
         var result = await dialog.Result;
 
-        if (!result.Cancelled)
+        if (!result.Canceled)
         {
             var dialogResult = (ChatGroupDialog.ChatGroupDialogResult)result.Data;
             await ChatService.UpdateGroupAsync(dialogResult.Group, dialogResult.SelectedUsers);
@@ -120,7 +120,7 @@
         var dialog = DialogService.Show<MudMessageBox>("Delete Group", parameters);
         var result = await dialog.Result;
 
-        if (!result.Cancelled)
+        if (!result.Canceled)
         {
             await ChatService.DeleteGroupAsync(group.Id);
             await LoadGroupsAsync();
