@@ -92,6 +92,10 @@ builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();
 builder.Services.AddScoped<ITaskAuditEventService, TaskAuditEventService>();
 
+builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddSignalR();
+
+
 var app = builder.Build();
 
 // Seed roles, permission claims, and admin user
@@ -111,6 +115,9 @@ else
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
 }
+
+
+app.MapHub<ScheduleHub>("/hubs/schedule");
 
 app.UseHttpsRedirection();
 
