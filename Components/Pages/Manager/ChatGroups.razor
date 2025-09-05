@@ -1,0 +1,147 @@
+@page "/manager/chatgroups"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using CMetalsWS.Security
+@using MudBlazor
+@using CMetalsWS.Components.Pages.Admin
+@attribute [Authorize(Policy = "Manager")] // I will need to create this policy
+
+@inject IChatService ChatService
+@inject BranchService BranchService
+@inject UserService UserService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<MudPaper Class="p-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h5">Chat Groups</MudText>
+
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="AddGroup">
+            Add Group
+        </MudButton>
+    </MudStack>
+
+    <MudTable Items="_groups" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Branch</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Branch">@context.Branch?.Name</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Color="Color.Info"
+                               Icon="@Icons.Material.Filled.Edit"
+                               title="Edit"
+                               OnClick="@(() => EditGroup(context))" />
+                <MudIconButton Color="Color.Error"
+                               Icon="@Icons.Material.Filled.Delete"
+                               title="Delete"
+                               OnClick="@(() => DeleteGroup(context))" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<ChatGroup> _groups = new();
+    private ApplicationUser _currentUser;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+        var userId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId != null)
+        {
+            _currentUser = await UserService.GetUserDetailsAsync(userId);
+            await LoadGroupsAsync();
+        }
+    }
+
+    private async Task LoadGroupsAsync()
+    {
+        if (_currentUser?.BranchId != null)
+        {
+            var allGroups = await ChatService.GetAllGroupsAsync();
+            _groups = allGroups.Where(g => g.BranchId == _currentUser.BranchId).ToList();
+            StateHasChanged();
+        }
+    }
+
+    private async Task AddGroup()
+    {
+        var parameters = new DialogParameters
+        {
+            ["Title"] = "Add Group",
+            ["SubmitText"] = "Add",
+            ["Branches"] = new List<Branch> { _currentUser.Branch },
+            ["Users"] = (await UserService.GetUsersAsync()).Where(u => u.BranchId == _currentUser.BranchId).ToList()
+        };
+
+        var dialog = DialogService.Show<ChatGroupDialog>("Add Group", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Cancelled)
+        {
+            var dialogResult = (ChatGroupDialog.ChatGroupDialogResult)result.Data;
+            dialogResult.Group.BranchId = _currentUser.BranchId;
+            await ChatService.CreateGroupAsync(dialogResult.Group.Name, dialogResult.Group.BranchId, dialogResult.SelectedUsers);
+            await LoadGroupsAsync();
+            Snackbar.Add("Group created successfully.", Severity.Success);
+        }
+    }
+
+    private async Task EditGroup(ChatGroup group)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Title"] = "Edit Group",
+            ["SubmitText"] = "Update",
+            ["GroupModel"] = group,
+            ["Branches"] = new List<Branch> { _currentUser.Branch },
+            ["Users"] = (await UserService.GetUsersAsync()).Where(u => u.BranchId == _currentUser.BranchId).ToList(),
+            ["SelectedUsers"] = group.ChatGroupUsers.Select(u => u.UserId).ToList()
+        };
+
+        var dialog = DialogService.Show<ChatGroupDialog>("Edit Group", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Cancelled)
+        {
+            var dialogResult = (ChatGroupDialog.ChatGroupDialogResult)result.Data;
+            await ChatService.UpdateGroupAsync(dialogResult.Group, dialogResult.SelectedUsers);
+            await LoadGroupsAsync();
+            Snackbar.Add("Group updated successfully.", Severity.Success);
+        }
+    }
+
+    private async Task DeleteGroup(ChatGroup group)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Title"] = "Delete Group",
+            ["ContentText"] = $"Are you sure you want to delete the group '{group.Name}'?",
+            ["SubmitText"] = "Delete",
+            ["CancelText"] = "Cancel"
+        };
+
+        var dialog = DialogService.Show<MudMessageBox>("Delete Group", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Cancelled)
+        {
+            await ChatService.DeleteGroupAsync(group.Id);
+            await LoadGroupsAsync();
+            Snackbar.Add("Group deleted successfully.", Severity.Success);
+        }
+    }
+}

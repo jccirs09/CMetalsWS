@@ -72,6 +72,7 @@ builder.Services.AddAuthorization(options =>
             policy.RequireClaim(Permissions.ClaimType, perm);
         });
     }
+    options.AddPolicy("Manager", policy => policy.RequireRole("Manager"));
 });
 
 // App services
@@ -91,6 +92,7 @@ builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();
 builder.Services.AddScoped<ITaskAuditEventService, TaskAuditEventService>();
+builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddSignalR();
 
 var app = builder.Build();
@@ -114,6 +116,7 @@ else
 }
 
 app.MapHub<ScheduleHub>("/hubs/schedule");
+app.MapHub<ChatHub>("/hubs/chat");
 app.UseHttpsRedirection();
 
 // Authentication/Authorization for endpoints that may use policies

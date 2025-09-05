@@ -35,6 +35,14 @@
             {
                 <MudNavLink Href="/trucks" Icon="@Icons.Material.Filled.LocalShipping">Trucks</MudNavLink>
             }
+            <MudNavLink Href="/admin/chatgroups" Icon="@Icons.Material.Filled.Chat">Chat Groups</MudNavLink>
+        </MudNavGroup>
+    }
+
+    @if (isManager)
+    {
+        <MudNavGroup text="Manager" Icon="@Icons.Material.Filled.SupervisorAccount" Title="Manager Panel">
+            <MudNavLink Href="/manager/chatgroups" Icon="@Icons.Material.Filled.Chat">Chat Groups</MudNavLink>
         </MudNavGroup>
     }
 
@@ -108,6 +116,7 @@
     private bool canTrucks;
     private bool canWorkOrders;
     private bool canPickingLists;
+    private bool isManager;
 
     protected override async Task OnInitializedAsync()
     {
@@ -127,6 +136,7 @@
         canTrucks = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Trucks.View)).Succeeded;
         canWorkOrders = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.WorkOrders.View)).Succeeded;
         canPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.View)).Succeeded;
+        isManager = user.IsInRole("Manager");
     }
 
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)

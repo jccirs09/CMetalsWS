@@ -28,6 +28,10 @@ namespace CMetalsWS.Data
         public DbSet<TaskAuditEvent> TaskAuditEvents => Set<TaskAuditEvent>();
         public DbSet<TransferItem> TransferItems => Set<TransferItem>();
 
+        public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+        public DbSet<ChatGroup> ChatGroups => Set<ChatGroup>();
+        public DbSet<ChatGroupUser> ChatGroupUsers => Set<ChatGroupUser>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -193,6 +197,46 @@ namespace CMetalsWS.Data
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // ChatMessage relationships
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(m => m.Sender)
+                .WithMany()
+                .HasForeignKey(m => m.SenderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(m => m.Recipient)
+                .WithMany()
+                .HasForeignKey(m => m.RecipientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(m => m.ChatGroup)
+                .WithMany(g => g.Messages)
+                .HasForeignKey(m => m.ChatGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ChatGroup relationships
+            modelBuilder.Entity<ChatGroup>()
+                .HasOne(g => g.Branch)
+                .WithMany()
+                .HasForeignKey(g => g.BranchId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // ChatGroupUser relationships (many-to-many join table)
+            modelBuilder.Entity<ChatGroupUser>()
+                .HasKey(gu => new { gu.UserId, gu.ChatGroupId });
+
+            modelBuilder.Entity<ChatGroupUser>()
+                .HasOne(gu => gu.User)
+                .WithMany()
+                .HasForeignKey(gu => gu.UserId);
+
+            modelBuilder.Entity<ChatGroupUser>()
+                .HasOne(gu => gu.ChatGroup)
+                .WithMany(g => g.ChatGroupUsers)
+                .HasForeignKey(gu => gu.ChatGroupId);
         }
     }
 }
