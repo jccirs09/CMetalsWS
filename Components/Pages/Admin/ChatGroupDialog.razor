@@ -1,0 +1,68 @@
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@Title</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="GroupModel.Name" Label="Group Name" />
+        <MudSelect T="int?" @bind-Value="GroupModel.BranchId" Label="Branch">
+            <MudSelectItem T="int?" Value="null">None</MudSelectItem>
+            @foreach (var branch in Branches)
+            {
+                <MudSelectItem T="int?" Value="@branch.Id">@branch.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect T="List<string>" @bind-Value="SelectedUsers" Label="Users" MultiSelection="true">
+            @foreach (var user in Users)
+            {
+                <MudSelectItem T="string" Value="@user.Id">@user.UserName</MudSelectItem>
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">@SubmitText</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public ChatGroup GroupModel { get; set; } = new();
+
+    [Parameter]
+    public List<Branch> Branches { get; set; } = new();
+
+    [Parameter]
+    public List<ApplicationUser> Users { get; set; } = new();
+
+    [Parameter]
+    public List<string> SelectedUsers { get; set; } = new();
+
+    [Parameter]
+    public string Title { get; set; } = "Add Group";
+
+    [Parameter]
+    public string SubmitText { get; set; } = "Add";
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private void Submit()
+    {
+        MudDialog.Close(DialogResult.Ok(new ChatGroupDialogResult { Group = GroupModel, SelectedUsers = SelectedUsers }));
+    }
+
+    public class ChatGroupDialogResult
+    {
+        public ChatGroup Group { get; set; }
+        public List<string> SelectedUsers { get; set; }
+    }
+}
