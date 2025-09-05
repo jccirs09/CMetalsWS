@@ -1,5 +1,4 @@
 using CMetalsWS.Data;
-using CMetalsWS.Services.Dto;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -15,44 +14,6 @@ namespace CMetalsWS.Services
         public PickingListService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
         {
             _dbContextFactory = dbContextFactory;
-        }
-
-        public async Task<PickingList> CreateFromExtractionAsync(PickingListExtraction extraction, int branchId)
-        {
-            using var db = _dbContextFactory.CreateDbContext();
-
-            var newPickingList = new PickingList
-            {
-                SalesOrderNumber = extraction.SalesOrderNumber,
-                OrderDate = DateTime.TryParse(extraction.OrderDate, out var orderDate) ? orderDate : null,
-                ShipDate = DateTime.TryParse(extraction.ShipDate, out var shipDate) ? shipDate : null,
-                SoldTo = extraction.SoldTo,
-                ShipTo = extraction.ShipTo,
-                SalesRep = extraction.SalesRep,
-                ShippingVia = extraction.ShippingVia,
-                FOB = extraction.FOB,
-                BranchId = branchId,
-                TotalWeight = extraction.TotalWeightComputed,
-                RemainingWeight = extraction.TotalWeightComputed,
-                Status = PickingListStatus.Pending,
-                Items = extraction.Items.Select(itemDto => new PickingListItem
-                {
-                    LineNumber = itemDto.LineNumber ?? 0,
-                    ItemId = itemDto.ItemId,
-                    ItemDescription = itemDto.Description,
-                    Quantity = itemDto.Quantity ?? 0,
-                    Unit = itemDto.Uom ?? "EA",
-                    Width = itemDto.Width,
-                    Length = itemDto.Length,
-                    Weight = itemDto.Weight,
-                    Status = PickingLineStatus.Pending
-                }).ToList()
-            };
-
-            db.PickingLists.Add(newPickingList);
-            await db.SaveChangesAsync();
-
-            return newPickingList;
         }
 
         public async Task<List<PickingList>> GetAsync(int? branchId = null)
