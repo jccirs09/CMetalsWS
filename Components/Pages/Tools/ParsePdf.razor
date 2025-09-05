@@ -1,0 +1,179 @@
+@page "/parse-pdf"
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Text.Json
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<PageTitle>PDF Parser</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
+    <MudCard Class="pa-4">
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.h5">PDF → Structured JSON</MudText>
+            <MudText Color="Color.Secondary">
+                Upload a PDF. The server will extract text, fall back to vision if needed, and return JSON.
+            </MudText>
+
+            <MudDivider Class="my-2" />
+
+            <!-- Upload controls -->
+            <MudStack Row AlignItems="Center" Spacing="2">
+                <MudButton Variant="Variant.Filled" OnClick="@TriggerFilePick" StartIcon="@Icons.Material.Filled.Upload">
+                    Select PDF
+                </MudButton>
+
+                <MudSwitch @bind-Checked="_pretty" Color="Color.Primary" Label="Pretty print" />
+
+                @if (_fileName is not null)
+                {
+                    <MudChip Color="Color.Info" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Description">
+                        @_fileName
+                    </MudChip>
+                }
+            </MudStack>
+
+            <input hidden @ref="_fileInput" type="file" accept="application/pdf" @onchange="OnFileChange" />
+
+            @if (_isLoading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mt-4" />
+                <MudText Class="mt-1" Color="Color.Secondary">Parsing PDF…</MudText>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mt-3">
+                    @_error
+                </MudAlert>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_jsonRaw))
+            {
+                <MudPaper Class="pa-3 mt-3" Elevation="0" Style="background:#0e0e0e; color:#e6e6e6; border-radius:8px;">
+                    <MudStack Row Justify="SpaceBetween" AlignItems="Center" Class="mb-2">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">Parsed JSON</MudText>
+                        <MudStack Row Spacing="1">
+                            <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="CopyJson"
+                                       StartIcon="@Icons.Material.Filled.ContentCopy">
+                                Copy
+                            </MudButton>
+                            <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="DownloadJson"
+                                       StartIcon="@Icons.Material.Filled.Download">
+                                Download
+                            </MudButton>
+                        </MudStack>
+                    </MudStack>
+
+                    <pre style="margin:0; white-space:pre-wrap; word-wrap:break-word;">@DisplayJson()</pre>
+                </MudPaper>
+            }
+        </MudStack>
+    </MudCard>
+</MudContainer>
+
+@code {
+    ElementReference _fileInput;
+    bool _isLoading;
+    bool _pretty = true;
+    string? _fileName;
+    string? _jsonRaw;
+    string? _error;
+
+    void TriggerFilePick() => _ = JS.InvokeVoidAsync("eval", "document.querySelector('input[type=file][hidden]').click()");
+
+    async Task OnFileChange(ChangeEventArgs e)
+    {
+        _error = null;
+        _jsonRaw = null;
+        _fileName = null;
+
+        try
+        {
+            // Use JS to get the FileList from the input element (simplest hidden input approach)
+            // But Blazor's InputFile is nicer; if you prefer that, replace this block with <InputFile OnChange="OnBlazorInputFile" />
+            var files = await JS.InvokeAsync<int>("(el)=>el.files?.length||0", _fileInput);
+            if (files == 0)
+            {
+                Snackbar.Add("No file selected.", Severity.Warning);
+                return;
+            }
+
+            _isLoading = true;
+
+            // Read the first file as a stream
+            var stream = await JS.InvokeAsync<IJSStreamReference>("(el)=>el.files[0].stream()", _fileInput);
+            _fileName = await JS.InvokeAsync<string>("(el)=>el.files[0].name", _fileInput);
+
+            using var content = new MultipartFormDataContent();
+            // 25 MB cap (match your controller). Browser stream needs to be copied to .NET stream.
+            using var dotNetStream = await stream.OpenReadStreamAsync(25_000_000);
+            content.Add(new StreamContent(dotNetStream), "file", _fileName);
+
+            var response = await Http.PostAsync("api/pdf/parse", content);
+            if (!response.IsSuccessStatusCode)
+            {
+                _error = $"Server returned {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync()}";
+                return;
+            }
+
+            _jsonRaw = await response.Content.ReadAsStringAsync();
+            Snackbar.Add("Parsed successfully.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            Snackbar.Add("Parsing failed. See error box.", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // If you prefer Blazor's InputFile:
+    // async Task OnBlazorInputFile(InputFileChangeEventArgs e) { ...same Post to api/pdf/parse... }
+
+    string DisplayJson()
+    {
+        if (string.IsNullOrWhiteSpace(_jsonRaw)) return "";
+        if (!_pretty) return _jsonRaw;
+
+        try
+        {
+            using var d = JsonDocument.Parse(_jsonRaw);
+            return JsonSerializer.Serialize(d, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            // If it isn't JSON (it should be), just show raw so you can see what went weird.
+            return _jsonRaw;
+        }
+    }
+
+    async Task CopyJson()
+    {
+        if (string.IsNullOrWhiteSpace(_jsonRaw)) return;
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", DisplayJson());
+        Snackbar.Add("Copied to clipboard.", Severity.Info);
+    }
+
+    async Task DownloadJson()
+    {
+        if (string.IsNullOrWhiteSpace(_jsonRaw)) return;
+        var fileName = $"{Path.GetFileNameWithoutExtension(_fileName ?? "parsed")}_parsed.json";
+        var bytes = System.Text.Encoding.UTF8.GetBytes(DisplayJson());
+        var base64 = Convert.ToBase64String(bytes);
+        // Trigger a download via JS without extra files:
+        var js = $$"""
+            (function(){
+              const a=document.createElement('a');
+              a.href='data:application/json;base64,{{base64}}';
+              a.download='{{fileName}}';
+              document.body.appendChild(a); a.click(); a.remove();
+            })();
+            """;
+        await JS.InvokeVoidAsync("eval", js);
+    }
+}
