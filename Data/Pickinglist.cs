@@ -4,51 +4,24 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CMetalsWS.Data
 {
-    [Index(nameof(BranchId), nameof(SalesOrderNumber), IsUnique = true)]
+    [Index(nameof(SalesOrderNumber), IsUnique = true)]
     public class PickingList
     {
         public int Id { get; set; }
-
         [Required, MaxLength(64)]
         public required string SalesOrderNumber { get; set; }
-
-        public DateTime? OrderDate { get; set; }
         public DateTime? ShipDate { get; set; }
-
-        // Business header fields
-        [MaxLength(256)]
-        public string? SoldTo { get; set; }
-
-        [MaxLength(256)]
-        public string? ShipTo { get; set; }
-
-        [MaxLength(128)]
-        public string? SalesRep { get; set; }
-
-        [MaxLength(128)]
-        public string? ShippingVia { get; set; }
-
-        [MaxLength(128)]
-        public string? FOB { get; set; }
-
-        // Branch / Customer
         [Required]
         public int BranchId { get; set; }
         public virtual Branch Branch { get; set; } = null!;
-
         public int? CustomerId { get; set; }
         public virtual Customer? Customer { get; set; }
 
-        // Totals
         [Precision(18, 3)]
         public decimal TotalWeight { get; set; }
-
         [Precision(18, 3)]
         public decimal RemainingWeight { get; set; }
-
-
         public PickingListStatus Status { get; set; }
-
         public virtual ICollection<PickingListItem> Items { get; set; } = new List<PickingListItem>();
     }
 
@@ -94,6 +67,7 @@ namespace CMetalsWS.Data
         [NotMapped]
         public DateTime? EffectiveShipDate => ScheduledShipDate;
 
+
         public int? MachineId { get; set; }
         public virtual Machine? Machine { get; set; }
 
@@ -104,7 +78,14 @@ namespace CMetalsWS.Data
             return Id == other.Id;
         }
 
-        public override bool Equals(object? obj) => Equals(obj as PickingListItem);
-        public override int GetHashCode() => Id.GetHashCode();
+        public override bool Equals(object? obj)
+        {
+            return Equals(obj as PickingListItem);
+        }
+
+        public override int GetHashCode()
+        {
+            return Id.GetHashCode();
+        }
     }
 }

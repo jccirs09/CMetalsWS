@@ -1,8 +1,6 @@
 @using CMetalsWS.Data
 @using CMetalsWS.Services
-
 @using MudBlazor
-
 
 <MudDialog>
     <TitleContent>
@@ -32,9 +30,7 @@
 
 @code {
     [CascadingParameter]
-
     public IMudDialogInstance MudDialog { get; set; }
-
 
     [Parameter]
     public ChatGroup GroupModel { get; set; } = new();
