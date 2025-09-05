@@ -6,22 +6,36 @@
     <TitleContent>
         <MudText Typo="Typo.h6">@Title</MudText>
     </TitleContent>
+
     <DialogContent>
-        <MudTextField @bind-Value="GroupModel.Name" Label="Group Name" />
-        <MudSelect T="int?" @bind-Value="GroupModel.BranchId" Label="Branch">
-            <MudSelectItem T="int?" Value="null">None</MudSelectItem>
-            @foreach (var branch in Branches)
-            {
-                <MudSelectItem T="int?" Value="@branch.Id">@branch.Name</MudSelectItem>
-            }
-        </MudSelect>
-        <MudSelect T="List<string>" @bind-Value="SelectedUsers" Label="Users" MultiSelection="true">
-            @foreach (var user in Users)
-            {
-                <MudSelectItem T="string" Value="@user.Id">@user.UserName</MudSelectItem>
-            }
-        </MudSelect>
+        <MudForm @ref="_form" Model="@GroupModel">
+            <MudTextField @bind-Value="GroupModel.Name"
+                          Label="Group Name"
+                          Required="true"
+                          Immediate="true" />
+
+            <MudSelect T="int?" @bind-Value="GroupModel.BranchId" Label="Branch" Clearable="true">
+                <MudSelectItem T="int?" Value="@( (int?)null )">None</MudSelectItem>
+                @foreach (var branch in Branches)
+                {
+                    <MudSelectItem T="int?" Value="@branch.Id">@branch.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+            <!-- Multi-select MUST bind SelectedValues (HashSet<T>) -->
+            <MudSelect T="string"
+                       Label="Users"
+                       MultiSelection="true"
+                       @bind-SelectedValues="_selectedUserIds"
+                       Dense="true">
+                @foreach (var user in Users)
+                {
+                    <MudSelectItem T="string" Value="@user.Id">@user.UserName</MudSelectItem>
+                }
+            </MudSelect>
+        </MudForm>
     </DialogContent>
+
     <DialogActions>
         <MudButton OnClick="Cancel">Cancel</MudButton>
         <MudButton Color="Color.Primary" OnClick="Submit">@SubmitText</MudButton>
@@ -30,39 +44,44 @@
 
 @code {
     [CascadingParameter]
-    MudDialogInstance MudDialog { get; set; }
+    private MudDialogInstance MudDialog { get; set; } = default!; // merge marker begone
 
-    [Parameter]
-    public ChatGroup GroupModel { get; set; } = new();
+    [Parameter] public ChatGroup GroupModel { get; set; } = new();
+    [Parameter] public List<Branch> Branches { get; set; } = new();
+    [Parameter] public List<ApplicationUser> Users { get; set; } = new();
 
-    [Parameter]
-    public List<Branch> Branches { get; set; } = new();
+    // Incoming preselected users (for edit). We’ll return an updated list in the result.
+    [Parameter] public List<string> SelectedUsers { get; set; } = new();
 
-    [Parameter]
-    public List<ApplicationUser> Users { get; set; } = new();
+    [Parameter] public string Title { get; set; } = "Add Group";
+    [Parameter] public string SubmitText { get; set; } = "Add";
 
-    [Parameter]
-    public List<string> SelectedUsers { get; set; } = new();
+    private MudForm _form = default!;
+    private HashSet<string> _selectedUserIds = new();
 
-    [Parameter]
-    public string Title { get; set; } = "Add Group";
-
-    [Parameter]
-    public string SubmitText { get; set; } = "Add";
-
-    private void Cancel()
+    protected override void OnParametersSet()
     {
-        MudDialog.Cancel();
+        // Prime the multi-select from incoming SelectedUsers
+        _selectedUserIds = SelectedUsers?.ToHashSet() ?? new HashSet<string>();
     }
 
-    private void Submit()
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
     {
-        MudDialog.Close(DialogResult.Ok(new ChatGroupDialogResult { Group = GroupModel, SelectedUsers = SelectedUsers }));
+        await _form.Validate();
+        if (!_form.IsValid) return;
+
+        MudDialog.Close(DialogResult.Ok(new ChatGroupDialogResult
+        {
+            Group = GroupModel,
+            SelectedUsers = _selectedUserIds.ToList()
+        }));
     }
 
     public class ChatGroupDialogResult
     {
-        public ChatGroup Group { get; set; }
-        public List<string> SelectedUsers { get; set; }
+        public ChatGroup Group { get; set; } = new();
+        public List<string> SelectedUsers { get; set; } = new();
     }
 }
