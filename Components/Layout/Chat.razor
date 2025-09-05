@@ -2,7 +2,6 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using CMetalsWS.Data
 @using CMetalsWS.Services
-@using MudBlazor
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IChatService ChatService
@@ -64,11 +63,8 @@
                             @user.UserName
                         </MudListItem>
                     }
-<<<<<<< feature/chat
                 </MudList>
                 <MudList Clickable="true">
-=======
->>>>>>> main
                     <MudListSubheader>Groups</MudListSubheader>
                     @foreach (var group in _groups)
                     {
@@ -209,7 +205,7 @@
         }
     }
 
-    private string GetAvatarText(string userName)
+    private string GetAvatarText(string? userName)
     {
         if (string.IsNullOrWhiteSpace(userName))
             return "?";
