@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250906102723_AddPickingListImportAndNewFields")]
-    partial class AddPickingListImportAndNewFields
+    [Migration("20250906111611_AddPickingListImportSchema")]
+    partial class AddPickingListImportSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

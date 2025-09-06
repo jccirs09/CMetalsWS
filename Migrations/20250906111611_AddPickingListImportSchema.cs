@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CMetalsWS.Migrations
 {
     /// <inheritdoc />
-    public partial class AddPickingListImportAndNewFields : Migration
+    public partial class AddPickingListImportSchema : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

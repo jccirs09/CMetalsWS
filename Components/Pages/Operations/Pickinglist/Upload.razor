@@ -1,5 +1,6 @@
 @page "/picking-lists/upload"
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.Extensions.Configuration
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using Microsoft.AspNetCore.Components.Forms
@@ -10,7 +11,7 @@
 @inject PickingListService PickingListService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavManager
-@inject IConfiguration _configuration
+@inject Microsoft.Extensions.Configuration.IConfiguration _configuration
 @inject ILogger<Upload> _logger
 
 <MudText Typo="Typo.h5" GutterBottom="true">Upload Picking List PDF</MudText>
@@ -106,7 +107,7 @@
 
             // 2. Create initial import record
             var imagesDir = Path.Combine("wwwroot", "uploads", "pickinglists", importGuid.ToString());
-            importRecord = await ImportService.CreateImportAsync(_model.BranchId.Value, tempPdfPath, imagesDir, _configuration["OpenAI:Model"] ?? "gpt-4o-mini");
+            importRecord = await ImportService.CreateImportAsync(_model.BranchId.Value, tempPdfPath, imagesDir, _configuration.GetValue<string>("OpenAI:Model") ?? "gpt-4o-mini");
 
             // 3. Convert PDF to images
             var imagePaths = await PdfParsingService.ConvertPdfToImagesAsync(tempPdfPath, importGuid);

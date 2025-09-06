@@ -88,8 +88,8 @@ else
             <MudTd DataLabel="Qty">@context.Quantity.ToString("N3")</MudTd>
             <MudTd DataLabel="Item ID">@context.ItemId</MudTd>
             <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
-            <MudTd DataLabel="Width">@context.Width?.ToString("N3")</MudTd>
-            <MudTd DataLabel="Length">@context.Length?.ToString("N3")</MudTd>
+            <MudTd DataLabel="Width">@FormatDimension(context.Width)</MudTd>
+            <MudTd DataLabel="Length">@FormatDimension(context.Length)</MudTd>
             <MudTd DataLabel="Weight">@context.Weight?.ToString("N3")</MudTd>
             <MudTd DataLabel="Unit">@context.Unit</MudTd>
             <MudTd DataLabel="Machine">
@@ -132,7 +132,8 @@ else
         if (_list != null)
         {
             // Assuming machines are branch-specific
-            _machines = await MachineService.GetMachinesAsync(_list.BranchId);
+            var allMachines = await MachineService.GetMachinesAsync();
+            _machines = allMachines.Where(m => m.BranchId == _list.BranchId).ToList();
         }
     }
 
@@ -181,5 +182,14 @@ else
         {
             _isProcessing = false;
         }
+    }
+
+    private string FormatDimension(object? dimension)
+    {
+        if (dimension is decimal d)
+        {
+            return d.ToString("N3");
+        }
+        return dimension?.ToString() ?? string.Empty;
     }
 }
