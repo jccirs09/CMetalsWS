@@ -27,11 +27,20 @@
     </MudMainContent>
 </MudLayout>
 
-<AuthorizeView>
-    <Authorized>
-        <ChatMessenger />
-    </Authorized>
-</AuthorizeView>
+<MudFab Color="Color.Primary" Icon="@Icons.Material.Filled.Message" OnClick="@ToggleChatDock" Style="position: fixed; bottom: 20px; left: 20px;" />
+
+@if (_isChatDockOpen)
+{
+    <ChatDock OnClose="@ToggleChatDock" OnUserSelected="OpenChatWindow" OnGroupSelected="OpenChatWindow" />
+}
+
+@for (var i = 0; i < _openChatThreads.Count; i++)
+{
+    var thread = _openChatThreads[i];
+    <div style="--window-index: @i">
+        <ChatThreadWindow ThreadUser="@thread.User" ThreadGroup="@thread.Group" IsMinimized="@thread.IsMinimized" OnClose="() => CloseChatWindow(thread)" OnMinimize="() => MinimizeChatWindow(thread)" />
+    </div>
+}
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
