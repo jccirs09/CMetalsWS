@@ -1,6 +1,10 @@
-﻿using Microsoft.AspNetCore.Components;
+﻿using CMetalsWS.Components.Chat;
+using CMetalsWS.Data;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using MudBlazor;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace CMetalsWS.Components.Layout
 {
@@ -11,6 +15,9 @@ namespace CMetalsWS.Components.Layout
 
         private bool _isDarkMode = false;
         private bool _drawerOpen = true;
+        private bool _isChatDockOpen = false;
+        private List<ChatThread> _openChatThreads = new();
+
         private readonly MudTheme _customTheme = new()
         {
             PaletteLight = new PaletteLight
@@ -41,6 +48,41 @@ namespace CMetalsWS.Components.Layout
             }
         };
 
+        private void ToggleChatDock()
+        {
+            _isChatDockOpen = !_isChatDockOpen;
+        }
+
+        private void OpenChatWindow(ApplicationUser user)
+        {
+            var existingThread = _openChatThreads.FirstOrDefault(t => t.User?.Id == user.Id);
+            if (existingThread == null)
+            {
+                _openChatThreads.Add(new ChatThread { User = user });
+            }
+            _isChatDockOpen = false;
+        }
+
+        private void OpenChatWindow(ChatGroup group)
+        {
+            var existingThread = _openChatThreads.FirstOrDefault(t => t.Group?.Id == group.Id);
+            if (existingThread == null)
+            {
+                _openChatThreads.Add(new ChatThread { Group = group });
+            }
+            _isChatDockOpen = false;
+        }
+
+        private void CloseChatWindow(ChatThread thread)
+        {
+            _openChatThreads.Remove(thread);
+        }
+
+        private void MinimizeChatWindow(ChatThread thread)
+        {
+            thread.IsMinimized = !thread.IsMinimized;
+        }
+
         private async void Logout()
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -49,5 +91,12 @@ namespace CMetalsWS.Components.Layout
                 NavigationManager.NavigateTo("Account/Logout", true);
             }
         }
+    }
+
+    public class ChatThread
+    {
+        public ApplicationUser? User { get; set; }
+        public ChatGroup? Group { get; set; }
+        public bool IsMinimized { get; set; }
     }
 }
