@@ -11,6 +11,7 @@
         Picked,
         Completed,
         ReadyToShip,
+        Shipped,
         Cancelled,
         Ready
     }

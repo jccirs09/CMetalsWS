@@ -1,39 +1,29 @@
 ﻿@inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
 
-<!-- Theme provider with dark mode support -->
-<MudThemeProvider Theme="@_customTheme" @bind-IsDarkMode="_isDarkMode" />
-
-<!-- Providers for popovers, dialogs, snackbars -->
+<MudThemeProvider Theme="_customTheme" @bind-IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<!-- Main layout structure -->
 <MudLayout>
-    <!-- App Bar -->
     <MudAppBar Elevation="1">
-        <!-- Toggle button tied to the nav drawer -->
-        <MudStaticNavDrawerToggle DrawerId="nav-drawer"
-                                  Icon="@Icons.Material.Filled.Menu"
-                                  Color="Color.Inherit"
-                                  Edge="Edge.Start" />
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => _drawerOpen = !_drawerOpen)" />
         <MudText Typo="Typo.h5" Class="ml-3">Application</MudText>
         <MudSpacer />
-        <!-- Additional icon (e.g., options) -->
-        <MudIconButton Icon="@Icons.Material.Filled.MoreVert"
-                       Color="Color.Inherit"
-                       Edge="Edge.End" />
+        <MudIconButton Icon="@Icons.Material.Filled.Message" Color="Color.Inherit" />
+        <MudIconButton Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" />
+        <MudMenu Icon="@Icons.Material.Filled.Person" Color="Color.Inherit" Edge="Edge.End">
+            <MudMenuItem Link="/profile">Profile</MudMenuItem>
+            <MudMenuItem OnClick="Logout">Logout</MudMenuItem>
+        </MudMenu>
     </MudAppBar>
 
-    <!-- Side navigation drawer with collapsible Admin menu -->
-    <MudDrawer id="nav-drawer"
-               @bind-Open="_drawerOpen"
-               ClipMode="DrawerClipMode.Always"
-               Elevation="2">
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
         <NavMenu />
     </MudDrawer>
 
-    <!-- Main content area with padding (accounting for AppBar height) -->
     <MudMainContent Class="pt-16 pa-4">
         @Body
     </MudMainContent>
@@ -41,13 +31,39 @@
 
 <AuthorizeView>
     <Authorized>
-        <Chat />
+        <ChatMessenger />
     </Authorized>
 </AuthorizeView>
 
-<!-- Blazor error UI -->
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    private bool _drawerOpen = true;
+    private bool _isDarkMode = false;
+    private MudTheme _customTheme = new MudTheme
+    {
+        Palette = new PaletteLight
+        {
+            Primary = Colors.Blue.Default,
+            Secondary = Colors.Green.Default,
+            AppbarBackground = Colors.Blue.Default
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = Colors.Blue.Lighten1
+        }
+    };
+
+    private async void Logout()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated ?? false)
+        {
+            NavigationManager.NavigateTo("Account/Logout", true);
+        }
+    }
+}

@@ -7,7 +7,7 @@ namespace CMetalsWS.Services
     public interface IChatService
     {
         Task<List<ApplicationUser>> GetUsersAsync();
-        Task<ApplicationUser?> GetUserDetailsAsync(string userId);
+        Task<ApplicationUser> GetUserDetailsAsync(string userId);
         Task<List<ChatMessage>> GetConversationAsync(string currentUserId, string contactId);
         Task SaveMessageAsync(ChatMessage message);
         Task<List<ChatGroup>> GetUserGroupsAsync(string userId);
