@@ -24,6 +24,13 @@ namespace CMetalsWS.Services
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
 
+        private static readonly JsonSerializerOptions _jsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true
+        };
+
         public PdfParsingService(ILogger<PdfParsingService> logger, IHttpClientFactory httpClientFactory, IConfiguration configuration)
         {
             _logger = logger;
@@ -72,63 +79,70 @@ namespace CMetalsWS.Services
             }
         }
 
-        private async Task<bool> ProcessAndSaveImageAsync(SKBitmap originalImage, string outputPath, int pageNum)
+        private async Task<bool> ProcessAndSaveImageAsync(SKBitmap src, string outputPath, int pageNum)
         {
             const int maxDimension = 1600;
-            const long twoMegabytes = 2 * 1024 * 1024;
+            const long twoMB = 2 * 1024 * 1024;
 
-            using (originalImage)
+            using var original = src; // own the incoming bitmap exactly once
+            SKBitmap? resized = null; // only dispose if we allocate it
+            SKBitmap img = original;
+
+            try
             {
-                // 1. Downscale the image if it's too large
-                SKBitmap imageToEncode = originalImage;
-                if (originalImage.Width > maxDimension || originalImage.Height > maxDimension)
+                // Downscale if needed
+                if (original.Width > maxDimension || original.Height > maxDimension)
                 {
-                    var ratio = (double)maxDimension / Math.Max(originalImage.Width, originalImage.Height);
-                    var newWidth = (int)(originalImage.Width * ratio);
-                    var newHeight = (int)(originalImage.Height * ratio);
+                    var ratio = (double)maxDimension / Math.Max(original.Width, original.Height);
+                    var w = Math.Max(1, (int)Math.Round(original.Width * ratio));
+                    var h = Math.Max(1, (int)Math.Round(original.Height * ratio));
 
-                    var newBitmap = new SKBitmap(newWidth, newHeight);
-                    if (originalImage.ScalePixels(newBitmap, SKFilterQuality.High))
+                    // Prefer Resize (higher quality than ScalePixels on some builds)
+                    resized = original.Resize(new SKImageInfo(w, h), SKFilterQuality.High);
+                    if (resized != null)
                     {
-                        imageToEncode = newBitmap;
-                        _logger.LogInformation("Downscaled page {PageNum} from {OrigW}x{OrigH} to {NewW}x{NewH}", pageNum, originalImage.Width, originalImage.Height, newWidth, newHeight);
+                        img = resized;
+                        _logger.LogInformation("Downscaled page {PageNum} {OrigW}x{OrigH} → {W}x{H}",
+                            pageNum, original.Width, original.Height, w, h);
                     }
                     else
                     {
-                        _logger.LogWarning("Failed to downscale page {PageNum}, using original.", pageNum);
-                        newBitmap.Dispose(); // Dispose the unused bitmap
+                        _logger.LogWarning("Resize failed on page {PageNum}; using original size.", pageNum);
                     }
                 }
 
-                using (imageToEncode) // Ensure the potentially new bitmap is disposed
+                // Encode via SKImage (more consistent than SKBitmap.Encode)
+                using var ms = new MemoryStream();
+                EncodeJpeg(img, ms, quality: 80);
+                _logger.LogInformation("Page {PageNum} @q80 = {Bytes} bytes", pageNum, ms.Length);
+
+                if (ms.Length > twoMB)
                 {
-                    // 2. Dynamically adjust JPEG quality
-                    using var ms = new MemoryStream();
-
-                    // Try quality 80
-                    imageToEncode.Encode(ms, SKEncodedImageFormat.Jpeg, 80);
-                    _logger.LogInformation("Page {PageNum} encoded at quality 80 is {Size} bytes.", pageNum, ms.Length);
-
-                    // If too large, try quality 70
-                    if (ms.Length > twoMegabytes)
-                    {
-                        _logger.LogWarning("Page {PageNum} at quality 80 is too large ({Size} bytes). Re-encoding at quality 70.", pageNum, ms.Length);
-                        ms.SetLength(0); // Reset stream
-                        imageToEncode.Encode(ms, SKEncodedImageFormat.Jpeg, 70);
-                        _logger.LogInformation("Page {PageNum} encoded at quality 70 is {Size} bytes.", pageNum, ms.Length);
-                    }
-
-                    // If still too large, skip the page
-                    if (ms.Length > twoMegabytes)
-                    {
-                        _logger.LogError("Page {PageNum} is still too large ({Size} bytes) after re-compression. Skipping.", pageNum, ms.Length);
-                        return false;
-                    }
-
-                    // 3. Save the final image to disk
-                    await File.WriteAllBytesAsync(outputPath, ms.ToArray());
-                    return true;
+                    _logger.LogWarning("Page {PageNum} too large at q80; re-encoding q70.", pageNum);
+                    ms.SetLength(0);
+                    EncodeJpeg(img, ms, quality: 70);
+                    _logger.LogInformation("Page {PageNum} @q70 = {Bytes} bytes", pageNum, ms.Length);
                 }
+
+                if (ms.Length > twoMB)
+                {
+                    _logger.LogError("Page {PageNum} still >2MB after recompress; skipping.", pageNum);
+                    return false;
+                }
+
+                await File.WriteAllBytesAsync(outputPath, ms.ToArray());
+                return true;
+            }
+            finally
+            {
+                resized?.Dispose();
+            }
+
+            static void EncodeJpeg(SKBitmap bmp, Stream dest, int quality)
+            {
+                using var img = SKImage.FromBitmap(bmp);
+                using var data = img.Encode(SKEncodedImageFormat.Jpeg, quality);
+                data.SaveTo(dest);
             }
         }
 
@@ -148,9 +162,9 @@ namespace CMetalsWS.Services
         private async Task<PickingList> ParseHeaderAsync(string imagePath)
         {
             var prompt = @"Return ONLY a JSON object with: { ""salesOrderNumber"": ""string, from the 'Picking List No.' field"", ""orderDate"": ""YYYY-MM-DD"", ""shipDate"": ""YYYY-MM-DD"", ""soldTo"": ""string"", ""shipTo"": ""string"", ""salesRep"": ""string"", ""shippingVia"": ""string"", ""fob"": ""string"", ""totalWeight"": number, ""buyer"": ""string | null"", ""printDateTime"": ""YYYY-MM-DD HH:mm:ss"" }";
-            var json = await GetJsonFromVisionAsync(new[] { imagePath }, prompt);
+            var json = await GetJsonFromVisionAsync(new[] { imagePath }, prompt, enforceJsonObject: true);
 
-            var parsedHeader = JsonSerializer.Deserialize<PickingListHeaderDto>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var parsedHeader = JsonSerializer.Deserialize<PickingListHeaderDto>(json, _jsonOptions);
             if (parsedHeader == null)
             {
                 throw new InvalidOperationException("Failed to deserialize header from OpenAI response.");
@@ -174,10 +188,10 @@ namespace CMetalsWS.Services
 
         private async Task<List<PickingListItem>> ParseLineItemsAsync(IEnumerable<string> imagePaths)
         {
-            var prompt = @"Return ONLY a JSON array of line items: [ { ""lineNumber"": int, ""quantity"": number, ""itemId"": string, ""itemDescription"": string, ""width"": number|string, ""length"": number|string, ""weight"": number, ""unit"": string } ]";
+            var prompt = @"Return ONLY a JSON array of line items: [ { ""lineNumber"": int, ""quantity"": number, ""itemId"": string, ""itemDescription"": string, ""itemDescription"": string, ""width"": number|string, ""length"": number|string, ""weight"": number, ""unit"": string } ]";
             var json = await GetJsonFromVisionAsync(imagePaths, prompt);
 
-            var dtos = JsonSerializer.Deserialize<List<PickingListItemDto>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var dtos = JsonSerializer.Deserialize<List<PickingListItemDto>>(json, _jsonOptions);
             if (dtos == null)
             {
                 return new List<PickingListItem>();
@@ -196,7 +210,7 @@ namespace CMetalsWS.Services
             }).ToList();
         }
 
-        private async Task<string> GetJsonFromVisionAsync(IEnumerable<string> imagePaths, string prompt)
+        private async Task<string> GetJsonFromVisionAsync(IEnumerable<string> imagePaths, string prompt, bool enforceJsonObject = false)
         {
             var paths = imagePaths.Where(File.Exists).Take(5).ToList();
             if (paths.Count == 0) throw new FileNotFoundException("No valid image paths provided for vision parsing.");
@@ -211,24 +225,35 @@ namespace CMetalsWS.Services
                 contentParts.Add(new OpenAiImageUrlContentPart("image_url", new OpenAiImageUrl(dataUrl)));
             }
 
-            var payload = new
+            var messages = new object[]
             {
-                model,
-                messages = new object[]
-                {
-                    new { role = "system", content = "Return strictly valid JSON. No prose." },
-                    new { role = "user", content = contentParts }
-                },
-                temperature = 0
+                new { role = "system", content = "Return strictly valid JSON. No prose." },
+                new { role = "user", content = contentParts }
             };
 
-            var httpClient = _httpClientFactory.CreateClient();
+            var payload = new Dictionary<string, object>
+            {
+                { "model", model },
+                { "messages", messages },
+                { "temperature", 0 },
+                { "max_tokens", 4000 }
+            };
+
+            if (enforceJsonObject)
+            {
+                payload["response_format"] = new { type = "json_object" };
+            }
+
+            var httpClient = _httpClientFactory.CreateClient("OpenAI");
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            httpClient.DefaultRequestHeaders.Accept.Clear();
+            httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
             var requestBody = JsonSerializer.Serialize(payload);
+            _logger.LogDebug("OpenAI payload bytes: {Len}", Encoding.UTF8.GetByteCount(requestBody));
             var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
 
-            var response = await httpClient.PostAsync("https://api.openai.com/v1/chat/completions", content);
+            var response = await httpClient.PostAsync("v1/chat/completions", content);
 
             if (!response.IsSuccessStatusCode)
             {

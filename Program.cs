@@ -14,6 +14,13 @@ using CMetalsWS.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add services to the container.
+builder.Services.AddHttpClient("OpenAI", c =>
+{
+    c.BaseAddress = new Uri("https://api.openai.com/");
+    c.Timeout = TimeSpan.FromMinutes(2);
+});
+
 // MudBlazor
 builder.Services.AddMudServices();
 
