@@ -117,11 +117,10 @@ else
 }
 
 
-app.MapHub<ScheduleHub>("/hubs/schedule");
-
 app.UseHttpsRedirection();
 
-// Authentication/Authorization for endpoints that may use policies
+app.UseRouting();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -129,10 +128,13 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
-.AddInteractiveServerRenderMode();
+    .AddInteractiveServerRenderMode();
 
 // Identity /Account endpoints for Razor Components
 app.MapAdditionalIdentityEndpoints();
+
+app.MapHub<ScheduleHub>("/hubs/schedule");
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.MapPost("api/pdf/parse", async (IFormFile file, IPdfParsingService pdfParser, ILogger<Program> logger) =>
 {

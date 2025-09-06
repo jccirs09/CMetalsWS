@@ -1,10 +1,14 @@
-﻿using Microsoft.AspNetCore.Components;   // for LayoutComponentBase
+﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using MudBlazor;
 
 namespace CMetalsWS.Components.Layout
 {
     public partial class MainLayout : LayoutComponentBase
     {
+        [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+        [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+
         private bool _isDarkMode = false;
         private bool _drawerOpen = true;
         private readonly MudTheme _customTheme = new()
@@ -36,5 +40,14 @@ namespace CMetalsWS.Components.Layout
                 TextSecondary = "rgba(255,255,255,0.50)"
             }
         };
+
+        private async void Logout()
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated ?? false)
+            {
+                NavigationManager.NavigateTo("Account/Logout", true);
+            }
+        }
     }
 }

@@ -1,6 +1,4 @@
 ﻿@inherits LayoutComponentBase
-@inject AuthenticationStateProvider AuthStateProvider
-@inject NavigationManager NavigationManager
 
 <MudThemeProvider Theme="_customTheme" @bind-IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -40,30 +38,3 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
-
-@code {
-    private bool _drawerOpen = true;
-    private bool _isDarkMode = false;
-    private MudTheme _customTheme = new MudTheme
-    {
-        Palette = new PaletteLight
-        {
-            Primary = Colors.Blue.Default,
-            Secondary = Colors.Green.Default,
-            AppbarBackground = Colors.Blue.Default
-        },
-        PaletteDark = new PaletteDark
-        {
-            Primary = Colors.Blue.Lighten1
-        }
-    };
-
-    private async void Logout()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        if (authState.User.Identity?.IsAuthenticated ?? false)
-        {
-            NavigationManager.NavigateTo("Account/Logout", true);
-        }
-    }
-}

@@ -9,12 +9,12 @@ namespace CMetalsWS.Hubs
 {
     public class ChatHub : Hub
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public ChatHub(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+        public ChatHub(IDbContextFactory<ApplicationDbContext> contextFactory, UserManager<ApplicationUser> userManager)
         {
-            _context = context;
+            _contextFactory = contextFactory;
             _userManager = userManager;
         }
 
@@ -26,6 +26,7 @@ namespace CMetalsWS.Hubs
                 throw new HubException("User not found.");
             }
 
+            using var context = _contextFactory.CreateDbContext();
             var chatMessage = new ChatMessage
             {
                 Content = message,
@@ -34,8 +35,8 @@ namespace CMetalsWS.Hubs
                 RecipientId = recipientId
             };
 
-            _context.ChatMessages.Add(chatMessage);
-            await _context.SaveChangesAsync();
+            context.ChatMessages.Add(chatMessage);
+            await context.SaveChangesAsync();
 
             await Clients.User(recipientId).SendAsync("ReceiveMessage", sender.Id, message);
             await Clients.Caller.SendAsync("ReceiveMessage", sender.Id, message);
@@ -49,6 +50,7 @@ namespace CMetalsWS.Hubs
                 throw new HubException("User not found.");
             }
 
+            using var context = _contextFactory.CreateDbContext();
             var chatMessage = new ChatMessage
             {
                 Content = message,
@@ -57,8 +59,8 @@ namespace CMetalsWS.Hubs
                 ChatGroupId = groupId
             };
 
-            _context.ChatMessages.Add(chatMessage);
-            await _context.SaveChangesAsync();
+            context.ChatMessages.Add(chatMessage);
+            await context.SaveChangesAsync();
 
             await Clients.Group(groupId.ToString()).SendAsync("ReceiveGroupMessage", sender.Id, groupId, message);
         }
@@ -78,7 +80,8 @@ namespace CMetalsWS.Hubs
             var user = await _userManager.GetUserAsync(Context.User);
             if (user != null)
             {
-                var userGroups = await _context.ChatGroupUsers
+                using var context = _contextFactory.CreateDbContext();
+                var userGroups = await context.ChatGroupUsers
                     .Where(gu => gu.UserId == user.Id)
                     .Select(gu => gu.ChatGroupId.ToString())
                     .ToListAsync();
@@ -96,7 +99,8 @@ namespace CMetalsWS.Hubs
             var user = await _userManager.GetUserAsync(Context.User);
             if (user != null)
             {
-                var userGroups = await _context.ChatGroupUsers
+                using var context = _contextFactory.CreateDbContext();
+                var userGroups = await context.ChatGroupUsers
                     .Where(gu => gu.UserId == user.Id)
                     .Select(gu => gu.ChatGroupId.ToString())
                     .ToListAsync();
