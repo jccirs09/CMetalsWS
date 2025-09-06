@@ -38,7 +38,13 @@ namespace CMetalsWS.Services
 
             try
             {
-                var images = await Task.Run(() => Conversion.ToImages(sourcePdfPath));
+                var fileInfo = new FileInfo(sourcePdfPath);
+                _logger.LogInformation("Rendering PDF ({Len} bytes) from {Path}", fileInfo.Length, sourcePdfPath);
+
+                var pdfBytes = await File.ReadAllBytesAsync(sourcePdfPath);
+                // Use the byte[] overload of ToImages to avoid Base64 errors.
+                var images = await Task.Run(() => Conversion.ToImages(pdfBytes));
+
                 int pageNum = 1;
                 foreach (var image in images.Take(5)) // Cap at 5 pages to prevent giant payloads
                 {
