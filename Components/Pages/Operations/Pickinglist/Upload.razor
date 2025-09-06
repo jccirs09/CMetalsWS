@@ -1,7 +1,10 @@
 @page "/picking-lists/upload"
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.Extensions.Configuration
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.Components.Forms
 @using MudBlazor
 @inject BranchService BranchService
@@ -10,8 +13,10 @@
 @inject PickingListService PickingListService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavManager
-@inject IConfiguration _configuration
+@inject Microsoft.Extensions.Configuration.IConfiguration _configuration
 @inject ILogger<Upload> _logger
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
 
 <MudText Typo="Typo.h5" GutterBottom="true">Upload Picking List PDF</MudText>
 
@@ -19,17 +24,27 @@
     <MudCardContent>
         <EditForm Model="@_model" OnValidSubmit="OnSubmit">
             <DataAnnotationsValidator />
-            <MudGrid>
-                <MudItem xs="12" sm="6">
-                    <MudSelect @bind-Value="_model.BranchId" For="@(() => _model.BranchId)" Label="Branch" Required="true">
-                        @foreach (var branch in _branches)
-                        {
-                            <MudSelectItem Value="@branch.Id">@branch.Name</MudSelectItem>
-                        }
-                    </MudSelect>
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12" sm="10" md="8">
+                    <MudDropZone T="IBrowserFile" OnFilesDropped="OnFilesDropped" Class="pa-8 d-flex flex-column align-center justify-center mud-width-full" Style="min-height: 200px;">
+                        <MudText Typo="Typo.h6">Drag and Drop PDF Here</MudText>
+                        <MudText Typo="Typo.body2" Class="mt-2">Or click the button below</MudText>
+                        <InputFile OnChange="OnFileChanged" class="d-none" id="fileInput" />
+                        <MudButton HtmlTag="label"
+                                   Variant="Variant.Text"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                                   for="fileInput"
+                                   Class="mt-4">
+                            Select File
+                        </MudButton>
+                    </MudDropZone>
                 </MudItem>
-                <MudItem xs="12" sm="6">
-                    <InputFile OnChange="OnFileChanged" class="form-control" />
+                <MudItem xs="12" Class="d-flex justify-center">
+                    @if (_model.File != null)
+                    {
+                        <MudText Typo="Typo.h6" Class="mt-4">Selected: <MudChip T="string">@_model.File.Name</MudChip></MudText>
+                    }
                 </MudItem>
             </MudGrid>
             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="@_isProcessing">
@@ -61,19 +76,42 @@
     }
 
     private UploadModel _model = new();
-    private List<Branch> _branches = new();
     private bool _isProcessing;
     private string? _statusMessage;
     private Severity _statusSeverity;
 
     protected override async Task OnInitializedAsync()
     {
-        _branches = await BranchService.GetBranchesAsync();
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        if (user?.BranchId != null)
+        {
+            _model.BranchId = user.BranchId;
+        }
+        else
+        {
+            // Handle case where user has no default branch - maybe show an error or a selector
+            // For now, we'll prevent submission if no branch is set.
+            Snackbar.Add("Could not determine your default branch. Please set it in your profile.", Severity.Warning);
+        }
     }
 
     private void OnFileChanged(InputFileChangeEventArgs e)
     {
         _model.File = e.File;
+    }
+
+    private void OnFilesDropped(IEnumerable<IBrowserFile> files)
+    {
+        var file = files.FirstOrDefault();
+        if (file != null && file.ContentType == "application/pdf")
+        {
+            _model.File = file;
+        }
+        else
+        {
+            Snackbar.Add("Please drop a single PDF file.", Severity.Warning);
+        }
     }
 
     private async Task OnSubmit()
@@ -106,7 +144,7 @@
 
             // 2. Create initial import record
             var imagesDir = Path.Combine("wwwroot", "uploads", "pickinglists", importGuid.ToString());
-            importRecord = await ImportService.CreateImportAsync(_model.BranchId.Value, tempPdfPath, imagesDir, _configuration["OpenAI:Model"] ?? "gpt-4o-mini");
+            importRecord = await ImportService.CreateImportAsync(_model.BranchId.Value, tempPdfPath, imagesDir, _configuration.GetValue<string>("OpenAI:Model") ?? "gpt-4o-mini");
 
             // 3. Convert PDF to images
             var imagePaths = await PdfParsingService.ConvertPdfToImagesAsync(tempPdfPath, importGuid);

@@ -1,3 +1,4 @@
+#pragma warning disable OPENAI001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 using CMetalsWS.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -5,9 +6,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using OpenAI_API;
-using OpenAI_API.Chat;
-using OpenAI_API.Models;
+using System.Text.Json;
+using OpenAI;
+using OpenAI.Chat;
+using PDFtoImage;
+using SkiaSharp;
 
 namespace CMetalsWS.Services
 {
@@ -15,13 +18,16 @@ namespace CMetalsWS.Services
     {
         private readonly ILogger<PdfParsingService> _logger;
         private readonly IConfiguration _configuration;
-        private readonly OpenAIAPI _openAiApi;
+        private readonly ChatClient _chatClient;
 
         public PdfParsingService(ILogger<PdfParsingService> logger, IConfiguration configuration)
         {
             _logger = logger;
             _configuration = configuration;
-            _openAiApi = new OpenAIAPI(new APIAuthentication(_configuration["OpenAI:ApiKey"]));
+            _chatClient = new ChatClient(
+                model: configuration.GetValue<string>("OpenAI:Model") ?? "gpt-4o-mini",
+                apiKey: configuration.GetValue<string>("OpenAI:ApiKey")
+            );
         }
 
         public async Task<List<string>> ConvertPdfToImagesAsync(string sourcePdfPath, Guid importGuid)
@@ -32,26 +38,20 @@ namespace CMetalsWS.Services
 
             try
             {
-                var dpi = _configuration.GetValue<int>("PdfToImage:Dpi", 300);
-
-                // Using the PDFtoImage library
-                var conversion = new PDFtoImage.Conversion
-                {
-                    DPI = dpi
-                };
-
-                var images = await Task.Run(() => conversion.ToImages(sourcePdfPath));
-
+                var images = await Task.Run(() => Conversion.ToImages(sourcePdfPath));
                 int pageNum = 1;
                 foreach (var image in images)
                 {
                     var imagePath = Path.Combine(outputDirectory, $"page-{pageNum}.png");
-                    await image.SaveAsync(imagePath);
+                    using (var stream = File.Create(imagePath))
+                    {
+                        image.Encode(SKEncodedImageFormat.Png, 100).SaveTo(stream);
+                    }
                     imagePaths.Add(imagePath);
                     pageNum++;
                 }
 
-                _logger.LogInformation("Successfully converted PDF to {PageCount} images in {Directory}", images.Count(), outputDirectory);
+                _logger.LogInformation("Successfully converted PDF to {PageCount} images in {Directory}", imagePaths.Count, outputDirectory);
                 return imagePaths;
             }
             catch (Exception ex)
@@ -68,28 +68,23 @@ namespace CMetalsWS.Services
                 throw new ArgumentException("At least one image path is required for parsing.", nameof(imagePaths));
             }
 
-            var model = _configuration["OpenAI:Model"] ?? "gpt-4o-mini";
-            _logger.LogInformation("Using OpenAI model: {Model}", model);
+            _logger.LogInformation("Using OpenAI model: {Model}", _chatClient.Model);
 
-            var pickingList = await ParseHeaderAsync(imagePaths.First(), model);
-            var pickingListItems = await ParseLineItemsAsync(imagePaths, model);
-
-            NormalizePickingListItems(pickingListItems);
+            var pickingList = await ParseHeaderAsync(imagePaths.First());
+            var dtoList = await ParseLineItemsAsync(imagePaths);
+            var pickingListItems = NormalizePickingListItems(dtoList);
 
             return (pickingList, pickingListItems);
         }
 
-        private async Task<List<PickingListItem>> ParseLineItemsAsync(IEnumerable<string> imagePaths, string model)
+        private async Task<List<PickingListItemDto>> ParseLineItemsAsync(IEnumerable<string> imagePaths)
         {
-            var allItems = new List<PickingListItem>();
+            var allItems = new List<PickingListItemDto>();
             var pageNum = 1;
 
             foreach (var imagePath in imagePaths)
             {
                 _logger.LogInformation("Parsing line items from image: {ImagePath} (Page {PageNum})", imagePath, pageNum);
-
-                var request = _openAiApi.Chat.CreateConversation();
-                request.Model = new Model(model);
 
                 var prompt = @"Analyze the provided picking list image and extract all line items into a valid JSON array. Each object in the array should follow this structure:
 {
@@ -102,18 +97,30 @@ namespace CMetalsWS.Services
   ""Weight"": ""decimal"",
   ""Unit"": ""string (e.g., EA, FT, LB)""
 }
-Ensure that width and length values with inch marks (e.g., 60"") are preserved as strings. Default 'Unit' to 'EA' if it's not present.";
+Ensure that width and length values with inch marks (e.g., 60"") are preserved as strings. Default 'Unit' to 'EA' if it's not present. Respond with only the JSON array.";
 
-                request.AppendSystemMessage("You are an intelligent assistant that extracts structured data from documents. The user will provide an image of a picking list page. Your task is to return a JSON array of line item objects. Do not include any explanatory text, just the JSON array. If there are no line items on the page, return an empty array [].");
-                request.AppendUserInput(prompt, ImageInput.FromFile(imagePath));
+                var imageBytes = File.ReadAllBytes(imagePath);
+                var base64Image = Convert.ToBase64String(imageBytes);
+                var dataUri = $"data:image/png;base64,{base64Image}";
+
+                var messages = new List<OpenAI.Chat.ChatMessage>
+                {
+                    new SystemChatMessage("You are an intelligent assistant that extracts structured data from documents. Your task is to return a JSON array of line item objects. Do not include any explanatory text, just the JSON array. If there are no line items on the page, return an empty array []."),
+                    new UserChatMessage(new List<ChatMessageContentPart>
+                    {
+                        ChatMessageContentPart.CreateTextPart(prompt),
+                        ChatMessageContentPart.CreateImagePart(new Uri(dataUri))
+                    })
+                };
 
                 try
                 {
-                    var response = await request.GetResponseFromChatbotAsync();
-                    _logger.LogDebug("OpenAI raw response for line items (Page {PageNum}): {Response}", pageNum, response);
+                    ChatCompletion completion = await _chatClient.CompleteChatAsync(messages);
 
-                    var jsonResponse = response.Replace("```json", "").Replace("```", "").Trim();
-                    var items = System.Text.Json.JsonSerializer.Deserialize<List<PickingListItem>>(jsonResponse, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    var jsonResponse = completion.Content[0].Text;
+                    _logger.LogDebug("OpenAI raw response for line items (Page {PageNum}): {Response}", pageNum, jsonResponse);
+
+                    var items = JsonSerializer.Deserialize<List<PickingListItemDto>>(jsonResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
                     if (items != null)
                     {
@@ -124,7 +131,6 @@ Ensure that width and length values with inch marks (e.g., 60"") are preserved a
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Failed to parse picking list line items from image {ImagePath}", imagePath);
-                    // Continue to next page even if one fails
                 }
                 pageNum++;
             }
@@ -132,42 +138,61 @@ Ensure that width and length values with inch marks (e.g., 60"") are preserved a
             return allItems;
         }
 
-        private void NormalizePickingListItems(List<PickingListItem> items)
+        private List<PickingListItem> NormalizePickingListItems(List<PickingListItemDto> dtos)
         {
-            foreach (var item in items)
+            var result = new List<PickingListItem>();
+            foreach (var dto in dtos)
             {
-                // Normalize Width
-                if (item.Width is string widthStr && widthStr.EndsWith("\""))
+                var item = new PickingListItem
                 {
-                    if (decimal.TryParse(widthStr.TrimEnd('"'), out var width))
+                    LineNumber = dto.LineNumber,
+                    Quantity = dto.Quantity,
+                    ItemId = dto.ItemId,
+                    ItemDescription = dto.ItemDescription,
+                    Weight = dto.Weight,
+                    Unit = string.IsNullOrWhiteSpace(dto.Unit) ? "EA" : dto.Unit
+                };
+
+                if (dto.Width is JsonElement widthElement)
+                {
+                    if (widthElement.ValueKind == JsonValueKind.String)
                     {
-                        item.Width = width;
+                        var widthStr = widthElement.GetString() ?? "";
+                        if (widthStr.EndsWith("\"") && decimal.TryParse(widthStr.TrimEnd('"'), out var width))
+                        {
+                            item.Width = width;
+                        }
+                    }
+                    else if (widthElement.ValueKind == JsonValueKind.Number)
+                    {
+                        item.Width = widthElement.GetDecimal();
                     }
                 }
 
-                // Normalize Length
-                if (item.Length is string lengthStr && lengthStr.EndsWith("\""))
+                if (dto.Length is JsonElement lengthElement)
                 {
-                    if (decimal.TryParse(lengthStr.TrimEnd('"'), out var length))
+                    if (lengthElement.ValueKind == JsonValueKind.String)
                     {
-                        item.Length = length;
+                        var lengthStr = lengthElement.GetString() ?? "";
+                        if (lengthStr.EndsWith("\"") && decimal.TryParse(lengthStr.TrimEnd('"'), out var length))
+                        {
+                            item.Length = length;
+                        }
+                    }
+                    else if (lengthElement.ValueKind == JsonValueKind.Number)
+                    {
+                        item.Length = lengthElement.GetDecimal();
                     }
                 }
 
-                // Default Unit
-                if (string.IsNullOrWhiteSpace(item.Unit))
-                {
-                    item.Unit = "EA";
-                }
+                result.Add(item);
             }
+            return result;
         }
 
-        private async Task<PickingList> ParseHeaderAsync(string imagePath, string model)
+        private async Task<PickingList> ParseHeaderAsync(string imagePath)
         {
             _logger.LogInformation("Parsing header from image: {ImagePath}", imagePath);
-
-            var request = _openAiApi.Chat.CreateConversation();
-            request.Model = new Model(model);
 
             var prompt = @"Analyze the provided picking list image and extract the header information into a valid JSON object. The structure should be:
 {
@@ -182,18 +207,31 @@ Ensure that width and length values with inch marks (e.g., 60"") are preserved a
   ""Buyer"": ""string | null"",
   ""PrintDateTime"": ""YYYY-MM-DD HH:mm:ss"",
   ""TotalWeight"": ""decimal""
-}";
+}
+Respond with only the JSON object.";
 
-            request.AppendSystemMessage("You are an intelligent assistant that extracts structured data from documents. The user will provide an image of a picking list. Your task is to return a JSON object with the extracted header data. Do not include any explanatory text, just the JSON.");
-            request.AppendUserInput(prompt, ImageInput.FromFile(imagePath));
+            var imageBytes = File.ReadAllBytes(imagePath);
+            var base64Image = Convert.ToBase64String(imageBytes);
+            var dataUri = $"data:image/png;base64,{base64Image}";
+
+            var messages = new List<OpenAI.Chat.ChatMessage>
+            {
+                new SystemChatMessage("You are an intelligent assistant that extracts structured data from documents. Your task is to return a JSON object with the extracted header data. Do not include any explanatory text, just the JSON."),
+                new UserChatMessage(new List<ChatMessageContentPart>
+                {
+                    ChatMessageContentPart.CreateTextPart(prompt),
+                    ChatMessageContentPart.CreateImagePart(new Uri(dataUri))
+                })
+            };
 
             try
             {
-                var response = await request.GetResponseFromChatbotAsync();
-                _logger.LogDebug("OpenAI raw response for header: {Response}", response);
+                ChatCompletion completion = await _chatClient.CompleteChatAsync(messages);
 
-                var jsonResponse = response.Replace("```json", "").Replace("```", "").Trim();
-                var parsedHeader = System.Text.Json.JsonSerializer.Deserialize<PickingList>(jsonResponse, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var jsonResponse = completion.Content[0].Text;
+                _logger.LogDebug("OpenAI raw response for header: {Response}", jsonResponse);
+
+                var parsedHeader = JsonSerializer.Deserialize<PickingList>(jsonResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
                 if (parsedHeader == null)
                 {

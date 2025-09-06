@@ -30,10 +30,10 @@
                         <MudTextField @bind-Value="Item.Unit" Label="Unit" />
                     </MudItem>
                     <MudItem xs="12" sm="3">
-                        <MudNumericField T="decimal?" @bind-Value="Item.Width" Label="Width" />
+                        <MudTextField @bind-Value="WidthString" Label="Width" />
                     </MudItem>
                     <MudItem xs="12" sm="3">
-                        <MudNumericField T="decimal?" @bind-Value="Item.Length" Label="Length" />
+                        <MudTextField @bind-Value="LengthString" Label="Length" />
                     </MudItem>
                     <MudItem xs="12" sm="3">
                         <MudNumericField T="decimal?" @bind-Value="Item.Weight" Label="Weight" />
@@ -78,14 +78,37 @@
     [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
     private MudForm _form = default!;
 
+    private string WidthString { get; set; }
+    private string LengthString { get; set; }
+
+    protected override void OnInitialized()
+    {
+        WidthString = Item.Width?.ToString() ?? "";
+        LengthString = Item.Length?.ToString() ?? "";
+    }
+
     private async Task Save()
     {
         await _form.Validate();
         if (!_form.IsValid) return;
 
-        // Optional: auto-bump to AssignedProduction when selecting a machine from Unassigned
-        // if (Item.MachineId.HasValue && Item.Status == PickingListItemStatus.Unassigned)
-        //     Item.Status = PickingListItemStatus.AssignedProduction;
+        if (decimal.TryParse(WidthString, out var width))
+        {
+            Item.Width = width;
+        }
+        else
+        {
+            Item.Width = null; // Or handle error
+        }
+
+        if (decimal.TryParse(LengthString, out var length))
+        {
+            Item.Length = length;
+        }
+        else
+        {
+            Item.Length = null; // Or handle error
+        }
 
         Dialog.Close(DialogResult.Ok(Item));
     }

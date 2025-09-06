@@ -106,8 +106,8 @@
                         <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
                         <MudTd DataLabel="Qty" Class="text-right">@context.Quantity.ToString("N3")</MudTd>
                         <MudTd DataLabel="Unit">@context.Unit</MudTd>
-                        <MudTd DataLabel="Width" Class="text-right">@context.Width?.ToString("N3")</MudTd>
-                        <MudTd DataLabel="Length" Class="text-right">@context.Length?.ToString("N3")</MudTd>
+                        <MudTd DataLabel="Width" Class="text-right">@FormatDimension(context.Width)</MudTd>
+                        <MudTd DataLabel="Length" Class="text-right">@FormatDimension(context.Length)</MudTd>
                         <MudTd DataLabel="Weight" Class="text-right">@context.Weight?.ToString("N3")</MudTd>
                         <MudTd DataLabel="Status">@context.Status</MudTd>
                         <MudTd DataLabel="Sched">
@@ -349,5 +349,14 @@
             }
         }
         StateHasChanged();
+    }
+
+    private string FormatDimension(object? dimension)
+    {
+        if (dimension is decimal d)
+        {
+            return d.ToString("N3");
+        }
+        return dimension?.ToString() ?? string.Empty;
     }
 }
