@@ -99,13 +99,17 @@ namespace CMetalsWS.Services
 }
 Ensure that width and length values with inch marks (e.g., 60"") are preserved as strings. Default 'Unit' to 'EA' if it's not present. Respond with only the JSON array.";
 
+                var imageBytes = File.ReadAllBytes(imagePath);
+                var base64Image = Convert.ToBase64String(imageBytes);
+                var dataUri = $"data:image/png;base64,{base64Image}";
+
                 var messages = new List<OpenAI.Chat.ChatMessage>
                 {
                     new SystemChatMessage("You are an intelligent assistant that extracts structured data from documents. Your task is to return a JSON array of line item objects. Do not include any explanatory text, just the JSON array. If there are no line items on the page, return an empty array []."),
                     new UserChatMessage(new List<ChatMessageContentPart>
                     {
                         ChatMessageContentPart.CreateTextPart(prompt),
-                        ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(File.ReadAllBytes(imagePath)), "image/png")
+                        ChatMessageContentPart.CreateImagePart(new Uri(dataUri))
                     })
                 };
 
@@ -206,13 +210,17 @@ Ensure that width and length values with inch marks (e.g., 60"") are preserved a
 }
 Respond with only the JSON object.";
 
+            var imageBytes = File.ReadAllBytes(imagePath);
+            var base64Image = Convert.ToBase64String(imageBytes);
+            var dataUri = $"data:image/png;base64,{base64Image}";
+
             var messages = new List<OpenAI.Chat.ChatMessage>
             {
                 new SystemChatMessage("You are an intelligent assistant that extracts structured data from documents. Your task is to return a JSON object with the extracted header data. Do not include any explanatory text, just the JSON."),
                 new UserChatMessage(new List<ChatMessageContentPart>
                 {
                     ChatMessageContentPart.CreateTextPart(prompt),
-                    ChatMessageContentPart.CreateImagePart(BinaryData.FromBytes(File.ReadAllBytes(imagePath)), "image/png")
+                    ChatMessageContentPart.CreateImagePart(new Uri(dataUri))
                 })
             };
 

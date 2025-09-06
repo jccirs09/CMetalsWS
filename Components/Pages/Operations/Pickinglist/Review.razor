@@ -1,4 +1,5 @@
 @page "/picking-lists/{id:int}"
+@implements IDisposable
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using MudBlazor
@@ -71,7 +72,7 @@ else
     </MudPaper>
 
     <!-- Items Table -->
-    <MudTable Items="@_list.Items" T="PickingListItem" Hover="true" Dense="true" MultiSelection="true" @bind-SelectedItems="_selectedItems">
+    <MudTable Items="@_list.Items" T="PickingListItem" Hover="true" Dense="true" MultiSelection="true" @bind-SelectedItems="_selectedItems" RowClassFunc="@GetRowClass">
         <HeaderContent>
             <MudTh>Line</MudTh>
             <MudTh>Qty</MudTh>
@@ -93,7 +94,7 @@ else
             <MudTd DataLabel="Weight">@context.Weight?.ToString("N3")</MudTd>
             <MudTd DataLabel="Unit">@context.Unit</MudTd>
             <MudTd DataLabel="Machine">
-                <MudSelect T="int?" @bind-Value="context.MachineId" Dense="true" Margin="Margin.Dense">
+                <MudSelect T="int?" Value="context.MachineId" ValueChanged="@((int? m) => OnMachineChanged(context, m))" Dense="true" Margin="Margin.Dense">
                     @foreach (var machine in _machines)
                     {
                         <MudSelectItem Value="@((int?)machine.Id)">@machine.Name</MudSelectItem>
@@ -125,16 +126,36 @@ else
     private HashSet<PickingListItem> _selectedItems = new();
     private int? _bulkAssignMachineId;
     private bool _isProcessing = false;
+    private Dictionary<int, int?> _originalMachineIds = new();
+    private System.Timers.Timer _autosaveTimer;
+    private bool _hasPendingChanges = false;
 
     protected override async Task OnInitializedAsync()
     {
         _list = await PickingListService.GetByIdAsync(Id);
         if (_list != null)
         {
-            // Assuming machines are branch-specific
             var allMachines = await MachineService.GetMachinesAsync();
             _machines = allMachines.Where(m => m.BranchId == _list.BranchId).ToList();
+            _originalMachineIds = _list.Items.ToDictionary(i => i.Id, i => i.MachineId);
         }
+
+        _autosaveTimer = new System.Timers.Timer(10000); // 10 seconds
+        _autosaveTimer.Elapsed += async (sender, e) => await HandleAutosaveTimer();
+        _autosaveTimer.AutoReset = true;
+        _autosaveTimer.Enabled = true;
+    }
+
+    private string GetRowClass(PickingListItem item, int rowNumber)
+    {
+        if (_originalMachineIds.TryGetValue(item.Id, out var originalMachineId))
+        {
+            if (item.MachineId != originalMachineId)
+            {
+                return "mud-warning-text"; // Use a built-in color for highlighting
+            }
+        }
+        return string.Empty;
     }
 
     private async Task SaveChanges()
@@ -142,6 +163,9 @@ else
         if (_list == null) return;
 
         await PickingListService.UpdateMachineAssignmentsAsync(_list.Items);
+        _hasPendingChanges = false;
+        _originalMachineIds = _list.Items.ToDictionary(i => i.Id, i => i.MachineId); // Re-baseline
+        await InvokeAsync(StateHasChanged);
         Snackbar.Add("Changes saved successfully.", Severity.Success);
     }
 
@@ -159,6 +183,7 @@ else
         {
             item.MachineId = _bulkAssignMachineId;
         }
+        _hasPendingChanges = true;
         Snackbar.Add($"Assigned machine to {_selectedItems.Count} items.", Severity.Success);
     }
 
@@ -191,5 +216,28 @@ else
             return d.ToString("N3");
         }
         return dimension?.ToString() ?? string.Empty;
+    }
+
+    private void OnMachineChanged(PickingListItem item, int? machineId)
+    {
+        item.MachineId = machineId;
+        _hasPendingChanges = true;
+    }
+
+    private async Task HandleAutosaveTimer()
+    {
+        if (_hasPendingChanges)
+        {
+            await InvokeAsync(async () =>
+            {
+                await SaveChanges();
+                Snackbar.Add("Autosaved changes.", Severity.Info);
+            });
+        }
+    }
+
+    public void Dispose()
+    {
+        _autosaveTimer?.Dispose();
     }
 }
