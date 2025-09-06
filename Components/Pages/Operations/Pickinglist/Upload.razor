@@ -3,6 +3,8 @@
 @using Microsoft.Extensions.Configuration
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.Components.Forms
 @using MudBlazor
 @inject BranchService BranchService
@@ -13,6 +15,8 @@
 @inject NavigationManager NavManager
 @inject Microsoft.Extensions.Configuration.IConfiguration _configuration
 @inject ILogger<Upload> _logger
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
 
 <MudText Typo="Typo.h5" GutterBottom="true">Upload Picking List PDF</MudText>
 
@@ -20,17 +24,23 @@
     <MudCardContent>
         <EditForm Model="@_model" OnValidSubmit="OnSubmit">
             <DataAnnotationsValidator />
-            <MudGrid>
-                <MudItem xs="12" sm="6">
-                    <MudSelect @bind-Value="_model.BranchId" For="@(() => _model.BranchId)" Label="Branch" Required="true">
-                        @foreach (var branch in _branches)
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12" sm="10" md="8">
+                    <MudPaper Outlined="true" Class="pa-8 d-flex flex-column align-center justify-center mud-width-full" Style="height: 200px;">
+                        <InputFile OnChange="OnFileChanged" class="d-none" id="fileInput" />
+                        <MudButton HtmlTag="label"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                                   for="fileInput">
+                            Upload File
+                        </MudButton>
+                        <MudText Typo="Typo.body2" Class="mt-2">Or drag and drop here</MudText>
+                        @if (_model.File != null)
                         {
-                            <MudSelectItem Value="@branch.Id">@branch.Name</MudSelectItem>
+                            <MudText Typo="Typo.body2" Class="mt-4">Selected: @_model.File.Name</MudText>
                         }
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <InputFile OnChange="OnFileChanged" class="form-control" />
+                    </MudPaper>
                 </MudItem>
             </MudGrid>
             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="@_isProcessing">
@@ -62,14 +72,24 @@
     }
 
     private UploadModel _model = new();
-    private List<Branch> _branches = new();
     private bool _isProcessing;
     private string? _statusMessage;
     private Severity _statusSeverity;
 
     protected override async Task OnInitializedAsync()
     {
-        _branches = await BranchService.GetBranchesAsync();
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        if (user?.BranchId != null)
+        {
+            _model.BranchId = user.BranchId;
+        }
+        else
+        {
+            // Handle case where user has no default branch - maybe show an error or a selector
+            // For now, we'll prevent submission if no branch is set.
+            Snackbar.Add("Could not determine your default branch. Please set it in your profile.", Severity.Warning);
+        }
     }
 
     private void OnFileChanged(InputFileChangeEventArgs e)
