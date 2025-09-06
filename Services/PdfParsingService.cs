@@ -32,17 +32,21 @@ namespace CMetalsWS.Services
 
         public async Task<List<string>> ConvertPdfToImagesAsync(string sourcePdfPath, Guid importGuid)
         {
+            var fileInfo = new FileInfo(sourcePdfPath);
+            _logger.LogInformation("Reading PDF ({Len} bytes) from {Path} for conversion.", fileInfo.Length, sourcePdfPath);
+            var pdfBytes = await File.ReadAllBytesAsync(sourcePdfPath);
+            return await ConvertPdfToImagesAsync(pdfBytes, importGuid);
+        }
+
+        public async Task<List<string>> ConvertPdfToImagesAsync(byte[] pdfBytes, Guid importGuid)
+        {
             var imagePaths = new List<string>();
             var outputDirectory = Path.Combine("wwwroot", "uploads", "pickinglists", importGuid.ToString());
             Directory.CreateDirectory(outputDirectory);
 
             try
             {
-                var fileInfo = new FileInfo(sourcePdfPath);
-                _logger.LogInformation("Rendering PDF ({Len} bytes) from {Path}", fileInfo.Length, sourcePdfPath);
-
-                var pdfBytes = await File.ReadAllBytesAsync(sourcePdfPath);
-                // Use the byte[] overload of ToImages to avoid Base64 errors.
+                _logger.LogInformation("Rendering PDF ({Len} bytes) to images.", pdfBytes.Length);
                 var images = await Task.Run(() => Conversion.ToImages(pdfBytes));
 
                 int pageNum = 1;
@@ -62,7 +66,7 @@ namespace CMetalsWS.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to convert PDF to images for {PdfPath}", sourcePdfPath);
+                _logger.LogError(ex, "Failed to convert PDF byte array to images.");
                 throw;
             }
         }

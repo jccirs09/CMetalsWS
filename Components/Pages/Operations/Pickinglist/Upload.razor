@@ -133,35 +133,47 @@
 
         try
         {
-            // 1. Save file to a temporary location
+            var importGuid = Guid.NewGuid();
             var tempDir = Path.Combine(Path.GetTempPath(), "cmetals_uploads");
             Directory.CreateDirectory(tempDir);
-            var importGuid = Guid.NewGuid();
             tempPdfPath = Path.Combine(tempDir, $"{importGuid}.pdf");
-            await using var fs = new FileStream(tempPdfPath, FileMode.Create);
-            // Limit file size to 50 MB
-            await _model.File.OpenReadStream(50 * 1024 * 1024).CopyToAsync(fs);
-            _statusMessage = "PDF uploaded. Converting to images...";
+
+            // 1. Read the upload into memory once to avoid file locks
+            _statusMessage = "Reading file into memory...";
+            StateHasChanged();
+            byte[] pdfBytes;
+            await using (var sourceStream = _model.File.OpenReadStream(50 * 1024 * 1024))
+            {
+                using var memoryStream = new MemoryStream();
+                await sourceStream.CopyToAsync(memoryStream);
+                pdfBytes = memoryStream.ToArray();
+            }
+
+            // 2. Persist the file for audit (quick open/close, no lingering lock)
+            await File.WriteAllBytesAsync(tempPdfPath, pdfBytes);
+            _statusMessage = "PDF saved. Creating import record...";
             StateHasChanged();
 
-            // 2. Create initial import record
+            // 3. Create initial import record
             var imagesDir = Path.Combine("wwwroot", "uploads", "pickinglists", importGuid.ToString());
             importRecord = await ImportService.CreateImportAsync(_model.BranchId.Value, tempPdfPath, imagesDir, _configuration.GetValue<string>("OpenAI:Model") ?? "gpt-4o-mini");
 
-            // 3. Convert PDF to images
-            var imagePaths = await PdfParsingService.ConvertPdfToImagesAsync(tempPdfPath, importGuid);
+            // 4. Convert directly from bytes
+            _statusMessage = "Converting PDF to images...";
+            StateHasChanged();
+            var imagePaths = await PdfParsingService.ConvertPdfToImagesAsync(pdfBytes, importGuid);
             _statusMessage = "PDF converted. Parsing with AI...";
             StateHasChanged();
 
-            // 4. Parse with OpenAI
+            // 5. Parse with OpenAI
             var (parsedList, parsedItems) = await PdfParsingService.ParsePickingListAsync(imagePaths);
             _statusMessage = "AI parsing complete. Saving to database...";
             StateHasChanged();
 
-            // 5. Upsert data
+            // 6. Upsert data
             var pickingListId = await PickingListService.UpsertFromParsedDataAsync(_model.BranchId.Value, parsedList, parsedItems);
 
-            // 6. Update import record
+            // 7. Update import record
             var rawJson = System.Text.Json.JsonSerializer.Serialize(new { header = parsedList, items = parsedItems });
             await ImportService.UpdateImportSuccessAsync(importRecord.Id, pickingListId, rawJson);
 
@@ -169,7 +181,7 @@
             _statusSeverity = Severity.Success;
             Snackbar.Add("Successfully processed picking list.", Severity.Success);
 
-            // 7. Redirect to review page
+            // 8. Redirect to review page
             NavManager.NavigateTo($"/picking-lists/{pickingListId}");
         }
         catch (Exception ex)
