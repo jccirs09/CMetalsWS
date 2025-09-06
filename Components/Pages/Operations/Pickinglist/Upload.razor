@@ -174,7 +174,33 @@
             var pickingListId = await PickingListService.UpsertFromParsedDataAsync(_model.BranchId.Value, parsedList, parsedItems);
 
             // 7. Update import record
-            var rawJson = System.Text.Json.JsonSerializer.Serialize(new { header = parsedList, items = parsedItems });
+            var headerDto = new
+            {
+                parsedList.SalesOrderNumber,
+                parsedList.OrderDate,
+                parsedList.ShipDate,
+                parsedList.SoldTo,
+                parsedList.ShipTo,
+                parsedList.SalesRep,
+                parsedList.ShippingVia,
+                parsedList.FOB,
+                parsedList.Buyer,
+                parsedList.PrintDateTime,
+                parsedList.TotalWeight
+            };
+            var itemsDto = parsedItems.Select(i => new
+            {
+                i.LineNumber,
+                i.Quantity,
+                i.ItemId,
+                i.ItemDescription,
+                i.Width,
+                i.Length,
+                i.Weight,
+                i.Unit,
+                i.MachineId
+            }).ToList();
+            var rawJson = System.Text.Json.JsonSerializer.Serialize(new { header = headerDto, items = itemsDto });
             await ImportService.UpdateImportSuccessAsync(importRecord.Id, pickingListId, rawJson);
 
             _statusMessage = "Processing complete!";
