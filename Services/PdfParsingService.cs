@@ -8,9 +8,11 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using CMetalsWS.Data;
+using CMetalsWS.Services.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PDFtoImage;
@@ -30,6 +32,11 @@ namespace CMetalsWS.Services
             ReadCommentHandling = JsonCommentHandling.Skip,
             AllowTrailingCommas = true
         };
+
+        static PdfParsingService()
+        {
+            _jsonOptions.Converters.Add(new FlexibleDateTimeConverter());
+        }
 
         public PdfParsingService(ILogger<PdfParsingService> logger, IHttpClientFactory httpClientFactory, IConfiguration configuration)
         {
@@ -161,7 +168,7 @@ namespace CMetalsWS.Services
 
         private async Task<PickingList> ParseHeaderAsync(string imagePath)
         {
-            var prompt = @"Return ONLY a JSON object with: { ""salesOrderNumber"": ""string, from the 'Picking List No.' field"", ""orderDate"": ""YYYY-MM-DD"", ""shipDate"": ""YYYY-MM-DD"", ""soldTo"": ""string"", ""shipTo"": ""string"", ""salesRep"": ""string"", ""shippingVia"": ""string"", ""fob"": ""string"", ""totalWeight"": number, ""buyer"": ""string | null"", ""printDateTime"": ""YYYY-MM-DD HH:mm:ss"" }";
+            var prompt = @"Return ONLY a JSON object with the fields: { ""salesOrderNumber"": string, ""orderDate"": ""yyyy-MM-dd"", ""shipDate"": ""yyyy-MM-dd"", ""soldTo"": string, ""shipTo"": string, ""salesRep"": string, ""shippingVia"": string, ""fob"": string, ""buyer"": string|null, ""printDateTime"": ""yyyy-MM-dd HH:mm:ss"", ""totalWeight"": number }. Use exactly those formats. If seconds are unknown, use :00.";
             var json = await GetJsonFromVisionAsync(new[] { imagePath }, prompt, enforceJsonObject: true);
 
             var parsedHeader = JsonSerializer.Deserialize<PickingListHeaderDto>(json, _jsonOptions);
