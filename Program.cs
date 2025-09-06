@@ -1,6 +1,7 @@
 using CMetalsWS.Components;
 using CMetalsWS.Components.Account;
 using CMetalsWS.Data;
+using CMetalsWS.Hubs;
 using CMetalsWS.Security;
 using CMetalsWS.Services;
 using Microsoft.AspNetCore.Components.Authorization;

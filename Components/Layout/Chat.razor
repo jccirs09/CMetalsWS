@@ -56,20 +56,20 @@
         <div style="flex: 1; display: flex;">
             <div style="width: 150px; border-right: 1px solid #ccc; overflow-y: auto;">
                 <MudTextField @bind-Value="_searchQuery" Label="Search Users" Variant="Variant.Text" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
-                <MudList Clickable="true">
+                <MudList T="ApplicationUser" Clickable="true">
                     <MudListSubheader>Users</MudListSubheader>
                     @foreach (var user in _displayUsers)
                     {
-                        <MudListItem OnClick="() => SelectUser(user)">
+                        <MudListItem T="ApplicationUser" OnClick="() => SelectUser(user)">
                             @user.UserName
                         </MudListItem>
                     }
                 </MudList>
-                <MudList Clickable="true">
+                <MudList T="ChatGroup" Clickable="true">
                     <MudListSubheader>Groups</MudListSubheader>
                     @foreach (var group in _groups)
                     {
-                        <MudListItem OnClick="() => SelectGroup(group)">
+                        <MudListItem T="ChatGroup" OnClick="() => SelectGroup(group)">
                             @group.Name
                         </MudListItem>
                     }
