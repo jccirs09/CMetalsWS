@@ -39,7 +39,11 @@
     </MudMainContent>
 </MudLayout>
 
-<Chat />
+<AuthorizeView>
+    <Authorized>
+        <Chat />
+    </Authorized>
+</AuthorizeView>
 
 <!-- Blazor error UI -->
 <div id="blazor-error-ui" data-nosnippet>
