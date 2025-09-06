@@ -32,6 +32,9 @@ namespace CMetalsWS.Data
         public DbSet<ChatGroup> ChatGroups => Set<ChatGroup>();
         public DbSet<ChatGroupUser> ChatGroupUsers => Set<ChatGroupUser>();
 
+        public DbSet<PickingListImport> PickingListImports => Set<PickingListImport>();
+        public DbSet<PickingListPageImage> PickingListPageImages => Set<PickingListPageImage>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -237,6 +240,15 @@ namespace CMetalsWS.Data
                 .HasOne(gu => gu.ChatGroup)
                 .WithMany(g => g.ChatGroupUsers)
                 .HasForeignKey(gu => gu.ChatGroupId);
+
+            // Picking List Import
+            modelBuilder.Entity<PickingListImport>(e =>
+            {
+                e.HasOne(i => i.PickingList).WithMany().HasForeignKey(i => i.PickingListId).OnDelete(DeleteBehavior.SetNull);
+                e.HasOne(i => i.Branch).WithMany().HasForeignKey(i => i.BranchId).OnDelete(DeleteBehavior.Cascade);
+                e.Property(i => i.Status).HasConversion<string>().HasMaxLength(32);
+                e.HasMany(i => i.PageImages).WithOne(p => p.Import).HasForeignKey(p => p.PickingListImportId).OnDelete(DeleteBehavior.Cascade);
+            });
         }
     }
 }
