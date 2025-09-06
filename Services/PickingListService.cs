@@ -10,10 +10,20 @@ namespace CMetalsWS.Services
     public class PickingListService
     {
         private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
+        private readonly IPickingListImportService _importService;
+        private readonly IPdfParsingService _parsingService;
+        private readonly IConfiguration _configuration;
 
-        public PickingListService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
+        public PickingListService(
+            IDbContextFactory<ApplicationDbContext> dbContextFactory,
+            IPickingListImportService importService,
+            IPdfParsingService parsingService,
+            IConfiguration configuration)
         {
             _dbContextFactory = dbContextFactory;
+            _importService = importService;
+            _parsingService = parsingService;
+            _configuration = configuration;
         }
 
         public async Task<List<PickingList>> GetAsync(int? branchId = null)
@@ -263,6 +273,105 @@ namespace CMetalsWS.Services
             item.PulledWeight = pulledWeight;
 
             await db.SaveChangesAsync();
+        }
+
+        public async Task<int> UpsertFromParsedDataAsync(int branchId, PickingList parsedList, List<PickingListItem> parsedItems)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+
+            var existingList = await db.PickingLists
+                .Include(p => p.Items)
+                .FirstOrDefaultAsync(p => p.BranchId == branchId && p.SalesOrderNumber == parsedList.SalesOrderNumber);
+
+            if (existingList == null)
+            {
+                // Create new list
+                parsedList.BranchId = branchId;
+                parsedList.Status = PickingListStatus.Pending; // Or some other default
+                parsedList.Items = parsedItems;
+                db.PickingLists.Add(parsedList);
+            }
+            else
+            {
+                // Update existing list header
+                db.Entry(existingList).CurrentValues.SetValues(parsedList);
+                existingList.BranchId = branchId; // Ensure branch is correct
+
+                var existingItemsDict = existingList.Items.ToDictionary(i => (i.LineNumber, i.ItemId));
+                var parsedItemsDict = parsedItems.ToDictionary(i => (i.LineNumber, i.ItemId));
+
+                // Items to delete
+                var itemsToDelete = existingList.Items.Where(i => !parsedItemsDict.ContainsKey((i.LineNumber, i.ItemId))).ToList();
+                db.PickingListItems.RemoveRange(itemsToDelete);
+
+                foreach (var parsedItem in parsedItems)
+                {
+                    if (existingItemsDict.TryGetValue((parsedItem.LineNumber, parsedItem.ItemId), out var existingItem))
+                    {
+                        // Update existing item, preserving MachineId
+                        var originalMachineId = existingItem.MachineId;
+                        db.Entry(existingItem).CurrentValues.SetValues(parsedItem);
+                        existingItem.MachineId = originalMachineId;
+                    }
+                    else
+                    {
+                        // Add new item
+                        existingList.Items.Add(parsedItem);
+                    }
+                }
+            }
+
+            await db.SaveChangesAsync();
+            return existingList?.Id ?? parsedList.Id;
+        }
+
+        public async Task UpdateMachineAssignmentsAsync(IEnumerable<PickingListItem> itemsToUpdate)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            foreach (var item in itemsToUpdate)
+            {
+                var trackedItem = await db.PickingListItems.FindAsync(item.Id);
+                if (trackedItem != null)
+                {
+                    trackedItem.MachineId = item.MachineId;
+                }
+            }
+            await db.SaveChangesAsync();
+        }
+
+        public async Task ReParseAsync(int pickingListId)
+        {
+            var latestImport = await _importService.GetLatestImportByPickingListIdAsync(pickingListId);
+            if (latestImport == null || !System.IO.File.Exists(latestImport.SourcePdfPath))
+            {
+                throw new InvalidOperationException("Could not find the original PDF file to re-parse.");
+            }
+
+            var pickingList = await GetByIdAsync(pickingListId);
+            if (pickingList == null)
+            {
+                throw new InvalidOperationException($"Picking list with ID {pickingListId} not found.");
+            }
+
+            var importGuid = Guid.NewGuid();
+            var imagesDir = System.IO.Path.Combine("wwwroot", "uploads", "pickinglists", importGuid.ToString());
+            var newImport = await _importService.CreateImportAsync(pickingList.BranchId, latestImport.SourcePdfPath, imagesDir, _configuration["OpenAI:Model"] ?? "gpt-4o-mini");
+
+            try
+            {
+                var imagePaths = await _parsingService.ConvertPdfToImagesAsync(latestImport.SourcePdfPath, importGuid);
+                var (parsedList, parsedItems) = await _parsingService.ParsePickingListAsync(imagePaths);
+
+                var newPickingListId = await UpsertFromParsedDataAsync(pickingList.BranchId, parsedList, parsedItems);
+
+                var rawJson = System.Text.Json.JsonSerializer.Serialize(new { header = parsedList, items = parsedItems });
+                await _importService.UpdateImportSuccessAsync(newImport.Id, newPickingListId, rawJson);
+            }
+            catch (Exception ex)
+            {
+                await _importService.UpdateImportFailedAsync(newImport.Id, ex.ToString());
+                throw; // Re-throw to notify the caller
+            }
         }
     }
 }

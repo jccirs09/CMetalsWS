@@ -1,0 +1,157 @@
+@page "/picking-lists/upload"
+@using System.ComponentModel.DataAnnotations
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+@inject BranchService BranchService
+@inject IPdfParsingService PdfParsingService
+@inject IPickingListImportService ImportService
+@inject PickingListService PickingListService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavManager
+@inject IConfiguration _configuration
+@inject ILogger<Upload> _logger
+
+<MudText Typo="Typo.h5" GutterBottom="true">Upload Picking List PDF</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <EditForm Model="@_model" OnValidSubmit="OnSubmit">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="_model.BranchId" For="@(() => _model.BranchId)" Label="Branch" Required="true">
+                        @foreach (var branch in _branches)
+                        {
+                            <MudSelectItem Value="@branch.Id">@branch.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <InputFile OnChange="OnFileChanged" class="form-control" />
+                </MudItem>
+            </MudGrid>
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="@_isProcessing">
+                @if (_isProcessing)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Processing...</MudText>
+                }
+                else
+                {
+                    <MudText>Upload and Parse</MudText>
+                }
+            </MudButton>
+        </EditForm>
+
+        @if (!string.IsNullOrEmpty(_statusMessage))
+        {
+            <MudAlert Severity="@_statusSeverity" Class="mt-4">@_statusMessage</MudAlert>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private class UploadModel
+    {
+        [Required]
+        public int? BranchId { get; set; }
+        public IBrowserFile? File { get; set; }
+    }
+
+    private UploadModel _model = new();
+    private List<Branch> _branches = new();
+    private bool _isProcessing;
+    private string? _statusMessage;
+    private Severity _statusSeverity;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _branches = await BranchService.GetBranchesAsync();
+    }
+
+    private void OnFileChanged(InputFileChangeEventArgs e)
+    {
+        _model.File = e.File;
+    }
+
+    private async Task OnSubmit()
+    {
+        if (_model.BranchId == null || _model.File == null)
+        {
+            Snackbar.Add("Branch and a PDF file are required.", Severity.Warning);
+            return;
+        }
+
+        _isProcessing = true;
+        _statusMessage = "Starting upload...";
+        _statusSeverity = Severity.Info;
+        StateHasChanged();
+
+        var tempPdfPath = string.Empty;
+        PickingListImport? importRecord = null;
+
+        try
+        {
+            // 1. Save file to a temporary location
+            var tempDir = Path.Combine(Path.GetTempPath(), "cmetals_uploads");
+            Directory.CreateDirectory(tempDir);
+            var importGuid = Guid.NewGuid();
+            tempPdfPath = Path.Combine(tempDir, $"{importGuid}.pdf");
+            await using var fs = new FileStream(tempPdfPath, FileMode.Create);
+            await _model.File.OpenReadStream(long.MaxValue).CopyToAsync(fs);
+            _statusMessage = "PDF uploaded. Converting to images...";
+            StateHasChanged();
+
+            // 2. Create initial import record
+            var imagesDir = Path.Combine("wwwroot", "uploads", "pickinglists", importGuid.ToString());
+            importRecord = await ImportService.CreateImportAsync(_model.BranchId.Value, tempPdfPath, imagesDir, _configuration["OpenAI:Model"] ?? "gpt-4o-mini");
+
+            // 3. Convert PDF to images
+            var imagePaths = await PdfParsingService.ConvertPdfToImagesAsync(tempPdfPath, importGuid);
+            _statusMessage = "PDF converted. Parsing with AI...";
+            StateHasChanged();
+
+            // 4. Parse with OpenAI
+            var (parsedList, parsedItems) = await PdfParsingService.ParsePickingListAsync(imagePaths);
+            _statusMessage = "AI parsing complete. Saving to database...";
+            StateHasChanged();
+
+            // 5. Upsert data
+            var pickingListId = await PickingListService.UpsertFromParsedDataAsync(_model.BranchId.Value, parsedList, parsedItems);
+
+            // 6. Update import record
+            var rawJson = System.Text.Json.JsonSerializer.Serialize(new { header = parsedList, items = parsedItems });
+            await ImportService.UpdateImportSuccessAsync(importRecord.Id, pickingListId, rawJson);
+
+            _statusMessage = "Processing complete!";
+            _statusSeverity = Severity.Success;
+            Snackbar.Add("Successfully processed picking list.", Severity.Success);
+
+            // 7. Redirect to review page
+            NavManager.NavigateTo($"/picking-lists/{pickingListId}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to process uploaded picking list.");
+            _statusMessage = $"An error occurred: {ex.Message}";
+            _statusSeverity = Severity.Error;
+            Snackbar.Add("Failed to process picking list.", Severity.Error);
+
+            if (importRecord != null)
+            {
+                await ImportService.UpdateImportFailedAsync(importRecord.Id, ex.ToString());
+            }
+        }
+        finally
+        {
+            _isProcessing = false;
+            if (!string.IsNullOrEmpty(tempPdfPath) && File.Exists(tempPdfPath))
+            {
+                File.Delete(tempPdfPath);
+            }
+            StateHasChanged();
+        }
+    }
+}

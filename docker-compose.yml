@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  sql-server-db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: cmetalsws-sql-server
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=yourStrong(!)Password
+    ports:
+      - "1433:1433"
+    volumes:
+      - cmetalsws-sql-data:/var/opt/mssql
+
+volumes:
+  cmetalsws-sql-data:

@@ -31,6 +31,10 @@ namespace CMetalsWS.Data
         [MaxLength(128)]
         public string? FOB { get; set; }
 
+        [MaxLength(128)]
+        public string? Buyer { get; set; }
+        public DateTime? PrintDateTime { get; set; }
+
         // Branch / Customer
         [Required]
         public int BranchId { get; set; }
