@@ -40,12 +40,13 @@ namespace CMetalsWS.Services
             {
                 var images = await Task.Run(() => Conversion.ToImages(sourcePdfPath));
                 int pageNum = 1;
-                foreach (var image in images)
+                foreach (var image in images.Take(5)) // Cap at 5 pages to prevent giant payloads
                 {
+                    using var img = image; // Dispose Skia resource
                     var imagePath = Path.Combine(outputDirectory, $"page-{pageNum}.jpeg");
                     using (var stream = File.Create(imagePath))
                     {
-                        image.Encode(SKEncodedImageFormat.Jpeg, 85).SaveTo(stream);
+                        img.Encode(SKEncodedImageFormat.Jpeg, 85).SaveTo(stream);
                     }
                     imagePaths.Add(imagePath);
                     pageNum++;
@@ -144,9 +145,17 @@ namespace CMetalsWS.Services
 
             var options = new ChatCompletionOptions { Temperature = 0 };
             var completion = await _chatClient.CompleteChatAsync(messages, options);
-            var json = completion.Value.Content[0].Text?.Trim() ?? "null";
 
-            return TrimToJson(json);
+            // Reverting to .Value.Content as the compiler requires it.
+            var text = completion.Value.Content.FirstOrDefault()?.Text?.Trim() ?? "";
+            var json = TrimToJson(text);
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                throw new InvalidOperationException("Model did not return valid JSON.");
+            }
+
+            return json;
         }
 
         private async Task<string> ToDataUrlAsync(string path)
@@ -163,16 +172,17 @@ namespace CMetalsWS.Services
             int arrStart = s.IndexOf('[');
             int arrEnd = s.LastIndexOf(']');
 
-            bool hasObj = objStart >= 0 && objEnd > objStart;
-            bool hasArr = arrStart >= 0 && arrEnd > arrStart;
-
-            if (hasArr && (!hasObj || arrStart < objStart))
+            if (arrStart >= 0 && arrEnd > arrStart)
+            {
                 return s.Substring(arrStart, arrEnd - arrStart + 1);
+            }
 
-            if (hasObj)
+            if (objStart >= 0 && objEnd > objStart)
+            {
                 return s.Substring(objStart, objEnd - objStart + 1);
+            }
 
-            return s;
+            throw new InvalidOperationException("No JSON found in model output.");
         }
 
         private decimal? NormalizeDimension(object? dimension)
@@ -198,12 +208,21 @@ namespace CMetalsWS.Services
         {
             if (string.IsNullOrWhiteSpace(s)) return null;
 
-            var cleaned = Regex.Replace(s, @"[""in\s-]", "").Trim();
-            if (decimal.TryParse(cleaned, out var result))
-            {
-                return Math.Round(result, 3);
-            }
-            return null;
+            var cleaned = s
+              .Replace("\"", "")
+              .Replace("inch", "", StringComparison.OrdinalIgnoreCase)
+              .Replace("in.", "", StringComparison.OrdinalIgnoreCase)
+              .Replace("in", "", StringComparison.OrdinalIgnoreCase)
+              .Replace("-", " ")
+              .Trim();
+
+            // Remove thousands separators, keep dot for decimals
+            cleaned = cleaned.Replace(",", "");
+
+            return decimal.TryParse(cleaned, System.Globalization.NumberStyles.Float,
+                                    System.Globalization.CultureInfo.InvariantCulture, out var d)
+                   ? Math.Round(d, 3)
+                   : (decimal?)null;
         }
     }
 }
