@@ -53,11 +53,7 @@ namespace CMetalsWS.Services
                 Permissions.Dashboards.View
             };
 
-            var supervisorPermissions = plannerPermissions.Concat(new[]
-            {
-                Permissions.WorkOrders.Approve,
-                Permissions.PickingLists.Dispatch
-            }).Distinct().ToArray();
+            var supervisorPermissions = plannerPermissions.Distinct().ToArray();
 
             var managerPermissions = supervisorPermissions.Concat(new[]
             {
@@ -80,7 +76,7 @@ namespace CMetalsWS.Services
 
             var driverPermissions = new[]
             {
-                Permissions.PickingLists.View, Permissions.PickingLists.Dispatch
+                Permissions.PickingLists.View
             };
 
             var viewerPermissions = new[]
