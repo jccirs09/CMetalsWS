@@ -118,6 +118,7 @@ else
 
 
 app.MapHub<ScheduleHub>("/hubs/schedule");
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.UseHttpsRedirection();
 
