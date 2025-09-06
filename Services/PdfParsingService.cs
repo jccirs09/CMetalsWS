@@ -1,33 +1,34 @@
 #pragma warning disable OPENAI001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-using CMetalsWS.Data;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading.Tasks;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
-using OpenAI;
-using OpenAI.Chat;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using CMetalsWS.Data;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using PDFtoImage;
 using SkiaSharp;
-using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace CMetalsWS.Services
 {
     public class PdfParsingService : IPdfParsingService
     {
         private readonly ILogger<PdfParsingService> _logger;
-        private readonly ChatClient _chatClient;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IConfiguration _configuration;
 
-        public PdfParsingService(ILogger<PdfParsingService> logger, IConfiguration configuration)
+        public PdfParsingService(ILogger<PdfParsingService> logger, IHttpClientFactory httpClientFactory, IConfiguration configuration)
         {
             _logger = logger;
-            _chatClient = new ChatClient(
-                model: configuration.GetValue<string>("OpenAI:Model") ?? "gpt-4o-mini",
-                apiKey: configuration.GetValue<string>("OpenAI:ApiKey")
-            );
+            _httpClientFactory = httpClientFactory;
+            _configuration = configuration;
         }
 
         public async Task<List<string>> ConvertPdfToImagesAsync(string sourcePdfPath, Guid importGuid)
@@ -50,24 +51,84 @@ namespace CMetalsWS.Services
                 var images = await Task.Run(() => Conversion.ToImages(pdfBytes));
 
                 int pageNum = 1;
-                foreach (var image in images.Take(5)) // Cap at 5 pages to prevent giant payloads
+                foreach (var image in images.Take(5)) // Cap at 5 pages
                 {
-                    using var img = image; // Dispose Skia resource
                     var imagePath = Path.Combine(outputDirectory, $"page-{pageNum}.jpeg");
-                    using (var stream = File.Create(imagePath))
+                    bool success = await ProcessAndSaveImageAsync(image, imagePath, pageNum);
+                    if (success)
                     {
-                        img.Encode(SKEncodedImageFormat.Jpeg, 85).SaveTo(stream);
+                        imagePaths.Add(imagePath);
                     }
-                    imagePaths.Add(imagePath);
                     pageNum++;
                 }
-                _logger.LogInformation("Successfully converted PDF to {PageCount} JPEG images in {Directory}", imagePaths.Count, outputDirectory);
+
+                _logger.LogInformation("Successfully processed and saved {PageCount} pages to {Directory}", imagePaths.Count, outputDirectory);
                 return imagePaths;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to convert PDF byte array to images.");
                 throw;
+            }
+        }
+
+        private async Task<bool> ProcessAndSaveImageAsync(SKBitmap originalImage, string outputPath, int pageNum)
+        {
+            const int maxDimension = 1600;
+            const long twoMegabytes = 2 * 1024 * 1024;
+
+            using (originalImage)
+            {
+                // 1. Downscale the image if it's too large
+                SKBitmap imageToEncode = originalImage;
+                if (originalImage.Width > maxDimension || originalImage.Height > maxDimension)
+                {
+                    var ratio = (double)maxDimension / Math.Max(originalImage.Width, originalImage.Height);
+                    var newWidth = (int)(originalImage.Width * ratio);
+                    var newHeight = (int)(originalImage.Height * ratio);
+
+                    var newBitmap = new SKBitmap(newWidth, newHeight);
+                    if (originalImage.ScalePixels(newBitmap, SKFilterQuality.High))
+                    {
+                        imageToEncode = newBitmap;
+                        _logger.LogInformation("Downscaled page {PageNum} from {OrigW}x{OrigH} to {NewW}x{NewH}", pageNum, originalImage.Width, originalImage.Height, newWidth, newHeight);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Failed to downscale page {PageNum}, using original.", pageNum);
+                        newBitmap.Dispose(); // Dispose the unused bitmap
+                    }
+                }
+
+                using (imageToEncode) // Ensure the potentially new bitmap is disposed
+                {
+                    // 2. Dynamically adjust JPEG quality
+                    using var ms = new MemoryStream();
+
+                    // Try quality 80
+                    imageToEncode.Encode(ms, SKEncodedImageFormat.Jpeg, 80);
+                    _logger.LogInformation("Page {PageNum} encoded at quality 80 is {Size} bytes.", pageNum, ms.Length);
+
+                    // If too large, try quality 70
+                    if (ms.Length > twoMegabytes)
+                    {
+                        _logger.LogWarning("Page {PageNum} at quality 80 is too large ({Size} bytes). Re-encoding at quality 70.", pageNum, ms.Length);
+                        ms.SetLength(0); // Reset stream
+                        imageToEncode.Encode(ms, SKEncodedImageFormat.Jpeg, 70);
+                        _logger.LogInformation("Page {PageNum} encoded at quality 70 is {Size} bytes.", pageNum, ms.Length);
+                    }
+
+                    // If still too large, skip the page
+                    if (ms.Length > twoMegabytes)
+                    {
+                        _logger.LogError("Page {PageNum} is still too large ({Size} bytes) after re-compression. Skipping.", pageNum, ms.Length);
+                        return false;
+                    }
+
+                    // 3. Save the final image to disk
+                    await File.WriteAllBytesAsync(outputPath, ms.ToArray());
+                    return true;
+                }
             }
         }
 
@@ -140,24 +201,46 @@ namespace CMetalsWS.Services
             var paths = imagePaths.Where(File.Exists).Take(5).ToList();
             if (paths.Count == 0) throw new FileNotFoundException("No valid image paths provided for vision parsing.");
 
-            var contentParts = new List<ChatMessageContentPart> { ChatMessageContentPart.CreateTextPart(prompt) };
+            var apiKey = _configuration["OpenAI:ApiKey"];
+            var model = _configuration["OpenAI:Model"] ?? "gpt-4o-mini";
+
+            var contentParts = new List<OpenAiContentPart> { new OpenAiTextContentPart("text", prompt) };
             foreach (var path in paths)
             {
-                var dataUrl = await ToDataUrlAsync(path);
-                contentParts.Add(ChatMessageContentPart.CreateImagePart(new Uri(dataUrl)));
+                var dataUrl = await BuildDataUrlAsync(path);
+                contentParts.Add(new OpenAiImageUrlContentPart("image_url", new OpenAiImageUrl(dataUrl)));
             }
 
-            var messages = new List<OpenAI.Chat.ChatMessage>
+            var payload = new
             {
-                new SystemChatMessage("Return strictly valid JSON. No prose."),
-                new UserChatMessage(contentParts)
+                model,
+                messages = new object[]
+                {
+                    new { role = "system", content = "Return strictly valid JSON. No prose." },
+                    new { role = "user", content = contentParts }
+                },
+                temperature = 0
             };
 
-            var options = new ChatCompletionOptions { Temperature = 0 };
-            var completion = await _chatClient.CompleteChatAsync(messages, options);
+            var httpClient = _httpClientFactory.CreateClient();
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
-            // Reverting to .Value.Content as the compiler requires it.
-            var text = completion.Value.Content.FirstOrDefault()?.Text?.Trim() ?? "";
+            var requestBody = JsonSerializer.Serialize(payload);
+            var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
+
+            var response = await httpClient.PostAsync("https://api.openai.com/v1/chat/completions", content);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                _logger.LogError("OpenAI API request failed with status {StatusCode}: {ErrorBody}", response.StatusCode, errorBody);
+                response.EnsureSuccessStatusCode(); // Throws HttpRequestException
+            }
+
+            var responseBody = await response.Content.ReadAsStringAsync();
+            var openAiResponse = JsonSerializer.Deserialize<OpenAiResponse>(responseBody);
+
+            var text = openAiResponse?.Choices?.FirstOrDefault()?.Message?.Content?.Trim() ?? "";
             var json = TrimToJson(text);
 
             if (string.IsNullOrWhiteSpace(json))
@@ -168,12 +251,24 @@ namespace CMetalsWS.Services
             return json;
         }
 
-        private async Task<string> ToDataUrlAsync(string path)
+        private async Task<string> BuildDataUrlAsync(string path)
         {
             var bytes = await File.ReadAllBytesAsync(path);
             var b64 = Convert.ToBase64String(bytes);
             return $"data:image/jpeg;base64,{b64}";
         }
+
+        // DTOs for serializing the request and deserializing the raw OpenAI API response
+        [JsonDerivedType(typeof(OpenAiTextContentPart))]
+        [JsonDerivedType(typeof(OpenAiImageUrlContentPart))]
+        private abstract record OpenAiContentPart([property: JsonPropertyName("type")] string Type);
+        private record OpenAiTextContentPart(string Type, [property: JsonPropertyName("text")] string Text) : OpenAiContentPart(Type);
+        private record OpenAiImageUrlContentPart(string Type, [property: JsonPropertyName("image_url")] OpenAiImageUrl ImageUrl) : OpenAiContentPart(Type);
+        private record OpenAiImageUrl([property: JsonPropertyName("url")] string Url);
+
+        private record OpenAiResponse([property: JsonPropertyName("choices")] List<OpenAiChoice> Choices);
+        private record OpenAiChoice([property: JsonPropertyName("message")] OpenAiMessage Message);
+        private record OpenAiMessage([property: JsonPropertyName("content")] string Content);
 
         private string TrimToJson(string s)
         {
