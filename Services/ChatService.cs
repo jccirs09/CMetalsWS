@@ -9,31 +9,28 @@ namespace CMetalsWS.Services
 {
     public class ChatService : IChatService
     {
-        private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
+        private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public ChatService(IDbContextFactory<ApplicationDbContext> contextFactory, UserManager<ApplicationUser> userManager)
+        public ChatService(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
         {
-            _contextFactory = contextFactory;
+            _context = context;
             _userManager = userManager;
         }
 
         public async Task<List<ApplicationUser>> GetUsersAsync()
         {
-            using var context = _contextFactory.CreateDbContext();
-            return await context.Users.ToListAsync();
+            return await _userManager.Users.ToListAsync();
         }
 
-        public async Task<ApplicationUser?> GetUserDetailsAsync(string userId)
+        public async Task<ApplicationUser> GetUserDetailsAsync(string userId)
         {
-            using var context = _contextFactory.CreateDbContext();
-            return await context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            return await _userManager.FindByIdAsync(userId);
         }
 
         public async Task<List<ChatMessage>> GetConversationAsync(string currentUserId, string contactId)
         {
-            using var context = _contextFactory.CreateDbContext();
-            return await context.ChatMessages
+            return await _context.ChatMessages
                 .Include(m => m.Sender)
                 .Where(m => (m.SenderId == currentUserId && m.RecipientId == contactId) || (m.SenderId == contactId && m.RecipientId == currentUserId))
                 .OrderBy(m => m.Timestamp)
@@ -42,36 +39,32 @@ namespace CMetalsWS.Services
 
         public async Task SaveMessageAsync(ChatMessage message)
         {
-            using var context = _contextFactory.CreateDbContext();
-            context.ChatMessages.Add(message);
-            await context.SaveChangesAsync();
+            _context.ChatMessages.Add(message);
+            await _context.SaveChangesAsync();
         }
 
         public async Task<List<ChatGroup>> GetUserGroupsAsync(string userId)
         {
-            using var context = _contextFactory.CreateDbContext();
-            return await context.ChatGroups
+            return await _context.ChatGroups
                 .Where(g => g.ChatGroupUsers.Any(gu => gu.UserId == userId))
                 .ToListAsync();
         }
 
         public async Task<List<ChatGroup>> GetAllGroupsAsync()
         {
-            using var context = _contextFactory.CreateDbContext();
-            return await context.ChatGroups.Include(g => g.Branch).ToListAsync();
+            return await _context.ChatGroups.Include(g => g.Branch).ToListAsync();
         }
 
         public async Task<ChatGroup> CreateGroupAsync(string name, int? branchId, List<string> userIds)
         {
-            using var context = _contextFactory.CreateDbContext();
             var group = new ChatGroup
             {
                 Name = name,
                 BranchId = branchId
             };
 
-            context.ChatGroups.Add(group);
-            await context.SaveChangesAsync();
+            _context.ChatGroups.Add(group);
+            await _context.SaveChangesAsync();
 
             foreach (var userId in userIds)
             {
@@ -80,17 +73,16 @@ namespace CMetalsWS.Services
                     ChatGroupId = group.Id,
                     UserId = userId
                 };
-                context.ChatGroupUsers.Add(chatGroupUser);
+                _context.ChatGroupUsers.Add(chatGroupUser);
             }
-            await context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
 
             return group;
         }
 
         public async Task UpdateGroupAsync(ChatGroup group, List<string> userIds)
         {
-            using var context = _contextFactory.CreateDbContext();
-            var existingGroup = await context.ChatGroups
+            var existingGroup = await _context.ChatGroups
                 .Include(g => g.ChatGroupUsers)
                 .FirstOrDefaultAsync(g => g.Id == group.Id);
 
@@ -105,25 +97,23 @@ namespace CMetalsWS.Services
                     existingGroup.ChatGroupUsers.Add(new ChatGroupUser { UserId = userId });
                 }
 
-                await context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
             }
         }
 
         public async Task DeleteGroupAsync(int groupId)
         {
-            using var context = _contextFactory.CreateDbContext();
-            var group = await context.ChatGroups.FindAsync(groupId);
+            var group = await _context.ChatGroups.FindAsync(groupId);
             if (group != null)
             {
-                context.ChatGroups.Remove(group);
-                await context.SaveChangesAsync();
+                _context.ChatGroups.Remove(group);
+                await _context.SaveChangesAsync();
             }
         }
 
         public async Task<List<ChatMessage>> GetGroupConversationAsync(int groupId)
         {
-            using var context = _contextFactory.CreateDbContext();
-            return await context.ChatMessages
+            return await _context.ChatMessages
                 .Include(m => m.Sender)
                 .Where(m => m.ChatGroupId == groupId)
                 .OrderBy(m => m.Timestamp)
