@@ -11,6 +11,7 @@ using OpenAI;
 using OpenAI.Chat;
 using PDFtoImage;
 using SkiaSharp;
+using System.Linq;
 
 namespace CMetalsWS.Services
 {
@@ -42,16 +43,16 @@ namespace CMetalsWS.Services
                 int pageNum = 1;
                 foreach (var image in images)
                 {
-                    var imagePath = Path.Combine(outputDirectory, $"page-{pageNum}.png");
+                    var imagePath = Path.Combine(outputDirectory, $"page-{pageNum}.jpeg");
                     using (var stream = File.Create(imagePath))
                     {
-                        image.Encode(SKEncodedImageFormat.Png, 100).SaveTo(stream);
+                        image.Encode(SKEncodedImageFormat.Jpeg, 85).SaveTo(stream);
                     }
                     imagePaths.Add(imagePath);
                     pageNum++;
                 }
 
-                _logger.LogInformation("Successfully converted PDF to {PageCount} images in {Directory}", imagePaths.Count, outputDirectory);
+                _logger.LogInformation("Successfully converted PDF to {PageCount} JPEG images in {Directory}", imagePaths.Count, outputDirectory);
                 return imagePaths;
             }
             catch (Exception ex)
@@ -68,74 +69,121 @@ namespace CMetalsWS.Services
                 throw new ArgumentException("At least one image path is required for parsing.", nameof(imagePaths));
             }
 
-            _logger.LogInformation("Using OpenAI model: {Model}", _chatClient.Model);
+            _logger.LogInformation("Starting batched parsing for {ImageCount} images.", imagePaths.Count());
 
-            var pickingList = await ParseHeaderAsync(imagePaths.First());
-            var dtoList = await ParseLineItemsAsync(imagePaths);
-            var pickingListItems = NormalizePickingListItems(dtoList);
+            PickingList? finalHeader = null;
+            var allItems = new List<PickingListItem>();
+            var imageChunks = imagePaths.Select((path, index) => new { path, index }).GroupBy(x => x.index / 5).Select(g => g.Select(x => x.path).ToList()).ToList();
 
-            return (pickingList, pickingListItems);
-        }
+            bool isFirstChunk = true;
 
-        private async Task<List<PickingListItemDto>> ParseLineItemsAsync(IEnumerable<string> imagePaths)
-        {
-            var allItems = new List<PickingListItemDto>();
-            var pageNum = 1;
-
-            foreach (var imagePath in imagePaths)
+            foreach (var chunk in imageChunks)
             {
-                _logger.LogInformation("Parsing line items from image: {ImagePath} (Page {PageNum})", imagePath, pageNum);
-
-                var prompt = @"Analyze the provided picking list image and extract all line items into a valid JSON array. Each object in the array should follow this structure:
-{
-  ""LineNumber"": ""integer"",
-  ""Quantity"": ""decimal"",
-  ""ItemId"": ""string"",
-  ""ItemDescription"": ""string"",
-  ""Width"": ""decimal | string"",
-  ""Length"": ""decimal | string"",
-  ""Weight"": ""decimal"",
-  ""Unit"": ""string (e.g., EA, FT, LB)""
-}
-Ensure that width and length values with inch marks (e.g., 60"") are preserved as strings. Default 'Unit' to 'EA' if it's not present. Respond with only the JSON array.";
-
-                var imageBytes = File.ReadAllBytes(imagePath);
-                var base64Image = Convert.ToBase64String(imageBytes);
-                var dataUri = $"data:image/png;base64,{base64Image}";
-
-                var messages = new List<OpenAI.Chat.ChatMessage>
+                var parsedResult = await ParseImageChunkAsync(chunk, isFirstChunk);
+                if (isFirstChunk && parsedResult?.Header != null)
                 {
-                    new SystemChatMessage("You are an intelligent assistant that extracts structured data from documents. Your task is to return a JSON array of line item objects. Do not include any explanatory text, just the JSON array. If there are no line items on the page, return an empty array []."),
-                    new UserChatMessage(new List<ChatMessageContentPart>
+                    var h = parsedResult.Header;
+                    finalHeader = new PickingList
                     {
-                        ChatMessageContentPart.CreateTextPart(prompt),
-                        ChatMessageContentPart.CreateImagePart(new Uri(dataUri))
-                    })
-                };
-
-                try
-                {
-                    ChatCompletion completion = await _chatClient.CompleteChatAsync(messages);
-
-                    var jsonResponse = completion.Content[0].Text;
-                    _logger.LogDebug("OpenAI raw response for line items (Page {PageNum}): {Response}", pageNum, jsonResponse);
-
-                    var items = JsonSerializer.Deserialize<List<PickingListItemDto>>(jsonResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                    if (items != null)
-                    {
-                        allItems.AddRange(items);
-                        _logger.LogInformation("Successfully parsed {ItemCount} line items from page {PageNum}", items.Count, pageNum);
-                    }
+                        SalesOrderNumber = h.SalesOrderNumber,
+                        OrderDate = h.OrderDate,
+                        ShipDate = h.ShipDate,
+                        SoldTo = h.SoldTo,
+                        ShipTo = h.ShipTo,
+                        SalesRep = h.SalesRep,
+                        ShippingVia = h.ShippingVia,
+                        FOB = h.FOB,
+                        Buyer = h.Buyer,
+                        PrintDateTime = h.PrintDateTime,
+                        TotalWeight = h.TotalWeight
+                    };
                 }
-                catch (Exception ex)
+
+                if (parsedResult?.LineItems != null)
                 {
-                    _logger.LogError(ex, "Failed to parse picking list line items from image {ImagePath}", imagePath);
+                    var normalizedItems = NormalizePickingListItems(parsedResult.LineItems);
+                    allItems.AddRange(normalizedItems);
                 }
-                pageNum++;
+
+                isFirstChunk = false;
             }
 
-            return allItems;
+            if (finalHeader == null)
+            {
+                throw new InvalidOperationException("Failed to parse picking list header from the first page(s).");
+            }
+
+            return (finalHeader, allItems);
+        }
+
+        private async Task<ParsingResultDto?> ParseImageChunkAsync(List<string> imagePaths, bool isFirstChunk)
+        {
+             _logger.LogInformation("Parsing a chunk of {ImageCount} images.", imagePaths.Count);
+
+            var prompt = @"Analyze the provided picking list image(s) and extract the header and line item information into a valid JSON object.
+- The header information will only be on the first page.
+- Line items may span multiple pages.
+- If a field is not present, use null.
+- Ensure that width and length values with inch marks (e.g., 60"") are preserved as strings.
+- Default 'Unit' to 'EA' if it's not present.
+
+The JSON structure should be:
+{
+  ""header"": {
+    ""salesOrderNumber"": ""string, from the 'Picking List No.' field"",
+    ""orderDate"": ""YYYY-MM-DD"",
+    ""shipDate"": ""YYYY-MM-DD"",
+    ""soldTo"": ""string"",
+    ""shipTo"": ""string"",
+    ""salesRep"": ""string"",
+    ""shippingVia"": ""string"",
+    ""fob"": ""string"",
+    ""buyer"": ""string | null"",
+    ""printDateTime"": ""YYYY-MM-DD HH:mm:ss"",
+    ""totalWeight"": ""decimal""
+  },
+  ""lineItems"": [
+    {
+      ""lineNumber"": ""integer"",
+      ""quantity"": ""decimal"",
+      ""itemId"": ""string"",
+      ""itemDescription"": ""string"",
+      ""width"": ""decimal | string"",
+      ""length"": ""decimal | string"",
+      ""weight"": ""decimal"",
+      ""unit"": ""string""
+    }
+  ]
+}
+
+If this is not the first page, the ""header"" field can be null.";
+
+            var contentParts = new List<ChatMessageContentPart> { ChatMessageContentPart.CreateTextPart(prompt) };
+            foreach(var imagePath in imagePaths)
+            {
+                var imageBytes = File.ReadAllBytes(imagePath);
+                var dataUri = $"data:image/jpeg;base64,{Convert.ToBase64String(imageBytes)}";
+                contentParts.Add(ChatMessageContentPart.CreateImagePart(new Uri(dataUri)));
+            }
+
+            var messages = new List<OpenAI.Chat.ChatMessage>
+            {
+                new SystemChatMessage("You are an intelligent assistant that extracts structured data from documents. Your task is to return a single JSON object. Do not include any explanatory text, just the JSON."),
+                new UserChatMessage(contentParts)
+            };
+
+            try
+            {
+                ChatCompletion completion = await _chatClient.CompleteChatAsync(messages);
+                var jsonResponse = completion.Content[0].Text;
+                _logger.LogDebug("OpenAI raw response for chunk: {Response}", jsonResponse);
+                return JsonSerializer.Deserialize<ParsingResultDto>(jsonResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError(ex, "Failed to parse image chunk.");
+                return null;
+            }
         }
 
         private List<PickingListItem> NormalizePickingListItems(List<PickingListItemDto> dtos)
@@ -188,64 +236,6 @@ Ensure that width and length values with inch marks (e.g., 60"") are preserved a
                 result.Add(item);
             }
             return result;
-        }
-
-        private async Task<PickingList> ParseHeaderAsync(string imagePath)
-        {
-            _logger.LogInformation("Parsing header from image: {ImagePath}", imagePath);
-
-            var prompt = @"Analyze the provided picking list image and extract the header information into a valid JSON object. The structure should be:
-{
-  ""SalesOrderNumber"": ""string"",
-  ""OrderDate"": ""YYYY-MM-DD"",
-  ""ShipDate"": ""YYYY-MM-DD"",
-  ""SoldTo"": ""string"",
-  ""ShipTo"": ""string"",
-  ""SalesRep"": ""string"",
-  ""ShippingVia"": ""string"",
-  ""FOB"": ""string"",
-  ""Buyer"": ""string | null"",
-  ""PrintDateTime"": ""YYYY-MM-DD HH:mm:ss"",
-  ""TotalWeight"": ""decimal""
-}
-Respond with only the JSON object.";
-
-            var imageBytes = File.ReadAllBytes(imagePath);
-            var base64Image = Convert.ToBase64String(imageBytes);
-            var dataUri = $"data:image/png;base64,{base64Image}";
-
-            var messages = new List<OpenAI.Chat.ChatMessage>
-            {
-                new SystemChatMessage("You are an intelligent assistant that extracts structured data from documents. Your task is to return a JSON object with the extracted header data. Do not include any explanatory text, just the JSON."),
-                new UserChatMessage(new List<ChatMessageContentPart>
-                {
-                    ChatMessageContentPart.CreateTextPart(prompt),
-                    ChatMessageContentPart.CreateImagePart(new Uri(dataUri))
-                })
-            };
-
-            try
-            {
-                ChatCompletion completion = await _chatClient.CompleteChatAsync(messages);
-
-                var jsonResponse = completion.Content[0].Text;
-                _logger.LogDebug("OpenAI raw response for header: {Response}", jsonResponse);
-
-                var parsedHeader = JsonSerializer.Deserialize<PickingList>(jsonResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                if (parsedHeader == null)
-                {
-                    throw new InvalidOperationException("Failed to deserialize header JSON from OpenAI response.");
-                }
-
-                _logger.LogInformation("Successfully parsed header for SO: {SalesOrderNumber}", parsedHeader.SalesOrderNumber);
-                return parsedHeader;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to parse picking list header from image {ImagePath}", imagePath);
-                throw;
-            }
         }
     }
 }
