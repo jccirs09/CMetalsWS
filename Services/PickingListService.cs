@@ -355,7 +355,7 @@ namespace CMetalsWS.Services
 
             var importGuid = Guid.NewGuid();
             var imagesDir = System.IO.Path.Combine("wwwroot", "uploads", "pickinglists", importGuid.ToString());
-            var newImport = await _importService.CreateImportAsync(pickingList.BranchId, latestImport.SourcePdfPath, imagesDir, _configuration["OpenAI:Model"] ?? "gpt-4o-mini");
+            var newImport = await _importService.CreateImportAsync(pickingList.BranchId, latestImport.SourcePdfPath, imagesDir, _configuration.GetValue<string>("OpenAI:Model") ?? "gpt-4o-mini");
 
             try
             {

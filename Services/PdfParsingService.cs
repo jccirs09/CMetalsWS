@@ -12,19 +12,18 @@ using OpenAI.Chat;
 using PDFtoImage;
 using SkiaSharp;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace CMetalsWS.Services
 {
     public class PdfParsingService : IPdfParsingService
     {
         private readonly ILogger<PdfParsingService> _logger;
-        private readonly IConfiguration _configuration;
         private readonly ChatClient _chatClient;
 
         public PdfParsingService(ILogger<PdfParsingService> logger, IConfiguration configuration)
         {
             _logger = logger;
-            _configuration = configuration;
             _chatClient = new ChatClient(
                 model: configuration.GetValue<string>("OpenAI:Model") ?? "gpt-4o-mini",
                 apiKey: configuration.GetValue<string>("OpenAI:ApiKey")
@@ -51,7 +50,6 @@ namespace CMetalsWS.Services
                     imagePaths.Add(imagePath);
                     pageNum++;
                 }
-
                 _logger.LogInformation("Successfully converted PDF to {PageCount} JPEG images in {Directory}", imagePaths.Count, outputDirectory);
                 return imagePaths;
             }
@@ -69,173 +67,143 @@ namespace CMetalsWS.Services
                 throw new ArgumentException("At least one image path is required for parsing.", nameof(imagePaths));
             }
 
-            _logger.LogInformation("Starting batched parsing for {ImageCount} images.", imagePaths.Count());
+            var header = await ParseHeaderAsync(imagePaths.First());
+            var lineItems = await ParseLineItemsAsync(imagePaths);
 
-            PickingList? finalHeader = null;
-            var allItems = new List<PickingListItem>();
-            var imageChunks = imagePaths.Select((path, index) => new { path, index }).GroupBy(x => x.index / 5).Select(g => g.Select(x => x.path).ToList()).ToList();
-
-            bool isFirstChunk = true;
-
-            foreach (var chunk in imageChunks)
-            {
-                var parsedResult = await ParseImageChunkAsync(chunk, isFirstChunk);
-                if (isFirstChunk && parsedResult?.Header != null)
-                {
-                    var h = parsedResult.Header;
-                    finalHeader = new PickingList
-                    {
-                        SalesOrderNumber = h.SalesOrderNumber,
-                        OrderDate = h.OrderDate,
-                        ShipDate = h.ShipDate,
-                        SoldTo = h.SoldTo,
-                        ShipTo = h.ShipTo,
-                        SalesRep = h.SalesRep,
-                        ShippingVia = h.ShippingVia,
-                        FOB = h.FOB,
-                        Buyer = h.Buyer,
-                        PrintDateTime = h.PrintDateTime,
-                        TotalWeight = h.TotalWeight
-                    };
-                }
-
-                if (parsedResult?.LineItems != null)
-                {
-                    var normalizedItems = NormalizePickingListItems(parsedResult.LineItems);
-                    allItems.AddRange(normalizedItems);
-                }
-
-                isFirstChunk = false;
-            }
-
-            if (finalHeader == null)
-            {
-                throw new InvalidOperationException("Failed to parse picking list header from the first page(s).");
-            }
-
-            return (finalHeader, allItems);
+            return (header, lineItems);
         }
 
-        private async Task<ParsingResultDto?> ParseImageChunkAsync(List<string> imagePaths, bool isFirstChunk)
+        private async Task<PickingList> ParseHeaderAsync(string imagePath)
         {
-             _logger.LogInformation("Parsing a chunk of {ImageCount} images.", imagePaths.Count);
+            var prompt = @"Return ONLY a JSON object with: { ""salesOrderNumber"": ""string, from the 'Picking List No.' field"", ""orderDate"": ""YYYY-MM-DD"", ""shipDate"": ""YYYY-MM-DD"", ""soldTo"": ""string"", ""shipTo"": ""string"", ""salesRep"": ""string"", ""shippingVia"": ""string"", ""fob"": ""string"", ""totalWeight"": number, ""buyer"": ""string | null"", ""printDateTime"": ""YYYY-MM-DD HH:mm:ss"" }";
+            var json = await GetJsonFromVisionAsync(new[] { imagePath }, prompt);
 
-            var prompt = @"Analyze the provided picking list image(s) and extract the header and line item information into a valid JSON object.
-- The header information will only be on the first page.
-- Line items may span multiple pages.
-- If a field is not present, use null.
-- Ensure that width and length values with inch marks (e.g., 60"") are preserved as strings.
-- Default 'Unit' to 'EA' if it's not present.
+            var parsedHeader = JsonSerializer.Deserialize<PickingListHeaderDto>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (parsedHeader == null)
+            {
+                throw new InvalidOperationException("Failed to deserialize header from OpenAI response.");
+            }
 
-The JSON structure should be:
-{
-  ""header"": {
-    ""salesOrderNumber"": ""string, from the 'Picking List No.' field"",
-    ""orderDate"": ""YYYY-MM-DD"",
-    ""shipDate"": ""YYYY-MM-DD"",
-    ""soldTo"": ""string"",
-    ""shipTo"": ""string"",
-    ""salesRep"": ""string"",
-    ""shippingVia"": ""string"",
-    ""fob"": ""string"",
-    ""buyer"": ""string | null"",
-    ""printDateTime"": ""YYYY-MM-DD HH:mm:ss"",
-    ""totalWeight"": ""decimal""
-  },
-  ""lineItems"": [
-    {
-      ""lineNumber"": ""integer"",
-      ""quantity"": ""decimal"",
-      ""itemId"": ""string"",
-      ""itemDescription"": ""string"",
-      ""width"": ""decimal | string"",
-      ""length"": ""decimal | string"",
-      ""weight"": ""decimal"",
-      ""unit"": ""string""
-    }
-  ]
-}
+            return new PickingList
+            {
+                SalesOrderNumber = parsedHeader.SalesOrderNumber,
+                OrderDate = parsedHeader.OrderDate,
+                ShipDate = parsedHeader.ShipDate,
+                SoldTo = parsedHeader.SoldTo,
+                ShipTo = parsedHeader.ShipTo,
+                SalesRep = parsedHeader.SalesRep,
+                ShippingVia = parsedHeader.ShippingVia,
+                FOB = parsedHeader.FOB,
+                Buyer = parsedHeader.Buyer,
+                PrintDateTime = parsedHeader.PrintDateTime,
+                TotalWeight = parsedHeader.TotalWeight
+            };
+        }
 
-If this is not the first page, the ""header"" field can be null.";
+        private async Task<List<PickingListItem>> ParseLineItemsAsync(IEnumerable<string> imagePaths)
+        {
+            var prompt = @"Return ONLY a JSON array of line items: [ { ""lineNumber"": int, ""quantity"": number, ""itemId"": string, ""itemDescription"": string, ""width"": number|string, ""length"": number|string, ""weight"": number, ""unit"": string } ]";
+            var json = await GetJsonFromVisionAsync(imagePaths, prompt);
+
+            var dtos = JsonSerializer.Deserialize<List<PickingListItemDto>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (dtos == null)
+            {
+                return new List<PickingListItem>();
+            }
+
+            return dtos.Select(dto => new PickingListItem
+            {
+                LineNumber = dto.LineNumber,
+                Quantity = dto.Quantity,
+                ItemId = dto.ItemId,
+                ItemDescription = dto.ItemDescription,
+                Width = NormalizeDimension(dto.Width),
+                Length = NormalizeDimension(dto.Length),
+                Weight = dto.Weight,
+                Unit = string.IsNullOrWhiteSpace(dto.Unit) ? "EA" : dto.Unit
+            }).ToList();
+        }
+
+        private async Task<string> GetJsonFromVisionAsync(IEnumerable<string> imagePaths, string prompt)
+        {
+            var paths = imagePaths.Where(File.Exists).Take(5).ToList();
+            if (paths.Count == 0) throw new FileNotFoundException("No valid image paths provided for vision parsing.");
 
             var contentParts = new List<ChatMessageContentPart> { ChatMessageContentPart.CreateTextPart(prompt) };
-            foreach(var imagePath in imagePaths)
+            foreach (var path in paths)
             {
-                var imageBytes = File.ReadAllBytes(imagePath);
-                var dataUri = $"data:image/jpeg;base64,{Convert.ToBase64String(imageBytes)}";
-                contentParts.Add(ChatMessageContentPart.CreateImagePart(new Uri(dataUri)));
+                var dataUrl = await ToDataUrlAsync(path);
+                contentParts.Add(ChatMessageContentPart.CreateImagePart(new Uri(dataUrl)));
             }
 
             var messages = new List<OpenAI.Chat.ChatMessage>
             {
-                new SystemChatMessage("You are an intelligent assistant that extracts structured data from documents. Your task is to return a single JSON object. Do not include any explanatory text, just the JSON."),
+                new SystemChatMessage("Return strictly valid JSON. No prose."),
                 new UserChatMessage(contentParts)
             };
 
-            try
-            {
-                ChatCompletion completion = await _chatClient.CompleteChatAsync(messages);
-                var jsonResponse = completion.Content[0].Text;
-                _logger.LogDebug("OpenAI raw response for chunk: {Response}", jsonResponse);
-                return JsonSerializer.Deserialize<ParsingResultDto>(jsonResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            }
-            catch(Exception ex)
-            {
-                _logger.LogError(ex, "Failed to parse image chunk.");
-                return null;
-            }
+            var options = new ChatCompletionOptions { Temperature = 0 };
+            var completion = await _chatClient.CompleteChatAsync(messages, options);
+            var json = completion.Value.Content[0].Text?.Trim() ?? "null";
+
+            return TrimToJson(json);
         }
 
-        private List<PickingListItem> NormalizePickingListItems(List<PickingListItemDto> dtos)
+        private async Task<string> ToDataUrlAsync(string path)
         {
-            var result = new List<PickingListItem>();
-            foreach (var dto in dtos)
+            var bytes = await File.ReadAllBytesAsync(path);
+            var b64 = Convert.ToBase64String(bytes);
+            return $"data:image/jpeg;base64,{b64}";
+        }
+
+        private string TrimToJson(string s)
+        {
+            int objStart = s.IndexOf('{');
+            int objEnd = s.LastIndexOf('}');
+            int arrStart = s.IndexOf('[');
+            int arrEnd = s.LastIndexOf(']');
+
+            bool hasObj = objStart >= 0 && objEnd > objStart;
+            bool hasArr = arrStart >= 0 && arrEnd > arrStart;
+
+            if (hasArr && (!hasObj || arrStart < objStart))
+                return s.Substring(arrStart, arrEnd - arrStart + 1);
+
+            if (hasObj)
+                return s.Substring(objStart, objEnd - objStart + 1);
+
+            return s;
+        }
+
+        private decimal? NormalizeDimension(object? dimension)
+        {
+            if (dimension == null) return null;
+
+            if (dimension is decimal d) return d;
+            if (dimension is JsonElement je)
             {
-                var item = new PickingListItem
+                if (je.ValueKind == JsonValueKind.Number) return je.GetDecimal();
+                if (je.ValueKind == JsonValueKind.String)
                 {
-                    LineNumber = dto.LineNumber,
-                    Quantity = dto.Quantity,
-                    ItemId = dto.ItemId,
-                    ItemDescription = dto.ItemDescription,
-                    Weight = dto.Weight,
-                    Unit = string.IsNullOrWhiteSpace(dto.Unit) ? "EA" : dto.Unit
-                };
-
-                if (dto.Width is JsonElement widthElement)
-                {
-                    if (widthElement.ValueKind == JsonValueKind.String)
-                    {
-                        var widthStr = widthElement.GetString() ?? "";
-                        if (widthStr.EndsWith("\"") && decimal.TryParse(widthStr.TrimEnd('"'), out var width))
-                        {
-                            item.Width = width;
-                        }
-                    }
-                    else if (widthElement.ValueKind == JsonValueKind.Number)
-                    {
-                        item.Width = widthElement.GetDecimal();
-                    }
+                    var s = je.GetString();
+                    if (s == null) return null;
+                    return ParseDimensionString(s);
                 }
-
-                if (dto.Length is JsonElement lengthElement)
-                {
-                    if (lengthElement.ValueKind == JsonValueKind.String)
-                    {
-                        var lengthStr = lengthElement.GetString() ?? "";
-                        if (lengthStr.EndsWith("\"") && decimal.TryParse(lengthStr.TrimEnd('"'), out var length))
-                        {
-                            item.Length = length;
-                        }
-                    }
-                    else if (lengthElement.ValueKind == JsonValueKind.Number)
-                    {
-                        item.Length = lengthElement.GetDecimal();
-                    }
-                }
-
-                result.Add(item);
             }
-            return result;
+
+            return ParseDimensionString(dimension.ToString());
+        }
+
+        private decimal? ParseDimensionString(string? s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return null;
+
+            var cleaned = Regex.Replace(s, @"[""in\s-]", "").Trim();
+            if (decimal.TryParse(cleaned, out var result))
+            {
+                return Math.Round(result, 3);
+            }
+            return null;
         }
     }
 }
