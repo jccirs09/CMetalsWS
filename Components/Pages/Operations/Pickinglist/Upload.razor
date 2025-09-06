@@ -10,6 +10,7 @@
 @inject BranchService BranchService
 @inject IPdfParsingService PdfParsingService
 @inject IPickingListImportService ImportService
+@inject IParsingStateService ParsingStateService
 @inject PickingListService PickingListService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavManager
@@ -167,48 +168,16 @@
 
             // 5. Parse with OpenAI
             var (parsedList, parsedItems) = await PdfParsingService.ParsePickingListAsync(imagePaths);
-            _statusMessage = "AI parsing complete. Saving to database...";
+            _statusMessage = "AI parsing complete. Redirecting to review page...";
             StateHasChanged();
 
-            // 6. Upsert data
-            var pickingListId = await PickingListService.UpsertFromParsedDataAsync(_model.BranchId.Value, parsedList, parsedItems);
+            // 6. Store in state service and redirect for user review
+            // The data is NOT saved to the database yet.
+            parsedList.BranchId = _model.BranchId.Value;
+            ParsingStateService.ParsedPickingList = parsedList;
+            ParsingStateService.ParsedItems = parsedItems;
 
-            // 7. Update import record
-            var headerDto = new
-            {
-                parsedList.SalesOrderNumber,
-                parsedList.OrderDate,
-                parsedList.ShipDate,
-                parsedList.SoldTo,
-                parsedList.ShipTo,
-                parsedList.SalesRep,
-                parsedList.ShippingVia,
-                parsedList.FOB,
-                parsedList.Buyer,
-                parsedList.PrintDateTime,
-                parsedList.TotalWeight
-            };
-            var itemsDto = parsedItems.Select(i => new
-            {
-                i.LineNumber,
-                i.Quantity,
-                i.ItemId,
-                i.ItemDescription,
-                i.Width,
-                i.Length,
-                i.Weight,
-                i.Unit,
-                i.MachineId
-            }).ToList();
-            var rawJson = System.Text.Json.JsonSerializer.Serialize(new { header = headerDto, items = itemsDto });
-            await ImportService.UpdateImportSuccessAsync(importRecord.Id, pickingListId, rawJson);
-
-            _statusMessage = "Processing complete!";
-            _statusSeverity = Severity.Success;
-            Snackbar.Add("Successfully processed picking list.", Severity.Success);
-
-            // 8. Redirect to review page
-            NavManager.NavigateTo($"/picking-lists/{pickingListId}");
+            NavManager.NavigateTo("/picking-lists/review-new");
         }
         catch (Exception ex)
         {
