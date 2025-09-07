@@ -64,6 +64,9 @@
                             }
                         </MudSelect>
                     </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudDatePicker Label="Ship Date" Date="Model.ShipDate" DateChanged="OnMainShipDateChanged" />
+                    </MudItem>
                 </MudGrid>
 
                 <MudDivider Class="my-4" />
@@ -211,6 +214,19 @@
         Model.CustomerId = c.Id;
     }
 
+    private void OnMainShipDateChanged(DateTime? newDate)
+    {
+        Model.ShipDate = newDate;
+        if (Model.ShipDate.HasValue)
+        {
+            foreach (var item in Model.Items)
+            {
+                item.ScheduledShipDate = Model.ShipDate;
+            }
+        }
+        StateHasChanged();
+    }
+
     private async Task AddItem()
     {
         if (!CanAddOrEdit) return;
@@ -223,7 +239,8 @@
                 ItemDescription = string.Empty,
                 LineNumber = (Model.Items.Any() ? Model.Items.Max(i => i.LineNumber) : 0) + 1,
                 Unit = "EA",
-                Status = PickingLineStatus.Pending
+                Status = PickingLineStatus.Pending,
+                ScheduledShipDate = Model.ShipDate
             },
             ["Machines"] = Machines,
             ["Title"] = "Add Line"
