@@ -59,6 +59,10 @@
                 <MudNavLink Href="/picking-lists" Icon="@Icons.Material.Filled.Inventory2">Picking Lists</MudNavLink>
                 <MudNavLink Href="/picking-lists/upload" Icon="@Icons.Material.Filled.Inventory2">Upload Picking List</MudNavLink>
                 <MudNavLink Href="/pulling-tasks" Icon="@Icons.Material.Filled.PanTool">Pulling Tasks</MudNavLink>
+                @if (canAssignPickingLists)
+                {
+                    <MudNavLink Href="/operations/pulling/sheet-queue" Icon="@Icons.Material.Filled.ViewList">Sheet Pulling Queue</MudNavLink>
+                }
                 <MudNavLink Href="/operations/item-relations" Icon="@Icons.Material.Filled.Link">Item Relationships</MudNavLink>
             }
         </MudNavGroup>
@@ -112,6 +116,7 @@
     private bool canTrucks;
     private bool canWorkOrders;
     private bool canPickingLists;
+    private bool canAssignPickingLists;
     private bool isManager;
 
     protected override async Task OnInitializedAsync()
@@ -132,6 +137,7 @@
         canTrucks = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Trucks.View)).Succeeded;
         canWorkOrders = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.WorkOrders.View)).Succeeded;
         canPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.View)).Succeeded;
+        canAssignPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.Assign)).Succeeded;
         isManager = user.IsInRole("Manager");
     }
 

@@ -43,14 +43,29 @@
 
     <MudTable Items="lists" Hover="true" Dense="true" Context="pickingList">
         <HeaderContent>
+            <MudTh>Priority</MudTh>
             <MudTh>SO #</MudTh>
             <MudTh>Customer</MudTh>
             <MudTh>Loc</MudTh>
             <MudTh>Status</MudTh>
+            <MudTh>Ship Date</MudTh>
             <MudTh Class="text-right">Total Wt</MudTh>
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
+            <MudTd DataLabel="Priority">
+                @if (_canEditInline)
+                {
+                    <MudNumericField Value="pickingList.Priority"
+                                     ValueChanged="@((int p) => OnPriorityChanged(pickingList, p))"
+                                     Variant="Variant.Text"
+                                     Margin="Margin.Dense" />
+                }
+                else
+                {
+                    @pickingList.Priority
+                }
+            </MudTd>
             <MudTd DataLabel="SO #">
                 <MudButton Variant="Variant.Text"
                            Color="Color.Primary"
@@ -62,7 +77,31 @@
             </MudTd>
             <MudTd DataLabel="Customer">@pickingList.Customer?.CustomerName</MudTd>
             <MudTd DataLabel="Loc">@pickingList.Customer?.LocationCode</MudTd>
-            <MudTd DataLabel="Status">@pickingList.Status</MudTd>
+            <MudTd DataLabel="Status">
+                @if (_canEditInline)
+                {
+                    <MudSelect T="PickingListStatus" Value="pickingList.Status" ValueChanged="@((PickingListStatus newStatus) => OnStatusChanged(pickingList, newStatus))" Dense="true" Margin="Margin.Dense">
+                        @foreach (var status in Enum.GetValues<PickingListStatus>())
+                        {
+                            <MudSelectItem T="PickingListStatus" Value="@status">@status.ToString()</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+                else
+                {
+                    @pickingList.Status
+                }
+            </MudTd>
+            <MudTd DataLabel="Ship Date">
+                @if (_canEditInline)
+                {
+                    <MudDatePicker Date="pickingList.ShipDate" DateChanged="@((DateTime? newDate) => OnShipDateChanged(pickingList, newDate))" Editable="true" Dense="true" Margin="Margin.Dense" />
+                }
+                else
+                {
+                    @pickingList.ShipDate?.ToString("yyyy-MM-dd")
+                }
+            </MudTd>
             <MudTd DataLabel="Total Wt" Class="text-right">@pickingList.TotalWeight.ToString("N3")</MudTd>
             <MudTd DataLabel="Actions">
                 @if (_canEdit)
@@ -88,6 +127,7 @@
     private Branch? userBranch;
     private bool _canEdit;
     private bool _canDelete;
+    private bool _canEditInline;
 
     protected override async Task OnInitializedAsync()
     {
@@ -95,6 +135,15 @@
         var user = authState.User;
         _canEdit = (await AuthorizationService.AuthorizeAsync(user, Permissions.PickingLists.Edit)).Succeeded;
         _canDelete = (await AuthorizationService.AuthorizeAsync(user, Permissions.PickingLists.Delete)).Succeeded;
+
+        if (user.Identity is not null && user.Identity.IsAuthenticated)
+        {
+            _canEditInline = user.IsInRole("Planner") ||
+                             user.IsInRole("Supervisor") ||
+                             user.IsInRole("Manager") ||
+                             user.IsInRole("Admin");
+        }
+
         await LoadUserContextAsync();
         await LoadAsync();
     }
@@ -294,4 +343,26 @@
                 Status = i.Status
             }).OrderBy(i => i.LineNumber).ToList()
         };
+
+    private async Task OnStatusChanged(PickingList list, PickingListStatus newStatus)
+    {
+        list.Status = newStatus;
+        await PickingListService.UpdateAsync(list);
+        Snackbar.Add($"Status for SO #{list.SalesOrderNumber} updated.", Severity.Success);
+    }
+
+    private async Task OnShipDateChanged(PickingList list, DateTime? newDate)
+    {
+        list.ShipDate = newDate;
+        await PickingListService.UpdateAsync(list);
+        Snackbar.Add($"Ship Date for SO #{list.SalesOrderNumber} updated.", Severity.Success);
+    }
+
+    private async Task OnPriorityChanged(PickingList list, int newPriority)
+    {
+        list.Priority = newPriority;
+        await PickingListService.UpdateAsync(list);
+        Snackbar.Add($"Priority for SO #{list.SalesOrderNumber} updated.", Severity.Success);
+        await LoadAsync();
+    }
 }
