@@ -333,19 +333,63 @@
 
     private void Cancel() => Dialog.Cancel();
 
+    private DateTime? CalculateAutoScheduleDate()
+    {
+        if (!Model.ShipDate.HasValue) return null;
+
+        var shippingDate = Model.ShipDate.Value.Date;
+        var pullDate = shippingDate.AddDays(-1);
+
+        if (pullDate.DayOfWeek == DayOfWeek.Saturday)
+        {
+            pullDate = pullDate.AddDays(-1); // Becomes Friday
+        }
+        else if (pullDate.DayOfWeek == DayOfWeek.Sunday)
+        {
+            pullDate = pullDate.AddDays(-2); // Becomes Friday
+        }
+
+        return pullDate.AddHours(8);
+    }
+
     private void OnMachineChanged(PickingListItem item, int? machineId)
     {
         item.MachineId = machineId;
-        if (machineId.HasValue)
+        var machine = machineId.HasValue ? Machines.FirstOrDefault(m => m.Id == machineId.Value) : null;
+        var autoScheduleDate = CalculateAutoScheduleDate();
+
+        if (machine != null)
         {
             item.Status = PickingLineStatus.AssignedPulling;
+
+            if (machine.Name.Contains("Sheet", StringComparison.OrdinalIgnoreCase))
+            {
+                if (autoScheduleDate.HasValue)
+                {
+                    item.ScheduledShipDate = autoScheduleDate;
+                    Snackbar.Add($"Item auto-scheduled for pulling on {item.ScheduledShipDate:yyyy-MM-dd HH:mm}.", Severity.Info);
+                }
+            }
+            else
+            {
+                // It's not a sheet machine. Clear the date only if it was the one we would have set automatically.
+                if (item.ScheduledShipDate.HasValue && item.ScheduledShipDate.Value == autoScheduleDate)
+                {
+                    item.ScheduledShipDate = null;
+                }
+            }
         }
-        else
+        else // Machine is unassigned
         {
-            // Revert status if machine is unassigned
             if (item.Status == PickingLineStatus.AssignedPulling)
             {
                 item.Status = PickingLineStatus.Pending;
+            }
+
+            // Also clear auto-scheduled date on unassign
+            if (item.ScheduledShipDate.HasValue && item.ScheduledShipDate.Value == autoScheduleDate)
+            {
+                item.ScheduledShipDate = null;
             }
         }
         StateHasChanged();
