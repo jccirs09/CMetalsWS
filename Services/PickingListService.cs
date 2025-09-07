@@ -263,6 +263,20 @@ namespace CMetalsWS.Services
             return await query.OrderBy(i => i.PickingList!.Id).ToListAsync();
         }
 
+        public async Task<List<PickingListItem>> GetSheetPullingQueueAsync()
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            return await db.PickingListItems
+                .Include(i => i.PickingList)
+                .Include(i => i.Machine)
+                .Where(i => i.Status == PickingLineStatus.AssignedPulling &&
+                            i.Machine != null &&
+                            i.Machine.Category == MachineCategory.Sheet)
+                .OrderBy(i => i.PickingList.Priority)
+                .ThenBy(i => i.PickingList.ShipDate)
+                .ToListAsync();
+        }
+
         public async Task UpdatePulledQuantitiesAsync(int itemId, decimal? pulledQuantity, decimal pulledWeight)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();

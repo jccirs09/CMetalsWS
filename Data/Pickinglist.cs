@@ -53,6 +53,8 @@ namespace CMetalsWS.Data
 
         public PickingListStatus Status { get; set; }
 
+        public int Priority { get; set; } = 99;
+
         public virtual ICollection<PickingListItem> Items { get; set; } = new List<PickingListItem>();
     }
 

@@ -43,6 +43,7 @@
 
     <MudTable Items="lists" Hover="true" Dense="true" Context="pickingList">
         <HeaderContent>
+            <MudTh>Priority</MudTh>
             <MudTh>SO #</MudTh>
             <MudTh>Customer</MudTh>
             <MudTh>Loc</MudTh>
@@ -52,6 +53,19 @@
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
+            <MudTd DataLabel="Priority">
+                @if (_canEditInline)
+                {
+                    <MudNumericField Value="pickingList.Priority"
+                                     ValueChanged="@((int p) => OnPriorityChanged(pickingList, p))"
+                                     Variant="Variant.Text"
+                                     Margin="Margin.Dense" />
+                }
+                else
+                {
+                    @pickingList.Priority
+                }
+            </MudTd>
             <MudTd DataLabel="SO #">
                 <MudButton Variant="Variant.Text"
                            Color="Color.Primary"
@@ -342,5 +356,13 @@
         list.ShipDate = newDate;
         await PickingListService.UpdateAsync(list);
         Snackbar.Add($"Ship Date for SO #{list.SalesOrderNumber} updated.", Severity.Success);
+    }
+
+    private async Task OnPriorityChanged(PickingList list, int newPriority)
+    {
+        list.Priority = newPriority;
+        await PickingListService.UpdateAsync(list);
+        Snackbar.Add($"Priority for SO #{list.SalesOrderNumber} updated.", Severity.Success);
+        await LoadAsync();
     }
 }
