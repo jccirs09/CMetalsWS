@@ -17,5 +17,6 @@ namespace CMetalsWS.Services
         Task DeleteGroupAsync(int groupId);
         Task<List<ChatMessage>> GetGroupConversationAsync(int groupId);
         Task<List<ChatMessage>> GetRecentConversationsAsync(string userId);
+        Task<ChatGroup?> GetGroupAsync(int groupId);
     }
 }

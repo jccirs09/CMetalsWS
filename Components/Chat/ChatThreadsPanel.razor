@@ -22,20 +22,20 @@
                 {
                     <MudListItem T="ChatMessage" OnClick="() => OnConversationSelected.InvokeAsync(message)">
                         <ChildContent>
-                            <MudBadge Color="@((m.SenderId == _currentUserId ? m.Recipient.IsOnline : m.Sender.IsOnline) ? Color.Success : Color.Error)" Overlap="true" Bordered="true" Dot="true" Style="z-index:1">
+                            <MudBadge Color="@((message.SenderId == _currentUserId ? message.Recipient.IsOnline : message.Sender.IsOnline) ? Color.Success : Color.Error)" Overlap="true" Bordered="true" Dot="true" Style="z-index:1">
                                 <MudAvatar>
-                                    @if (!string.IsNullOrEmpty(m.SenderId == _currentUserId ? m.Recipient.Avatar : m.Sender.Avatar))
+                                    @if (!string.IsNullOrEmpty(message.SenderId == _currentUserId ? message.Recipient.Avatar : message.Sender.Avatar))
                                     {
-                                        <MudImage Src="@(m.SenderId == _currentUserId ? m.Recipient.Avatar : m.Sender.Avatar)" />
+                                        <MudImage Src="@(message.SenderId == _currentUserId ? message.Recipient.Avatar : message.Sender.Avatar)" />
                                     }
                                     else
                                     {
-                                        @($"{ (m.SenderId == _currentUserId ? m.Recipient.FirstName?.FirstOrDefault() : m.Sender.FirstName?.FirstOrDefault()) }{ (m.SenderId == _currentUserId ? m.Recipient.LastName?.FirstOrDefault() : m.Sender.LastName?.FirstOrDefault()) }")
+                                        @($"{ (message.SenderId == _currentUserId ? message.Recipient.FirstName?.FirstOrDefault() : message.Sender.FirstName?.FirstOrDefault()) }{ (message.SenderId == _currentUserId ? message.Recipient.LastName?.FirstOrDefault() : message.Sender.LastName?.FirstOrDefault()) }")
                                     }
                                 </MudAvatar>
                             </MudBadge>
                             <div class="ml-4">
-                                <MudText>@(m.SenderId == _currentUserId ? m.Recipient?.UserName : m.Sender?.UserName)</MudText>
+                                <MudText>@(message.SenderId == _currentUserId ? message.Recipient?.UserName : message.Sender?.UserName)</MudText>
                                 <MudText Typo="Typo.caption">@message.Content</MudText>
                             </div>
                         </ChildContent>

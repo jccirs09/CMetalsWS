@@ -12,6 +12,7 @@ namespace CMetalsWS.Components.Layout
     {
         [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
         [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+        [Inject] private IChatService ChatService { get; set; } = default!;
 
         private bool _isDarkMode = false;
         private bool _drawerOpen = true;
@@ -93,7 +94,11 @@ namespace CMetalsWS.Components.Layout
         {
             if (message.ChatGroupId.HasValue)
             {
-                OpenChatWindow(message.Group);
+                var group = await ChatService.GetGroupAsync(message.ChatGroupId.Value);
+                if (group != null)
+                {
+                    OpenChatWindow(group);
+                }
             }
             else
             {
