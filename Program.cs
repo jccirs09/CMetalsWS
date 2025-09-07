@@ -102,6 +102,7 @@ builder.Services.AddScoped<ITaskAuditEventService, TaskAuditEventService>();
 // Picking List PDF Parser
 builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();
 builder.Services.AddScoped<IPickingListImportService, PickingListImportService>();
+builder.Services.AddScoped<IParsingStateService, ParsingStateService>();
 
 
 builder.Services.AddScoped<IChatService, ChatService>();

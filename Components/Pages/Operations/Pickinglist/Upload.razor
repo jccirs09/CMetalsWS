@@ -10,7 +10,7 @@
 @inject BranchService BranchService
 @inject IPdfParsingService PdfParsingService
 @inject IPickingListImportService ImportService
-@inject IPickingListImportService ImportService
+@inject IParsingStateService ParsingStateService
 @inject PickingListService PickingListService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavManager
@@ -23,40 +23,39 @@
 
 <MudCard>
     <MudCardContent>
-        <EditForm Model="@_model" OnValidSubmit="OnSubmit">
-            <DataAnnotationsValidator />
-            <MudGrid Justify="Justify.Center">
-                <MudItem xs="12" sm="10" md="8">
-                    <InputFile OnChange="OnFileChanged" accept=".pdf,application/pdf" class="mud-width-full" id="fileInput">
-                        <MudPaper @ondragenter="@(() => _isDragEnter = true)"
-                                  @ondragleave="@(() => _isDragEnter = false)"
-                                  @ondrop="@(() => _isDragEnter = false)"
-                                  Class="@($"pa-8 d-flex flex-column align-center justify-center mud-width-full mud-border-dashed mud-border-2 {( _isDragEnter ? "mud-border-primary" : "mud-border-lines-default" )}")"
-                                  Style="min-height: 200px; cursor: pointer;">
-                            <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" />
-                            <MudText Typo="Typo.h6" Class="mt-4">Drag and Drop PDF Here or Click</MudText>
-                        </MudPaper>
-                    </InputFile>
-                </MudItem>
-                <MudItem xs="12" Class="d-flex justify-center">
-                    @if (_model.File != null)
-                    {
-                        <MudText Typo="Typo.h6" Class="mt-4">Selected: <MudChip T="string">@_model.File.Name</MudChip></MudText>
-                    }
-                </MudItem>
-            </MudGrid>
-            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="@_isProcessing">
-                @if (_isProcessing)
+        <MudGrid Justify="Justify.Center">
+            <MudItem xs="12" sm="10" md="8">
+                <div style="position:relative">
+                    <MudPaper class="pa-8 d-flex flex-column align-center justify-center"
+                              Outlined="true"
+                              style="border:2px dashed var(--mud-palette-primary); min-height: 200px;">
+                        <MudIcon Icon="@Icons.Material.Filled.UploadFile" Size="Size.Large" Color="Color.Primary" />
+                        <MudText Typo="Typo.h6" Class="mt-4">Select or Drop PDF File</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">The selection will appear below</MudText>
+                    </MudPaper>
+                    <InputFile OnChange="OnFileChanged"
+                               accept=".pdf,application/pdf"
+                               style="position:absolute; inset:0; opacity:0; cursor:pointer;" />
+                </div>
+            </MudItem>
+            <MudItem xs="12" Class="d-flex justify-center">
+                @if (_model.File != null)
                 {
-                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                    <MudText Class="ms-2">Processing...</MudText>
+                    <MudText Typo="Typo.h6" Class="mt-4">Selected: <MudChip T="string">@_model.File.Name</MudChip></MudText>
                 }
-                else
-                {
-                    <MudText>Upload and Parse</MudText>
-                }
-            </MudButton>
-        </EditForm>
+            </MudItem>
+        </MudGrid>
+        <MudButton OnClick="OnSubmit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="@(_isProcessing || _model.File == null)">
+            @if (_isProcessing)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                <MudText Class="ms-2">Processing...</MudText>
+            }
+            else
+            {
+                <MudText>Upload and Parse</MudText>
+            }
+        </MudButton>
 
         @if (!string.IsNullOrEmpty(_statusMessage))
         {
@@ -64,18 +63,6 @@
         }
     </MudCardContent>
 </MudCard>
-
-<MudDialog @bind-IsVisible="_isReviewDialogOpen" Options="_dialogOptions">
-    <TitleContent>
-        <MudText Typo="Typo.h5">Review Parsed Picking List</MudText>
-    </TitleContent>
-    <DialogContent>
-        @if (_listToReview != null)
-        {
-            <ReviewDialog List="_listToReview" OnCancel="HandleReviewCancel" OnSave="HandleReviewSave" />
-        }
-    </DialogContent>
-</MudDialog>
 
 @code {
     private class UploadModel
@@ -89,11 +76,6 @@
     private bool _isProcessing;
     private string? _statusMessage;
     private Severity _statusSeverity;
-    private bool _isDragEnter;
-
-    private bool _isReviewDialogOpen;
-    private PickingList? _listToReview;
-    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.ExtraLarge, CloseOnEscapeKey = true };
 
     protected override async Task OnInitializedAsync()
     {
@@ -122,25 +104,6 @@
             _model.File = null;
             Snackbar.Add("Please select or drop a single PDF file.", Severity.Warning);
         }
-    }
-
-    private void HandleReviewCancel()
-    {
-        _isReviewDialogOpen = false;
-        _listToReview = null;
-        _statusMessage = "Review was canceled. No data was saved.";
-        _statusSeverity = Severity.Warning;
-        StateHasChanged();
-    }
-
-    private void HandleReviewSave(int savedListId)
-    {
-        _isReviewDialogOpen = false;
-        _listToReview = null;
-        _statusMessage = $"Picking list #{savedListId} saved successfully!";
-        _statusSeverity = Severity.Success;
-        _model.File = null; // Clear the file input
-        StateHasChanged();
     }
 
     private async Task OnSubmit()
@@ -190,15 +153,17 @@
             StateHasChanged();
 
             var (parsedList, parsedItems) = await PdfParsingService.ParsePickingListAsync(imagePaths);
-            _statusMessage = "AI parsing complete. Opening review dialog...";
+
+            _statusMessage = "AI parsing complete. Redirecting to review page...";
             StateHasChanged();
 
             parsedList.BranchId = _model.BranchId.Value;
-            parsedList.Items = parsedItems;
 
-            // Set state to show the declarative dialog
-            _listToReview = parsedList;
-            _isReviewDialogOpen = true;
+            // Store in state service and redirect for user review
+            ParsingStateService.ParsedPickingList = parsedList;
+            ParsingStateService.ParsedItems = parsedItems;
+
+            NavManager.NavigateTo("/picking-lists/review-parsed");
         }
         catch (Exception ex)
         {

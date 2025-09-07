@@ -1,0 +1,218 @@
+@page "/picking-lists/review-parsed"
+@implements IDisposable
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using MudBlazor
+@using Microsoft.EntityFrameworkCore
+
+@inject IParsingStateService ParsingStateService
+@inject PickingListService PickingListService
+@inject MachineService MachineService
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavManager
+@inject ISnackbar Snackbar
+
+@if (_list == null)
+{
+    <MudText Typo="Typo.h5">Loading Review Data...</MudText>
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudText Typo="Typo.h5">Review New Picking List: @_list.SalesOrderNumber</MudText>
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Text" OnClick="Cancel" Disabled="@_isProcessing">Cancel</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveChanges" Disabled="@_isProcessing">
+                 @if (_isProcessing)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Saving...</MudText>
+                }
+                else
+                {
+                    <MudText>Save</MudText>
+                }
+            </MudButton>
+        </MudStack>
+    </MudStack>
+
+    <!-- Header Section -->
+    <MudPaper Class="pa-4 mb-4">
+        <MudGrid Spacing="2">
+            <MudItem xs="6" sm="3">
+                <MudText Typo="Typo.caption" Style="font-weight: bold;">SOLD TO</MudText>
+                <MudText Typo="Typo.body2">@_list.SoldTo</MudText>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudText Typo="Typo.caption" Style="font-weight: bold;">SHIP TO</MudText>
+                <MudText Typo="Typo.body2" Style="white-space: pre-wrap;">@_list.ShipTo</MudText>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudText Typo="Typo.caption" Style="font-weight: bold;">ORDER DATE</MudText>
+                <MudText Typo="Typo.body2">@_list.OrderDate?.ToShortDateString()</MudText>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudText Typo="Typo.caption" Style="font-weight: bold;">SHIP DATE</MudText>
+                <MudText Typo="Typo.body2">@_list.ShipDate?.ToShortDateString()</MudText>
+            </MudItem>
+             <MudItem xs="6" sm="3">
+                <MudText Typo="Typo.caption" Style="font-weight: bold;">SALES REP</MudText>
+                <MudText Typo="Typo.body2">@_list.SalesRep</MudText>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudText Typo="Typo.caption" Style="font-weight: bold;">SHIP VIA</MudText>
+                <MudText Typo="Typo.body2">@_list.ShippingVia</MudText>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudText Typo="Typo.caption" Style="font-weight: bold;">FOB</MudText>
+                <MudText Typo="Typo.body2">@_list.FOB</MudText>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudText Typo="Typo.caption" Style="font-weight: bold;">TOTAL WEIGHT</MudText>
+                <MudText Typo="Typo.body2">@_list.TotalWeight.ToString("N3")</MudText>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <!-- Items Table -->
+    <MudTable Items="@_list.Items" T="PickingListItem" Hover="true" Dense="true" MultiSelection="true" @bind-SelectedItems="_selectedItems">
+        <HeaderContent>
+            <MudTh>Line</MudTh>
+            <MudTh>Qty</MudTh>
+            <MudTh>Item ID</MudTh>
+            <MudTh>Description</MudTh>
+            <MudTh>Width</MudTh>
+            <MudTh>Length</MudTh>
+            <MudTh>Weight</MudTh>
+            <MudTh>Unit</MudTh>
+            <MudTh>Machine</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Line">@context.LineNumber</MudTd>
+            <MudTd DataLabel="Qty">@context.Quantity.ToString("N3")</MudTd>
+            <MudTd DataLabel="Item ID">@context.ItemId</MudTd>
+            <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
+            <MudTd DataLabel="Width">@FormatDimension(context.Width)</MudTd>
+            <MudTd DataLabel="Length">@FormatDimension(context.Length)</MudTd>
+            <MudTd DataLabel="Weight">@context.Weight?.ToString("N3")</MudTd>
+            <MudTd DataLabel="Unit">@context.Unit</MudTd>
+            <MudTd DataLabel="Machine">
+                <MudSelect T="int?" @bind-Value="context.MachineId" Dense="true" Margin="Margin.Dense">
+                    @foreach (var machine in _machines)
+                    {
+                        <MudSelectItem Value="@((int?)machine.Id)">@machine.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+
+    <MudPaper Class="d-flex align-center gap-4 pa-4 mt-4">
+        <MudSelect T="int?" @bind-Value="_bulkAssignMachineId" Label="Bulk Assign Machine" Dense="true" Style="min-width: 250px;">
+            @foreach (var machine in _machines)
+            {
+                <MudSelectItem Value="@((int?)machine.Id)">@machine.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudButton Variant="Variant.Filled" OnClick="ApplyBulkAssign" Disabled="@(_selectedItems == null || _selectedItems.Count == 0)">
+            Apply to Selected
+        </MudButton>
+    </MudPaper>
+}
+
+@code {
+    private PickingList? _list;
+    private List<Machine> _machines = new();
+    private HashSet<PickingListItem> _selectedItems = new();
+    private int? _bulkAssignMachineId;
+    private bool _isProcessing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _list = ParsingStateService.ParsedPickingList;
+        if (_list == null || ParsingStateService.ParsedItems == null)
+        {
+            Snackbar.Add("No parsing data found. Please upload a new PDF.", Severity.Error);
+            NavManager.NavigateTo("/picking-lists/upload");
+            return;
+        }
+        _list.Items = ParsingStateService.ParsedItems;
+
+        var allMachines = await MachineService.GetMachinesAsync();
+        _machines = allMachines.Where(m => m.BranchId == _list.BranchId).ToList();
+    }
+
+    private async Task SaveChanges()
+    {
+        if (_list == null) return;
+
+        _isProcessing = true;
+
+        if (!string.IsNullOrWhiteSpace(_list.SoldTo))
+        {
+            var customer = await DbContext.Customers
+                .FirstOrDefaultAsync(c => c.CustomerName.ToLower() == _list.SoldTo.ToLower());
+
+            if (customer != null)
+            {
+                _list.CustomerId = customer.Id;
+            }
+            else
+            {
+                Snackbar.Add($"Warning: Customer '{_list.SoldTo}' not found. No customer ID will be linked.", Severity.Warning);
+            }
+        }
+
+        try
+        {
+            await PickingListService.CreateAsync(_list);
+            Snackbar.Add("Picking list saved successfully.", Severity.Success);
+
+            var newListId = _list.Id;
+            ParsingStateService.Clear();
+            // Navigate to the standard editor for the newly created list
+            NavManager.NavigateTo($"/picking-lists/{newListId}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save picking list: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private void ApplyBulkAssign()
+    {
+        if (_bulkAssignMachineId == null || _selectedItems == null) return;
+
+        foreach (var item in _selectedItems)
+        {
+            item.MachineId = _bulkAssignMachineId;
+        }
+        Snackbar.Add($"Assigned machine to {_selectedItems.Count} items.", Severity.Success);
+    }
+
+    private string FormatDimension(object? dimension)
+    {
+        if (dimension is decimal d)
+        {
+            return d.ToString("N3");
+        }
+        return dimension?.ToString() ?? string.Empty;
+    }
+
+    private void Cancel()
+    {
+        ParsingStateService.Clear();
+        NavManager.NavigateTo("/picking-lists/upload");
+    }
+
+    public void Dispose()
+    {
+        // This is a good place to clear state if the user navigates away without saving.
+        ParsingStateService.Clear();
+    }
+}
