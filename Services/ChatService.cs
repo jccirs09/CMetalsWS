@@ -129,5 +129,34 @@ namespace CMetalsWS.Services
                 .OrderBy(m => m.Timestamp)
                 .ToListAsync();
         }
+
+        public async Task<List<ChatMessage>> GetRecentConversationsAsync(string userId)
+        {
+            using var context = _contextFactory.CreateDbContext();
+            var userMessages = context.ChatMessages
+                .Where(m => m.SenderId == userId || m.RecipientId == userId);
+
+            var latestMessages = await userMessages
+                .GroupBy(m => m.SenderId == userId ? m.RecipientId : m.SenderId)
+                .Select(g => g.OrderByDescending(m => m.Timestamp).FirstOrDefault())
+                .ToListAsync();
+
+            var userGroupIds = await context.ChatGroupUsers
+                .Where(gu => gu.UserId == userId)
+                .Select(gu => gu.ChatGroupId)
+                .ToListAsync();
+
+            var latestGroupMessages = await context.ChatMessages
+                .Where(m => m.ChatGroupId.HasValue && userGroupIds.Contains(m.ChatGroupId.Value))
+                .GroupBy(m => m.ChatGroupId)
+                .Select(g => g.OrderByDescending(m => m.Timestamp).FirstOrDefault())
+                .ToListAsync();
+
+            var recentConversations = latestMessages.Concat(latestGroupMessages)
+                .OrderByDescending(m => m.Timestamp)
+                .ToList();
+
+            return recentConversations;
+        }
     }
 }

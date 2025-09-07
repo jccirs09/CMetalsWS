@@ -16,6 +16,7 @@ namespace CMetalsWS.Components.Layout
         private bool _isDarkMode = false;
         private bool _drawerOpen = true;
         private bool _isChatDockOpen = false;
+        private bool _isChatThreadsPanelOpen = false;
         private List<ChatThread> _openChatThreads = new();
 
         private readonly MudTheme _customTheme = new()
@@ -53,6 +54,11 @@ namespace CMetalsWS.Components.Layout
             _isChatDockOpen = !_isChatDockOpen;
         }
 
+        private void ToggleChatThreadsPanel()
+        {
+            _isChatThreadsPanelOpen = !_isChatThreadsPanelOpen;
+        }
+
         private void OpenChatWindow(ApplicationUser user)
         {
             var existingThread = _openChatThreads.FirstOrDefault(t => t.User?.Id == user.Id);
@@ -81,6 +87,23 @@ namespace CMetalsWS.Components.Layout
         private void MinimizeChatWindow(ChatThread thread)
         {
             thread.IsMinimized = !thread.IsMinimized;
+        }
+
+        private async void OpenChatWindowFromConversation(ChatMessage message)
+        {
+            if (message.ChatGroupId.HasValue)
+            {
+                OpenChatWindow(message.Group);
+            }
+            else
+            {
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var currentUser = authState.User;
+                var currentUserId = currentUser.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var user = message.SenderId == currentUserId ? message.Recipient : message.Sender;
+                OpenChatWindow(user);
+            }
+            _isChatThreadsPanelOpen = false;
         }
 
         private async void Logout()
