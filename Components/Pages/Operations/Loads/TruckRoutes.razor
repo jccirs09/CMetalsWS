@@ -1,6 +1,8 @@
 ﻿@page "/routes"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using CMetalsWS.Security
+@attribute [Authorize(Policy = Permissions.PickingLists.View)]
 @inject LoadService LoadService
 @inject RouteService RouteService
 

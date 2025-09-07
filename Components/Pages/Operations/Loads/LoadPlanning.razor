@@ -1,6 +1,8 @@
 @page "/load-planning"
 @using CMetalsWS.Data
+@using CMetalsWS.Security
 @using MudBlazor
+@attribute [Authorize(Policy = Permissions.PickingLists.ManageLoads)]
 
 <MudPaper Class="pa-4">
     <MudText Typo="Typo.h5">Load Planning</MudText>

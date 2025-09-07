@@ -5,7 +5,9 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using CMetalsWS.Security
 @using MiniExcelLibs.Attributes
+@attribute [Authorize(Policy = Permissions.WorkOrders.Add)]
 @inject InventoryService InventoryService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager
@@ -29,11 +31,13 @@
                            style="position:absolute; inset:0; opacity:0; cursor:pointer;" />
             </div>
 
-            <MudButton Variant="Variant.Outlined"
-                       Disabled="@(!_preview.Any())"
-                       OnClick="SaveAsync">
-                Save to Database
-            </MudButton>
+            <AuthorizeView>
+                <MudButton Variant="Variant.Outlined"
+                           Disabled="@(!_preview.Any())"
+                           OnClick="SaveAsync">
+                    Save to Database
+                </MudButton>
+            </AuthorizeView>
 
             <MudChip T="string" Variant="Variant.Outlined" class="ml-4">
                 Branch: @_branchIdDisplay

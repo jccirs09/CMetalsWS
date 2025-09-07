@@ -7,6 +7,8 @@
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Forms
 @using CMetalsWS.Components.Pages.Schedule
+@using CMetalsWS.Security
+@attribute [Authorize(Policy = Permissions.PickingLists.ManageLoads)]
 
 @inject LoadService LoadService
 @inject PickingListService PickingListService
@@ -63,45 +65,47 @@
             }
 
             <!-- Add Load panel -->
-            <MudPaper Class="pa-4" Elevation="0" Width="300px">
-                @if (_addLoadOpen)
-                {
-                    <MudPaper Elevation="0" Class="pa-4 d-flex flex-column mud-background-gray rounded-lg">
-                        <EditForm Model="_newLoadModel" OnValidSubmit="OnValidLoadSubmit">
-                            <DataAnnotationsValidator />
-                            <MudTextField @bind-Value="_newLoadModel.Name"
-                                          For="@(() => _newLoadModel.Name)"
-                                          Placeholder="New Load Name"
-                                          Underline="false" />
-                            <MudSelect T="int"
-                                       @bind-Value="_newLoadModel.TruckId"
-                                       For="@(() => _newLoadModel.TruckId)"
-                                       Label="Truck">
-                                @foreach (var truck in _trucks)
-                                {
-                                    <MudSelectItem T="int" Value="@truck.Id">@truck.Description</MudSelectItem>
-                                }
-                            </MudSelect>
-                            <MudButton ButtonType="ButtonType.Submit"
-                                       Size="Size.Small"
-                                       Color="Color.Primary"
-                                       FullWidth="true"
-                                       Class="mt-2">Add Load</MudButton>
-                        </EditForm>
-                    </MudPaper>
-                }
-                else
-                {
-                    <MudButton OnClick="() => _addLoadOpen = true"
-                               Variant="Variant.Outlined"
-                               StartIcon="@Icons.Material.Filled.Add"
-                               Color="Color.Primary"
-                               Class="rounded-lg py-2"
-                               FullWidth="true">
-                        Add Load
-                    </MudButton>
-                }
-            </MudPaper>
+            <AuthorizeView>
+                <MudPaper Class="pa-4" Elevation="0" Width="300px">
+                    @if (_addLoadOpen)
+                    {
+                        <MudPaper Elevation="0" Class="pa-4 d-flex flex-column mud-background-gray rounded-lg">
+                            <EditForm Model="_newLoadModel" OnValidSubmit="OnValidLoadSubmit">
+                                <DataAnnotationsValidator />
+                                <MudTextField @bind-Value="_newLoadModel.Name"
+                                              For="@(() => _newLoadModel.Name)"
+                                              Placeholder="New Load Name"
+                                              Underline="false" />
+                                <MudSelect T="int"
+                                           @bind-Value="_newLoadModel.TruckId"
+                                           For="@(() => _newLoadModel.TruckId)"
+                                           Label="Truck">
+                                    @foreach (var truck in _trucks)
+                                    {
+                                        <MudSelectItem T="int" Value="@truck.Id">@truck.Description</MudSelectItem>
+                                    }
+                                </MudSelect>
+                                <MudButton ButtonType="ButtonType.Submit"
+                                           Size="Size.Small"
+                                           Color="Color.Primary"
+                                           FullWidth="true"
+                                           Class="mt-2">Add Load</MudButton>
+                            </EditForm>
+                        </MudPaper>
+                    }
+                    else
+                    {
+                        <MudButton OnClick="() => _addLoadOpen = true"
+                                   Variant="Variant.Outlined"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   Color="Color.Primary"
+                                   Class="rounded-lg py-2"
+                                   FullWidth="true">
+                            Add Load
+                        </MudButton>
+                    }
+                </MudPaper>
+            </AuthorizeView>
         </ChildContent>
 
         <ItemRenderer>

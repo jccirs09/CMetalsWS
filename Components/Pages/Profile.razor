@@ -1,7 +1,9 @@
 @page "/profile"
 @using CMetalsWS.Data
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
+@attribute [Authorize]
 @using System.ComponentModel.DataAnnotations
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager

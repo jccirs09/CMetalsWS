@@ -1,8 +1,10 @@
 ﻿@page "/schedule/loads"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using CMetalsWS.Security
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Policy = Permissions.PickingLists.ManageLoads)]
 
 @inject LoadService LoadService
 @inject TruckService TruckService
@@ -28,12 +30,16 @@
                 <MudTd>@($"{context.ShippingDate:yyyy-MM-dd}")</MudTd>
                 <MudTd>@context.Status</MudTd>
                 <MudTd>
-                    <MudButton Variant="Variant.Text" OnClick="@(async () => await EditLoad(context))">Edit</MudButton>
+                    <AuthorizeView>
+                        <MudButton Variant="Variant.Text" OnClick="@(async () => await EditLoad(context))">Edit</MudButton>
+                    </AuthorizeView>
                 </MudTd>
             </RowTemplate>
         </MudTable>
 
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateLoad">New Load</MudButton>
+        <AuthorizeView>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateLoad">New Load</MudButton>
+        </AuthorizeView>
     </MudStack>
 
 </MudPaper>

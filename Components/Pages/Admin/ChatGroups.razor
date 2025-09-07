@@ -11,6 +11,7 @@
 @inject UserService UserService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IAuthorizationService AuthorizationService
 
 <MudPaper Class="p-4">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -27,28 +28,27 @@
         </AuthorizeView>
     </MudStack>
 
-    <MudTable Items="_groups" Hover="true" Dense="true">
+    <MudTable Items="_groups" Hover="true" Dense="true" Context="group">
         <HeaderContent>
             <MudTh>Name</MudTh>
             <MudTh>Branch</MudTh>
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Name">@context.Name</MudTd>
-            <MudTd DataLabel="Branch">@context.Branch?.Name</MudTd>
+            <MudTd DataLabel="Name">@group.Name</MudTd>
+            <MudTd DataLabel="Branch">@group.Branch?.Name</MudTd>
             <MudTd DataLabel="Actions">
-                <AuthorizeView Policy="@Permissions.Users.Edit">
-                    <Authorized>
-                        <MudIconButton Color="Color.Info"
-                                       Icon="@Icons.Material.Filled.Edit"
-                                       title="Edit"
-                                       OnClick="@(() => EditGroup(context))" />
-                        <MudIconButton Color="Color.Error"
-                                       Icon="@Icons.Material.Filled.Delete"
-                                       title="Delete"
-                                       OnClick="@(() => DeleteGroup(context))" />
-                    </Authorized>
-                </AuthorizeView>
+                @if (_canEdit)
+                {
+                    <MudIconButton Color="Color.Info"
+                                   Icon="@Icons.Material.Filled.Edit"
+                                   title="Edit"
+                                   OnClick="@(() => EditGroup(group))" />
+                    <MudIconButton Color="Color.Error"
+                                   Icon="@Icons.Material.Filled.Delete"
+                                   title="Delete"
+                                   OnClick="@(() => DeleteGroup(group))" />
+                }
             </MudTd>
         </RowTemplate>
     </MudTable>
@@ -56,9 +56,15 @@
 
 @code {
     private List<ChatGroup> _groups = new();
+    private bool _canEdit;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
+        var user = (await AuthState).User;
+        _canEdit = (await AuthorizationService.AuthorizeAsync(user, Permissions.Users.Edit)).Succeeded;
         await LoadGroupsAsync();
     }
 

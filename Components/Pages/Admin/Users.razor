@@ -9,6 +9,7 @@
 @inject BranchService BranchService
 @inject RoleService RoleService
 @inject IDialogService DialogService
+@inject IAuthorizationService AuthorizationService
 
 <MudPaper Class="p-4">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -26,7 +27,7 @@
         </AuthorizeView>
     </MudStack>
 
-    <MudTable Items="users" Hover="true" Dense="true">
+    <MudTable Items="users" Hover="true" Dense="true" Context="user">
         <HeaderContent>
             <MudTh>User Name</MudTh>
             <MudTh>Email</MudTh>
@@ -35,27 +36,25 @@
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="User Name">@context.UserName</MudTd>
-            <MudTd DataLabel="Email">@context.Email</MudTd>
-            <MudTd DataLabel="Branch">@context.Branch?.Name</MudTd>
-            <MudTd DataLabel="Roles">@string.Join(", ", roleDict.TryGetValue(context.Id, out var r) ? r : new List<string>())</MudTd>
+            <MudTd DataLabel="User Name">@user.UserName</MudTd>
+            <MudTd DataLabel="Email">@user.Email</MudTd>
+            <MudTd DataLabel="Branch">@user.Branch?.Name</MudTd>
+            <MudTd DataLabel="Roles">@string.Join(", ", roleDict.TryGetValue(user.Id, out var r) ? r : new List<string>())</MudTd>
             <MudTd DataLabel="Actions">
-                <AuthorizeView Policy="@Permissions.Users.Edit">
-                    <Authorized Context="authEdit">
-                        <MudIconButton Color="Color.Info"
-                                       Icon="@Icons.Material.Filled.Edit"
-                                       title="Edit"
-                                       OnClick="@(() => EditUser(context))" />
-                    </Authorized>
-                </AuthorizeView>
-                <AuthorizeView Policy="@Permissions.Users.Delete">
-                    <Authorized Context="authDelete">
-                        <MudIconButton Color="Color.Error"
-                                       Icon="@Icons.Material.Filled.Delete"
-                                       title="Delete"
-                                       OnClick="@(() => DeleteUser(context))" />
-                    </Authorized>
-                </AuthorizeView>
+                @if (_canEdit)
+                {
+                    <MudIconButton Color="Color.Info"
+                                   Icon="@Icons.Material.Filled.Edit"
+                                   title="Edit"
+                                   OnClick="@(() => EditUser(user))" />
+                }
+                @if (_canDelete)
+                {
+                    <MudIconButton Color="Color.Error"
+                                   Icon="@Icons.Material.Filled.Delete"
+                                   title="Delete"
+                                   OnClick="@(() => DeleteUser(user))" />
+                }
             </MudTd>
         </RowTemplate>
     </MudTable>
@@ -64,9 +63,17 @@
 @code {
     private List<ApplicationUser> users = new();
     private readonly Dictionary<string, List<string>> roleDict = new();
+    private bool _canEdit;
+    private bool _canDelete;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
+        var authUser = (await AuthState).User;
+        _canEdit = (await AuthorizationService.AuthorizeAsync(authUser, Permissions.Users.Edit)).Succeeded;
+        _canDelete = (await AuthorizationService.AuthorizeAsync(authUser, Permissions.Users.Delete)).Succeeded;
         await LoadUsersAsync();
     }
 

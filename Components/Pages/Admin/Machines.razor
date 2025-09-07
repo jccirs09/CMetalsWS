@@ -9,6 +9,7 @@
 @inject BranchService BranchService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IAuthorizationService AuthorizationService
 
 <MudPaper Class="p-4">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -22,7 +23,7 @@
         </AuthorizeView>
     </MudStack>
 
-    <MudTable Items="items" Hover="true" Dense="true">
+    <MudTable Items="items" Hover="true" Dense="true" Context="machine">
         <HeaderContent>
             <MudTh>Code</MudTh>
             <MudTh>Name</MudTh>
@@ -31,27 +32,25 @@
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Code">@context.Code</MudTd>
-            <MudTd DataLabel="Name">@context.Name</MudTd>
-            <MudTd DataLabel="Category">@context.Category</MudTd>
-            <MudTd DataLabel="Branch">@context.Branch?.Name</MudTd>
+            <MudTd DataLabel="Code">@machine.Code</MudTd>
+            <MudTd DataLabel="Name">@machine.Name</MudTd>
+            <MudTd DataLabel="Category">@machine.Category</MudTd>
+            <MudTd DataLabel="Branch">@machine.Branch?.Name</MudTd>
             <MudTd DataLabel="Actions">
-                <AuthorizeView Policy="@Permissions.Machines.Edit">
-                    <Authorized Context="authEdit">
-                        <MudIconButton Color="Color.Info"
-                                       Icon="@Icons.Material.Filled.Edit"
-                                       title="Edit"
-                                       OnClick="@(async () => await EditMachine(context))" />
-                    </Authorized>
-                </AuthorizeView>
-                <AuthorizeView Policy="@Permissions.Machines.Delete">
-                    <Authorized Context="authDelete">
-                        <MudIconButton Color="Color.Error"
-                                       Icon="@Icons.Material.Filled.Delete"
-                                       title="Delete"
-                                       OnClick="@(async () => await DeleteMachine(context))" />
-                    </Authorized>
-                </AuthorizeView>
+                @if (_canEdit)
+                {
+                    <MudIconButton Color="Color.Info"
+                                   Icon="@Icons.Material.Filled.Edit"
+                                   title="Edit"
+                                   OnClick="@(async () => await EditMachine(machine))" />
+                }
+                @if (_canDelete)
+                {
+                    <MudIconButton Color="Color.Error"
+                                   Icon="@Icons.Material.Filled.Delete"
+                                   title="Delete"
+                                   OnClick="@(async () => await DeleteMachine(machine))" />
+                }
             </MudTd>
         </RowTemplate>
     </MudTable>
@@ -59,9 +58,17 @@
 
 @code {
     private List<Machine> items = new();
+    private bool _canEdit;
+    private bool _canDelete;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
+        var user = (await AuthState).User;
+        _canEdit = (await AuthorizationService.AuthorizeAsync(user, Permissions.Machines.Edit)).Succeeded;
+        _canDelete = (await AuthorizationService.AuthorizeAsync(user, Permissions.Machines.Delete)).Succeeded;
         await LoadAsync();
     }
 
