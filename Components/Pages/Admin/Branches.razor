@@ -1,14 +1,22 @@
 ﻿@page "/branches"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using CMetalsWS.Security
 @using MudBlazor
+@attribute [Authorize(Policy = Permissions.Branches.View)]
 
 @inject BranchService BranchService
 @inject IDialogService DialogService
 
 <MudPaper Class="p-4">
-    <MudText Typo="Typo.h5">Branches</MudText>
-    <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" OnClick="AddBranch">Add Branch</MudButton>
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h5">Branches</MudText>
+        <AuthorizeView Policy="@Permissions.Branches.Add">
+            <Authorized>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" OnClick="AddBranch">Add Branch</MudButton>
+            </Authorized>
+        </AuthorizeView>
+    </MudStack>
     <MudTable Items="branches" Hover="true">
         <HeaderContent>
             <MudTh>Code</MudTh>
@@ -21,8 +29,16 @@
             <MudTd DataLabel="Name">@context.Name</MudTd>
             <MudTd DataLabel="City">@context.City</MudTd>
             <MudTd DataLabel="Actions">
-                <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditBranch(context))"></MudIconButton>
-                <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteBranch(context))"></MudIconButton>
+                <AuthorizeView Policy="@Permissions.Branches.Edit">
+                    <Authorized>
+                        <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditBranch(context))"></MudIconButton>
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Policy="@Permissions.Branches.Delete">
+                    <Authorized>
+                        <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteBranch(context))"></MudIconButton>
+                    </Authorized>
+                </AuthorizeView>
             </MudTd>
         </RowTemplate>
     </MudTable>

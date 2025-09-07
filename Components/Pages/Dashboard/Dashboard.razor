@@ -1,4 +1,8 @@
-﻿<h3>Dashboard</h3>
+﻿@page "/dashboard"
+@using CMetalsWS.Security
+@attribute [Authorize(Policy = Permissions.Dashboards.View)]
+
+<h3>Dashboard</h3>
 
 @code {
 
