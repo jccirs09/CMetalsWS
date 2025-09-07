@@ -1,7 +1,9 @@
 @page "/planning/local"
 @using CMetalsWS.Data
 @using System.Linq
+@using CMetalsWS.Security
 @using MudBlazor
+@attribute [Authorize(Policy = Permissions.PickingLists.ManageLoads)]
 
 @inject CMetalsWS.Services.PickingListService PickingListService
 @inject CMetalsWS.Services.TruckService TruckService
@@ -55,7 +57,9 @@
                 }
             </MudExpansionPanels>
 
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!_selectedGroups.Any())" OnClick="CreateLoadFromSelected" Class="mt-4">Create Load with Selected</MudButton>
+            <AuthorizeView>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!_selectedGroups.Any())" OnClick="CreateLoadFromSelected" Class="mt-4">Create Load with Selected</MudButton>
+            </AuthorizeView>
         </MudPaper>
     </MudItem>
     <MudItem xs="12" md="5">
@@ -100,7 +104,9 @@
                 </MudPaper>
 
                 <MudStack Row="true" Class="mt-4">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveLoad" Disabled="@(_load.TruckId == null)">Save Load</MudButton>
+                    <AuthorizeView>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveLoad" Disabled="@(_load.TruckId == null)">Save Load</MudButton>
+                    </AuthorizeView>
                     <MudButton Variant="Variant.Outlined" OnClick="ClearLoad">Clear</MudButton>
                 </MudStack>
             }

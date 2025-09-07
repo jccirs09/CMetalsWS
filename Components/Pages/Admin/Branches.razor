@@ -7,6 +7,7 @@
 
 @inject BranchService BranchService
 @inject IDialogService DialogService
+@inject IAuthorizationService AuthorizationService
 
 <MudPaper Class="p-4">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -17,7 +18,7 @@
             </Authorized>
         </AuthorizeView>
     </MudStack>
-    <MudTable Items="branches" Hover="true">
+    <MudTable Items="branches" Hover="true" Context="branch">
         <HeaderContent>
             <MudTh>Code</MudTh>
             <MudTh>Name</MudTh>
@@ -25,20 +26,18 @@
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Code">@context.Code</MudTd>
-            <MudTd DataLabel="Name">@context.Name</MudTd>
-            <MudTd DataLabel="City">@context.City</MudTd>
+            <MudTd DataLabel="Code">@branch.Code</MudTd>
+            <MudTd DataLabel="Name">@branch.Name</MudTd>
+            <MudTd DataLabel="City">@branch.City</MudTd>
             <MudTd DataLabel="Actions">
-                <AuthorizeView Policy="@Permissions.Branches.Edit">
-                    <Authorized>
-                        <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditBranch(context))"></MudIconButton>
-                    </Authorized>
-                </AuthorizeView>
-                <AuthorizeView Policy="@Permissions.Branches.Delete">
-                    <Authorized>
-                        <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteBranch(context))"></MudIconButton>
-                    </Authorized>
-                </AuthorizeView>
+                @if (_canEdit)
+                {
+                    <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditBranch(branch))"></MudIconButton>
+                }
+                @if (_canDelete)
+                {
+                    <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteBranch(branch))"></MudIconButton>
+                }
             </MudTd>
         </RowTemplate>
     </MudTable>
@@ -46,9 +45,17 @@
 
 @code {
     private List<Branch> branches = new();
+    private bool _canEdit;
+    private bool _canDelete;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
+        var user = (await AuthState).User;
+        _canEdit = (await AuthorizationService.AuthorizeAsync(user, Permissions.Branches.Edit)).Succeeded;
+        _canDelete = (await AuthorizationService.AuthorizeAsync(user, Permissions.Branches.Delete)).Succeeded;
         branches = await BranchService.GetBranchesAsync();
     }
 

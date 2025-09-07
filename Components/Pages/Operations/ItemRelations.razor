@@ -1,6 +1,8 @@
 ﻿@page "/operations/item-relations"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using CMetalsWS.Security
+@attribute [Authorize(Policy = Permissions.WorkOrders.Edit)]
 @inject ItemRelationshipService RelService
 @inject ISnackbar Snackbar
 

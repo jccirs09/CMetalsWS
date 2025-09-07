@@ -8,6 +8,7 @@
 @inject RoleService RoleService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IAuthorizationService AuthorizationService
 
 <MudPaper Class="p-4">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -18,26 +19,24 @@
             </Authorized>
         </AuthorizeView>
     </MudStack>
-    <MudTable Items="roles" Hover="true">
+    <MudTable Items="roles" Hover="true" Context="role">
         <HeaderContent>
             <MudTh>Name</MudTh>
             <MudTh>Description</MudTh>
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Name">@context.Name</MudTd>
-            <MudTd DataLabel="Description">@context.Description</MudTd>
+            <MudTd DataLabel="Name">@role.Name</MudTd>
+            <MudTd DataLabel="Description">@role.Description</MudTd>
             <MudTd DataLabel="Actions">
-                <AuthorizeView Policy="@Permissions.Roles.Edit">
-                    <Authorized>
-                        <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditRole(context))"></MudIconButton>
-                    </Authorized>
-                </AuthorizeView>
-                <AuthorizeView Policy="@Permissions.Roles.Delete">
-                    <Authorized>
-                        <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteRole(context))"></MudIconButton>
-                    </Authorized>
-                </AuthorizeView>
+                @if (_canEdit)
+                {
+                    <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditRole(role))"></MudIconButton>
+                }
+                @if (_canDelete)
+                {
+                    <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteRole(role))"></MudIconButton>
+                }
             </MudTd>
         </RowTemplate>
     </MudTable>
@@ -45,9 +44,17 @@
 
 @code {
     private List<ApplicationRole> roles = new();
+    private bool _canEdit;
+    private bool _canDelete;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
+        var user = (await AuthState).User;
+        _canEdit = (await AuthorizationService.AuthorizeAsync(user, Permissions.Roles.Edit)).Succeeded;
+        _canDelete = (await AuthorizationService.AuthorizeAsync(user, Permissions.Roles.Delete)).Succeeded;
         await LoadRoles();
     }
 

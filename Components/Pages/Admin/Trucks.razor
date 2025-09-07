@@ -10,6 +10,7 @@
 @inject UserService UserService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IAuthorizationService AuthorizationService
 
 <MudPaper Class="p-4">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -23,7 +24,7 @@
         </AuthorizeView>
     </MudStack>
 
-    <MudTable Items="items" Hover="true" Dense="true">
+    <MudTable Items="items" Hover="true" Dense="true" Context="truck">
         <HeaderContent>
             <MudTh>Name</MudTh>
             <MudTh>Identifier</MudTh>
@@ -35,32 +36,30 @@
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Name">@context.Name</MudTd>
-            <MudTd DataLabel="Identifier">@context.Identifier</MudTd>
-            <MudTd DataLabel="Branch">@context.Branch?.Name</MudTd>
-            <MudTd DataLabel="Driver">@($"{context.Driver?.FirstName} {context.Driver?.LastName}".Trim())</MudTd>
-            <MudTd DataLabel="Capacity Weight" Class="text-right">@context.CapacityWeight.ToString("N2")</MudTd>
-            <MudTd DataLabel="Capacity Volume" Class="text-right">@context.CapacityVolume.ToString("N2")</MudTd>
+            <MudTd DataLabel="Name">@truck.Name</MudTd>
+            <MudTd DataLabel="Identifier">@truck.Identifier</MudTd>
+            <MudTd DataLabel="Branch">@truck.Branch?.Name</MudTd>
+            <MudTd DataLabel="Driver">@($"{truck.Driver?.FirstName} {truck.Driver?.LastName}".Trim())</MudTd>
+            <MudTd DataLabel="Capacity Weight" Class="text-right">@truck.CapacityWeight.ToString("N2")</MudTd>
+            <MudTd DataLabel="Capacity Volume" Class="text-right">@truck.CapacityVolume.ToString("N2")</MudTd>
             <MudTd DataLabel="Active">
-                <MudIcon Icon="@(context.IsActive? Icons.Material.Filled.CheckCircle : Icons.Material.Outlined.RadioButtonUnchecked)" Color="@(context.IsActive? Color.Success: Color.Default)" />
+                <MudIcon Icon="@(truck.IsActive? Icons.Material.Filled.CheckCircle : Icons.Material.Outlined.RadioButtonUnchecked)" Color="@(truck.IsActive? Color.Success: Color.Default)" />
             </MudTd>
             <MudTd DataLabel="Actions">
-                <AuthorizeView Policy="@Permissions.Trucks.Edit">
-                    <Authorized Context="authEdit">
-                        <MudIconButton Color="Color.Info"
-                                       Icon="@Icons.Material.Filled.Edit"
-                                       title="Edit"
-                                       OnClick="@(async () => await EditTruck(context))" />
-                    </Authorized>
-                </AuthorizeView>
-                <AuthorizeView Policy="@Permissions.Trucks.Delete">
-                    <Authorized Context="authDelete">
-                        <MudIconButton Color="Color.Error"
-                                       Icon="@Icons.Material.Filled.Delete"
-                                       title="Delete"
-                                       OnClick="@(async () => await DeleteTruck(context))" />
-                    </Authorized>
-                </AuthorizeView>
+                @if (_canEdit)
+                {
+                    <MudIconButton Color="Color.Info"
+                                   Icon="@Icons.Material.Filled.Edit"
+                                   title="Edit"
+                                   OnClick="@(async () => await EditTruck(truck))" />
+                }
+                @if (_canDelete)
+                {
+                    <MudIconButton Color="Color.Error"
+                                   Icon="@Icons.Material.Filled.Delete"
+                                   title="Delete"
+                                   OnClick="@(async () => await DeleteTruck(truck))" />
+                }
             </MudTd>
         </RowTemplate>
     </MudTable>
@@ -69,9 +68,17 @@
 @code {
     private List<Truck> items = new();
     private List<ApplicationUser> drivers = new();
+    private bool _canEdit;
+    private bool _canDelete;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
+        var user = (await AuthState).User;
+        _canEdit = (await AuthorizationService.AuthorizeAsync(user, Permissions.Trucks.Edit)).Succeeded;
+        _canDelete = (await AuthorizationService.AuthorizeAsync(user, Permissions.Trucks.Delete)).Succeeded;
         await LoadAsync();
     }
 

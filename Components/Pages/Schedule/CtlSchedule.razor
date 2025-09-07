@@ -1,4 +1,6 @@
 @page "/schedule/ctl"
 @using CMetalsWS.Data
+@using CMetalsWS.Security
+@attribute [Authorize(Policy = Permissions.WorkOrders.Schedule)]
 
 <MachineScheduleBase Title="CTL Schedule" MachineCategory="@MachineCategory.CTL" Color="Color.Primary" />

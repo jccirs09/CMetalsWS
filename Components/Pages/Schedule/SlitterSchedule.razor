@@ -1,4 +1,6 @@
 @page "/schedule/slitter"
 @using CMetalsWS.Data
+@using CMetalsWS.Security
+@attribute [Authorize(Policy = Permissions.WorkOrders.Schedule)]
 
 <MachineScheduleBase Title="Slitter Schedule" MachineCategory="@MachineCategory.Slitter" Color="Color.Secondary" />

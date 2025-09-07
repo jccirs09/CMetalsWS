@@ -14,6 +14,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
+@inject IAuthorizationService AuthorizationService
 @implements IAsyncDisposable
 
 <MudPaper Class="pa-4">
@@ -29,7 +30,7 @@
         <MudButton Variant="Variant.Outlined" OnClick="LoadAsync">Refresh</MudButton>
     </MudStack>
 
-    <MudTable Items="@FilteredWorkOrders" Hover="true" Dense="true" Class="mt-4">
+    <MudTable Items="@FilteredWorkOrders" Hover="true" Dense="true" Class="mt-4" Context="workOrder">
         <HeaderContent>
             <MudTh>WO #</MudTh>
             <MudTh>Branch</MudTh>
@@ -43,24 +44,26 @@
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd>@context.WorkOrderNumber</MudTd>
-            <MudTd>@context.Branch?.Code</MudTd>
-            <MudTd>@context.MachineCategory</MudTd>
-            <MudTd>@context.Machine?.Name</MudTd>
-            <MudTd>@context.TagNumber</MudTd>
-            <MudTd>@context.DueDate.ToString("yyyy-MM-dd")</MudTd>
-            <MudTd>@context.Status</MudTd>
-            <MudTd>@(context.ScheduledStartDate.ToString("yyyy-MM-dd HH:mm"))</MudTd>
-            <MudTd>@(context.ScheduledEndDate.ToString("yyyy-MM-dd HH:mm"))</MudTd>
+            <MudTd>@workOrder.WorkOrderNumber</MudTd>
+            <MudTd>@workOrder.Branch?.Code</MudTd>
+            <MudTd>@workOrder.MachineCategory</MudTd>
+            <MudTd>@workOrder.Machine?.Name</MudTd>
+            <MudTd>@workOrder.TagNumber</MudTd>
+            <MudTd>@workOrder.DueDate.ToString("yyyy-MM-dd")</MudTd>
+            <MudTd>@workOrder.Status</MudTd>
+            <MudTd>@(workOrder.ScheduledStartDate.ToString("yyyy-MM-dd HH:mm"))</MudTd>
+            <MudTd>@(workOrder.ScheduledEndDate.ToString("yyyy-MM-dd HH:mm"))</MudTd>
             <MudTd>
                 <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true">
-                    <MudMenuItem OnClick="@(() => ViewWorkOrderAsync(context))">Details</MudMenuItem>
-                    <AuthorizeView Policy="@Permissions.WorkOrders.Edit" Context="auth">
-                        <MudMenuItem OnClick="@(() => EditWorkOrderAsync(context))">Edit</MudMenuItem>
-                    </AuthorizeView>
-                    <AuthorizeView Policy="@Permissions.WorkOrders.Process" Context="auth">
-                        <MudMenuItem OnClick="@(() => ProcessWorkOrderAsync(context))">Process</MudMenuItem>
-                    </AuthorizeView>
+                    <MudMenuItem OnClick="@(() => ViewWorkOrderAsync(workOrder))">Details</MudMenuItem>
+                    @if (_canEdit)
+                    {
+                        <MudMenuItem OnClick="@(() => EditWorkOrderAsync(workOrder))">Edit</MudMenuItem>
+                    }
+                    @if (_canProcess)
+                    {
+                        <MudMenuItem OnClick="@(() => ProcessWorkOrderAsync(workOrder))">Process</MudMenuItem>
+                    }
                 </MudMenu>
             </MudTd>
         </RowTemplate>
@@ -74,6 +77,8 @@
     private List<Branch> _branches = new();
     private int? _userBranchId;
     private HubConnection? _hubConnection;
+    private bool _canEdit;
+    private bool _canProcess;
 
     private List<WorkOrder> FilteredWorkOrders =>
         string.IsNullOrWhiteSpace(_searchString)
@@ -88,6 +93,9 @@
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(auth.User);
         _userBranchId = user?.BranchId;
+
+        _canEdit = (await AuthorizationService.AuthorizeAsync(auth.User, Permissions.WorkOrders.Edit)).Succeeded;
+        _canProcess = (await AuthorizationService.AuthorizeAsync(auth.User, Permissions.WorkOrders.Process)).Succeeded;
 
         _machines = await MachineService.GetMachinesAsync();
         _branches = await BranchService.GetBranchesAsync();

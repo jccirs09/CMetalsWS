@@ -7,6 +7,8 @@
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.Components.Forms
 @using MudBlazor
+@using CMetalsWS.Security
+@attribute [Authorize(Policy = Permissions.PickingLists.Add)]
 @inject BranchService BranchService
 @inject IPdfParsingService PdfParsingService
 @inject IPickingListImportService ImportService

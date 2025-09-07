@@ -16,6 +16,7 @@
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager
+@inject IAuthorizationService AuthorizationService
 
 <MudPaper Class="p-4">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -40,7 +41,7 @@
         </AuthorizeView>
     </MudStack>
 
-    <MudTable Items="lists" Hover="true" Dense="true">
+    <MudTable Items="lists" Hover="true" Dense="true" Context="pickingList">
         <HeaderContent>
             <MudTh>SO #</MudTh>
             <MudTh>Customer</MudTh>
@@ -54,26 +55,24 @@
                 <MudButton Variant="Variant.Text"
                            Color="Color.Primary"
                            Class="px-0"
-                           OnClick="@(async () => await View(context))"
+                           OnClick="@(async () => await View(pickingList))"
                            title="View Picking List">
-                    @context.SalesOrderNumber
+                    @pickingList.SalesOrderNumber
                 </MudButton>
             </MudTd>
-            <MudTd DataLabel="Customer">@context.Customer?.CustomerName</MudTd>
-            <MudTd DataLabel="Loc">@context.Customer?.LocationCode</MudTd>
-            <MudTd DataLabel="Status">@context.Status</MudTd>
-            <MudTd DataLabel="Total Wt" Class="text-right">@context.TotalWeight.ToString("N3")</MudTd>
+            <MudTd DataLabel="Customer">@pickingList.Customer?.CustomerName</MudTd>
+            <MudTd DataLabel="Loc">@pickingList.Customer?.LocationCode</MudTd>
+            <MudTd DataLabel="Status">@pickingList.Status</MudTd>
+            <MudTd DataLabel="Total Wt" Class="text-right">@pickingList.TotalWeight.ToString("N3")</MudTd>
             <MudTd DataLabel="Actions">
-                <AuthorizeView Policy="@Permissions.PickingLists.Edit">
-                    <Authorized Context="authEdit">
-                        <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" title="Edit" OnClick="@(async () => await Edit(context))" />
-                    </Authorized>
-                </AuthorizeView>
-                <AuthorizeView Policy="@Permissions.PickingLists.Delete">
-                    <Authorized Context="authDelete">
-                        <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" title="Delete" OnClick="@(async () => await Delete(context))" />
-                    </Authorized>
-                </AuthorizeView>
+                @if (_canEdit)
+                {
+                    <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" title="Edit" OnClick="@(async () => await Edit(pickingList))" />
+                }
+                @if (_canDelete)
+                {
+                    <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" title="Delete" OnClick="@(async () => await Delete(pickingList))" />
+                }
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
@@ -87,9 +86,15 @@
     private bool isAdmin;
     private int? userBranchId;
     private Branch? userBranch;
+    private bool _canEdit;
+    private bool _canDelete;
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _canEdit = (await AuthorizationService.AuthorizeAsync(user, Permissions.PickingLists.Edit)).Succeeded;
+        _canDelete = (await AuthorizationService.AuthorizeAsync(user, Permissions.PickingLists.Delete)).Succeeded;
         await LoadUserContextAsync();
         await LoadAsync();
     }
