@@ -1,0 +1,79 @@
+@namespace CMetalsWS.Components.Chat
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+
+@inject IChatService ChatService
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudPaper Class="chat-threads-panel" Elevation="6">
+    <MudToolBar>
+        <MudText Typo="Typo.h6">Chats</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="@OnClose" />
+    </MudToolBar>
+    <MudTextField @bind-Value="_searchString" Placeholder="Search Messenger" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Class="ma-2"></MudTextField>
+    <MudTabs Elevation="1" Centered="true">
+        <MudTabPanel Text="All">
+            <MudList T="ChatMessage" Clickable="true">
+                @foreach (var message in _recentConversations.Where(m => string.IsNullOrWhiteSpace(_searchString) || (m.SenderId == _currentUserId ? m.Recipient?.UserName : m.Sender?.UserName).Contains(_searchString, StringComparison.OrdinalIgnoreCase)))
+                {
+                    <MudListItem T="ChatMessage" OnClick="() => OnConversationSelected.InvokeAsync(message)">
+                        <ChildContent>
+                            <MudBadge Color="@((m.SenderId == _currentUserId ? m.Recipient.IsOnline : m.Sender.IsOnline) ? Color.Success : Color.Error)" Overlap="true" Bordered="true" Dot="true" Style="z-index:1">
+                                <MudAvatar>
+                                    @if (!string.IsNullOrEmpty(m.SenderId == _currentUserId ? m.Recipient.Avatar : m.Sender.Avatar))
+                                    {
+                                        <MudImage Src="@(m.SenderId == _currentUserId ? m.Recipient.Avatar : m.Sender.Avatar)" />
+                                    }
+                                    else
+                                    {
+                                        @($"{ (m.SenderId == _currentUserId ? m.Recipient.FirstName?.FirstOrDefault() : m.Sender.FirstName?.FirstOrDefault()) }{ (m.SenderId == _currentUserId ? m.Recipient.LastName?.FirstOrDefault() : m.Sender.LastName?.FirstOrDefault()) }")
+                                    }
+                                </MudAvatar>
+                            </MudBadge>
+                            <div class="ml-4">
+                                <MudText>@(m.SenderId == _currentUserId ? m.Recipient?.UserName : m.Sender?.UserName)</MudText>
+                                <MudText Typo="Typo.caption">@message.Content</MudText>
+                            </div>
+                        </ChildContent>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudTabPanel>
+    </MudTabs>
+</MudPaper>
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<ChatMessage> OnConversationSelected { get; set; }
+
+    private string? _currentUserId;
+    private List<ChatMessage> _recentConversations = new();
+    private string _searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _currentUserId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (_currentUserId != null)
+        {
+            _recentConversations = await ChatService.GetRecentConversationsAsync(_currentUserId);
+            foreach (var message in _recentConversations)
+            {
+                if (message.Sender == null)
+                {
+                    message.Sender = await UserManager.FindByIdAsync(message.SenderId);
+                }
+                if (message.Recipient == null && message.RecipientId != null)
+                {
+                    message.Recipient = await UserManager.FindByIdAsync(message.RecipientId);
+                }
+            }
+        }
+    }
+}

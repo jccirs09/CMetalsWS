@@ -1,0 +1,12 @@
+.chat-threads-panel {
+    position: fixed;
+    bottom: 0;
+    right: 80px; /* Adjusted to not overlap with the chat dock fab */
+    width: 320px;
+    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+    border-top-left-radius: var(--mud-default-borderradius);
+    border-top-right-radius: var(--mud-default-borderradius);
+    padding-bottom: env(safe-area-inset-bottom);
+}
