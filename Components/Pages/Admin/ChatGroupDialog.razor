@@ -30,7 +30,7 @@
 
 @code {
     [CascadingParameter]
-    public IMudDialogInstance MudDialog { get; set; } = default!;
+    public IMudDialogInstance MudDialog { get; set; }
 
     [Parameter]
     public ChatGroup GroupModel { get; set; } = new();
@@ -62,7 +62,7 @@
 
     public class ChatGroupDialogResult
     {
-        public ChatGroup Group { get; set; } = new();
-        public List<string> SelectedUsers { get; set; } = new();
+        public ChatGroup Group { get; set; }
+        public List<string> SelectedUsers { get; set; }
     }
 }

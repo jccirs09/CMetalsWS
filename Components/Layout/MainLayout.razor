@@ -12,8 +12,8 @@
         <MudSpacer />
         <MudIconButton Icon="@Icons.Material.Filled.Message" Color="Color.Inherit" />
         <MudIconButton Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" />
-        <MudMenu StartIcon="@Icons.Material.Filled.Person" Color="Color.Inherit" AnchorOrigin="Origin.BottomRight">
-            <MudMenuItem Href="/profile">Profile</MudMenuItem>
+        <MudMenu Icon="@Icons.Material.Filled.Person" Color="Color.Inherit" Edge="Edge.End">
+            <MudMenuItem Link="/profile">Profile</MudMenuItem>
             <MudMenuItem OnClick="Logout">Logout</MudMenuItem>
         </MudMenu>
     </MudAppBar>
@@ -27,7 +27,7 @@
     </MudMainContent>
 </MudLayout>
 
-<MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Message" OnClick="@ToggleChatDock" Style="position: fixed; bottom: 20px; left: 20px;" />
+<MudFab Color="Color.Primary" Icon="@Icons.Material.Filled.Message" OnClick="@ToggleChatDock" Style="position: fixed; bottom: 20px; left: 20px;" />
 
 @if (_isChatDockOpen)
 {

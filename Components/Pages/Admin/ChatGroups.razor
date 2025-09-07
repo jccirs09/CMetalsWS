@@ -4,7 +4,7 @@
 @using CMetalsWS.Security
 @using MudBlazor
 @using CMetalsWS.Components.Pages.Admin
-@attribute [Authorize(Policy = CMetalsWS.Security.Permissions.Users.View)]
+@attribute [Authorize(Policy = Permissions.Users.Edit)]
 
 @inject IChatService ChatService
 @inject BranchService BranchService
@@ -15,13 +15,16 @@
 <MudPaper Class="p-4">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
         <MudText Typo="Typo.h5">Chat Groups</MudText>
-
-        <MudButton Color="Color.Primary"
-                   Variant="Variant.Filled"
-                   StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="AddGroup">
-            Add Group
-        </MudButton>
+        <AuthorizeView Policy="@Permissions.Users.Edit">
+            <Authorized>
+                <MudButton Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="AddGroup">
+                    Add Group
+                </MudButton>
+            </Authorized>
+        </AuthorizeView>
     </MudStack>
 
     <MudTable Items="_groups" Hover="true" Dense="true">
@@ -34,14 +37,18 @@
             <MudTd DataLabel="Name">@context.Name</MudTd>
             <MudTd DataLabel="Branch">@context.Branch?.Name</MudTd>
             <MudTd DataLabel="Actions">
-                <MudIconButton Color="Color.Info"
-                               Icon="@Icons.Material.Filled.Edit"
-                               title="Edit"
-                               OnClick="@(() => EditGroup(context))" />
-                <MudIconButton Color="Color.Error"
-                               Icon="@Icons.Material.Filled.Delete"
-                               title="Delete"
-                               OnClick="@(() => DeleteGroup(context))" />
+                <AuthorizeView Policy="@Permissions.Users.Edit">
+                    <Authorized>
+                        <MudIconButton Color="Color.Info"
+                                       Icon="@Icons.Material.Filled.Edit"
+                                       title="Edit"
+                                       OnClick="@(() => EditGroup(context))" />
+                        <MudIconButton Color="Color.Error"
+                                       Icon="@Icons.Material.Filled.Delete"
+                                       title="Delete"
+                                       OnClick="@(() => DeleteGroup(context))" />
+                    </Authorized>
+                </AuthorizeView>
             </MudTd>
         </RowTemplate>
     </MudTable>
@@ -71,17 +78,15 @@
             ["Users"] = await UserService.GetUsersAsync()
         };
 
-        var dialog = await DialogService.ShowAsync<ChatGroupDialog>("Add Group", parameters);
+        var dialog = DialogService.Show<ChatGroupDialog>("Add Group", parameters);
         var result = await dialog.Result;
 
-        if (result != null && !result.Canceled && result.Data is ChatGroupDialog.ChatGroupDialogResult dialogResult)
+        if (!result.Canceled)
         {
-            if (dialogResult.Group != null && dialogResult.Group.Name != null && dialogResult.SelectedUsers != null)
-            {
-                await ChatService.CreateGroupAsync(dialogResult.Group.Name, dialogResult.Group.BranchId, dialogResult.SelectedUsers);
-                await LoadGroupsAsync();
-                Snackbar.Add("Group created successfully.", Severity.Success);
-            }
+            var dialogResult = (ChatGroupDialog.ChatGroupDialogResult)result.Data;
+            await ChatService.CreateGroupAsync(dialogResult.Group.Name, dialogResult.Group.BranchId, dialogResult.SelectedUsers);
+            await LoadGroupsAsync();
+            Snackbar.Add("Group created successfully.", Severity.Success);
         }
     }
 
@@ -97,17 +102,15 @@
             ["SelectedUsers"] = group.ChatGroupUsers.Select(u => u.UserId).ToList()
         };
 
-        var dialog = await DialogService.ShowAsync<ChatGroupDialog>("Edit Group", parameters);
+        var dialog = DialogService.Show<ChatGroupDialog>("Edit Group", parameters);
         var result = await dialog.Result;
 
-        if (result != null && !result.Canceled && result.Data is ChatGroupDialog.ChatGroupDialogResult dialogResult)
+        if (!result.Canceled)
         {
-            if (dialogResult.Group != null && dialogResult.SelectedUsers != null)
-            {
-                await ChatService.UpdateGroupAsync(dialogResult.Group, dialogResult.SelectedUsers);
-                await LoadGroupsAsync();
-                Snackbar.Add("Group updated successfully.", Severity.Success);
-            }
+            var dialogResult = (ChatGroupDialog.ChatGroupDialogResult)result.Data;
+            await ChatService.UpdateGroupAsync(dialogResult.Group, dialogResult.SelectedUsers);
+            await LoadGroupsAsync();
+            Snackbar.Add("Group updated successfully.", Severity.Success);
         }
     }
 
@@ -121,10 +124,10 @@
             ["CancelText"] = "Cancel"
         };
 
-        var dialog = await DialogService.ShowAsync<MudMessageBox>("Delete Group", parameters);
+        var dialog = DialogService.Show<MudMessageBox>("Delete Group", parameters);
         var result = await dialog.Result;
 
-        if (result != null && !result.Canceled)
+        if (!result.Canceled)
         {
             await ChatService.DeleteGroupAsync(group.Id);
             await LoadGroupsAsync();

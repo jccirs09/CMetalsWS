@@ -20,10 +20,6 @@ namespace CMetalsWS.Hubs
 
         public async Task SendMessageToUser(string recipientId, string message)
         {
-            if (Context.User == null)
-            {
-                throw new HubException("User not found.");
-            }
             var sender = await _userManager.GetUserAsync(Context.User);
             if (sender == null)
             {
@@ -48,10 +44,6 @@ namespace CMetalsWS.Hubs
 
         public async Task SendMessageToGroup(int groupId, string message)
         {
-            if (Context.User == null)
-            {
-                throw new HubException("User not found.");
-            }
             var sender = await _userManager.GetUserAsync(Context.User);
             if (sender == null)
             {
@@ -85,10 +77,6 @@ namespace CMetalsWS.Hubs
 
         public override async Task OnConnectedAsync()
         {
-            if (Context.User == null)
-            {
-                return;
-            }
             var user = await _userManager.GetUserAsync(Context.User);
             if (user != null)
             {
@@ -108,10 +96,6 @@ namespace CMetalsWS.Hubs
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
-            if (Context.User == null)
-            {
-                return;
-            }
             var user = await _userManager.GetUserAsync(Context.User);
             if (user != null)
             {

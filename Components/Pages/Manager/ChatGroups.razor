@@ -50,10 +50,10 @@
 
 @code {
     private List<ChatGroup> _groups = new();
-    private ApplicationUser _currentUser = default!;
+    private ApplicationUser _currentUser;
 
     [CascadingParameter]
-    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -62,12 +62,8 @@
         var userId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (userId != null)
         {
-            var currentUser = await UserService.GetUserByIdAsync(userId);
-            if (currentUser != null)
-            {
-                _currentUser = currentUser;
-                await LoadGroupsAsync();
-            }
+            _currentUser = await UserService.GetUserByIdAsync(userId);
+            await LoadGroupsAsync();
         }
     }
 
@@ -83,62 +79,48 @@
 
     private async Task AddGroup()
     {
-        var branches = new List<Branch>();
-        if (_currentUser.Branch != null)
-        {
-            branches.Add(_currentUser.Branch);
-        }
         var parameters = new DialogParameters
         {
             ["Title"] = "Add Group",
             ["SubmitText"] = "Add",
-            ["Branches"] = branches,
+            ["Branches"] = new List<Branch> { _currentUser.Branch },
             ["Users"] = (await UserService.GetUsersAsync()).Where(u => u.BranchId == _currentUser.BranchId).ToList()
         };
 
-        var dialog = await DialogService.ShowAsync<ChatGroupDialog>("Add Group", parameters);
+        var dialog = DialogService.Show<ChatGroupDialog>("Add Group", parameters);
         var result = await dialog.Result;
 
-        if (result != null && !result.Canceled && result.Data is ChatGroupDialog.ChatGroupDialogResult dialogResult)
+        if (!result.Canceled)
         {
-            if (dialogResult.Group != null && dialogResult.Group.Name != null && dialogResult.SelectedUsers != null)
-            {
-                dialogResult.Group.BranchId = _currentUser.BranchId;
-                await ChatService.CreateGroupAsync(dialogResult.Group.Name, dialogResult.Group.BranchId, dialogResult.SelectedUsers);
-                await LoadGroupsAsync();
-                Snackbar.Add("Group created successfully.", Severity.Success);
-            }
+            var dialogResult = (ChatGroupDialog.ChatGroupDialogResult)result.Data;
+            dialogResult.Group.BranchId = _currentUser.BranchId;
+            await ChatService.CreateGroupAsync(dialogResult.Group.Name, dialogResult.Group.BranchId, dialogResult.SelectedUsers);
+            await LoadGroupsAsync();
+            Snackbar.Add("Group created successfully.", Severity.Success);
         }
     }
 
     private async Task EditGroup(ChatGroup group)
     {
-        var branches = new List<Branch>();
-        if (_currentUser.Branch != null)
-        {
-            branches.Add(_currentUser.Branch);
-        }
         var parameters = new DialogParameters
         {
             ["Title"] = "Edit Group",
             ["SubmitText"] = "Update",
             ["GroupModel"] = group,
-            ["Branches"] = branches,
+            ["Branches"] = new List<Branch> { _currentUser.Branch },
             ["Users"] = (await UserService.GetUsersAsync()).Where(u => u.BranchId == _currentUser.BranchId).ToList(),
             ["SelectedUsers"] = group.ChatGroupUsers.Select(u => u.UserId).ToList()
         };
 
-        var dialog = await DialogService.ShowAsync<ChatGroupDialog>("Edit Group", parameters);
+        var dialog = DialogService.Show<ChatGroupDialog>("Edit Group", parameters);
         var result = await dialog.Result;
 
-        if (result != null && !result.Canceled && result.Data is ChatGroupDialog.ChatGroupDialogResult dialogResult)
+        if (!result.Canceled)
         {
-            if (dialogResult.Group != null && dialogResult.SelectedUsers != null)
-            {
-                await ChatService.UpdateGroupAsync(dialogResult.Group, dialogResult.SelectedUsers);
-                await LoadGroupsAsync();
-                Snackbar.Add("Group updated successfully.", Severity.Success);
-            }
+            var dialogResult = (ChatGroupDialog.ChatGroupDialogResult)result.Data;
+            await ChatService.UpdateGroupAsync(dialogResult.Group, dialogResult.SelectedUsers);
+            await LoadGroupsAsync();
+            Snackbar.Add("Group updated successfully.", Severity.Success);
         }
     }
 
@@ -152,10 +134,10 @@
             ["CancelText"] = "Cancel"
         };
 
-        var dialog = await DialogService.ShowAsync<MudMessageBox>("Delete Group", parameters);
+        var dialog = DialogService.Show<MudMessageBox>("Delete Group", parameters);
         var result = await dialog.Result;
 
-        if (result != null && !result.Canceled)
+        if (!result.Canceled)
         {
             await ChatService.DeleteGroupAsync(group.Id);
             await LoadGroupsAsync();

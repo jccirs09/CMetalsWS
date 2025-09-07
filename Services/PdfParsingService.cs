@@ -61,10 +61,6 @@ namespace CMetalsWS.Services
 
             try
             {
-                if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
-                {
-                    throw new PlatformNotSupportedException("PDF to image conversion is only supported on Windows, Linux, and macOS.");
-                }
                 _logger.LogInformation("Rendering PDF ({Len} bytes) to images.", pdfBytes.Length);
                 var images = await Task.Run(() => Conversion.ToImages(pdfBytes));
 
@@ -109,7 +105,7 @@ namespace CMetalsWS.Services
                     var h = Math.Max(1, (int)Math.Round(original.Height * ratio));
 
                     // Prefer Resize (higher quality than ScalePixels on some builds)
-                    resized = original.Resize(new SKImageInfo(w, h), SKSamplingOptions.Default);
+                    resized = original.Resize(new SKImageInfo(w, h), SKFilterQuality.High);
                     if (resized != null)
                     {
                         img = resized;

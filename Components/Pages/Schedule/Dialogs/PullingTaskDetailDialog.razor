@@ -36,7 +36,7 @@
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
 
-    [Parameter] public PickingListItem Item { get; set; } = default!;
+    [Parameter] public PickingListItem Item { get; set; }
 
     public decimal? PulledQuantity { get; set; }
     public decimal? PulledWeight { get; set; }

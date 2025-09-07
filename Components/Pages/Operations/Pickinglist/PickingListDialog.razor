@@ -118,7 +118,7 @@
                         </MudTd>
                         <MudTd DataLabel="Machine">
                             <MudSelect T="int?" Value="context.MachineId" Dense="true" Margin="Margin.Dense"
-                                       ValueChanged="@((int? machineId) => OnMachineChanged(context, machineId))">
+                                       TValue="int?" ValueChanged="@((int? machineId) => OnMachineChanged(context, machineId))">
                                 <MudSelectItem T="int?" Value="@((int?)null)">None</MudSelectItem>
                                 @foreach (var m in Machines)
                                 {
@@ -161,7 +161,7 @@
 </MudDialog>
 
 @code {
-    [Parameter] public PickingList Model { get; set; } = default!;
+    [Parameter] public PickingList Model { get; set; }
     [Parameter] public bool IsEdit { get; set; }
     [Parameter] public string Title { get; set; } = "";
     [Parameter] public List<Branch> Branches { get; set; } = new();

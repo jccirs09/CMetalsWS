@@ -17,8 +17,8 @@
     <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Class="ma-2"></MudTextField>
     <MudTabs Elevation="1" Centered="true">
         <MudTabPanel Text="Branch">
-            <MudList T="ApplicationUser">
-                @foreach (var user in _users.Where(u => u.Id != _currentUserId && u.BranchId == _currentUserBranchId && (string.IsNullOrWhiteSpace(_searchString) || (u.UserName != null && u.UserName.Contains(_searchString, StringComparison.OrdinalIgnoreCase)))))
+            <MudList T="ApplicationUser" Clickable="true">
+                @foreach (var user in _users.Where(u => u.Id != _currentUserId && u.BranchId == _currentUserBranchId && (string.IsNullOrWhiteSpace(_searchString) || u.UserName.Contains(_searchString, StringComparison.OrdinalIgnoreCase))))
                 {
                     <MudListItem T="ApplicationUser" OnClick="() => OnUserSelected.InvokeAsync(user)">
                         <ChildContent>
@@ -41,8 +41,8 @@
             </MudList>
         </MudTabPanel>
         <MudTabPanel Text="Groups">
-            <MudList T="ChatGroup">
-                @foreach (var group in _groups.Where(g => string.IsNullOrWhiteSpace(_searchString) || (g.Name != null && g.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))))
+            <MudList T="ChatGroup" Clickable="true">
+                @foreach (var group in _groups.Where(g => string.IsNullOrWhiteSpace(_searchString) || g.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase)))
                 {
                     <MudListItem T="ChatGroup" OnClick="() => OnGroupSelected.InvokeAsync(group)">
                         @group.Name
@@ -51,8 +51,8 @@
             </MudList>
         </MudTabPanel>
         <MudTabPanel Text="Others">
-            <MudList T="ApplicationUser">
-                @foreach (var user in _users.Where(u => u.Id != _currentUserId && u.BranchId != _currentUserBranchId && (string.IsNullOrWhiteSpace(_searchString) || (u.UserName != null && u.UserName.Contains(_searchString, StringComparison.OrdinalIgnoreCase)))))
+            <MudList T="ApplicationUser" Clickable="true">
+                @foreach (var user in _users.Where(u => u.Id != _currentUserId && u.BranchId != _currentUserBranchId && (string.IsNullOrWhiteSpace(_searchString) || u.UserName.Contains(_searchString, StringComparison.OrdinalIgnoreCase))))
                 {
                     <MudListItem T="ApplicationUser" OnClick="() => OnUserSelected.InvokeAsync(user)">
                         <ChildContent>

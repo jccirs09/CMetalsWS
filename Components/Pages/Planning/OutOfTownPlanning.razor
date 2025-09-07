@@ -82,12 +82,12 @@
                     <MudContainer Style="max-height: 300px; overflow-y: auto">
                         @foreach (var item in _itemsInLoad)
                         {
-                            <MudDropZone T="LoadItem" onItemDropped="ItemDropped" Identifier="@(item.PickingListItemId.ToString())">
+                            <MudDropZone T="LoadItem" OnItemDropped="ItemDropped" Identifier="@(item.PickingListItemId.ToString())">
                                 <MudPaper Elevation="2" Class="pa-2 ma-1">
                                     <MudGrid>
                                         <MudItem xs="1">@item.StopSequence</MudItem>
-                                        <MudItem xs="3">@item.PickingListItem?.PickingList?.SalesOrderNumber</MudItem>
-                                        <MudItem xs="4">@item.PickingListItem?.PickingList?.Customer?.CustomerName</MudItem>
+                                        <MudItem xs="3">@item.PickingListItem.PickingList.SalesOrderNumber</MudItem>
+                                        <MudItem xs="4">@item.PickingListItem.PickingList.Customer.CustomerName</MudItem>
                                         <MudItem xs="2" Style="text-align:right">@item.ShippedWeight.ToString("N2")</MudItem>
                                         <MudItem xs="1">
                                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => RemoveItemFromLoad(item))" />
