@@ -6,3 +6,6 @@ out/
 *.suo
 *.userosscache
 *.log
+
+# User-specific settings
+appsettings.Development.json
