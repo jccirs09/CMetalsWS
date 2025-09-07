@@ -4,7 +4,7 @@
 @using CMetalsWS.Security
 @using MudBlazor
 @using CMetalsWS.Components.Pages.Admin
-@attribute [Authorize(Policy = "Manager")] // I will need to create this policy
+@attribute [Authorize(Policy = Permissions.Users.Edit)]
 
 @inject IChatService ChatService
 @inject BranchService BranchService
@@ -12,37 +12,43 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IAuthorizationService AuthorizationService
 
 <MudPaper Class="p-4">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
         <MudText Typo="Typo.h5">Chat Groups</MudText>
 
-        <MudButton Color="Color.Primary"
-                   Variant="Variant.Filled"
-                   StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="AddGroup">
-            Add Group
-        </MudButton>
+        <AuthorizeView>
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="AddGroup">
+                Add Group
+            </MudButton>
+        </AuthorizeView>
     </MudStack>
 
-    <MudTable Items="_groups" Hover="true" Dense="true">
+    <MudTable Items="_groups" Hover="true" Dense="true" Context="group">
         <HeaderContent>
             <MudTh>Name</MudTh>
             <MudTh>Branch</MudTh>
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Name">@context.Name</MudTd>
-            <MudTd DataLabel="Branch">@context.Branch?.Name</MudTd>
+            <MudTd DataLabel="Name">@group.Name</MudTd>
+            <MudTd DataLabel="Branch">@group.Branch?.Name</MudTd>
             <MudTd DataLabel="Actions">
-                <MudIconButton Color="Color.Info"
-                               Icon="@Icons.Material.Filled.Edit"
-                               title="Edit"
-                               OnClick="@(() => EditGroup(context))" />
-                <MudIconButton Color="Color.Error"
-                               Icon="@Icons.Material.Filled.Delete"
-                               title="Delete"
-                               OnClick="@(() => DeleteGroup(context))" />
+                @if (_canEdit)
+                {
+                    <MudIconButton Color="Color.Info"
+                                   Icon="@Icons.Material.Filled.Edit"
+                                   title="Edit"
+                                   OnClick="@(() => EditGroup(group))" />
+                    <MudIconButton Color="Color.Error"
+                                   Icon="@Icons.Material.Filled.Delete"
+                                   title="Delete"
+                                   OnClick="@(() => DeleteGroup(group))" />
+                }
             </MudTd>
         </RowTemplate>
     </MudTable>
@@ -50,20 +56,26 @@
 
 @code {
     private List<ChatGroup> _groups = new();
-    private ApplicationUser _currentUser;
+    private ApplicationUser _currentUser = default!;
+    private bool _canEdit;
 
     [CascadingParameter]
-    private Task<AuthenticationState> AuthenticationStateTask { get; set; }
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateTask;
         var user = authState.User;
+        _canEdit = (await AuthorizationService.AuthorizeAsync(user, Permissions.Users.Edit)).Succeeded;
         var userId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (userId != null)
         {
-            _currentUser = await UserService.GetUserByIdAsync(userId);
-            await LoadGroupsAsync();
+            var u = await UserService.GetUserByIdAsync(userId);
+            if (u is not null)
+            {
+                _currentUser = u;
+                await LoadGroupsAsync();
+            }
         }
     }
 
