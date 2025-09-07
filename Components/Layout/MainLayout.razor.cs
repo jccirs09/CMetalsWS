@@ -1,5 +1,6 @@
 ﻿using CMetalsWS.Components.Chat;
 using CMetalsWS.Data;
+using CMetalsWS.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using MudBlazor;
