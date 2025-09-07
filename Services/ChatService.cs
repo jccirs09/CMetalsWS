@@ -158,5 +158,11 @@ namespace CMetalsWS.Services
 
             return recentConversations;
         }
+
+        public async Task<ChatGroup?> GetGroupAsync(int groupId)
+        {
+            using var context = _contextFactory.CreateDbContext();
+            return await context.ChatGroups.FindAsync(groupId);
+        }
     }
 }
