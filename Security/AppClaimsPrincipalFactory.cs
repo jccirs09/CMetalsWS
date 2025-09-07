@@ -28,6 +28,11 @@ namespace CMetalsWS.Services
             var principal = await base.CreateAsync(user);
             var identity = (ClaimsIdentity)principal.Identity!;
 
+            if (!identity.HasClaim(c => c.Type == ClaimTypes.NameIdentifier))
+            {
+                identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, user.Id));
+            }
+
             var roles = await _userManager.GetRolesAsync(user);
             foreach (var roleName in roles)
             {

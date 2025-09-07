@@ -26,25 +26,27 @@
         @Body
     </MudMainContent>
 
-    <MudFab Color="Color.Primary" Icon="@Icons.Material.Filled.Message" OnClick="@ToggleChatDock" Style="position: fixed; bottom: 20px; right: 20px;" />
+    <MudPortal>
+        <MudFab Color="Color.Primary" Icon="@Icons.Material.Filled.Message" OnClick="@ToggleChatDock" Style="position: fixed; bottom: 20px; right: 20px;" />
 
-    @if (_isChatDockOpen)
-    {
-        <ChatDock OnClose="@ToggleChatDock" OnUserSelected="OpenChatWindow" OnGroupSelected="OpenChatWindow" />
-    }
+        @if (_isChatDockOpen)
+        {
+            <ChatDock OnClose="@ToggleChatDock" OnUserSelected="OpenChatWindow" OnGroupSelected="OpenChatWindow" />
+        }
 
-    @if (_isChatThreadsPanelOpen)
-    {
-        <ChatThreadsPanel OnClose="@ToggleChatThreadsPanel" OnConversationSelected="OpenChatWindowFromConversation" />
-    }
+        @if (_isChatThreadsPanelOpen)
+        {
+            <ChatThreadsPanel OnClose="@ToggleChatThreadsPanel" OnConversationSelected="OpenChatWindowFromConversation" />
+        }
 
-    @for (var i = 0; i < _openChatThreads.Count; i++)
-    {
-        var thread = _openChatThreads[i];
-        <div style="--window-index: @i">
-            <ChatThreadWindow ThreadUser="@thread.User" ThreadGroup="@thread.Group" IsMinimized="@thread.IsMinimized" OnClose="() => CloseChatWindow(thread)" OnMinimize="() => MinimizeChatWindow(thread)" />
-        </div>
-    }
+        @for (var i = 0; i < _openChatThreads.Count; i++)
+        {
+            var thread = _openChatThreads[i];
+            <div style="--window-index: @i">
+                <ChatThreadWindow ThreadUser="@thread.User" ThreadGroup="@thread.Group" IsMinimized="@thread.IsMinimized" OnClose="() => CloseChatWindow(thread)" OnMinimize="() => MinimizeChatWindow(thread)" />
+            </div>
+        }
+    </MudPortal>
 </MudLayout>
 
 <div id="blazor-error-ui" data-nosnippet>
