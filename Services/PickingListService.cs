@@ -291,6 +291,15 @@ namespace CMetalsWS.Services
 
         public async Task<int> UpsertFromParsedDataAsync(int branchId, PickingList parsedList, List<PickingListItem> parsedItems)
         {
+            // Propagate the main ship date to all line items if it exists.
+            if (parsedList.ShipDate.HasValue)
+            {
+                foreach (var item in parsedItems)
+                {
+                    item.ScheduledShipDate = parsedList.ShipDate;
+                }
+            }
+
             using var db = await _dbContextFactory.CreateDbContextAsync();
 
             var existingList = await db.PickingLists
