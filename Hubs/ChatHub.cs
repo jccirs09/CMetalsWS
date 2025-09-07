@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace CMetalsWS.Hubs
@@ -20,10 +21,11 @@ namespace CMetalsWS.Hubs
 
         public async Task SendMessageToUser(string recipientId, string message)
         {
-            var sender = await _userManager.GetUserAsync(Context.User);
+            var userId = Context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var sender = await _userManager.FindByIdAsync(userId);
             if (sender == null)
             {
-                throw new HubException("User not found.");
+                throw new HubException("Sender not found.");
             }
 
             using var context = _contextFactory.CreateDbContext();
@@ -44,10 +46,11 @@ namespace CMetalsWS.Hubs
 
         public async Task SendMessageToGroup(int groupId, string message)
         {
-            var sender = await _userManager.GetUserAsync(Context.User);
+            var userId = Context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var sender = await _userManager.FindByIdAsync(userId);
             if (sender == null)
             {
-                throw new HubException("User not found.");
+                throw new HubException("Sender not found.");
             }
 
             using var context = _contextFactory.CreateDbContext();
