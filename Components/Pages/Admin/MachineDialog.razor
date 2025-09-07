@@ -1,7 +1,10 @@
 ﻿@using CMetalsWS.Data
 @using MudBlazor
 
-<MudDialog Title="@Title">
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@Title</MudText>
+    </TitleContent>
     <DialogContent>
         <MudForm @ref="_form">
             <MudStack Spacing="3">

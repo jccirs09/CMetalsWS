@@ -10,19 +10,22 @@
 @inject WorkOrderService WorkOrderService
 @inject ITaskAuditEventService AuditService
 
-<MudDialog Title="@Title">
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@Title</MudText>
+    </TitleContent>
     <DialogContent>
-        <MudForm @ref="_form" IsReadOnly="@IsProcessing">
+        <MudForm @ref="_form" readOnly="@IsProcessing">
             <MudStack Spacing="3">
                 <MudGrid>
                     <MudItem xs="12" sm="6" md="4">
-                        <MudDatePicker Label="Date Issued" Date="Model.CreatedDate" IsReadOnly="true" Margin="Margin.Dense" />
+                        <MudDatePicker Label="Date Issued" Date="Model.CreatedDate" readOnly="true" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" sm="6" md="4">
-                        <MudDatePicker Label="Due Date" @bind-Date="DueDateValue" Required="true" Margin="Margin.Dense" IsReadOnly="@IsProcessing" />
+                        <MudDatePicker Label="Due Date" @bind-Date="DueDateValue" Required="true" Margin="Margin.Dense" readOnly="@IsProcessing" />
                     </MudItem>
                     <MudItem xs="12" sm="6" md="4">
-                        <MudSelect T="int?" Label="Machine" @bind-Value="MachineId" Required="true" Margin="Margin.Dense" IsReadOnly="@IsProcessing">
+                        <MudSelect T="int?" Label="Machine" @bind-Value="MachineId" Required="true" Margin="Margin.Dense" readOnly="@IsProcessing">
                             @foreach (var m in Machines)
                             {
                                 <MudSelectItem T="int?" Value="m.Id">@m.Name (@m.Category)</MudSelectItem>
@@ -30,7 +33,7 @@
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" sm="6" md="4">
-                        <MudTextField Label="Shift" @bind-Value="Model.Shift" Margin="Margin.Dense" IsReadOnly="@IsProcessing" />
+                        <MudTextField Label="Shift" @bind-Value="Model.Shift" Margin="Margin.Dense" readOnly="@IsProcessing" />
                     </MudItem>
                 </MudGrid>
 
@@ -38,7 +41,7 @@
                     <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Pull Info</MudText></CardHeaderContent></MudCardHeader>
                     <MudCardContent>
                         <MudGrid>
-                            <MudItem xs="12" sm="3"><MudTextField T="string" Label="Parent Tag #" @bind-Value="Model.TagNumber" Required="true" IsReadOnly="@(IsProcessing || !_isMachineSelected)" /></MudItem>
+                            <MudItem xs="12" sm="3"><MudTextField T="string" Label="Parent Tag #" @bind-Value="Model.TagNumber" Required="true" readOnly="@(IsProcessing || !_isMachineSelected)" /></MudItem>
                             <MudItem xs="12" sm="3"><MudButton Variant="Variant.Outlined" OnClick="SearchByTag" Disabled="@(IsProcessing || !_isMachineSelected)" FullWidth="true" Class="mt-4">Search by Tag</MudButton></MudItem>
                             <MudItem xs="12" sm="6"><MudText><b>Parent Item ID:</b> @_parentItem?.ItemId</MudText></MudItem>
                             <MudItem xs="12" sm="6"><MudText><b>Description:</b> @_parentItem?.Description</MudText></MudItem>
@@ -106,24 +109,24 @@
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd DataLabel="#">@(Model.Items.ToList().IndexOf(context) + 1)</MudTd>
-                                <MudTd DataLabel="Item ID"><MudTextField Value="context.ItemCode" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
-                                <MudTd DataLabel="Picking List #"><MudTextField Value="context.SalesOrderNumber" Margin="Margin.Dense" IsReadOnly="true" /></MudTd>
+                                    <MudTd DataLabel="Item ID"><MudTextField Value="context.ItemCode" Margin="Margin.Dense" readOnly="true" /></MudTd>
+                                    <MudTd DataLabel="Picking List #"><MudTextField Value="context.SalesOrderNumber" Margin="Margin.Dense" readOnly="true" /></MudTd>
                                 @if (Model.MachineCategory == MachineCategory.CTL)
                                 {
-                                    <MudTd DataLabel="Scheduled Qty"><MudTextField Value="context.OrderQuantity" ValueChanged="@((decimal? v) => { context.OrderQuantity = v; RecalculateWeight(context); })" Margin="Margin.Dense" IsReadOnly="@(!context.IsStockItem)" /></MudTd>
+                                        <MudTd DataLabel="Scheduled Qty"><MudTextField Value="context.OrderQuantity" ValueChanged="@((decimal? v) => { context.OrderQuantity = v; RecalculateWeight(context); })" Margin="Margin.Dense" readOnly="@(!context.IsStockItem)" /></MudTd>
                                 }
-                                <MudTd DataLabel="Width"><MudTextField Value="context.Width" ValueChanged="@((decimal? v) => { context.Width = v; RecalculateWeight(context); })" Margin="Margin.Dense" IsReadOnly="@(!context.IsStockItem)" /></MudTd>
+                                    <MudTd DataLabel="Width"><MudTextField Value="context.Width" ValueChanged="@((decimal? v) => { context.Width = v; RecalculateWeight(context); })" Margin="Margin.Dense" readOnly="@(!context.IsStockItem)" /></MudTd>
                                 @if (Model.MachineCategory == MachineCategory.CTL)
                                 {
-                                    <MudTd DataLabel="Length"><MudTextField Value="context.Length" ValueChanged="@((decimal? v) => { context.Length = v; RecalculateWeight(context); })" Margin="Margin.Dense" IsReadOnly="@(!context.IsStockItem)" /></MudTd>
+                                        <MudTd DataLabel="Length"><MudTextField Value="context.Length" ValueChanged="@((decimal? v) => { context.Length = v; RecalculateWeight(context); })" Margin="Margin.Dense" readOnly="@(!context.IsStockItem)" /></MudTd>
                                 }
-                                <MudTd DataLabel="Weight"><MudTextField @bind-Value="context.OrderWeight" Margin="Margin.Dense" IsReadOnly="@(!context.IsStockItem)" /></MudTd>
+                                    <MudTd DataLabel="Weight"><MudTextField @bind-Value="context.OrderWeight" Margin="Margin.Dense" readOnly="@(!context.IsStockItem)" /></MudTd>
                                 <MudTd DataLabel="Unit">@context.Unit</MudTd>
                                 @if (Model.MachineCategory == MachineCategory.CTL)
                                 {
-                                    <MudTd DataLabel="Produced Qty"><MudTextField @bind-Value="context.ProducedQuantity" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></MudTd>
+                                        <MudTd DataLabel="Produced Qty"><MudTextField @bind-Value="context.ProducedQuantity" Margin="Margin.Dense" readOnly="@(!IsProcessing)" /></MudTd>
                                 }
-                                <MudTd DataLabel="Produced Wt"><MudTextField @bind-Value="context.ProducedWeight" Margin="Margin.Dense" IsReadOnly="@(!IsProcessing)" /></MudTd>
+                                    <MudTd DataLabel="Produced Wt"><MudTextField @bind-Value="context.ProducedWeight" Margin="Margin.Dense" readOnly="@(!IsProcessing)" /></MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveLine(context))" Disabled="@IsProcessing" />
                                 </MudTd>
@@ -136,7 +139,7 @@
                     <MudButton Variant="Variant.Text" OnClick="AddReturnCoil" Disabled="@(IsProcessing || _parentItem is null)">Add Return Coil</MudButton>
                 </MudStack>
 
-                <MudTextField T="string" Label="Instructions" @bind-Value="Model.Instructions" Lines="8" IsReadOnly="@IsProcessing" />
+                <MudTextField T="string" Label="Instructions" @bind-Value="Model.Instructions" Lines="8" readOnly="@IsProcessing" />
 
                 @if (Model.Items.Any(i => i.PickingListItemId.HasValue))
                 {
@@ -361,7 +364,7 @@
             {
                 PickingListItemId = selectedItem.Id,
                 SalesOrderNumber = selectedItem.PickingList?.SalesOrderNumber,
-                CustomerName = selectedItem.PickingList?.Customer?.CustomerName,
+                CustomerName = selectedItem.PickingList?.Customer?.CustomerName ?? string.Empty,
                 ItemCode = selectedItem.ItemId,
                 Description = selectedItem.ItemDescription,
                 Width = selectedItem.Width,
@@ -412,7 +415,7 @@
         {
             PickingListItemId = itemToCopy.PickingListItemId,
             SalesOrderNumber = itemToCopy.SalesOrderNumber,
-            CustomerName = itemToCopy.PickingListItem?.PickingList?.Customer?.CustomerName,
+            CustomerName = itemToCopy.PickingListItem?.PickingList?.Customer?.CustomerName ?? string.Empty,
             ItemCode = itemToCopy.ItemCode,
             Description = itemToCopy.Description,
             Width = itemToCopy.Width,
@@ -440,7 +443,7 @@
         if (!item.IsStockItem) return;
 
         var qty = item.OrderQuantity ?? 0;
-        item.OrderWeight = CalculateWeight(item.Description, item.Width, item.Length, (int)qty) ?? 0m;
+        item.OrderWeight = CalculateWeight(item.Description ?? string.Empty, item.Width, item.Length, (int)qty) ?? 0m;
         StateHasChanged();
     }
 

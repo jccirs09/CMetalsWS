@@ -3,7 +3,10 @@
 @using MudBlazor
 @inject InventoryService InvService
 
-<MudDialog Title="Work Order Details">
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Work Order Details</MudText>
+    </TitleContent>
     <DialogContent>
         <MudForm>
             <MudStack Spacing="3">

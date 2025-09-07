@@ -45,7 +45,7 @@
                     @foreach (var pl in _unscheduled)
                     {
                         <MudListItem T="PickingList" Value="@pl">
-                            @pl.SalesOrderNumber - @pl.Customer.CustomerName
+                            @pl.SalesOrderNumber - @pl.Customer?.CustomerName
                         </MudListItem>
                     }
                 </MudList>
@@ -126,7 +126,7 @@
                 End = x.Min.AddHours(1),
                 AllDay = false,
                 PickingList = x.PL,
-                Text = $"{x.PL.SalesOrderNumber} - {x.PL.Customer.CustomerName}"
+                Text = $"{x.PL.SalesOrderNumber} - {x.PL.Customer?.CustomerName}"
             })
             .OrderBy(i => i.Start)
             .ToList();
