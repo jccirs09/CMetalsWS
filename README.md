@@ -67,3 +67,16 @@ This application includes a feature to upload, parse, and review picking list PD
 6.  On the review page, you can assign a **Machine** to each line item using the dropdowns. You can also select multiple rows and use the **Bulk Assign** tool.
 7.  Click **Save** or **Save & Close** to persist your machine assignments.
 8.  Clicking **Re-Parse** will re-run the AI parsing process on the original PDF, updating the data while preserving existing machine assignments for matching lines.
+
+### PDF Parsing Design
+
+The PDF parsing pipeline is designed to be robust and to run in an intranet environment without requiring external image hosting.
+
+-   **Intranet-Safe Design**: All images generated from the PDF are handled locally. They are converted into `data:image/jpeg;base64,...` URLs and sent directly to the OpenAI Vision API. This avoids the need to upload images to a public server (like Azure Blob Storage) and then pass a public URL, ensuring data remains within the request body.
+
+-   **Payload Size Management**: To prevent errors from data URLs being too long and to manage API costs, the following steps are taken:
+    -   **Page Cap**: The system processes a maximum of the first 5 pages of any uploaded PDF.
+    -   **Image Downscaling**: Each page is downscaled to have a maximum dimension (width or height) of 1600 pixels, preserving its aspect ratio.
+    -   **Dynamic JPEG Quality**: Images are first encoded with JPEG quality 80. If the resulting file size exceeds a 2MB threshold, the system re-encodes the image at quality 70. If it is still too large, the page is skipped.
+
+-   **JSON-Only Behavior**: The request to the OpenAI model includes a system prompt instructing it to return *only* valid JSON. The service then trims the response to the first valid JSON object (`{...}`) or array (`[...]`) and will throw an error if no valid JSON is found, ensuring the parsing logic only deals with structured data.

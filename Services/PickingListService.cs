@@ -293,9 +293,19 @@ namespace CMetalsWS.Services
             }
             else
             {
-                // Update existing list header
-                db.Entry(existingList).CurrentValues.SetValues(parsedList);
-                existingList.BranchId = branchId; // Ensure branch is correct
+                // Update existing list header by manually mapping properties
+                // This avoids trying to change the primary key, which causes an exception.
+                existingList.OrderDate = parsedList.OrderDate;
+                existingList.ShipDate = parsedList.ShipDate;
+                existingList.SoldTo = parsedList.SoldTo;
+                existingList.ShipTo = parsedList.ShipTo;
+                existingList.SalesRep = parsedList.SalesRep;
+                existingList.ShippingVia = parsedList.ShippingVia;
+                existingList.FOB = parsedList.FOB;
+                existingList.Buyer = parsedList.Buyer;
+                existingList.PrintDateTime = parsedList.PrintDateTime;
+                existingList.TotalWeight = parsedList.TotalWeight;
+                // We don't update BranchId or SalesOrderNumber as they are the keys for the lookup.
 
                 var existingItemsDict = existingList.Items.ToDictionary(i => (i.LineNumber, i.ItemId));
                 var parsedItemsDict = parsedItems.ToDictionary(i => (i.LineNumber, i.ItemId));
@@ -355,7 +365,7 @@ namespace CMetalsWS.Services
 
             var importGuid = Guid.NewGuid();
             var imagesDir = System.IO.Path.Combine("wwwroot", "uploads", "pickinglists", importGuid.ToString());
-            var newImport = await _importService.CreateImportAsync(pickingList.BranchId, latestImport.SourcePdfPath, imagesDir, _configuration["OpenAI:Model"] ?? "gpt-4o-mini");
+            var newImport = await _importService.CreateImportAsync(pickingList.BranchId, latestImport.SourcePdfPath, imagesDir, _configuration.GetValue<string>("OpenAI:Model") ?? "gpt-4o-mini");
 
             try
             {
