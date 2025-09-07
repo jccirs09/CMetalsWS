@@ -2,8 +2,10 @@
 @implements IDisposable
 @using CMetalsWS.Data
 @using CMetalsWS.Services
+@using CMetalsWS.Security
 @using MudBlazor
 @using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Policy = Permissions.PickingLists.Add)]
 
 @inject IParsingStateService ParsingStateService
 @inject PickingListService PickingListService
@@ -23,17 +25,19 @@ else
         <MudText Typo="Typo.h5">Review New Picking List: @_list.SalesOrderNumber</MudText>
         <MudStack Row="true" Spacing="2">
             <MudButton Variant="Variant.Text" OnClick="Cancel" Disabled="@_isProcessing">Cancel</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveChanges" Disabled="@_isProcessing">
-                 @if (_isProcessing)
-                {
-                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
-                    <MudText Class="ms-2">Saving...</MudText>
-                }
-                else
-                {
-                    <MudText>Save</MudText>
-                }
-            </MudButton>
+            <AuthorizeView>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveChanges" Disabled="@_isProcessing">
+                    @if (_isProcessing)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Saving...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>Save</MudText>
+                    }
+                </MudButton>
+            </AuthorizeView>
         </MudStack>
     </MudStack>
 

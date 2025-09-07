@@ -12,11 +12,12 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IAuthorizationService AuthorizationService
 
-<MudPaper Class="pa-4">
+<MudPaper Class="p-4">
     <MudStack Spacing="3">
         <MudText Typo="Typo.h5">Load (Shipping) Schedule</MudText>
-        <MudTable Items="_loads" Hover="true" Dense="true" Class="mt-4">
+        <MudTable Items="_loads" Hover="true" Dense="true" Class="mt-4" Context="load">
             <HeaderContent>
                 <MudTh>Load #</MudTh>
                 <MudTh>Truck</MudTh>
@@ -25,19 +26,20 @@
                 <MudTh></MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd>@context.LoadNumber</MudTd>
-                <MudTd>@context.Truck?.Description</MudTd>
-                <MudTd>@($"{context.ShippingDate:yyyy-MM-dd}")</MudTd>
-                <MudTd>@context.Status</MudTd>
+                <MudTd>@load.LoadNumber</MudTd>
+                <MudTd>@load.Truck?.Description</MudTd>
+                <MudTd>@($"{load.ShippingDate:yyyy-MM-dd}")</MudTd>
+                <MudTd>@load.Status</MudTd>
                 <MudTd>
-                    <AuthorizeView>
-                        <MudButton Variant="Variant.Text" OnClick="@(async () => await EditLoad(context))">Edit</MudButton>
-                    </AuthorizeView>
+                    @if (_canManageLoads)
+                    {
+                        <MudButton Variant="Variant.Text" OnClick="@(async () => await EditLoad(load))">Edit</MudButton>
+                    }
                 </MudTd>
             </RowTemplate>
         </MudTable>
 
-        <AuthorizeView>
+        <AuthorizeView Policy="@Permissions.PickingLists.ManageLoads">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateLoad">New Load</MudButton>
         </AuthorizeView>
     </MudStack>
@@ -48,12 +50,14 @@
     private List<Load> _loads = new();
     private bool _isAdmin;
     private int? _branchId;
+    private bool _canManageLoads;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         _isAdmin = user.IsInRole("Admin");
+        _canManageLoads = (await AuthorizationService.AuthorizeAsync(user, Permissions.PickingLists.ManageLoads)).Succeeded;
         var branches = await BranchService.GetBranchesAsync();
         _branchId = _isAdmin ? null : branches.FirstOrDefault()?.Id;
         await LoadAsync();
