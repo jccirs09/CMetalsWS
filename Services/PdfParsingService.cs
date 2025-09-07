@@ -168,7 +168,7 @@ namespace CMetalsWS.Services
 
         private async Task<PickingList> ParseHeaderAsync(string imagePath)
         {
-            var prompt = @"Return ONLY a JSON object with the fields: { ""salesOrderNumber"": string, ""orderDate"": ""yyyy-MM-dd"", ""shipDate"": ""yyyy-MM-dd"", ""soldTo"": string, ""shipTo"": string, ""salesRep"": string, ""shippingVia"": string, ""fob"": string, ""buyer"": string|null, ""printDateTime"": ""yyyy-MM-dd HH:mm:ss"", ""totalWeight"": number }. Use exactly those formats. If seconds are unknown, use :00.";
+            var prompt = @"Return ONLY a JSON object with the fields: { ""salesOrderNumber"": string, ""orderDate"": ""yyyy-MM-dd"", ""shipDate"": ""yyyy-MM-dd"", ""soldTo"": string, ""shipTo"": ""Extract the COMPLETE multi-line shipping address as a single string, including street, city, state, and zip code. Preserve line breaks with \\n."", ""salesRep"": string, ""shippingVia"": string, ""fob"": string, ""buyer"": string|null, ""printDateTime"": ""yyyy-MM-dd HH:mm:ss"", ""totalWeight"": number }. Use exactly those formats. If seconds are unknown, use :00.";
             var json = await GetJsonFromVisionAsync(new[] { imagePath }, prompt, enforceJsonObject: true);
 
             var parsedHeader = JsonSerializer.Deserialize<PickingListHeaderDto>(json, _jsonOptions);
