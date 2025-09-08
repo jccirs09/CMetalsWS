@@ -41,7 +41,6 @@ namespace CMetalsWS.Services
             var result = await _userManager.CreateAsync(user, password);
             if (result.Succeeded)
             {
-                await _userManager.AddClaimAsync(user, new System.Security.Claims.Claim("TestClaim", "TestValue"));
                 if (roles.Any())
                 {
                     await _userManager.AddToRolesAsync(user, roles);

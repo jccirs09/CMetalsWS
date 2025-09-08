@@ -62,6 +62,15 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 // Claims principal factory to load role permission claims into the user
 builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, AppClaimsPrincipalFactory>();
 
+using System.Security.Claims;
+
+builder.Services.Configure<IdentityOptions>(o =>
+{
+    o.ClaimsIdentity.UserIdClaimType = ClaimTypes.NameIdentifier;
+    o.ClaimsIdentity.UserNameClaimType = ClaimTypes.Name;
+    o.ClaimsIdentity.RoleClaimType = ClaimTypes.Role;
+});
+
 // Refresh claims quickly after role/permission changes
 builder.Services.Configure<SecurityStampValidatorOptions>(o =>
 {
@@ -106,6 +115,7 @@ builder.Services.AddScoped<IParsingStateService, ParsingStateService>();
 
 
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 builder.Services.AddSignalR();
 
 

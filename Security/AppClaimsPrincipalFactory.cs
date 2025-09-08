@@ -26,6 +26,12 @@ namespace CMetalsWS.Services
         protected override async Task<ClaimsIdentity> GenerateClaimsAsync(ApplicationUser user)
         {
             var identity = await base.GenerateClaimsAsync(user);
+
+            // Add user claims
+            var userClaims = await _userManager.GetClaimsAsync(user);
+            identity.AddClaims(userClaims);
+
+            // Add role claims
             var roles = await _userManager.GetRolesAsync(user);
             foreach (var roleName in roles)
             {
@@ -40,6 +46,13 @@ namespace CMetalsWS.Services
                     }
                 }
             }
+
+            // Ensure NameIdentifier is present
+            if (!identity.HasClaim(c => c.Type == ClaimTypes.NameIdentifier))
+            {
+                identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, user.Id));
+            }
+
             return identity;
         }
     }

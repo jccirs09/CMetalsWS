@@ -119,73 +119,87 @@
     private int _lastSeenMessageId = 0;
     private List<string> _newMessagesForScreenReader = new();
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        _currentUserId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-        if (_currentUserId != null)
+        if (firstRender)
         {
-            if (ThreadUser != null)
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            if (user?.Identity?.IsAuthenticated == true)
             {
-                _messages = await ChatService.GetConversationAsync(_currentUserId, ThreadUser.Id);
+                _currentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (_currentUserId != null)
+                {
+                    await LoadMessages();
+                    await ConnectToHub();
+                    StateHasChanged();
+                }
             }
-            else if (ThreadGroup != null)
-            {
-                _messages = await ChatService.GetGroupConversationAsync(ThreadGroup.Id);
-            }
-
-            _hubConnection = new HubConnectionBuilder()
-                .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/chat"))
-                .Build();
-
-            _hubConnection.On<string, string>("ReceiveMessage", async (userId, message) =>
-            {
-                if ((ThreadUser != null && ThreadUser.Id == userId) || userId == _currentUserId)
-                {
-                    var sender = await ChatService.GetUserDetailsAsync(userId);
-                    var chatMessage = new ChatMessage { SenderId = userId, Sender = sender, Content = message, Timestamp = DateTime.Now };
-                    _messages.Add(chatMessage);
-                    _newMessagesForScreenReader.Add($"{sender?.UserName}: {message}");
-                    await InvokeAsync(StateHasChanged);
-                    await ScrollToBottom();
-                    await ClearNewMessagesForScreenReader();
-                }
-            });
-
-            _hubConnection.On<string, int, string>("ReceiveGroupMessage", async (userId, groupId, message) =>
-            {
-                if (ThreadGroup != null && ThreadGroup.Id == groupId)
-                {
-                    var sender = await ChatService.GetUserDetailsAsync(userId);
-                    var chatMessage = new ChatMessage { SenderId = userId, Sender = sender, ChatGroupId = groupId, Content = message, Timestamp = DateTime.Now };
-                    _messages.Add(chatMessage);
-                    _newMessagesForScreenReader.Add($"{sender?.UserName} in {ThreadGroup.Name}: {message}");
-                    await InvokeAsync(StateHasChanged);
-                    await ScrollToBottom();
-                    await ClearNewMessagesForScreenReader();
-                }
-            });
-
-            _hubConnection.On<string, bool>("ReceiveTypingState", (userId, isTyping) =>
-            {
-                if (ThreadUser != null && ThreadUser.Id == userId)
-                {
-                    _isTyping = isTyping;
-                    InvokeAsync(StateHasChanged);
-                }
-            });
-
-            _hubConnection.On<int>("ReceiveReadReceipt", messageId =>
-            {
-                _lastSeenMessageId = messageId;
-                InvokeAsync(StateHasChanged);
-            });
-
-            await _hubConnection.StartAsync();
-            StateHasChanged();
         }
+    }
+
+    private async Task LoadMessages()
+    {
+        if (ThreadUser != null)
+        {
+            _messages = await ChatService.GetConversationAsync(_currentUserId, ThreadUser.Id);
+        }
+        else if (ThreadGroup != null)
+        {
+            _messages = await ChatService.GetGroupConversationAsync(ThreadGroup.Id);
+        }
+    }
+
+    private async Task ConnectToHub()
+    {
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/chat"))
+            .Build();
+
+        _hubConnection.On<string, string>("ReceiveMessage", async (userId, message) =>
+        {
+            if ((ThreadUser != null && ThreadUser.Id == userId) || userId == _currentUserId)
+            {
+                var sender = await ChatService.GetUserDetailsAsync(userId);
+                var chatMessage = new ChatMessage { SenderId = userId, Sender = sender, Content = message, Timestamp = DateTime.Now };
+                _messages.Add(chatMessage);
+                _newMessagesForScreenReader.Add($"{sender?.UserName}: {message}");
+                await InvokeAsync(StateHasChanged);
+                await ScrollToBottom();
+                await ClearNewMessagesForScreenReader();
+            }
+        });
+
+        _hubConnection.On<string, int, string>("ReceiveGroupMessage", async (userId, groupId, message) =>
+        {
+            if (ThreadGroup != null && ThreadGroup.Id == groupId)
+            {
+                var sender = await ChatService.GetUserDetailsAsync(userId);
+                var chatMessage = new ChatMessage { SenderId = userId, Sender = sender, ChatGroupId = groupId, Content = message, Timestamp = DateTime.Now };
+                _messages.Add(chatMessage);
+                _newMessagesForScreenReader.Add($"{sender?.UserName} in {ThreadGroup.Name}: {message}");
+                await InvokeAsync(StateHasChanged);
+                await ScrollToBottom();
+                await ClearNewMessagesForScreenReader();
+            }
+        });
+
+        _hubConnection.On<string, bool>("ReceiveTypingState", (userId, isTyping) =>
+        {
+            if (ThreadUser != null && ThreadUser.Id == userId)
+            {
+                _isTyping = isTyping;
+                InvokeAsync(StateHasChanged);
+            }
+        });
+
+        _hubConnection.On<int>("ReceiveReadReceipt", messageId =>
+        {
+            _lastSeenMessageId = messageId;
+            InvokeAsync(StateHasChanged);
+        });
+
+        await _hubConnection.StartAsync();
     }
 
     private async Task SendMessageAsync()
