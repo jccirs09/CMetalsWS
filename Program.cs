@@ -10,6 +10,8 @@ using MudBlazor.Services;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using CMetalsWS.Hubs;
+using System.Security.Claims;
+using Microsoft.AspNetCore.SignalR;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -61,8 +63,6 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 
 // Claims principal factory to load role permission claims into the user
 builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, AppClaimsPrincipalFactory>();
-
-using System.Security.Claims;
 
 builder.Services.Configure<IdentityOptions>(o =>
 {
