@@ -31,5 +31,6 @@ namespace CMetalsWS.Data
 
         [NotMapped]
         public HashSet<string> SeenBy { get; set; } = new();
+
     }
 }

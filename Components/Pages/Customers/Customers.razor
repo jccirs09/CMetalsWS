@@ -49,6 +49,7 @@
                 <MudSelectItem T="bool?" Value="true">Active</MudSelectItem>
                 <MudSelectItem T="bool?" Value="false">Inactive</MudSelectItem>
             </MudSelect>
+            <MudTextField T="string" Label="Group" ValueChanged="@(s => OnGroupFilterChanged(s))" Clearable="true" />
         </ToolBarContent>
         <HeaderContent>
             <MudTh><MudTableSortLabel SortLabel="CustomerCode" T="Customer">Code</MudTableSortLabel></MudTh>
@@ -57,6 +58,8 @@
             <MudTh><MudTableSortLabel SortLabel="Province" T="Customer">Prov</MudTableSortLabel></MudTh>
             <MudTh><MudTableSortLabel SortLabel="DestinationRegionCategory" T="Customer">Region</MudTableSortLabel></MudTh>
             <MudTh><MudTableSortLabel SortLabel="DestinationGroupCategory" T="Customer">Group</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="ContactNumber" T="Customer">Phone</MudTableSortLabel></MudTh>
+            <MudTh>Constraints</MudTh>
             <MudTh><MudTableSortLabel SortLabel="Active" T="Customer">Status</MudTableSortLabel></MudTh>
             <MudTh>Actions</MudTh>
         </HeaderContent>
@@ -69,11 +72,20 @@
                 <MudChip T="string" Color="@GetRegionColor(context.DestinationRegionCategory)" Size="Size.Small">@context.DestinationRegionCategory</MudChip>
             </MudTd>
             <MudTd DataLabel="Group">@context.DestinationGroupCategory</MudTd>
+            <MudTd DataLabel="Phone">@context.ContactNumber</MudTd>
+            <MudTd DataLabel="Constraints">
+                @if (context.LiftgateRequired) { <MudChip T="string" Color="Color.Warning" Size="Size.Small">Liftgate</MudChip> }
+                @if (context.AppointmentRequired) { <MudChip T="string" Color="Color.Warning" Size="Size.Small">Appt</MudChip> }
+                @if (context.FerryRequired) { <MudChip T="string" Color="Color.Info" Size="Size.Small">Ferry</MudChip> }
+            </MudTd>
             <MudTd DataLabel="Status">
                 <MudChip T="string" Color="@(context.Active ? Color.Success : Color.Error)" Size="Size.Small">@(context.Active ? "Active" : "Inactive")</MudChip>
             </MudTd>
             <MudTd DataLabel="Actions">
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="(() => OpenEditDialog(context.Id))" />
+                <AuthorizeView Policy="@Permissions.Customers.Edit" Context="authContext">
+                    <MudIconButton Icon="@Icons.Material.Filled.TravelExplore" Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" OnClick="(() => ReGeocode(context.Id))" />
+                </AuthorizeView>
             </MudTd>
         </RowTemplate>
         <PagerContent>
@@ -86,6 +98,7 @@
     private MudTable<Customer> _table = default!;
     private string? _searchTerm;
     private string? _regionFilter;
+    private string? _groupFilter;
     private bool? _activeFilter = true;
 
     private async Task<TableData<Customer>> ServerReload(TableState state, CancellationToken token)
@@ -95,7 +108,7 @@
             state.PageSize,
             _searchTerm,
             _regionFilter,
-            null, // Group filter not yet implemented in UI
+            _groupFilter,
             _activeFilter,
             state.SortLabel,
             state.SortDirection == SortDirection.Descending
@@ -118,6 +131,12 @@
     private void OnActiveFilterChanged(bool? value)
     {
         _activeFilter = value;
+        _table.ReloadServerData();
+    }
+
+    private void OnGroupFilterChanged(string value)
+    {
+        _groupFilter = value;
         _table.ReloadServerData();
     }
 
@@ -151,9 +170,8 @@
         var dialog = await DialogService.ShowAsync<EditCustomerDialog>(isNew ? "New Customer" : "Edit Customer", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Canceled)
+        if (result != null && !result.Canceled && result.Data is Customer updatedCustomer)
         {
-            var updatedCustomer = (Customer)result.Data;
             if (isNew)
             {
                 await CustomerService.CreateCustomerAsync(updatedCustomer);
@@ -164,6 +182,32 @@
                 await CustomerService.UpdateCustomerAsync(updatedCustomer);
                 Snackbar.Add("Customer updated successfully.", Severity.Success);
             }
+            await _table.ReloadServerData();
+        }
+    }
+
+    private async Task ReGeocode(int customerId)
+    {
+        try
+        {
+            var result = await CustomerService.RecomputeCustomerRegionAsync(customerId);
+            if (result.EnrichedCustomer != null && !string.IsNullOrWhiteSpace(result.EnrichedCustomer.FullAddress))
+            {
+                Snackbar.Add($"Successfully re-geocoded '{result.EnrichedCustomer.CustomerName}'. New Region: {result.EnrichedCustomer.DestinationRegionCategory}", Severity.Success);
+            }
+            else
+            {
+                var customer = await CustomerService.GetByIdAsync(customerId);
+                var customerName = customer?.CustomerName ?? $"Customer ID {customerId}";
+                Snackbar.Add($"Could not re-geocode '{customerName}'. Address may be missing or invalid.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred during re-geocoding: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
             await _table.ReloadServerData();
         }
     }

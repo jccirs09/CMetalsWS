@@ -1,13 +1,14 @@
 ﻿using CMetalsWS.Data;
+using CMetalsWS.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
-using System.Web;
 
 namespace CMetalsWS.Services
 {
@@ -22,71 +23,61 @@ namespace CMetalsWS.Services
             _httpClient = httpClientFactory.CreateClient();
             _logger = logger;
             _apiKey = configuration["GooglePlaces:ApiKey"];
+            _httpClient.DefaultRequestHeaders.Add("X-Goog-Api-Key", _apiKey);
+            _httpClient.DefaultRequestHeaders.Add("X-Goog-FieldMask", "places.name,places.displayName,places.formattedAddress,places.location,places.types");
         }
 
-        public async Task<Customer> EnrichCustomerAddressAsync(Customer customer, string address)
+        public async Task<List<Customer>> SearchPlacesAsync(string query)
         {
             if (string.IsNullOrWhiteSpace(_apiKey))
             {
-                _logger.LogWarning("Google Places API key is not configured. Skipping address enrichment.");
-                return customer;
+                _logger.LogWarning("Google Places API key is not configured. Skipping search.");
+                return new List<Customer>();
             }
 
-            if (string.IsNullOrWhiteSpace(address))
+            var request = new GooglePlacesTextSearchRequest
             {
-                _logger.LogWarning("Address is empty for customer {CustomerCode}. Skipping address enrichment.", customer.CustomerCode);
-                return customer;
-            }
-
-            try
-            {
-                // 1. Text Search to find Place ID
-                var placeId = await FindPlaceIdAsync(address);
-                if (string.IsNullOrWhiteSpace(placeId))
+                textQuery = query,
+                regionCode = "CA",
+                locationBias = new LocationBias
                 {
-                    _logger.LogWarning("Could not find Place ID for address: {Address}", address);
-                    return customer;
-                }
+                    rectangle = new Rectangle
+                    {
+                        low = new LatLng { latitude = 49.0, longitude = -123.5 },
+                        high = new LatLng { latitude = 49.5, longitude = -122.2 }
+                    }
+                },
+                maxResultCount = 5
+            };
 
-                // 2. Place Details to get address components and geometry
-                var placeDetails = await GetPlaceDetailsAsync(placeId);
-                if (placeDetails?.result == null)
-                {
-                    _logger.LogWarning("Could not get Place Details for Place ID: {PlaceId}", placeId);
-                    return customer;
-                }
+            var response = await _httpClient.PostAsJsonAsync("https://places.googleapis.com/v1/places:searchText", request);
 
-                // 3. Map details to customer object
-                MapPlaceDetailsToCustomer(placeDetails.result, customer);
-
-                return customer;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error enriching address for customer {CustomerCode}", customer.CustomerCode);
-                return customer; // Return original customer on error
-            }
-        }
-
-        private async Task<string?> FindPlaceIdAsync(string address)
-        {
-            var encodedAddress = HttpUtility.UrlEncode(address);
-            var url = $"https://maps.googleapis.com/maps/api/place/textsearch/json?query={encodedAddress}&key={_apiKey}&fields=place_id";
-
-            var response = await _httpClient.GetAsync(url);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogError("Google Places Text Search API request failed with status code {StatusCode}", response.StatusCode);
+                return new List<Customer>();
+            }
+
+            var content = await response.Content.ReadFromJsonAsync<PlacesTextSearchResponseV2>();
+            return content?.places?.Select(p => new Customer
+            {
+                CustomerName = p.displayName?.text ?? p.name,
+                FullAddress = p.formattedAddress,
+                Latitude = (decimal?)p.location?.latitude,
+                Longitude = (decimal?)p.location?.longitude,
+                PlaceId = p.name?.Split('/').Last(),
+                CustomTags = string.Join(",", p.types ?? new List<string>())
+            }).ToList() ?? new List<Customer>();
+        }
+
+        public async Task<Customer?> GetPlaceDetailsAsync(string placeId)
+        {
+            if (string.IsNullOrWhiteSpace(_apiKey) || string.IsNullOrWhiteSpace(placeId))
+            {
                 return null;
             }
 
-            var content = await response.Content.ReadFromJsonAsync<PlacesTextSearchResponse>();
-            return content?.results?.FirstOrDefault()?.place_id;
-        }
-
-        private async Task<PlaceDetailsResponse?> GetPlaceDetailsAsync(string placeId)
-        {
-            var url = $"https://maps.googleapis.com/maps/api/place/details/json?place_id={placeId}&key={_apiKey}&fields=address_components,geometry,place_id";
+            var url = $"https://maps.googleapis.com/maps/api/place/details/json?place_id={placeId}&key={_apiKey}&fields=address_components,formatted_address";
 
             var response = await _httpClient.GetAsync(url);
             if (!response.IsSuccessStatusCode)
@@ -95,52 +86,60 @@ namespace CMetalsWS.Services
                 return null;
             }
 
-            return await response.Content.ReadFromJsonAsync<PlaceDetailsResponse>();
+            var content = await response.Content.ReadFromJsonAsync<PlaceDetailsResponse>();
+            if (content?.result == null) return null;
+
+            var customer = new Customer();
+            MapPlaceDetailsToCustomer(content.result, customer);
+            return customer;
         }
 
         private void MapPlaceDetailsToCustomer(PlaceDetailsResult details, Customer customer)
         {
-            customer.PlaceId = details.place_id;
-            customer.Latitude = details.geometry?.location?.lat;
-            customer.Longitude = details.geometry?.location?.lng;
-
-            var streetNumber = details.address_components?.FirstOrDefault(c => c.types.Contains("street_number"))?.long_name;
-            var route = details.address_components?.FirstOrDefault(c => c.types.Contains("route"))?.long_name;
-
-            customer.Street1 = $"{streetNumber} {route}".Trim();
-            customer.City = details.address_components?.FirstOrDefault(c => c.types.Contains("locality"))?.long_name;
-            customer.Province = details.address_components?.FirstOrDefault(c => c.types.Contains("administrative_area_level_1"))?.short_name;
-            customer.PostalCode = details.address_components?.FirstOrDefault(c => c.types.Contains("postal_code"))?.long_name;
-            customer.Country = details.address_components?.FirstOrDefault(c => c.types.Contains("country"))?.long_name;
-
-            customer.FullAddress = $"{customer.Street1}, {customer.City}, {customer.Province} {customer.PostalCode}, {customer.Country}".Trim();
+            customer.Street1 = $"{details.address_components?.FirstOrDefault(c => c.types != null && c.types.Contains("street_number"))?.long_name} {details.address_components?.FirstOrDefault(c => c.types != null && c.types.Contains("route"))?.long_name}".Trim();
+            customer.City = details.address_components?.FirstOrDefault(c => c.types != null && c.types.Contains("locality"))?.long_name;
+            customer.Province = details.address_components?.FirstOrDefault(c => c.types != null && c.types.Contains("administrative_area_level_1"))?.short_name;
+            customer.PostalCode = details.address_components?.FirstOrDefault(c => c.types != null && c.types.Contains("postal_code"))?.long_name;
+            customer.Country = details.address_components?.FirstOrDefault(c => c.types != null && c.types.Contains("country"))?.long_name;
+            customer.FullAddress = details.formatted_address;
         }
     }
 
-    // --- DTOs for Google Places API responses ---
-
-    public class PlacesTextSearchResponse
+    public class PlacesTextSearchResponseV2
     {
-        public PlaceSearchResult[]? results { get; set; }
-        public string? status { get; set; }
+        public List<PlaceV2>? places { get; set; }
     }
 
-    public class PlaceSearchResult
+    public class PlaceV2
     {
-        public string? place_id { get; set; }
+        public string? name { get; set; }
+        public DisplayName? displayName { get; set; }
+        public string? formattedAddress { get; set; }
+        public LocationV2? location { get; set; }
+        public List<string>? types { get; set; }
+    }
+
+    public class DisplayName
+    {
+        public string? text { get; set; }
+        public string? languageCode { get; set; }
+    }
+
+    public class LocationV2
+    {
+        public double latitude { get; set; }
+        public double longitude { get; set; }
     }
 
     public class PlaceDetailsResponse
     {
         public PlaceDetailsResult? result { get; set; }
-        public string? status { get; set; }
     }
 
     public class PlaceDetailsResult
     {
         public AddressComponent[]? address_components { get; set; }
-        public Geometry? geometry { get; set; }
-        public string? place_id { get; set; }
+        public string? formatted_address { get; set; }
     }
 
     public class AddressComponent
@@ -148,16 +147,5 @@ namespace CMetalsWS.Services
         public string? long_name { get; set; }
         public string? short_name { get; set; }
         public string[]? types { get; set; }
-    }
-
-    public class Geometry
-    {
-        public Location? location { get; set; }
-    }
-
-    public class Location
-    {
-        public decimal lat { get; set; }
-        public decimal lng { get; set; }
     }
 }

@@ -16,6 +16,7 @@ namespace CMetalsWS.Services
         public event Func<string, bool, Task>? PresenceChanged;
         public event Func<string, int, Task>? ReadReceipt;
 
+
         public SignalRChatClient(NavigationManager navigationManager)
         {
             _navigationManager = navigationManager;
@@ -45,6 +46,7 @@ namespace CMetalsWS.Services
             {
                 if (ReadReceipt != null)
                     await ReadReceipt.Invoke(userId, messageId);
+
             });
 
             // TODO: Implement presence handlers if needed
