@@ -36,6 +36,6 @@ namespace CMetalsWS.Data
         public bool Seen { get; set; }
 
         [NotMapped]
-        public List<ApplicationUser> SeenBy { get; set; } = new();
+        public Dictionary<string, ApplicationUser> SeenBy { get; set; } = new();
     }
 }
