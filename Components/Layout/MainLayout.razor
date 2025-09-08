@@ -25,29 +25,29 @@
     <MudMainContent Class="pt-16 pa-4">
         @Body
     </MudMainContent>
-
-    <MudPortal>
-        <MudFab Color="Color.Primary" Icon="@Icons.Material.Filled.Message" OnClick="@ToggleChatDock" Style="position: fixed; bottom: 20px; right: 20px;" />
-
-        @if (_isChatDockOpen)
-        {
-            <ChatDock OnClose="@ToggleChatDock" OnUserSelected="OpenChatWindow" OnGroupSelected="OpenChatWindow" />
-        }
-
-        @if (_isChatThreadsPanelOpen)
-        {
-            <ChatThreadsPanel OnClose="@ToggleChatThreadsPanel" OnConversationSelected="OpenChatWindowFromConversation" />
-        }
-
-        @for (var i = 0; i < _openChatThreads.Count; i++)
-        {
-            var thread = _openChatThreads[i];
-            <div style="--window-index: @i">
-                <ChatThreadWindow ThreadUser="@thread.User" ThreadGroup="@thread.Group" IsMinimized="@thread.IsMinimized" OnClose="() => CloseChatWindow(thread)" OnMinimize="() => MinimizeChatWindow(thread)" />
-            </div>
-        }
-    </MudPortal>
 </MudLayout>
+
+<MudPortal>
+    <MudFab Color="Color.Primary" Icon="@Icons.Material.Filled.Message" OnClick="@ToggleChatDock" Style="position: fixed; bottom: 20px; right: 20px;" />
+
+    @if (_isChatDockOpen)
+    {
+        <ChatDock OnClose="@ToggleChatDock" OnUserSelected="OpenChatWindow" OnGroupSelected="OpenChatWindow" />
+    }
+
+    @if (_isChatThreadsPanelOpen)
+    {
+        <ChatThreadsPanel OnClose="@ToggleChatThreadsPanel" OnConversationSelected="OpenChatWindowFromConversation" />
+    }
+
+    @for (var i = 0; i < _openChatThreads.Count; i++)
+    {
+        var thread = _openChatThreads[i];
+        <div style="--window-index: @i">
+            <ChatThreadWindow ThreadUser="@thread.User" ThreadGroup="@thread.Group" IsMinimized="@thread.IsMinimized" OnClose="() => CloseChatWindow(thread)" OnMinimize="() => MinimizeChatWindow(thread)" />
+        </div>
+    }
+</MudPortal>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
