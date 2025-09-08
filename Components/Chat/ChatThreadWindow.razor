@@ -116,7 +116,8 @@
     private string _currentUserId = "";
     private List<ChatMessage> _messages = new();
     private bool _isTyping = false;
-    private int _lastSeenMessageId = 0;
+    // Tracks the latest message acknowledged as read by the conversation partner
+    private int _lastSeenMessageId;
     private bool _autoStickToBottom = true;
     private System.Timers.Timer? _typingTimer;
     private bool _typingSent;
