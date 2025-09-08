@@ -53,51 +53,10 @@
     scroll-behavior: smooth; /* feels nicer */
 }
 
-.message {
-    display: flex;
-    margin-bottom: 8px;
-}
-
-.message.in {
-    justify-content: flex-start;
-}
-
-.message.out {
-    justify-content: flex-end;
-}
-
-.message__avatar {
-    margin-right: 8px;
-}
-
-.bubble {
-  padding: 8px 12px;
-  border-radius: 18px;
-  max-width: 70%;
-  box-shadow: 0 1px 2px rgba(0,0,0,.12);
-}
-
-.message.in .bubble {
-  background-color: var(--mud-palette-surface);
-  color: var(--mud-palette-text-primary);
-  border-bottom-left-radius: 6px;
-}
-
-.message.out .bubble {
-  background-color: var(--mud-palette-primary);
-  color: var(--mud-palette-primary-text);
-  border-bottom-right-radius: 6px;
-}
-
-.meta-row {
-    font-size: 0.7rem;
-    color: var(--mud-palette-text-secondary);
-    margin-top: 4px;
-}
-
-.seen {
+.seen-avatar {
+    width: 16px;
+    height: 16px;
     margin-left: 8px;
-    font-style: italic;
 }
 
 .composer {

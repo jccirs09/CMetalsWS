@@ -50,42 +50,52 @@
                 @foreach (var m in _messages)
                 {
                     var isOutgoing = m.SenderId == _currentUserId;
-                    var dir = isOutgoing ? "out" : "in";
-                    <div class="message @dir">
-                        @if (!isOutgoing)
-                        {
-                            <MudAvatar Class="message__avatar" Size="Size.Small" Image="@m.Sender?.Avatar" />
-                        }
-                        <div>
-                            <div class="bubble">@m.Content</div>
-                            <div class="meta-row">
-                                <span class="time">@m.Timestamp.ToLocalTime().ToString("h:mm tt")</span>
-                                @if (isOutgoing && m.Id == _lastSeenMessageId)
+                    <MudChat ChatPosition="@(isOutgoing ? ChatBubblePosition.End : ChatBubblePosition.Start)" ArrowPosition="ChatArrowPosition.Bottom">
+                        <MudChatBubble>
+                            @if (!isOutgoing)
+                            {
+                                <MudChatHeader>
+                                    <MudAvatar Size="Size.Small" Image="@m.Sender?.Avatar" />
+                                </MudChatHeader>
+                            }
+                            @m.Content
+                            <MudChatFooter>
+                                <span>@m.Timestamp.ToLocalTime().ToString("h:mm tt")</span>
+                                @if (isOutgoing && m.Id == _lastSeenMessageId && ThreadUser != null)
                                 {
-                                    <span class="seen">Seen</span>
+                                    <MudAvatar Class="seen-avatar"
+                                               Size="Size.Small"
+                                               Style="width:16px;height:16px;"
+                                               Image="@ThreadUser.Avatar"
+                                               Text="@((string.IsNullOrWhiteSpace(ThreadUser.Avatar)) ? $"{ThreadUser.FirstName?.FirstOrDefault()}{ThreadUser.LastName?.FirstOrDefault()}" : null)" />
                                 }
-                            </div>
-                        </div>
-                    </div>
+                            </MudChatFooter>
+                        </MudChatBubble>
+                    </MudChat>
                 }
                 @if (_isTyping)
                 {
-                    <div class="message in">
-                        <MudAvatar Class="message__avatar" Size="Size.Small" />
-                        <div><div class="bubble">...</div></div>
-                    </div>
+                    <MudChat ChatPosition="ChatBubblePosition.Start" ArrowPosition="ChatArrowPosition.Bottom">
+                        <MudChatBubble>
+                            <MudChatHeader>
+                                <MudAvatar Size="Size.Small" />
+                            </MudChatHeader>
+                            <span>...</span>
+                        </MudChatBubble>
+                    </MudChat>
                 }
             </div>
 
             <EditForm Model="this" OnValidSubmit="SendMessageAsync">
                 <div class="composer">
-                    <MudTextField Value="@_draft"
+                    <MudTextField T="string" Value="@_draft"
                                   ValueChanged="@OnDraftChanged"
                                   Placeholder="Type a message"
                                   Class="input"
                                   Lines="1"
                                   Immediate="true"
-                                  OnKeyDown="HandleKeyDown" />
+                                  OnKeyDown="HandleKeyDown"
+                                  @ref="_inputRef" />
                     <MudIconButton Icon="@Icons.Material.Filled.Send" Disabled="string.IsNullOrWhiteSpace(_draft)" ButtonType="ButtonType.Submit" />
                 </div>
             </EditForm>
@@ -112,9 +122,11 @@
     private bool _typingSent;
     private bool _loadingOlder;
     private DateTime? _oldestLoaded;
+    private MudTextField<string>? _inputRef;
 
     protected override async Task OnInitializedAsync()
     {
+        await ChatClient.ConnectAsync();
         var user = (await AuthState).User;
         _currentUserId = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
@@ -245,7 +257,16 @@
         {
             _typingSent = true;
             if (ThreadUser != null)
-                await ChatClient.SetTypingAsync(ThreadUser.Id, true);
+            {
+                try
+                {
+                    await ChatClient.SetTypingAsync(ThreadUser.Id, true);
+                }
+                catch
+                {
+                    _typingSent = false;
+                }
+            }
         }
 
         _typingTimer?.Stop();
@@ -280,6 +301,14 @@
     private async Task ScrollToBottom()
     {
         await JS.InvokeVoidAsync("cmetalsChat.scrollToBottom", _scrollArea);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _inputRef != null)
+        {
+            await _inputRef.FocusAsync();
+        }
     }
 
     public async ValueTask DisposeAsync()
