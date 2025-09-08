@@ -95,9 +95,31 @@
     margin-top: 4px;
 }
 
-.seen {
-    margin-left: 8px;
-    font-style: italic;
+.status-icons {
+    margin-left: 4px;
+}
+
+.status-icons .mud-icon-root {
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+.seen-avatars {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 4px;
+}
+
+.seen-avatars .mud-avatar-root {
+    width: 18px;
+    height: 18px;
+    font-size: 0.7rem;
+    border: 1px solid var(--mud-palette-background);
+    margin-left: -6px;
+}
+
+.seen-avatars .mud-avatar-root:first-child {
+    margin-left: 0;
 }
 
 .composer {
