@@ -10,13 +10,13 @@
 
 <MudPaper Class="p-4">
     <MudText Typo="Typo.h5">Import Customers from Excel</MudText>
-    <MudText Typo="Typo.body1" Class="mt-2">Upload an Excel file with customer data to import.</MudText>
+    <MudText Typo="Typo.body1" Class="mt-2 mb-4">Upload an Excel file with customer data to import.</MudText>
 
-    <MudDropZone T="IBrowserFile" OnDrop="OnDrop" Class="mt-4 pa-4 rounded-lg border-2 border-dashed mud-border-primary"
-                 Accept=".xls,.xlsx">
-        <MudText Typo="Typo.h6">Drag and drop your Excel file here or click to select</MudText>
-        <InputFile OnChange="OnFileSelected" hidden />
-    </MudDropZone>
+    <MudFileUpload T="IBrowserFile" FilesChanged="OnFileChanged" Accept=".xls,.xlsx"
+                   ButtonText="Upload File"
+                   Icon="@Icons.Material.Filled.CloudUpload"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary" />
 
     @if (_isUploading)
     {
@@ -73,17 +73,7 @@
     private bool _isUploading = false;
     private List<CustomerImportRow> _importRows = new();
 
-    private async Task OnFileSelected(InputFileChangeEventArgs e)
-    {
-        await ProcessFile(e.File);
-    }
-
-    private async Task OnDrop(IBrowserFile file)
-    {
-        await ProcessFile(file);
-    }
-
-    private async Task ProcessFile(IBrowserFile? file)
+    private async Task OnFileChanged(IBrowserFile file)
     {
         if (file == null) return;
 
