@@ -1,10 +1,11 @@
 ﻿using CMetalsWS.Data;
+using CMetalsWS.Models;
 using System.Threading.Tasks;
 
 namespace CMetalsWS.Services
 {
     public interface ICustomerEnrichmentService
     {
-        Task<Customer> EnrichAndCategorizeCustomerAsync(Customer customer, string address);
+        Task<CustomerEnrichmentResult> EnrichAndCategorizeCustomerAsync(Customer customer, string? address);
     }
 }

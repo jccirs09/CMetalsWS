@@ -6,6 +6,7 @@
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Web
 @using System.Security.Claims
+@using System.Linq
 
 @implements IAsyncDisposable
 
@@ -50,6 +51,7 @@
                 @foreach (var m in _messages)
                 {
                     var isOutgoing = m.SenderId == _currentUserId;
+
                     <MudChat ChatPosition="@(isOutgoing ? ChatBubblePosition.End : ChatBubblePosition.Start)" ArrowPosition="ChatArrowPosition.Bottom">
                         <MudChatBubble>
                             @if (!isOutgoing)
@@ -68,6 +70,7 @@
                                                Style="width:16px;height:16px;"
                                                Image="@ThreadUser.Avatar"
                                                Text="@((string.IsNullOrWhiteSpace(ThreadUser.Avatar)) ? $"{ThreadUser.FirstName?.FirstOrDefault()}{ThreadUser.LastName?.FirstOrDefault()}" : null)" />
+
                                 }
                             </MudChatFooter>
                         </MudChatBubble>
@@ -88,6 +91,7 @@
 
             <EditForm Model="this" OnValidSubmit="SendMessageAsync">
                 <div class="composer">
+
                     <MudTextField T="string" Value="@_draft"
                                   ValueChanged="@OnDraftChanged"
                                   Placeholder="Type a message"
@@ -95,7 +99,9 @@
                                   Lines="1"
                                   Immediate="true"
                                   OnKeyDown="HandleKeyDown"
+
                                   @ref="_inputRef" />
+
                     <MudIconButton Icon="@Icons.Material.Filled.Send" Disabled="string.IsNullOrWhiteSpace(_draft)" ButtonType="ButtonType.Submit" />
                 </div>
             </EditForm>
@@ -116,7 +122,6 @@
     private string _currentUserId = "";
     private List<ChatMessage> _messages = new();
     private bool _isTyping = false;
-    private int _lastSeenMessageId = 0;
     private bool _autoStickToBottom = true;
     private System.Timers.Timer? _typingTimer;
     private bool _typingSent;
@@ -147,6 +152,17 @@
 
     private Task OnMessageReceived(ChatMessage message)
     {
+        if (message.SenderId == _currentUserId)
+        {
+            var pending = _messages.FirstOrDefault(m => m.Sent && !m.Delivered && m.Content == message.Content);
+            if (pending != null)
+            {
+                pending.Id = message.Id;
+                pending.Delivered = true;
+                return InvokeAsync(StateHasChanged);
+            }
+        }
+
         _messages.Add(message);
         if (_autoStickToBottom)
         {
@@ -165,9 +181,22 @@
         return Task.CompletedTask;
     }
 
-    private Task OnReadReceipt(int messageId)
+    private Task OnReadReceipt(int messageId, string userId)
     {
-        _lastSeenMessageId = messageId;
+        var msg = _messages.FirstOrDefault(m => m.Id == messageId);
+        if (msg != null)
+        {
+            if (ThreadGroup != null)
+            {
+                var user = ThreadGroup.ChatGroupUsers.FirstOrDefault(u => u.UserId == userId)?.User;
+                if (user != null)
+                    msg.SeenBy[user.Id] = user;
+            }
+            else if (ThreadUser != null)
+            {
+                msg.SeenBy[ThreadUser.Id] = ThreadUser;
+            }
+        }
         return InvokeAsync(StateHasChanged);
     }
 
@@ -212,7 +241,8 @@
         {
             SenderId = _currentUserId,
             Content = _draft,
-            Timestamp = DateTime.Now
+            Timestamp = DateTime.Now,
+            Sent = true
         };
         _messages.Add(tempMsg);
         var toSend = _draft;

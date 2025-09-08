@@ -14,7 +14,7 @@ namespace CMetalsWS.Services
         public event Func<ChatMessage, Task>? MessageReceived;
         public event Func<string, bool, Task>? TypingChanged;
         public event Func<string, bool, Task>? PresenceChanged;
-        public event Func<int, Task>? ReadReceipt;
+        public event Func<int, string, Task>? ReadReceipt;
 
         public SignalRChatClient(NavigationManager navigationManager)
         {
@@ -41,10 +41,10 @@ namespace CMetalsWS.Services
                     await TypingChanged.Invoke(userId, isTyping);
             });
 
-            _hubConnection.On<int>("ReceiveReadReceipt", async (messageId) =>
+            _hubConnection.On<int, string>("ReceiveReadReceipt", async (messageId, userId) =>
             {
                 if (ReadReceipt != null)
-                    await ReadReceipt.Invoke(messageId);
+                    await ReadReceipt.Invoke(messageId, userId);
             });
 
             // TODO: Implement presence handlers if needed

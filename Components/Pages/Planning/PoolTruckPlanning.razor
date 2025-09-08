@@ -119,7 +119,6 @@
 </MudGrid>
 
 @code {
-    private DestinationRegionCategory _regionCategory = DestinationRegionCategory.POOL_TRUCK;
     private List<IGrouping<string, PickingList>> _groupedPickingLists = new();
     private HashSet<IGrouping<string, PickingList>> _selectedGroups = new();
     private Load? _load;
@@ -135,7 +134,9 @@
     {
         var allPickingLists = await PickingListService.GetAvailableForLoadingAsync();
         _groupedPickingLists = allPickingLists
-            .Where(p => p.Customer?.DestinationRegionCategory == _regionCategory)
+            .Where(p => p.Customer != null &&
+                        (p.Customer.DestinationRegionCategory == DestinationRegionCategory.ISLAND ||
+                         p.Customer.DestinationRegionCategory == DestinationRegionCategory.OKANAGAN))
             .GroupBy(p => p.SalesOrderNumber)
             .ToList();
         _trucks = await TruckService.GetTrucksAsync();

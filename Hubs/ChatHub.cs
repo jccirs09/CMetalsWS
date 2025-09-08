@@ -96,13 +96,14 @@ namespace CMetalsWS.Hubs
         {
             var readerId = GetUserIdOrThrow();
             // notify the partner that readerId has seen up to lastMessageId
-            return Clients.User(partnerId).SendAsync("ReceiveReadReceipt", lastMessageId);
+            return Clients.User(partnerId).SendAsync("ReceiveReadReceipt", lastMessageId, readerId);
         }
 
         public Task AckReadGroup(int groupId, int lastMessageId)
         {
+            var readerId = GetUserIdOrThrow();
             // broadcast to the group; clients can filter by sender if needed
-            return Clients.Group(groupId.ToString()).SendAsync("ReceiveReadReceipt", lastMessageId);
+            return Clients.Group(groupId.ToString()).SendAsync("ReceiveReadReceipt", lastMessageId, readerId);
         }
 
         public override async Task OnConnectedAsync()

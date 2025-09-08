@@ -53,10 +53,12 @@
     scroll-behavior: smooth; /* feels nicer */
 }
 
+
 .seen-avatar {
     width: 16px;
     height: 16px;
     margin-left: 8px;
+
 }
 
 .composer {
