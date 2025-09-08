@@ -35,7 +35,7 @@ namespace CMetalsWS.Services
             var t = term.ToLower();
             return await db.Customers.AsNoTracking()
                 .Where(c => c.Active && (c.CustomerCode.ToLower().Contains(t) || c.CustomerName.ToLower().Contains(t)))
-                .OrderBy(c => c.CustomerCode)
+                .OrderBy(c => c.CustomerName)
                 .Take(20)
                 .ToListAsync();
         }
