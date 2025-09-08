@@ -88,7 +88,7 @@
             <!-- Composer -->
             <EditForm Model="this" OnValidSubmit="SendMessageAsync">
                 <div class="composer">
-                    <MudTextField @bind-Value="_draft" Placeholder="Type a message" Class="input" Lines="1" Immediate="true" OnKeyDown="HandleEnter" ValueChanged="OnDraftChanged" />
+                    <MudTextField Value="_draft" Placeholder="Type a message" Class="input" Lines="1" Immediate="true" OnKeyDown="HandleEnter" ValueChanged="OnDraftChanged" />
                     <MudIconButton Icon="@Icons.Material.Filled.Send" Disabled="string.IsNullOrWhiteSpace(_draft)" ButtonType="ButtonType.Submit" />
                 </div>
             </EditForm>
