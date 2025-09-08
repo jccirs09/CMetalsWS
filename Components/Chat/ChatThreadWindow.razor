@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.SignalR.Client
 @using MudBlazor
+@using Microsoft.AspNetCore.Components.Web
 
 @inject IChatService ChatService
 @inject UserManager<ApplicationUser> UserManager
@@ -15,16 +16,12 @@
 <div class="chat-thread-window @(IsMinimized ? "minimized" : "")" @onkeydown="HandleKeyDown">
     <MudPaper Class="chat" Elevation="6">
         <!-- Header -->
-        <header class="chat__header" @onclick="() => { if(IsMinimized) OnMinimize.InvokeAsync(); }">
-            <MudAvatar Class="mr-2" Size="Size.Medium" Color="@(Utils.ColorHelper.GetDeterministicColor(ThreadUser?.Id ?? string.Empty))">
-                @if (ThreadUser != null && !string.IsNullOrEmpty(ThreadUser.Avatar))
-                {
-                    <MudImage Src="@ThreadUser.Avatar" />
-                }
-                else if (ThreadUser != null)
-                {
-                    @($"{ThreadUser.FirstName?.FirstOrDefault()}{ThreadUser.LastName?.FirstOrDefault()}")
-                }
+        <header class="chat__header" @onclick="@(async (MouseEventArgs _) => { if (IsMinimized) await OnMinimize.InvokeAsync(); })">
+            <MudAvatar Class="mr-2"
+                       Size="Size.Medium"
+                       Color="@(Utils.ColorHelper.GetDeterministicColor(ThreadUser?.Id ?? string.Empty))"
+                       Image="@(ThreadUser?.Avatar)"
+                       Text="@((ThreadUser is not null && string.IsNullOrWhiteSpace(ThreadUser.Avatar)) ? $"{ThreadUser.FirstName?.FirstOrDefault()}{ThreadUser.LastName?.FirstOrDefault()}" : null)">
             </MudAvatar>
             <div class="chat__meta">
                 <div class="chat__name">
@@ -44,15 +41,18 @@
                 }
             </div>
             <div class="ml-auto chat__actions">
-                <MudIconButton Icon="@Icons.Material.Filled.Minimize" OnClick="@OnMinimize" />
-                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="@OnClose" />
+                <MudIconButton Icon="@Icons.Material.Filled.Minimize" OnClick="@(async (MouseEventArgs _) => await OnMinimize.InvokeAsync())" />
+                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="@(async (MouseEventArgs _) => await OnClose.InvokeAsync())" />
             </div>
         </header>
 
         @if (!IsMinimized)
         {
             <!-- Messages -->
-            <div class="chat__messages" @ref="_scrollArea" @onwheel="OnMessagesScrolled" @onscroll="OnMessagesScrolled">
+            <div class="chat__messages"
+                 @ref="_scrollArea"
+                 @onwheel="OnMessagesWheel"
+                 @onscroll="OnMessagesScrolled">
                 @foreach (var m in _messages)
                 {
                     var isOutgoing = m.SenderId == _currentUserId;
@@ -126,14 +126,15 @@
     private bool _loadingOlder;
     private DateTime? _oldestLoaded;
 
-    private async Task OnMessagesScrolled()
+    private Task OnMessagesScrolled(EventArgs _) => OnMessagesScrolledCore();
+    private Task OnMessagesWheel(WheelEventArgs _) => OnMessagesScrolledCore();
+
+    private async Task OnMessagesScrolledCore()
     {
         // stickiness
         _autoStickToBottom = await JS.InvokeAsync<bool>("cmetalsChat.isNearBottom", _scrollArea, 64);
         if (_autoStickToBottom)
-        {
             await MaybeAckRead();
-        }
 
         // near top? load older
         var nearTop = await JS.InvokeAsync<bool>("cmetalsChat.isNearTop", _scrollArea, 24);
@@ -141,24 +142,18 @@
         {
             _loadingOlder = true;
             var before = _oldestLoaded ?? _messages.FirstOrDefault()?.Timestamp ?? DateTime.UtcNow;
-            List<ChatMessage> older;
-
-            if (ThreadUser != null)
-                older = await ChatService.GetConversationBeforeAsync(_currentUserId, ThreadUser.Id, before);
-            else if (ThreadGroup != null)
-                older = await ChatService.GetGroupConversationBeforeAsync(ThreadGroup.Id, before);
-            else
-                older = new();
+            List<ChatMessage> older = ThreadUser != null
+                ? await ChatService.GetConversationBeforeAsync(_currentUserId, ThreadUser.Id, before)
+                : ThreadGroup != null
+                    ? await ChatService.GetGroupConversationBeforeAsync(ThreadGroup.Id, before)
+                    : new();
 
             if (older.Count > 0)
             {
-                // remember scroll height to maintain position
-                var prevHeight = await JS.InvokeAsync<int>("eval", "document.querySelector('.chat__messages').scrollHeight"); // or write a helper
                 _messages.InsertRange(0, older);
                 _oldestLoaded = older.First().Timestamp;
-
                 await InvokeAsync(StateHasChanged);
-                // maintain position (optional advanced work)
+                // (optional) preserve scroll pos
             }
 
             _loadingOlder = false;
