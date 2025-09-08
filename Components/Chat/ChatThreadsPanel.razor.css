@@ -1,12 +1,18 @@
 .chat-threads-panel {
     position: fixed;
-    bottom: 0;
-    right: 80px; /* Adjusted to not overlap with the chat dock fab */
+    top: var(--mud-appbar-height, 64px);
+    right: 0;
     width: 320px;
-    max-height: 400px;
+    height: calc(100vh - var(--mud-appbar-height, 64px));
     display: flex;
     flex-direction: column;
     border-top-left-radius: var(--mud-default-borderradius);
-    border-top-right-radius: var(--mud-default-borderradius);
-    padding-bottom: env(safe-area-inset-bottom);
+    border-bottom-left-radius: var(--mud-default-borderradius);
+    z-index: 1000;
+    animation: slide-in 0.3s ease-out;
+}
+
+@keyframes slide-in {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
 }
