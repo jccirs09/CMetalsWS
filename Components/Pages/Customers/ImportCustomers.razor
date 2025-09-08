@@ -4,19 +4,47 @@
 @using CMetalsWS.Models
 @using MudBlazor
 @attribute [Authorize(Policy = Permissions.Customers.Import)]
-
 @inject CustomerService CustomerService
 @inject ISnackbar Snackbar
 
+<style>
+    .file-upload-input {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: 10;
+        opacity: 0;
+        cursor: pointer;
+    }
+</style>
+
 <MudPaper Class="p-4">
     <MudText Typo="Typo.h5">Import Customers from Excel</MudText>
-    <MudText Typo="Typo.body1" Class="mt-2 mb-4">Upload an Excel file with customer data to import.</MudText>
+    <MudText Typo="Typo.body1" Class="mt-2 mb-4">Select an Excel file to begin the import process.</MudText>
 
-    <MudFileUpload T="IBrowserFile" FilesChanged="OnFileChanged" Accept=".xls,.xlsx"
-                   ButtonText="Upload File"
-                   Icon="@Icons.Material.Filled.CloudUpload"
-                   Variant="Variant.Filled"
-                   Color="Color.Primary" />
+    <MudFileUpload T="IBrowserFile"
+                   FilesChanged="ProcessFile"
+                   Hidden="@false"
+                   InputClass="file-upload-input"
+                   tabindex="-1"
+                   @ondrop="@ClearDragClass"
+                   @ondragenter="@SetDragClass"
+                   @ondragleave="@ClearDragClass"
+                   @ondragend="@ClearDragClass">
+        <ActivatorContent>
+            <MudPaper Height="200px"
+                      Outlined="true"
+                      Class="@_dragClass">
+                <MudStack Justify="Justify.Center" AlignItems="AlignItems.Center" Style="height:100%">
+                    <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" />
+                    <MudText Typo="Typo.h6">
+                        Drag and drop file here or click
+                    </MudText>
+                </MudStack>
+            </MudPaper>
+        </ActivatorContent>
+    </MudFileUpload>
 
     @if (_isUploading)
     {
@@ -25,7 +53,7 @@
 
     @if (_importRows.Any())
     {
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CommitImport" Disabled="@_isUploading" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="CommitImport" Disabled="@_isUploading" Class="mt-4">
             Commit Selections
         </MudButton>
 
@@ -70,10 +98,13 @@
 </MudPaper>
 
 @code {
+    private const string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mud-width-full mud-height-full d-flex align-center justify-center";
+    private string _dragClass = DefaultDragClass;
+
     private bool _isUploading = false;
     private List<CustomerImportRow> _importRows = new();
 
-    private async Task OnFileChanged(IBrowserFile file)
+    private async Task ProcessFile(IBrowserFile file)
     {
         if (file == null) return;
 
@@ -108,4 +139,10 @@
         _importRows.Clear();
         StateHasChanged();
     }
+
+    private void SetDragClass()
+        => _dragClass = $"{DefaultDragClass} mud-border-primary";
+
+    private void ClearDragClass()
+        => _dragClass = DefaultDragClass;
 }
