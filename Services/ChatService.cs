@@ -88,6 +88,79 @@ namespace CMetalsWS.Services
             return await context.ChatGroups.FindAsync(groupId);
         }
 
+        public async Task<List<ChatGroup>> GetUserGroupsAsync(string userId)
+        {
+            using var context = _contextFactory.CreateDbContext();
+            return await context.ChatGroups
+                .Where(g => g.ChatGroupUsers.Any(gu => gu.UserId == userId))
+                .ToListAsync();
+        }
+
+        public async Task<List<ChatGroup>> GetAllGroupsAsync()
+        {
+            using var context = _contextFactory.CreateDbContext();
+            return await context.ChatGroups.Include(g => g.Branch).ToListAsync();
+        }
+
+        public async Task<ChatGroup> CreateGroupAsync(string name, int? branchId, List<string> userIds)
+        {
+            using var context = _contextFactory.CreateDbContext();
+            var group = new ChatGroup
+            {
+                Name = name,
+                BranchId = branchId
+            };
+
+            context.ChatGroups.Add(group);
+            await context.SaveChangesAsync();
+
+            foreach (var userId in userIds)
+            {
+                var chatGroupUser = new ChatGroupUser
+                {
+                    ChatGroupId = group.Id,
+                    UserId = userId
+                };
+                context.ChatGroupUsers.Add(chatGroupUser);
+            }
+            await context.SaveChangesAsync();
+
+            return group;
+        }
+
+        public async Task UpdateGroupAsync(ChatGroup group, List<string> userIds)
+        {
+            using var context = _contextFactory.CreateDbContext();
+            var existingGroup = await context.ChatGroups
+                .Include(g => g.ChatGroupUsers)
+                .FirstOrDefaultAsync(g => g.Id == group.Id);
+
+            if (existingGroup != null)
+            {
+                existingGroup.Name = group.Name;
+                existingGroup.BranchId = group.BranchId;
+
+                existingGroup.ChatGroupUsers.Clear();
+                foreach (var userId in userIds)
+                {
+                    existingGroup.ChatGroupUsers.Add(new ChatGroupUser { UserId = userId });
+                }
+
+                await context.SaveChangesAsync();
+            }
+        }
+
+        public async Task DeleteGroupAsync(int groupId)
+        {
+            using var context = _contextFactory.CreateDbContext();
+            var group = await context.ChatGroups.FindAsync(groupId);
+            if (group != null)
+            {
+                context.ChatGroups.Remove(group);
+                await context.SaveChangesAsync();
+            }
+        }
+
         public async Task SaveMessageAsync(ChatMessage message)
         {
             await SaveOutgoingAsync(message);
