@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -24,5 +25,11 @@ namespace CMetalsWS.Data
         // Foreign key for the chat group (for group messages)
         public int? ChatGroupId { get; set; }
         public ChatGroup? ChatGroup { get; set; }
+
+        public bool Sent { get; set; }
+        public bool Delivered { get; set; }
+
+        [NotMapped]
+        public HashSet<string> SeenBy { get; set; } = new();
     }
 }

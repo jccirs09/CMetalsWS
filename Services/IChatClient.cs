@@ -19,6 +19,6 @@ namespace CMetalsWS.Services
         event Func<ChatMessage, Task>? MessageReceived;
         event Func<string, bool, Task>? TypingChanged;   // (userId, isTyping)
         event Func<string, bool, Task>? PresenceChanged; // (userId, online)
-        event Func<int, Task>? ReadReceipt;              // (messageId)
+        event Func<string, int, Task>? ReadReceipt;      // (userId, messageId)
     }
 }
