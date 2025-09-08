@@ -1,4 +1,4 @@
-﻿@page "/customers/import"
+@page "/customers/import"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using CMetalsWS.Models
@@ -12,7 +12,16 @@
     <MudText Typo="Typo.h5">Import Customers from Excel</MudText>
     <MudText Typo="Typo.body1" Class="mt-2">Upload an Excel file with customer data to import.</MudText>
 
-    <InputFile OnChange="OnFileChanged" class="mt-4" />
+    <MudDropZone T="IBrowserFile" OnDrop="OnDrop" Class="mt-4 pa-4 rounded-lg border-2 border-dashed mud-border-primary"
+                 Accept=".xls,.xlsx">
+        <MudText Typo="Typo.h6">Drag and drop your Excel file here or click to select</MudText>
+        <InputFile OnChange="OnFileSelected" hidden />
+    </MudDropZone>
+
+    @if (_isUploading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
+    }
 
     @if (_importRows.Any())
     {
@@ -61,22 +70,31 @@
 </MudPaper>
 
 @code {
-    private IBrowserFile? _file;
     private bool _isUploading = false;
     private List<CustomerImportRow> _importRows = new();
 
-    private async Task OnFileChanged(InputFileChangeEventArgs e)
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
     {
-        _file = e.File;
-        if (_file == null) return;
+        await ProcessFile(e.File);
+    }
+
+    private async Task OnDrop(IBrowserFile file)
+    {
+        await ProcessFile(file);
+    }
+
+    private async Task ProcessFile(IBrowserFile? file)
+    {
+        if (file == null) return;
 
         _isUploading = true;
+        _importRows.Clear();
         StateHasChanged();
 
         try
         {
             await using var ms = new MemoryStream();
-            await _file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5).CopyToAsync(ms);
+            await file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5).CopyToAsync(ms);
             ms.Position = 0;
 
             _importRows = await CustomerService.PreviewImportAsync(ms);
