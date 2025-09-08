@@ -71,8 +71,21 @@
                 @if (_isTyping)
                 {
                     <div class="message in">
-                        <MudAvatar Class="message__avatar" Size="Size.Small" />
-                        <div><div class="bubble">...</div></div>
+                        <MudAvatar Class="message__avatar"
+                                   Size="Size.Small"
+                                   Image="@ThreadUser?.Avatar"
+                                   Text="@(ThreadUser != null && string.IsNullOrWhiteSpace(ThreadUser.Avatar)
+                                       ? $"{ThreadUser.FirstName?.FirstOrDefault()}{ThreadUser.LastName?.FirstOrDefault()}"
+                                       : null)" />
+                        <div>
+                            <div class="bubble typing-bubble">
+                                <div class="typing-indicator">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 }
             </div>
@@ -80,7 +93,7 @@
             <EditForm Model="this" OnValidSubmit="SendMessageAsync">
                 <div class="composer">
                     <MudTextField Value="@_draft"
-                                  ValueChanged="@OnDraftChanged"
+                                  ValueChanged="@(async (string value) => await OnDraftChanged(value))"
                                   Placeholder="Type a message"
                                   Class="input"
                                   Lines="1"
