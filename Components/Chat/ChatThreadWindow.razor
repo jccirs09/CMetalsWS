@@ -11,6 +11,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
+@inject IHttpContextAccessor HttpContextAccessor
 
 <div class="chat-thread-window @(IsMinimized ? "minimized" : "")" @onkeydown="HandleKeyDown">
     <MudPaper Class="chat" Elevation="6">
@@ -153,7 +154,20 @@
     private async Task ConnectToHub()
     {
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/chat"))
+            .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/chat"), options =>
+            {
+                if (HttpContextAccessor.HttpContext != null)
+                {
+                    options.Cookies = new System.Net.CookieContainer();
+                    foreach (var c in HttpContextAccessor.HttpContext.Request.Cookies)
+                    {
+                        options.Cookies.Add(new System.Net.Cookie(c.Key, c.Value)
+                        {
+                            Domain = NavigationManager.ToAbsoluteUri("/").Host
+                        });
+                    }
+                }
+            })
             .Build();
 
         _hubConnection.On<string, string>("ReceiveMessage", async (userId, message) =>
