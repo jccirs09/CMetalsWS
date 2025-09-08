@@ -4,10 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
+using System;
 
 namespace CMetalsWS.Services
 {
-    public class ChatService : IChatService
+    public class ChatService : IChatService, IMessageStore
     {
         private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
         private readonly UserManager<ApplicationUser> _userManager;
@@ -165,26 +166,68 @@ namespace CMetalsWS.Services
             return await context.ChatGroups.FindAsync(groupId);
         }
 
-        public async Task<List<ChatMessage>> GetConversationBeforeAsync(string currentUserId, string contactId, DateTime before)
+        public async Task<IReadOnlyList<ChatMessage>> LoadUserThreadAsync(string me, string other, int take = 50)
         {
             using var context = _contextFactory.CreateDbContext();
             return await context.ChatMessages
                 .Include(m => m.Sender)
-                .Where(m => ((m.SenderId == currentUserId && m.RecipientId == contactId) || (m.SenderId == contactId && m.RecipientId == currentUserId)) && m.Timestamp < before)
+                .Where(m => (m.SenderId == me && m.RecipientId == other) || (m.SenderId == other && m.RecipientId == me))
                 .OrderByDescending(m => m.Timestamp)
-                .Take(20)
+                .Take(take)
                 .ToListAsync();
         }
 
-        public async Task<List<ChatMessage>> GetGroupConversationBeforeAsync(int groupId, DateTime before)
+        public async Task<IReadOnlyList<ChatMessage>> LoadUserThreadBeforeAsync(string me, string other, DateTime before, int take = 50)
+        {
+            using var context = _contextFactory.CreateDbContext();
+            return await context.ChatMessages
+                .Include(m => m.Sender)
+                .Where(m => ((m.SenderId == me && m.RecipientId == other) || (m.SenderId == other && m.RecipientId == me)) && m.Timestamp < before)
+                .OrderByDescending(m => m.Timestamp)
+                .Take(take)
+                .ToListAsync();
+        }
+
+        public async Task<IReadOnlyList<ChatMessage>> LoadGroupThreadAsync(int groupId, int take = 50)
+        {
+            using var context = _contextFactory.CreateDbContext();
+            return await context.ChatMessages
+                .Include(m => m.Sender)
+                .Where(m => m.ChatGroupId == groupId)
+                .OrderByDescending(m => m.Timestamp)
+                .Take(take)
+                .ToListAsync();
+        }
+
+        public async Task<IReadOnlyList<ChatMessage>> LoadGroupThreadBeforeAsync(int groupId, DateTime before, int take = 50)
         {
             using var context = _contextFactory.CreateDbContext();
             return await context.ChatMessages
                 .Include(m => m.Sender)
                 .Where(m => m.ChatGroupId == groupId && m.Timestamp < before)
                 .OrderByDescending(m => m.Timestamp)
-                .Take(20)
+                .Take(take)
                 .ToListAsync();
+        }
+
+        public async Task<int> SaveOutgoingAsync(ChatMessage msg)
+        {
+            using var context = _contextFactory.CreateDbContext();
+            context.ChatMessages.Add(msg);
+            await context.SaveChangesAsync();
+            return msg.Id;
+        }
+
+        public Task MarkDeliveredAsync(int tempId, int finalId)
+        {
+            // TODO: Implement if needed for more advanced optimistic UI
+            return Task.CompletedTask;
+        }
+
+        public Task MarkFailedAsync(int tempId)
+        {
+            // TODO: Implement if needed for more advanced optimistic UI
+            return Task.CompletedTask;
         }
     }
 }

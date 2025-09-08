@@ -114,7 +114,10 @@ builder.Services.AddScoped<IPickingListImportService, PickingListImportService>(
 builder.Services.AddScoped<IParsingStateService, ParsingStateService>();
 
 
-builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<ChatService>();
+builder.Services.AddScoped<IChatService>(sp => sp.GetRequiredService<ChatService>());
+builder.Services.AddScoped<IMessageStore>(sp => sp.GetRequiredService<ChatService>());
+builder.Services.AddScoped<IChatClient, SignalRChatClient>();
 builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 builder.Services.AddSignalR();
 
