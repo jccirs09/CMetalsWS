@@ -25,7 +25,8 @@ namespace CMetalsWS.Hubs
             if (string.IsNullOrEmpty(userId))
             {
                 var claims = string.Join(", ", Context.User.Claims.Select(c => $"{c.Type}: {c.Value}"));
-                throw new HubException($"Sender not found: User ID is missing from claims. Available claims: {claims}");
+                var hasTestClaim = Context.User.HasClaim(c => c.Type == "TestClaim");
+                throw new HubException($"Sender not found: User ID is missing from claims. Has TestClaim: {hasTestClaim}. Available claims: {claims}");
             }
 
             var sender = await _userManager.FindByIdAsync(userId);
