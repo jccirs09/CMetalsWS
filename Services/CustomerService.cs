@@ -53,7 +53,6 @@ namespace CMetalsWS.Services
             using var db = _dbContextFactory.CreateDbContext();
             var query = db.Customers.AsNoTracking();
 
-            // Filtering
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 var t = searchTerm.ToLower();
@@ -84,10 +83,8 @@ namespace CMetalsWS.Services
 
             var totalCount = await query.CountAsync();
 
-            // Sorting
             if (!string.IsNullOrWhiteSpace(sortBy))
             {
-                // This is a simplified sorting implementation. A real-world app might use a more robust solution.
                 var prop = typeof(Customer).GetProperty(sortBy, System.Reflection.BindingFlags.IgnoreCase | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
                 if (prop != null)
                 {
@@ -101,7 +98,6 @@ namespace CMetalsWS.Services
                 query = query.OrderBy(c => c.CustomerCode);
             }
 
-            // Paging
             var customers = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
             return new GetCustomersResult { Customers = customers, TotalCount = totalCount };
@@ -123,78 +119,134 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
         }
 
-        public async Task<Customer?> RecomputeCustomerRegionAsync(int customerId)
+        public async Task<CustomerEnrichmentResult> RecomputeCustomerRegionAsync(int customerId)
         {
             using var db = _dbContextFactory.CreateDbContext();
             var customer = await db.Customers.FindAsync(customerId);
             if (customer == null || string.IsNullOrWhiteSpace(customer.FullAddress))
             {
-                return null;
+                return new CustomerEnrichmentResult { EnrichedCustomer = customer };
             }
 
-            customer = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, customer.FullAddress);
-            await UpdateCustomerAsync(customer);
-            return customer;
+            var result = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, customer.FullAddress);
+            if (result.EnrichedCustomer != null)
+            {
+                await UpdateCustomerAsync(result.EnrichedCustomer);
+            }
+            return result;
         }
 
-        public async Task<Customer?> GeocodeCustomerAsync(int customerId, string address)
+        public async Task<CustomerEnrichmentResult> GeocodeCustomerAsync(int customerId, string address)
         {
             using var db = _dbContextFactory.CreateDbContext();
             var customer = await db.Customers.FindAsync(customerId);
             if (customer == null)
             {
-                return null;
+                return new CustomerEnrichmentResult();
             }
 
-            customer = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, address);
-            await UpdateCustomerAsync(customer);
-            return customer;
+            var result = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, address);
+            if (result.EnrichedCustomer != null)
+            {
+                await UpdateCustomerAsync(result.EnrichedCustomer);
+            }
+            return result;
         }
 
-        public async Task<CustomerImportReport> ImportCustomersAsync(Stream stream)
+        public async Task<List<CustomerImportRow>> PreviewImportAsync(Stream stream)
         {
-            var report = new CustomerImportReport();
             var rows = stream.Query<CustomerImportDto>().ToList();
-            report.TotalRows = rows.Count;
-
-            using var db = _dbContextFactory.CreateDbContext();
+            var tasks = new List<Task<CustomerImportRow>>();
 
             foreach (var row in rows)
             {
+                tasks.Add(ProcessImportRow(row));
+            }
+
+            var results = await Task.WhenAll(tasks);
+            return results.ToList();
+        }
+
+        private async Task<CustomerImportRow> ProcessImportRow(CustomerImportDto row)
+        {
+            var importRow = new CustomerImportRow { Dto = row };
+            try
+            {
+                var customer = new Customer { CustomerCode = row.CustomerCode, CustomerName = row.CustomerName };
+                var enrichmentResult = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, row.Address);
+                importRow.Candidates = enrichmentResult.Candidates;
+                if (enrichmentResult.EnrichedCustomer != null)
+                {
+                    importRow.SelectedPlaceId = enrichmentResult.EnrichedCustomer.PlaceId;
+                }
+            }
+            catch (Exception ex)
+            {
+                // It's better to log the exception here if a logger is available
+                importRow.Error = ex.Message;
+            }
+            return importRow;
+        }
+
+        public async Task<CustomerImportReport> CommitImportAsync(List<CustomerImportRow> importRows)
+        {
+            var report = new CustomerImportReport { TotalRows = importRows.Count };
+
+            foreach (var row in importRows)
+            {
                 try
                 {
-                    if (string.IsNullOrWhiteSpace(row.CustomerCode))
+                    using var db = _dbContextFactory.CreateDbContext();
+
+                    if (!string.IsNullOrWhiteSpace(row.Error))
                     {
-                        report.Errors.Add($"Skipping row with empty CustomerCode.");
+                        report.FailedImports++;
+                        report.Errors.Add($"Row for {row.Dto.CustomerCode} had a processing error: {row.Error}");
                         continue;
                     }
 
-                    var customer = await db.Customers.FirstOrDefaultAsync(c => c.CustomerCode == row.CustomerCode);
-                    if (customer == null)
+                    var customer = await db.Customers.FirstOrDefaultAsync(c => c.CustomerCode == row.Dto.CustomerCode);
+                    var isNew = customer == null;
+                    if (isNew)
                     {
-                        customer = new Customer { CustomerCode = row.CustomerCode, CreatedUtc = DateTime.UtcNow };
+                        customer = new Customer { CustomerCode = row.Dto.CustomerCode, CreatedUtc = DateTime.UtcNow };
                         db.Customers.Add(customer);
                     }
 
-                    // Map DTO to entity
-                    customer.CustomerName = row.CustomerName;
-                    customer.BusinessHours = row.BusinessHours;
-                    customer.ContactNumber = row.ContactNumber;
-                    // ... map other properties from DTO ...
+                    // Always update basic info from the spreadsheet
+                    customer!.CustomerName = row.Dto.CustomerName;
+                    customer.BusinessHours = row.Dto.BusinessHours;
+                    customer.ContactNumber = row.Dto.ContactNumber;
 
-                    // Enrich and categorize
-                    var address = row.Address; // Assuming a single address column in Excel
-                    customer = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, address);
+                    // Only update address info if a candidate was selected
+                    if (!string.IsNullOrWhiteSpace(row.SelectedPlaceId))
+                    {
+                        var selectedCandidate = row.Candidates.FirstOrDefault(c => c.PlaceId == row.SelectedPlaceId);
+                        if (selectedCandidate != null)
+                        {
+                            customer.PlaceId = selectedCandidate.PlaceId;
+                            customer.Latitude = selectedCandidate.Latitude;
+                            customer.Longitude = selectedCandidate.Longitude;
+                            customer.Street1 = selectedCandidate.Street1;
+                            customer.Street2 = selectedCandidate.Street2;
+                            customer.City = selectedCandidate.City;
+                            customer.Province = selectedCandidate.Province;
+                            customer.PostalCode = selectedCandidate.PostalCode;
+                            customer.Country = selectedCandidate.Country;
+                            customer.FullAddress = selectedCandidate.FullAddress;
+                            customer.DestinationRegionCategory = selectedCandidate.DestinationRegionCategory;
+                            customer.DestinationGroupCategory = selectedCandidate.DestinationGroupCategory;
+                        }
+                    }
 
                     customer.ModifiedUtc = DateTime.UtcNow;
-
-                    await db.SaveChangesAsync();
+                    await db.SaveChangesAsync(); // Commit each record individually for robustness
                     report.SuccessfulImports++;
                 }
                 catch (Exception ex)
                 {
                     report.FailedImports++;
-                    report.Errors.Add($"Failed to import customer {row.CustomerCode}: {ex.Message}");
+                    report.Errors.Add($"Failed to import customer {row.Dto.CustomerCode}: {ex.Message}");
                 }
             }
 
@@ -202,14 +254,4 @@ namespace CMetalsWS.Services
         }
     }
 
-    // DTO for Excel import
-    public class CustomerImportDto
-    {
-        public string CustomerCode { get; set; } = string.Empty;
-        public string CustomerName { get; set; } = string.Empty;
-        public string Address { get; set; } = string.Empty;
-        public string BusinessHours { get; set; } = string.Empty;
-        public string ContactNumber { get; set; } = string.Empty;
-        // Add other fields from Excel as needed
-    }
 }
