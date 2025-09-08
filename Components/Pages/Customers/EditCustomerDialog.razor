@@ -1,4 +1,4 @@
-﻿@using CMetalsWS.Data
+@using CMetalsWS.Data
 @using MudBlazor
 
 <MudDialog>
@@ -85,3 +85,22 @@
         <MudButton Color="Color.Primary" OnClick="Save">Save</MudButton>
     </DialogActions>
 </MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public Customer Customer { get; set; } = default!;
+    [Parameter] public bool IsNew { get; set; }
+
+    private MudForm _form = default!;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        await _form.Validate();
+        if (_form.IsValid)
+        {
+            MudDialog.Close(DialogResult.Ok(Customer));
+        }
+    }
+}
