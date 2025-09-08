@@ -98,6 +98,8 @@ builder.Services.AddScoped<LoadService>();
 builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<ITaskAuditEventService, TaskAuditEventService>();
+builder.Services.AddScoped<IGooglePlacesService, GooglePlacesService>();
+builder.Services.AddScoped<ICustomerEnrichmentService, CustomerEnrichmentService>();
 
 // Picking List PDF Parser
 builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();

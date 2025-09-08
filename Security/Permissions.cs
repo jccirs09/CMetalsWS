@@ -79,6 +79,15 @@ namespace CMetalsWS.Security
             public const string Export = "Reports.Export";
         }
 
+        public static class Customers
+        {
+            public const string View = "Customers.View";
+            public const string Add = "Customers.Add";
+            public const string Edit = "Customers.Edit";
+            public const string Delete = "Customers.Delete";
+            public const string Import = "Customers.Import";
+        }
+
         public static IEnumerable<string> All()
         {
             yield return Users.View; yield return Users.Add; yield return Users.Edit; yield return Users.Delete;
@@ -92,6 +101,7 @@ namespace CMetalsWS.Security
             yield return PickingLists.Assign; yield return PickingLists.Dispatch; yield return PickingLists.ManageLoads;
             yield return Dashboards.View;
             yield return Reports.View; yield return Reports.Export;
+            yield return Customers.View; yield return Customers.Add; yield return Customers.Edit; yield return Customers.Delete; yield return Customers.Import;
         }
     }
 }
