@@ -80,6 +80,31 @@ namespace CMetalsWS.Hubs
         public Task RemoveFromGroup(int groupId)
             => Groups.RemoveFromGroupAsync(Context.ConnectionId, groupId.ToString());
 
+        public Task SetTypingStateForUser(string recipientId, bool isTyping)
+        {
+            var senderId = GetUserIdOrThrow();
+            return Clients.User(recipientId).SendAsync("ReceiveTypingState", senderId, isTyping);
+        }
+
+        public Task SetTypingStateForGroup(int groupId, bool isTyping)
+        {
+            var senderId = GetUserIdOrThrow();
+            return Clients.Group(groupId.ToString()).SendAsync("ReceiveTypingState", senderId, isTyping);
+        }
+
+        public Task AckReadUser(string partnerId, int lastMessageId)
+        {
+            var readerId = GetUserIdOrThrow();
+            // notify the partner that readerId has seen up to lastMessageId
+            return Clients.User(partnerId).SendAsync("ReceiveReadReceipt", lastMessageId);
+        }
+
+        public Task AckReadGroup(int groupId, int lastMessageId)
+        {
+            // broadcast to the group; clients can filter by sender if needed
+            return Clients.Group(groupId.ToString()).SendAsync("ReceiveReadReceipt", lastMessageId);
+        }
+
         public override async Task OnConnectedAsync()
         {
             // fail fast if unauthenticated / no ID

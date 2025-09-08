@@ -18,5 +18,7 @@ namespace CMetalsWS.Services
         Task<List<ChatMessage>> GetGroupConversationAsync(int groupId);
         Task<List<ChatMessage>> GetRecentConversationsAsync(string userId);
         Task<ChatGroup?> GetGroupAsync(int groupId);
+        Task<List<ChatMessage>> GetConversationBeforeAsync(string currentUserId, string contactId, DateTime before);
+        Task<List<ChatMessage>> GetGroupConversationBeforeAsync(int groupId, DateTime before);
     }
 }

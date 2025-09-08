@@ -11,7 +11,6 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
-@inject IHttpContextAccessor HttpContextAccessor
 
 <div class="chat-thread-window @(IsMinimized ? "minimized" : "")" @onkeydown="HandleKeyDown">
     <MudPaper Class="chat" Elevation="6">
@@ -53,7 +52,7 @@
         @if (!IsMinimized)
         {
             <!-- Messages -->
-            <div class="chat__messages" @ref="_scrollArea">
+            <div class="chat__messages" @ref="_scrollArea" @onwheel="OnMessagesScrolled" @onscroll="OnMessagesScrolled">
                 @foreach (var m in _messages)
                 {
                     var isOutgoing = m.SenderId == _currentUserId;
@@ -89,7 +88,7 @@
             <!-- Composer -->
             <EditForm Model="this" OnValidSubmit="SendMessageAsync">
                 <div class="composer">
-                    <MudTextField @bind-Value="_draft" Placeholder="Type a message" Class="input" Lines="1" Immediate="true" OnKeyDown="HandleEnter" />
+                    <MudTextField @bind-Value="_draft" Placeholder="Type a message" Class="input" Lines="1" Immediate="true" OnKeyDown="HandleEnter" ValueChanged="OnDraftChanged" />
                     <MudIconButton Icon="@Icons.Material.Filled.Send" Disabled="string.IsNullOrWhiteSpace(_draft)" ButtonType="ButtonType.Submit" />
                 </div>
             </EditForm>
@@ -103,6 +102,8 @@
         }
     </MudPaper>
 </div>
+
+@implements IAsyncDisposable
 
 @code {
     [Parameter] public ApplicationUser? ThreadUser { get; set; }
@@ -119,6 +120,50 @@
     private bool _isTyping = false;
     private int _lastSeenMessageId = 0;
     private List<string> _newMessagesForScreenReader = new();
+    private bool _autoStickToBottom = true;
+    private System.Timers.Timer? _typingTimer;
+    private bool _typingSent;
+    private bool _loadingOlder;
+    private DateTime? _oldestLoaded;
+
+    private async Task OnMessagesScrolled()
+    {
+        // stickiness
+        _autoStickToBottom = await JS.InvokeAsync<bool>("cmetalsChat.isNearBottom", _scrollArea, 64);
+        if (_autoStickToBottom)
+        {
+            await MaybeAckRead();
+        }
+
+        // near top? load older
+        var nearTop = await JS.InvokeAsync<bool>("cmetalsChat.isNearTop", _scrollArea, 24);
+        if (nearTop && !_loadingOlder)
+        {
+            _loadingOlder = true;
+            var before = _oldestLoaded ?? _messages.FirstOrDefault()?.Timestamp ?? DateTime.UtcNow;
+            List<ChatMessage> older;
+
+            if (ThreadUser != null)
+                older = await ChatService.GetConversationBeforeAsync(_currentUserId, ThreadUser.Id, before);
+            else if (ThreadGroup != null)
+                older = await ChatService.GetGroupConversationBeforeAsync(ThreadGroup.Id, before);
+            else
+                older = new();
+
+            if (older.Count > 0)
+            {
+                // remember scroll height to maintain position
+                var prevHeight = await JS.InvokeAsync<int>("eval", "document.querySelector('.chat__messages').scrollHeight"); // or write a helper
+                _messages.InsertRange(0, older);
+                _oldestLoaded = older.First().Timestamp;
+
+                await InvokeAsync(StateHasChanged);
+                // maintain position (optional advanced work)
+            }
+
+            _loadingOlder = false;
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -154,20 +199,8 @@
     private async Task ConnectToHub()
     {
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/chat"), options =>
-            {
-                if (HttpContextAccessor.HttpContext != null)
-                {
-                    options.Cookies = new System.Net.CookieContainer();
-                    foreach (var c in HttpContextAccessor.HttpContext.Request.Cookies)
-                    {
-                        options.Cookies.Add(new System.Net.Cookie(c.Key, c.Value)
-                        {
-                            Domain = NavigationManager.ToAbsoluteUri("/").Host
-                        });
-                    }
-                }
-            })
+            .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/chat"))
+            .WithAutomaticReconnect()
             .Build();
 
         _hubConnection.On<string, string>("ReceiveMessage", async (userId, message) =>
@@ -179,7 +212,11 @@
                 _messages.Add(chatMessage);
                 _newMessagesForScreenReader.Add($"{sender?.UserName}: {message}");
                 await InvokeAsync(StateHasChanged);
-                await ScrollToBottom();
+                    if (_autoStickToBottom)
+                    {
+                        await ScrollToBottom();
+                        await MaybeAckRead();
+                    }
                 await ClearNewMessagesForScreenReader();
             }
         });
@@ -193,7 +230,11 @@
                 _messages.Add(chatMessage);
                 _newMessagesForScreenReader.Add($"{sender?.UserName} in {ThreadGroup.Name}: {message}");
                 await InvokeAsync(StateHasChanged);
-                await ScrollToBottom();
+                    if (_autoStickToBottom)
+                    {
+                        await ScrollToBottom();
+                    await MaybeAckRead();
+                    }
                 await ClearNewMessagesForScreenReader();
             }
         });
@@ -220,30 +261,51 @@
     {
         if (string.IsNullOrWhiteSpace(_draft) || _hubConnection == null) return;
 
-        if (ThreadUser != null)
-        {
-            await _hubConnection.SendAsync("SendMessageToUser", ThreadUser.Id, _draft);
-        }
-        else if (ThreadGroup != null)
-        {
-            await _hubConnection.SendAsync("SendMessageToGroup", ThreadGroup.Id, _draft);
-        }
+        var pending = new ChatMessage {
+            Id = 0, // temp
+            SenderId = _currentUserId!,
+            Content = _draft,
+            Timestamp = DateTime.Now
+        };
+
+        _messages.Add(pending);
+        var toSend = _draft;
         _draft = string.Empty;
         StateHasChanged();
+        if (_autoStickToBottom) await ScrollToBottom();
+
+        try
+        {
+            if (ThreadUser != null)
+                await _hubConnection.SendAsync("SendMessageToUser", ThreadUser.Id, toSend);
+            else if (ThreadGroup != null)
+                await _hubConnection.SendAsync("SendMessageToGroup", ThreadGroup.Id, toSend);
+        }
+        catch
+        {
+            // mark pending as failed or pop a snackbar
+        }
     }
 
     private void HandleEnter(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_draft))
+        if (e.Key == "Enter")
         {
-            _ = SendMessageAsync();
+            if (e.ShiftKey)
+            {
+                _draft += "\n";
+            }
+            else if (!string.IsNullOrWhiteSpace(_draft))
+            {
+                _ = SendMessageAsync();
+            }
         }
     }
 
     private async Task ScrollToBottom()
     {
         await Task.Delay(10);
-        await JS.InvokeVoidAsync("(el)=>{el.scrollTop = el.scrollHeight;}", _scrollArea);
+        await JS.InvokeVoidAsync("cmetalsChat.scrollToBottom", _scrollArea);
     }
 
     private async Task ClearNewMessagesForScreenReader()
@@ -258,6 +320,59 @@
         if (e.Key == "Escape")
         {
             await OnClose.InvokeAsync();
+        }
+    }
+
+    private async Task OnDraftChanged(string value)
+    {
+        _draft = value;
+
+        if (!_typingSent)
+        {
+            _typingSent = true;
+            if (ThreadUser != null)
+                await _hubConnection!.SendAsync("SetTypingStateForUser", ThreadUser.Id, true);
+            else if (ThreadGroup != null)
+                await _hubConnection!.SendAsync("SetTypingStateForGroup", ThreadGroup.Id, true);
+        }
+
+        _typingTimer?.Stop();
+        _typingTimer = _typingTimer ?? new System.Timers.Timer(1200);
+        _typingTimer.Interval = 1200;
+        _typingTimer.AutoReset = false;
+        _typingTimer.Elapsed += async (_, __) =>
+        {
+            try
+            {
+                if (ThreadUser != null)
+                    await _hubConnection!.SendAsync("SetTypingStateForUser", ThreadUser.Id, false);
+                else if (ThreadGroup != null)
+                    await _hubConnection!.SendAsync("SetTypingStateForGroup", ThreadGroup.Id, false);
+            }
+            catch { /* ignore */ }
+            finally { _typingSent = false; }
+        };
+        _typingTimer.Start();
+    }
+
+    private async Task MaybeAckRead()
+    {
+        if (_messages.Count == 0) return;
+        // last message Id in the active thread
+        var lastId = _messages[^1].Id;
+
+        if (ThreadUser != null)
+            await _hubConnection!.SendAsync("AckReadUser", ThreadUser.Id, lastId);
+        else if (ThreadGroup != null)
+            await _hubConnection!.SendAsync("AckReadGroup", ThreadGroup.Id, lastId);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            try { await _hubConnection.StopAsync(); }
+            finally { await _hubConnection.DisposeAsync(); }
         }
     }
 }

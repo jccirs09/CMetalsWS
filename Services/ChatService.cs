@@ -164,5 +164,27 @@ namespace CMetalsWS.Services
             using var context = _contextFactory.CreateDbContext();
             return await context.ChatGroups.FindAsync(groupId);
         }
+
+        public async Task<List<ChatMessage>> GetConversationBeforeAsync(string currentUserId, string contactId, DateTime before)
+        {
+            using var context = _contextFactory.CreateDbContext();
+            return await context.ChatMessages
+                .Include(m => m.Sender)
+                .Where(m => ((m.SenderId == currentUserId && m.RecipientId == contactId) || (m.SenderId == contactId && m.RecipientId == currentUserId)) && m.Timestamp < before)
+                .OrderByDescending(m => m.Timestamp)
+                .Take(20)
+                .ToListAsync();
+        }
+
+        public async Task<List<ChatMessage>> GetGroupConversationBeforeAsync(int groupId, DateTime before)
+        {
+            using var context = _contextFactory.CreateDbContext();
+            return await context.ChatMessages
+                .Include(m => m.Sender)
+                .Where(m => m.ChatGroupId == groupId && m.Timestamp < before)
+                .OrderByDescending(m => m.Timestamp)
+                .Take(20)
+                .ToListAsync();
+        }
     }
 }
