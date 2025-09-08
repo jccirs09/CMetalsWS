@@ -2,7 +2,6 @@ using CMetalsWS.Data;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -13,13 +12,11 @@ namespace CMetalsWS.Hubs
     {
         private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly ILogger<ChatHub> _logger;
 
-        public ChatHub(IDbContextFactory<ApplicationDbContext> contextFactory, UserManager<ApplicationUser> userManager, ILogger<ChatHub> logger)
+        public ChatHub(IDbContextFactory<ApplicationDbContext> contextFactory, UserManager<ApplicationUser> userManager)
         {
             _contextFactory = contextFactory;
             _userManager = userManager;
-            _logger = logger;
         }
 
         public async Task SendMessageToUser(string recipientId, string message)
@@ -27,15 +24,13 @@ namespace CMetalsWS.Hubs
             var userId = Context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                _logger.LogError("User ID not found in claims. Claims available: {Claims}",
-                    string.Join(", ", Context.User.Claims.Select(c => $"{c.Type}: {c.Value}")));
-                throw new HubException("Sender not found: User ID is missing from claims.");
+                var claims = string.Join(", ", Context.User.Claims.Select(c => $"{c.Type}: {c.Value}"));
+                throw new HubException($"Sender not found: User ID is missing from claims. Available claims: {claims}");
             }
 
             var sender = await _userManager.FindByIdAsync(userId);
             if (sender == null)
             {
-                _logger.LogError("Sender not found in database for User ID: {UserId}", userId);
                 throw new HubException("Sender not found.");
             }
 
@@ -60,15 +55,13 @@ namespace CMetalsWS.Hubs
             var userId = Context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                _logger.LogError("User ID not found in claims for group message. Claims available: {Claims}",
-                    string.Join(", ", Context.User.Claims.Select(c => $"{c.Type}: {c.Value}")));
-                throw new HubException("Sender not found: User ID is missing from claims.");
+                var claims = string.Join(", ", Context.User.Claims.Select(c => $"{c.Type}: {c.Value}"));
+                throw new HubException($"Sender not found: User ID is missing from claims for group message. Available claims: {claims}");
             }
 
             var sender = await _userManager.FindByIdAsync(userId);
             if (sender == null)
             {
-                _logger.LogError("Sender not found in database for User ID: {UserId} for group message", userId);
                 throw new HubException("Sender not found.");
             }
 
