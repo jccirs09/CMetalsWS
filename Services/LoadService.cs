@@ -107,7 +107,7 @@ namespace CMetalsWS.Services
         {
             var codes = load.Items
                 .Where(i => i.PickingList?.Customer != null)
-                .Select(i => i.PickingList!.Customer!.LocationCode)
+                .Select(i => i.PickingList!.Customer!.DestinationGroupCategory)
                 .Where(c => !string.IsNullOrWhiteSpace(c))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();

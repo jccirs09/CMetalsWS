@@ -24,6 +24,7 @@ namespace CMetalsWS.Data
         public DbSet<LoadItem> LoadItems => Set<LoadItem>();
         public DbSet<TruckRoute> TruckRoutes => Set<TruckRoute>();
         public DbSet<Customer> Customers => Set<Customer>();
+        public DbSet<CityCentroid> CityCentroids => Set<CityCentroid>();
         public DbSet<TruckRouteStop> TruckRouteStops => Set<TruckRouteStop>();
         public DbSet<TaskAuditEvent> TaskAuditEvents => Set<TaskAuditEvent>();
         public DbSet<TransferItem> TransferItems => Set<TransferItem>();
@@ -57,16 +58,30 @@ namespace CMetalsWS.Data
                 .HasForeignKey(t => t.BranchId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Customer (map to existing table name and columns/indexes)
+            // Customer
             modelBuilder.Entity<Customer>(entity =>
             {
-                entity.ToTable("Customer"); // important: fixes “Invalid object name 'Customers'”
+                entity.ToTable("Customer");
                 entity.HasIndex(c => c.CustomerCode).IsUnique();
-                entity.Property(c => c.CustomerCode).HasMaxLength(16).IsRequired();
-                entity.Property(c => c.CustomerName).HasMaxLength(200).IsRequired();
-                entity.Property(c => c.LocationCode).HasMaxLength(32);
-                entity.Property(c => c.Address).HasMaxLength(256);
-                entity.HasIndex(c => c.LocationCode);
+                entity.Property(c => c.DestinationRegionCategory).HasConversion<string>().HasMaxLength(32);
+                entity.Property(c => c.DockType).HasConversion<string>().HasMaxLength(32);
+                entity.Property(c => c.PreferredTruckType).HasConversion<string>().HasMaxLength(32);
+                entity.Property(c => c.Priority).HasConversion<string>().HasMaxLength(32);
+
+                // Add indexes for filtering
+                entity.HasIndex(c => c.City);
+                entity.HasIndex(c => c.Province);
+                entity.HasIndex(c => c.PostalCode);
+                entity.HasIndex(c => c.DestinationRegionCategory);
+                entity.HasIndex(c => c.DestinationGroupCategory);
+                entity.HasIndex(c => c.Active);
+            });
+
+            // City Centroid
+            modelBuilder.Entity<CityCentroid>(entity =>
+            {
+                entity.ToTable("CityCentroid");
+                entity.HasIndex(c => new { c.City, c.Province }).IsUnique();
             });
 
             // TruckRoute + stops

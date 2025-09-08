@@ -31,6 +31,7 @@ namespace CMetalsWS.Services
             await _context.Database.EnsureCreatedAsync();
 
             await SeedBranchesAsync();
+            await SeedCityCentroidsAsync();
 
             // Create roles
             string[] roles = { "Admin", "Planner", "Supervisor", "Manager", "Operator", "Driver", "Viewer" };
@@ -50,7 +51,8 @@ namespace CMetalsWS.Services
                 Permissions.Trucks.View,
                 Permissions.Machines.View,
                 Permissions.Branches.View,
-                Permissions.Dashboards.View
+                Permissions.Dashboards.View,
+                Permissions.Customers.View, Permissions.Customers.Edit
             };
 
             var supervisorPermissions = plannerPermissions.Concat(new[]
@@ -61,6 +63,7 @@ namespace CMetalsWS.Services
 
             var managerPermissions = supervisorPermissions.Concat(new[]
             {
+                Permissions.Customers.Add, Permissions.Customers.Delete, Permissions.Customers.Import,
                 Permissions.Users.View,
                 Permissions.Roles.View,
                 Permissions.Branches.Edit,
@@ -180,6 +183,55 @@ namespace CMetalsWS.Services
             }
 
             _context.Branches.AddRange(branches);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task SeedCityCentroidsAsync()
+        {
+            if (await _context.CityCentroids.AnyAsync())
+            {
+                return; // Data has already been seeded
+            }
+
+            var centroids = new List<CityCentroid>
+            {
+                // Metro Vancouver (LOCAL)
+                new CityCentroid { City = "Vancouver", Province = "BC", Latitude = 49.2827m, Longitude = -123.1207m },
+                new CityCentroid { City = "Burnaby", Province = "BC", Latitude = 49.2465m, Longitude = -122.9945m },
+                new CityCentroid { City = "Surrey", Province = "BC", Latitude = 49.1913m, Longitude = -122.8490m },
+                new CityCentroid { City = "Richmond", Province = "BC", Latitude = 49.1666m, Longitude = -123.1336m },
+                new CityCentroid { City = "Coquitlam", Province = "BC", Latitude = 49.2838m, Longitude = -122.7932m },
+                new CityCentroid { City = "Langley", Province = "BC", Latitude = 49.1042m, Longitude = -122.6604m },
+                new CityCentroid { City = "Delta", Province = "BC", Latitude = 49.0846m, Longitude = -123.0586m },
+                new CityCentroid { City = "North Vancouver", Province = "BC", Latitude = 49.3200m, Longitude = -123.0700m },
+                new CityCentroid { City = "West Vancouver", Province = "BC", Latitude = 49.3200m, Longitude = -123.1400m },
+                new CityCentroid { City = "New Westminster", Province = "BC", Latitude = 49.2057m, Longitude = -122.9110m },
+
+                // Vancouver Island (ISLAND)
+                new CityCentroid { City = "Victoria", Province = "BC", Latitude = 48.4284m, Longitude = -123.3656m },
+                new CityCentroid { City = "Nanaimo", Province = "BC", Latitude = 49.1659m, Longitude = -123.9401m },
+                new CityCentroid { City = "Courtenay", Province = "BC", Latitude = 49.6869m, Longitude = -124.9946m },
+                new CityCentroid { City = "Comox", Province = "BC", Latitude = 49.6729m, Longitude = -124.9277m },
+                new CityCentroid { City = "Campbell River", Province = "BC", Latitude = 50.0248m, Longitude = -125.2446m },
+
+                // Okanagan (OKANAGAN)
+                new CityCentroid { City = "Kelowna", Province = "BC", Latitude = 49.8880m, Longitude = -119.4960m },
+                new CityCentroid { City = "Penticton", Province = "BC", Latitude = 49.4906m, Longitude = -119.5895m },
+                new CityCentroid { City = "Vernon", Province = "BC", Latitude = 50.2671m, Longitude = -119.2721m },
+                new CityCentroid { City = "Summerland", Province = "BC", Latitude = 49.6052m, Longitude = -119.6685m },
+                new CityCentroid { City = "Peachland", Province = "BC", Latitude = 49.7716m, Longitude = -119.7369m },
+
+                // Other (OUT_OF_TOWN)
+                new CityCentroid { City = "Prince George", Province = "BC", Latitude = 53.9171m, Longitude = -122.7497m },
+                new CityCentroid { City = "Kamloops", Province = "BC", Latitude = 50.6745m, Longitude = -120.3273m },
+                new CityCentroid { City = "Fort St. John", Province = "BC", Latitude = 56.2499m, Longitude = -120.8492m },
+                new CityCentroid { City = "Whistler", Province = "BC", Latitude = 50.1163m, Longitude = -122.9574m },
+                new CityCentroid { City = "Squamish", Province = "BC", Latitude = 49.7018m, Longitude = -123.1555m },
+                new CityCentroid { City = "Chilliwack", Province = "BC", Latitude = 49.1579m, Longitude = -121.9515m },
+                new CityCentroid { City = "Abbotsford", Province = "BC", Latitude = 49.0505m, Longitude = -122.3045m },
+            };
+
+            _context.CityCentroids.AddRange(centroids);
             await _context.SaveChangesAsync();
         }
     }

@@ -1,0 +1,102 @@
+﻿@page "/customers/import"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using CMetalsWS.Models
+@using MudBlazor
+@attribute [Authorize(Policy = Permissions.Customers.Import)]
+
+@inject CustomerService CustomerService
+@inject ISnackbar Snackbar
+
+<MudPaper Class="p-4">
+    <MudText Typo="Typo.h5">Import Customers from Excel</MudText>
+    <MudText Typo="Typo.body1" Class="mt-2">Upload an Excel file with customer data to import.</MudText>
+
+    <InputFile OnChange="OnFileChanged" class="mt-4" />
+
+    @if (_file != null)
+    {
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UploadAndImport" Disabled="@_isUploading" Class="mt-4">
+            @if (_isUploading)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                <span class="ml-2">Importing...</span>
+            }
+            else
+            {
+                <span>Upload and Import</span>
+            }
+        </MudButton>
+    }
+
+    @if (_report != null)
+    {
+        <MudCard Class="mt-4">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Import Report</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudText>Total Rows: @_report.TotalRows</MudText>
+                <MudText>Successful Imports: @_report.SuccessfulImports</MudText>
+                <MudText>Failed Imports: @_report.FailedImports</MudText>
+                @if (_report.Errors.Any())
+                {
+                    <MudText Typo="Typo.subtitle1" Class="mt-2">Errors:</MudText>
+                <MudList T="string">
+                        @foreach(var error in _report.Errors)
+                        {
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.Error" IconColor="Color.Error">@error</MudListItem>
+                        }
+                    </MudList>
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+</MudPaper>
+
+@code {
+    private IBrowserFile? _file;
+    private bool _isUploading = false;
+    private CustomerImportReport? _report;
+
+    private void OnFileChanged(InputFileChangeEventArgs e)
+    {
+        _file = e.File;
+        _report = null; // Clear previous report
+    }
+
+    private async Task UploadAndImport()
+    {
+        if (_file == null)
+        {
+            Snackbar.Add("Please select a file first.", Severity.Warning);
+            return;
+        }
+
+        _isUploading = true;
+        _report = null;
+        StateHasChanged();
+
+        try
+        {
+            // MiniExcel requires a seekable stream, so we copy to a memory stream.
+            await using var ms = new MemoryStream();
+            await _file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5).CopyToAsync(ms); // 5 MB limit
+            ms.Position = 0;
+
+            _report = await CustomerService.ImportCustomersAsync(ms);
+            Snackbar.Add("Import process completed.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred during import: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isUploading = false;
+            StateHasChanged();
+        }
+    }
+}

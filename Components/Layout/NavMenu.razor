@@ -49,6 +49,10 @@
     @if (canWorkOrders || canPickingLists)
     {
         <MudNavGroup text="Operations" Icon="@Icons.Material.Filled.DashboardCustomize" Title="Operations">
+            @if (canViewCustomers)
+            {
+                <MudNavLink Href="/customers" Icon="@Icons.Material.Filled.People">Customers</MudNavLink>
+            }
             @if (canWorkOrders)
             {
                 <MudNavLink Href="/operations/workorders" Icon="@Icons.Material.Filled.Assignment">Work Orders</MudNavLink>
@@ -118,6 +122,7 @@
     private bool canPickingLists;
     private bool canAssignPickingLists;
     private bool isManager;
+    private bool canViewCustomers;
 
     protected override async Task OnInitializedAsync()
     {
@@ -130,6 +135,7 @@
     {
         var user = (await AuthStateProvider.GetAuthenticationStateAsync()).User;
 
+        canViewCustomers = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Customers.View)).Succeeded;
         canUsers = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Users.View)).Succeeded;
         canBranches = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Branches.View)).Succeeded;
         canRoles = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Roles.View)).Succeeded;

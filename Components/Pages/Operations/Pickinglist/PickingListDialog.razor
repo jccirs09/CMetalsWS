@@ -197,7 +197,7 @@
     private async Task<IEnumerable<Customer>> SearchCustomers(string value, CancellationToken _)
     {
         value = value?.Trim() ?? string.Empty;
-        var results = await CustomerService.SearchAsync(value, 20);
+        var results = await CustomerService.SearchAsync(value);
         return results;
     }
 

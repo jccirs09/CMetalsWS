@@ -1,0 +1,87 @@
+﻿@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@((IsNew ? "New" : "Edit") + " Customer")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm Model="@Customer" @ref="_form" ValidationDelay="0">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Customer.CustomerCode" Label="Customer Code" Required="true" ReadOnly="@(!IsNew)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Customer.CustomerName" Label="Customer Name" Required="true" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Customer.FullAddress" Label="Full Address" Lines="3" HelperText="This address will be used for geocoding." />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Customer.BusinessHours" Label="Business Hours" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Customer.ContactNumber" Label="Contact Number" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Customer.ContactName" Label="Contact Name" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Customer.ContactEmail" Label="Contact Email" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudDivider />
+                </MudItem>
+
+                <MudItem xs="12" sm="4">
+                    <MudSelect @bind-Value="Customer.DockType" Label="Dock Type">
+                        @foreach (var dt in Enum.GetValues<DockType>())
+                        {
+                            <MudSelectItem Value="@dt">@dt.ToString()</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                     <MudSelect @bind-Value="Customer.PreferredTruckType" Label="Preferred Truck">
+                        @foreach (var tt in Enum.GetValues<PreferredTruckType>())
+                        {
+                            <MudSelectItem Value="@tt">@tt.ToString()</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                     <MudSelect @bind-Value="Customer.Priority" Label="Priority">
+                        @foreach (var p in Enum.GetValues<Priority>())
+                        {
+                            <MudSelectItem Value="@p">@p.ToString()</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Customer.DeliveryNotes" Label="Delivery Notes" Lines="2" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Customer.AccessRestrictions" Label="Access Restrictions" Lines="2" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudStack Row="true">
+                        <MudCheckBox T="bool" @bind-Checked="Customer.LiftgateRequired" Label="Liftgate Required" />
+                        <MudCheckBox T="bool" @bind-Checked="Customer.AppointmentRequired" Label="Appointment Required" />
+                        <MudCheckBox T="bool" @bind-Checked="Customer.FerryRequired" Label="Ferry Required" />
+                        <MudCheckBox T="bool" @bind-Checked="Customer.TollRoutesAllowed" Label="Toll Routes Allowed" />
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>

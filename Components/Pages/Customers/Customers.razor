@@ -1,0 +1,170 @@
+﻿@page "/customers"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using CMetalsWS.Models
+@using MudBlazor
+@using CMetalsWS.Components.Pages.Customers
+@attribute [Authorize(Policy = Permissions.Customers.View)]
+
+@inject CustomerService CustomerService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudPaper Class="p-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h5">Customers</MudText>
+        <MudStack Row="true">
+            <AuthorizeView Policy="@Permissions.Customers.Import">
+                <MudButton Color="Color.Primary"
+                           Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.UploadFile"
+                           Href="/customers/import">
+                    Import Customers
+                </MudButton>
+            </AuthorizeView>
+            <AuthorizeView Policy="@Permissions.Customers.Add">
+                <MudButton Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="(() => OpenEditDialog(0))">
+                    New Customer
+                </MudButton>
+            </AuthorizeView>
+        </MudStack>
+    </MudStack>
+
+    <MudTable T="Customer" ServerData="ServerReload"
+              Dense="true" Hover="true" @ref="_table" Striped="true">
+        <ToolBarContent>
+            <MudTextField T="string" ValueChanged="@(s => OnSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            <MudSpacer />
+            <MudSelect T="string" Label="Region" ValueChanged="@(s => OnRegionFilterChanged(s))" Clearable="true">
+                @foreach (var region in Enum.GetValues<DestinationRegionCategory>())
+                {
+                    <MudSelectItem Value="@region.ToString()">@region.ToString()</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="bool?" Label="Status" ValueChanged="@(s => OnActiveFilterChanged(s))" Clearable="true">
+                <MudSelectItem T="bool?" Value="true">Active</MudSelectItem>
+                <MudSelectItem T="bool?" Value="false">Inactive</MudSelectItem>
+            </MudSelect>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortLabel="CustomerCode" T="Customer">Code</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="CustomerName" T="Customer">Name</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="City" T="Customer">City</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="Province" T="Customer">Prov</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="DestinationRegionCategory" T="Customer">Region</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="DestinationGroupCategory" T="Customer">Group</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="Active" T="Customer">Status</MudTableSortLabel></MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Code">@context.CustomerCode</MudTd>
+            <MudTd DataLabel="Name">@context.CustomerName</MudTd>
+            <MudTd DataLabel="City">@context.City</MudTd>
+            <MudTd DataLabel="Province">@context.Province</MudTd>
+            <MudTd DataLabel="Region">
+                <MudChip T="string" Color="@GetRegionColor(context.DestinationRegionCategory)" Size="Size.Small">@context.DestinationRegionCategory</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Group">@context.DestinationGroupCategory</MudTd>
+            <MudTd DataLabel="Status">
+                <MudChip T="string" Color="@(context.Active ? Color.Success : Color.Error)" Size="Size.Small">@(context.Active ? "Active" : "Inactive")</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="(() => OpenEditDialog(context.Id))" />
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private MudTable<Customer> _table = default!;
+    private string? _searchTerm;
+    private string? _regionFilter;
+    private bool? _activeFilter = true;
+
+    private async Task<TableData<Customer>> ServerReload(TableState state, CancellationToken token)
+    {
+        var result = await CustomerService.GetCustomersAsync(
+            state.Page + 1,
+            state.PageSize,
+            _searchTerm,
+            _regionFilter,
+            null, // Group filter not yet implemented in UI
+            _activeFilter,
+            state.SortLabel,
+            state.SortDirection == SortDirection.Descending
+        );
+        return new TableData<Customer>() { TotalItems = result.TotalCount, Items = result.Customers };
+    }
+
+    private void OnSearch(string text)
+    {
+        _searchTerm = text;
+        _table.ReloadServerData();
+    }
+
+    private void OnRegionFilterChanged(string value)
+    {
+        _regionFilter = value;
+        _table.ReloadServerData();
+    }
+
+    private void OnActiveFilterChanged(bool? value)
+    {
+        _activeFilter = value;
+        _table.ReloadServerData();
+    }
+
+    private Color GetRegionColor(DestinationRegionCategory region) => region switch
+    {
+        DestinationRegionCategory.LOCAL => Color.Success,
+        DestinationRegionCategory.ISLAND => Color.Info,
+        DestinationRegionCategory.OKANAGAN => Color.Warning,
+        DestinationRegionCategory.OUT_OF_TOWN => Color.Error,
+        _ => Color.Default
+    };
+
+    private async Task OpenEditDialog(int customerId)
+    {
+        var isNew = customerId == 0;
+        var customer = isNew ? new Customer() : await CustomerService.GetByIdAsync(customerId);
+
+        if (customer == null)
+        {
+            Snackbar.Add("Customer not found.", Severity.Error);
+            return;
+        }
+
+        var parameters = new DialogParameters
+        {
+            ["Customer"] = customer,
+            ["IsNew"] = isNew
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
+        var dialog = await DialogService.ShowAsync<EditCustomerDialog>(isNew ? "New Customer" : "Edit Customer", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var updatedCustomer = (Customer)result.Data;
+            if (isNew)
+            {
+                await CustomerService.CreateCustomerAsync(updatedCustomer);
+                Snackbar.Add("Customer created successfully.", Severity.Success);
+            }
+            else
+            {
+                await CustomerService.UpdateCustomerAsync(updatedCustomer);
+                Snackbar.Add("Customer updated successfully.", Severity.Success);
+            }
+            await _table.ReloadServerData();
+        }
+    }
+}
