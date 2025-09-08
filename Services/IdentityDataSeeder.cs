@@ -150,6 +150,21 @@ namespace CMetalsWS.Services
 
                 await _userManager.AddToRoleAsync(admin, "Admin");
             }
+
+            await SeedUserClaimsAsync();
+        }
+
+        private async Task SeedUserClaimsAsync()
+        {
+            var users = await _userManager.Users.ToListAsync();
+            foreach (var user in users)
+            {
+                var claims = await _userManager.GetClaimsAsync(user);
+                if (!claims.Any(c => c.Type == ClaimTypes.NameIdentifier))
+                {
+                    await _userManager.AddClaimAsync(user, new Claim(ClaimTypes.NameIdentifier, user.Id));
+                }
+            }
         }
 
         private async Task SeedBranchesAsync()

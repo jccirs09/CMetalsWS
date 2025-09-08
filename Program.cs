@@ -10,6 +10,8 @@ using MudBlazor.Services;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using CMetalsWS.Hubs;
+using System.Security.Claims;
+using Microsoft.AspNetCore.SignalR;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -62,6 +64,13 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 // Claims principal factory to load role permission claims into the user
 builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>, AppClaimsPrincipalFactory>();
 
+builder.Services.Configure<IdentityOptions>(o =>
+{
+    o.ClaimsIdentity.UserIdClaimType = ClaimTypes.NameIdentifier;
+    o.ClaimsIdentity.UserNameClaimType = ClaimTypes.Name;
+    o.ClaimsIdentity.RoleClaimType = ClaimTypes.Role;
+});
+
 // Refresh claims quickly after role/permission changes
 builder.Services.Configure<SecurityStampValidatorOptions>(o =>
 {
@@ -107,7 +116,11 @@ builder.Services.AddScoped<IPickingListImportService, PickingListImportService>(
 builder.Services.AddScoped<IParsingStateService, ParsingStateService>();
 
 
-builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<ChatService>();
+builder.Services.AddScoped<IChatService>(sp => sp.GetRequiredService<ChatService>());
+builder.Services.AddScoped<IMessageStore>(sp => sp.GetRequiredService<ChatService>());
+builder.Services.AddScoped<IChatClient, SignalRChatClient>();
+builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 builder.Services.AddSignalR();
 
 

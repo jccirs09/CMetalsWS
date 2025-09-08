@@ -23,26 +23,37 @@ namespace CMetalsWS.Services
         }
 
         // FIX: must be public to match the base member signature
-        public override async Task<ClaimsPrincipal> CreateAsync(ApplicationUser user)
+        protected override async Task<ClaimsIdentity> GenerateClaimsAsync(ApplicationUser user)
         {
-            var principal = await base.CreateAsync(user);
-            var identity = (ClaimsIdentity)principal.Identity!;
+            var identity = await base.GenerateClaimsAsync(user);
 
+            // Add user claims
+            var userClaims = await _userManager.GetClaimsAsync(user);
+            identity.AddClaims(userClaims);
+
+            // Add role claims
             var roles = await _userManager.GetRolesAsync(user);
             foreach (var roleName in roles)
             {
+                identity.AddClaim(new Claim(ClaimTypes.Role, roleName));
                 var role = await _roleManager.FindByNameAsync(roleName);
-                if (role == null) continue;
-
-                var roleClaims = await _roleManager.GetClaimsAsync(role);
-                foreach (var rc in roleClaims)
+                if (role != null)
                 {
-                    if (!identity.HasClaim(rc.Type, rc.Value))
-                        identity.AddClaim(rc);
+                    var roleClaims = await _roleManager.GetClaimsAsync(role);
+                    foreach (var roleClaim in roleClaims)
+                    {
+                        identity.AddClaim(roleClaim);
+                    }
                 }
             }
 
-            return principal;
+            // Ensure NameIdentifier is present
+            if (!identity.HasClaim(c => c.Type == ClaimTypes.NameIdentifier))
+            {
+                identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, user.Id));
+            }
+
+            return identity;
         }
     }
 }

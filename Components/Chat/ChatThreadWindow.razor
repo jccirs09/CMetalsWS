@@ -3,28 +3,24 @@
 @using CMetalsWS.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
-@using Microsoft.AspNetCore.SignalR.Client
 @using MudBlazor
+@using Microsoft.AspNetCore.Components.Web
+@using System.Security.Claims
 
-@inject IChatService ChatService
-@inject UserManager<ApplicationUser> UserManager
-@inject AuthenticationStateProvider AuthStateProvider
-@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+@inject IChatClient ChatClient
+@inject IMessageStore MessageStore
 @inject IJSRuntime JS
 
 <div class="chat-thread-window @(IsMinimized ? "minimized" : "")" @onkeydown="HandleKeyDown">
     <MudPaper Class="chat" Elevation="6">
-        <!-- Header -->
-        <header class="chat__header" @onclick="() => { if(IsMinimized) OnMinimize.InvokeAsync(); }">
-            <MudAvatar Class="mr-2" Size="Size.Medium" Color="@(Utils.ColorHelper.GetDeterministicColor(ThreadUser?.Id ?? string.Empty))">
-                @if (ThreadUser != null && !string.IsNullOrEmpty(ThreadUser.Avatar))
-                {
-                    <MudImage Src="@ThreadUser.Avatar" />
-                }
-                else if (ThreadUser != null)
-                {
-                    @($"{ThreadUser.FirstName?.FirstOrDefault()}{ThreadUser.LastName?.FirstOrDefault()}")
-                }
+        <header class="chat__header" @onclick="@(async (MouseEventArgs _) => { if (IsMinimized) await OnMinimize.InvokeAsync(); })">
+            <MudAvatar Class="mr-2"
+                       Size="Size.Medium"
+                       Color="@(Utils.ColorHelper.GetDeterministicColor(ThreadUser?.Id ?? string.Empty))"
+                       Image="@(ThreadUser?.Avatar)"
+                       Text="@((ThreadUser is not null && string.IsNullOrWhiteSpace(ThreadUser.Avatar)) ? $"{ThreadUser.FirstName?.FirstOrDefault()}{ThreadUser.LastName?.FirstOrDefault()}" : null)">
             </MudAvatar>
             <div class="chat__meta">
                 <div class="chat__name">
@@ -38,21 +34,19 @@
                     }
                 </div>
                 <div class="chat__status">@(ThreadUser?.IsOnline == true ? "Active now" : "Offline")</div>
-                @if (ThreadGroup != null)
-                {
-                    <MudChip T="string" Size="Size.Small" Color="@(ThreadGroup.BranchId == null ? Color.Secondary : Color.Primary)">@(ThreadGroup.BranchId == null ? "Inter-branch" : "Intra-branch")</MudChip>
-                }
             </div>
             <div class="ml-auto chat__actions">
-                <MudIconButton Icon="@Icons.Material.Filled.Minimize" OnClick="@OnMinimize" />
-                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="@OnClose" />
+                <MudIconButton Icon="@Icons.Material.Filled.Minimize" OnClick="@(async (MouseEventArgs _) => await OnMinimize.InvokeAsync())" />
+                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="@(async (MouseEventArgs _) => await OnClose.InvokeAsync())" />
             </div>
         </header>
 
         @if (!IsMinimized)
         {
-            <!-- Messages -->
-            <div class="chat__messages" @ref="_scrollArea">
+            <div class="chat__messages"
+                 @ref="_scrollArea"
+                 @onwheel="OnMessagesWheel"
+                 @onscroll="OnMessagesScrolled">
                 @foreach (var m in _messages)
                 {
                     var isOutgoing = m.SenderId == _currentUserId;
@@ -60,7 +54,7 @@
                     <div class="message @dir">
                         @if (!isOutgoing)
                         {
-                            <MudAvatar Class="message__avatar" Size="Size.Small" />
+                            <MudAvatar Class="message__avatar" Size="Size.Small" Image="@m.Sender?.Avatar" />
                         }
                         <div>
                             <div class="bubble">@m.Content</div>
@@ -78,32 +72,29 @@
                 {
                     <div class="message in">
                         <MudAvatar Class="message__avatar" Size="Size.Small" />
-                        <div>
-                            <div class="bubble">...</div>
-                        </div>
+                        <div><div class="bubble">...</div></div>
                     </div>
                 }
             </div>
 
-            <!-- Composer -->
             <EditForm Model="this" OnValidSubmit="SendMessageAsync">
                 <div class="composer">
-                    <MudTextField @bind-Value="_draft" Placeholder="Type a message" Class="input" Lines="1" Immediate="true" OnKeyDown="HandleEnter" />
+                    <MudTextField Value="@_draft"
+                                  ValueChanged="@OnDraftChanged"
+                                  Placeholder="Type a message"
+                                  Class="input"
+                                  Lines="1"
+                                  Immediate="true"
+                                  OnKeyDown="HandleKeyDown" />
                     <MudIconButton Icon="@Icons.Material.Filled.Send" Disabled="string.IsNullOrWhiteSpace(_draft)" ButtonType="ButtonType.Submit" />
                 </div>
             </EditForm>
-
-        <div class="sr-only" aria-live="polite">
-            @foreach (var msg in _newMessagesForScreenReader)
-            {
-                <p>@msg</p>
-            }
-        </div>
         }
     </MudPaper>
 </div>
 
 @code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
     [Parameter] public ApplicationUser? ThreadUser { get; set; }
     [Parameter] public ChatGroup? ThreadGroup { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
@@ -112,124 +103,190 @@
 
     private ElementReference _scrollArea;
     private string _draft = string.Empty;
-    private string? _currentUserId;
+    private string _currentUserId = "";
     private List<ChatMessage> _messages = new();
-    private HubConnection? _hubConnection;
     private bool _isTyping = false;
     private int _lastSeenMessageId = 0;
-    private List<string> _newMessagesForScreenReader = new();
+    private bool _autoStickToBottom = true;
+    private System.Timers.Timer? _typingTimer;
+    private bool _typingSent;
+    private bool _loadingOlder;
+    private DateTime? _oldestLoaded;
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        _currentUserId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var user = (await AuthState).User;
+        _currentUserId = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
-        if (_currentUserId != null)
+        ChatClient.MessageReceived += OnMessageReceived;
+        ChatClient.TypingChanged += OnTypingChanged;
+        ChatClient.ReadReceipt += OnReadReceipt;
+
+        if (ThreadUser != null)
         {
+            var messages = await MessageStore.LoadUserThreadAsync(_currentUserId, ThreadUser.Id);
+            _messages.AddRange(messages.Reverse());
+        }
+        else if (ThreadGroup != null)
+        {
+            var messages = await MessageStore.LoadGroupThreadAsync(ThreadGroup.Id);
+            _messages.AddRange(messages.Reverse());
+        }
+    }
+
+    private Task OnMessageReceived(ChatMessage message)
+    {
+        _messages.Add(message);
+        if (_autoStickToBottom)
+        {
+            _ = ScrollToBottom();
+        }
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnTypingChanged(string userId, bool isTyping)
+    {
+        if (ThreadUser != null && ThreadUser.Id == userId)
+        {
+            _isTyping = isTyping;
+            return InvokeAsync(StateHasChanged);
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnReadReceipt(int messageId)
+    {
+        _lastSeenMessageId = messageId;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnMessagesScrolled(EventArgs _) => OnMessagesScrolledCore();
+    private Task OnMessagesWheel(WheelEventArgs _) => OnMessagesScrolledCore();
+
+    private async Task OnMessagesScrolledCore()
+    {
+        _autoStickToBottom = await JS.InvokeAsync<bool>("cmetalsChat.isNearBottom", _scrollArea, 64);
+        if (_autoStickToBottom)
+            await MaybeAckRead();
+
+        var nearTop = await JS.InvokeAsync<bool>("cmetalsChat.isNearTop", _scrollArea, 24);
+        if (nearTop && !_loadingOlder)
+        {
+            _loadingOlder = true;
+            var before = _oldestLoaded ?? _messages.FirstOrDefault()?.Timestamp ?? DateTime.UtcNow;
+            IReadOnlyList<ChatMessage> older;
+
             if (ThreadUser != null)
-            {
-                _messages = await ChatService.GetConversationAsync(_currentUserId, ThreadUser.Id);
-            }
+                older = await MessageStore.LoadUserThreadBeforeAsync(_currentUserId, ThreadUser.Id, before);
             else if (ThreadGroup != null)
+                older = await MessageStore.LoadGroupThreadBeforeAsync(ThreadGroup.Id, before);
+            else
+                older = new List<ChatMessage>();
+
+            if (older.Any())
             {
-                _messages = await ChatService.GetGroupConversationAsync(ThreadGroup.Id);
+                _messages.InsertRange(0, older.Reverse());
+                _oldestLoaded = older.First().Timestamp;
+                await InvokeAsync(StateHasChanged);
             }
-
-            _hubConnection = new HubConnectionBuilder()
-                .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/chat"))
-                .Build();
-
-            _hubConnection.On<string, string>("ReceiveMessage", async (userId, message) =>
-            {
-                if ((ThreadUser != null && ThreadUser.Id == userId) || userId == _currentUserId)
-                {
-                    var sender = await ChatService.GetUserDetailsAsync(userId);
-                    var chatMessage = new ChatMessage { SenderId = userId, Sender = sender, Content = message, Timestamp = DateTime.Now };
-                    _messages.Add(chatMessage);
-                    _newMessagesForScreenReader.Add($"{sender?.UserName}: {message}");
-                    await InvokeAsync(StateHasChanged);
-                    await ScrollToBottom();
-                    await ClearNewMessagesForScreenReader();
-                }
-            });
-
-            _hubConnection.On<string, int, string>("ReceiveGroupMessage", async (userId, groupId, message) =>
-            {
-                if (ThreadGroup != null && ThreadGroup.Id == groupId)
-                {
-                    var sender = await ChatService.GetUserDetailsAsync(userId);
-                    var chatMessage = new ChatMessage { SenderId = userId, Sender = sender, ChatGroupId = groupId, Content = message, Timestamp = DateTime.Now };
-                    _messages.Add(chatMessage);
-                    _newMessagesForScreenReader.Add($"{sender?.UserName} in {ThreadGroup.Name}: {message}");
-                    await InvokeAsync(StateHasChanged);
-                    await ScrollToBottom();
-                    await ClearNewMessagesForScreenReader();
-                }
-            });
-
-            _hubConnection.On<string, bool>("ReceiveTypingState", (userId, isTyping) =>
-            {
-                if (ThreadUser != null && ThreadUser.Id == userId)
-                {
-                    _isTyping = isTyping;
-                    InvokeAsync(StateHasChanged);
-                }
-            });
-
-            _hubConnection.On<int>("ReceiveReadReceipt", messageId =>
-            {
-                _lastSeenMessageId = messageId;
-                InvokeAsync(StateHasChanged);
-            });
-
-            await _hubConnection.StartAsync();
-            StateHasChanged();
+            _loadingOlder = false;
         }
     }
 
     private async Task SendMessageAsync()
     {
-        if (string.IsNullOrWhiteSpace(_draft) || _hubConnection == null) return;
+        if (string.IsNullOrWhiteSpace(_draft)) return;
 
-        if (ThreadUser != null)
+        var tempMsg = new ChatMessage
         {
-            await _hubConnection.SendAsync("SendMessageToUser", ThreadUser.Id, _draft);
-        }
-        else if (ThreadGroup != null)
-        {
-            await _hubConnection.SendAsync("SendMessageToGroup", ThreadGroup.Id, _draft);
-        }
+            SenderId = _currentUserId,
+            Content = _draft,
+            Timestamp = DateTime.Now
+        };
+        _messages.Add(tempMsg);
+        var toSend = _draft;
         _draft = string.Empty;
-        StateHasChanged();
-    }
-
-    private void HandleEnter(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_draft))
-        {
-            _ = SendMessageAsync();
-        }
-    }
-
-    private async Task ScrollToBottom()
-    {
-        await Task.Delay(10);
-        await JS.InvokeVoidAsync("(el)=>{el.scrollTop = el.scrollHeight;}", _scrollArea);
-    }
-
-    private async Task ClearNewMessagesForScreenReader()
-    {
-        await Task.Delay(5000); // Wait 5 seconds
-        _newMessagesForScreenReader.Clear();
+        if (_autoStickToBottom) await ScrollToBottom();
         await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            if (ThreadUser != null)
+                await ChatClient.SendToUserAsync(ThreadUser.Id, toSend);
+            else if (ThreadGroup != null)
+                await ChatClient.SendToGroupAsync(ThreadGroup.Id, toSend);
+        }
+        catch { /* TODO: handle failed send */ }
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Escape")
+        if (e.Key == "Enter")
+        {
+            if (e.ShiftKey)
+            {
+                _draft += "\n";
+            }
+            else if (!string.IsNullOrWhiteSpace(_draft))
+            {
+                await SendMessageAsync();
+            }
+        }
+        else if (e.Key == "Escape")
         {
             await OnClose.InvokeAsync();
         }
+    }
+
+    private async Task OnDraftChanged(string value)
+    {
+        _draft = value;
+        if (!_typingSent)
+        {
+            _typingSent = true;
+            if (ThreadUser != null)
+                await ChatClient.SetTypingAsync(ThreadUser.Id, true);
+        }
+
+        _typingTimer?.Stop();
+        _typingTimer = _typingTimer ?? new System.Timers.Timer(1200);
+        _typingTimer.Interval = 1200;
+        _typingTimer.AutoReset = false;
+        _typingTimer.Elapsed += async (_, __) =>
+        {
+            try
+            {
+                if (ThreadUser != null)
+                    await ChatClient.SetTypingAsync(ThreadUser.Id, false);
+            }
+            catch { /* ignore */ }
+            finally { _typingSent = false; }
+        };
+        _typingTimer.Start();
+    }
+
+    private async Task MaybeAckRead()
+    {
+        if (_messages.Count == 0) return;
+        var lastId = _messages[^1].Id;
+        if (lastId == 0) return; // Don't ack optimistic message
+
+        if (ThreadUser != null)
+            await ChatClient.AckReadUserAsync(ThreadUser.Id, lastId);
+        else if (ThreadGroup != null)
+            await ChatClient.AckReadGroupAsync(ThreadGroup.Id, lastId);
+    }
+
+    private async Task ScrollToBottom()
+    {
+        await JS.InvokeVoidAsync("cmetalsChat.scrollToBottom", _scrollArea);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        ChatClient.MessageReceived -= OnMessageReceived;
+        ChatClient.TypingChanged -= OnTypingChanged;
+        ChatClient.ReadReceipt -= OnReadReceipt;
+        _typingTimer?.Dispose();
     }
 }

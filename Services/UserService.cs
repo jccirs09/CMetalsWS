@@ -39,9 +39,12 @@ namespace CMetalsWS.Services
         public async Task<IdentityResult> CreateUserAsync(ApplicationUser user, string password, IEnumerable<string> roles)
         {
             var result = await _userManager.CreateAsync(user, password);
-            if (result.Succeeded && roles.Any())
+            if (result.Succeeded)
             {
-                await _userManager.AddToRolesAsync(user, roles);
+                if (roles.Any())
+                {
+                    await _userManager.AddToRolesAsync(user, roles);
+                }
             }
             return result;
         }
