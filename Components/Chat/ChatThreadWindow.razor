@@ -6,6 +6,7 @@
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Web
 @using System.Security.Claims
+@using System.Linq
 
 @implements IAsyncDisposable
 
@@ -60,9 +61,28 @@
                             <div class="bubble">@m.Content</div>
                             <div class="meta-row">
                                 <span class="time">@m.Timestamp.ToLocalTime().ToString("h:mm tt")</span>
-                                @if (isOutgoing && m.Id == _lastSeenMessageId)
+                                @if (isOutgoing)
                                 {
-                                    <span class="seen">Seen</span>
+                                    <span class="status-icons">
+                                        @if (m.Delivered)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.DoneAll" Class="delivered" />
+                                        }
+                                        else if (m.Sent)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Done" Class="sent" />
+                                        }
+                                    </span>
+
+                                    @if (m.SeenBy?.Any() == true)
+                                    {
+                                        <span class="seen-avatars">
+                                            @foreach (var u in m.SeenBy)
+                                            {
+                                                <MudAvatar Class="seen-avatar" Size="Size.Small" Image="@u.Avatar" Text="@((u.Avatar is null || u.Avatar == "") ? $"{u.FirstName?.FirstOrDefault()}{u.LastName?.FirstOrDefault()}" : null)" />
+                                            }
+                                        </span>
+                                    }
                                 }
                             </div>
                         </div>
@@ -80,12 +100,12 @@
             <EditForm Model="this" OnValidSubmit="SendMessageAsync">
                 <div class="composer">
                     <MudTextField Value="@_draft"
-                                  ValueChanged="@OnDraftChanged"
                                   Placeholder="Type a message"
                                   Class="input"
                                   Lines="1"
                                   Immediate="true"
-                                  OnKeyDown="HandleKeyDown" />
+                                  OnKeyDown="HandleKeyDown"
+                                  ValueChanged="@(EventCallback.Factory.Create<string>(this, OnDraftChanged))" />
                     <MudIconButton Icon="@Icons.Material.Filled.Send" Disabled="string.IsNullOrWhiteSpace(_draft)" ButtonType="ButtonType.Submit" />
                 </div>
             </EditForm>
@@ -106,7 +126,6 @@
     private string _currentUserId = "";
     private List<ChatMessage> _messages = new();
     private bool _isTyping = false;
-    private int _lastSeenMessageId = 0;
     private bool _autoStickToBottom = true;
     private System.Timers.Timer? _typingTimer;
     private bool _typingSent;
@@ -136,6 +155,17 @@
 
     private Task OnMessageReceived(ChatMessage message)
     {
+        if (message.SenderId == _currentUserId)
+        {
+            var pending = _messages.FirstOrDefault(m => m.Sent && !m.Delivered && m.Content == message.Content);
+            if (pending != null)
+            {
+                pending.Id = message.Id;
+                pending.Delivered = true;
+                return InvokeAsync(StateHasChanged);
+            }
+        }
+
         _messages.Add(message);
         if (_autoStickToBottom)
         {
@@ -154,9 +184,24 @@
         return Task.CompletedTask;
     }
 
-    private Task OnReadReceipt(int messageId)
+    private Task OnReadReceipt(int messageId, string userId)
     {
-        _lastSeenMessageId = messageId;
+        var msg = _messages.FirstOrDefault(m => m.Id == messageId);
+        if (msg != null)
+        {
+            msg.Seen = true;
+            if (ThreadGroup != null)
+            {
+                var user = ThreadGroup.ChatGroupUsers.FirstOrDefault(u => u.UserId == userId)?.User;
+                if (user != null && msg.SeenBy.All(u => u.Id != user.Id))
+                    msg.SeenBy.Add(user);
+            }
+            else if (ThreadUser != null)
+            {
+                if (msg.SeenBy.All(u => u.Id != ThreadUser.Id))
+                    msg.SeenBy.Add(ThreadUser);
+            }
+        }
         return InvokeAsync(StateHasChanged);
     }
 
@@ -201,7 +246,8 @@
         {
             SenderId = _currentUserId,
             Content = _draft,
-            Timestamp = DateTime.Now
+            Timestamp = DateTime.Now,
+            Sent = true
         };
         _messages.Add(tempMsg);
         var toSend = _draft;
