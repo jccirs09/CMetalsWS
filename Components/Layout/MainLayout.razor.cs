@@ -17,7 +17,6 @@ namespace CMetalsWS.Components.Layout
 
         private bool _isDarkMode = false;
         private bool _drawerOpen = true;
-        private bool _isChatDockOpen = false;
         private bool _isChatThreadsPanelOpen = false;
         private List<ChatThread> _openChatThreads = new();
 
@@ -51,11 +50,6 @@ namespace CMetalsWS.Components.Layout
             }
         };
 
-        private void ToggleChatDock()
-        {
-            _isChatDockOpen = !_isChatDockOpen;
-        }
-
         private void ToggleChatThreadsPanel()
         {
             _isChatThreadsPanelOpen = !_isChatThreadsPanelOpen;
@@ -68,7 +62,6 @@ namespace CMetalsWS.Components.Layout
             {
                 _openChatThreads.Add(new ChatThread { User = user });
             }
-            _isChatDockOpen = false;
         }
 
         private void OpenChatWindow(ChatGroup group)
@@ -78,7 +71,6 @@ namespace CMetalsWS.Components.Layout
             {
                 _openChatThreads.Add(new ChatThread { Group = group });
             }
-            _isChatDockOpen = false;
         }
 
         private void CloseChatWindow(ChatThread thread)

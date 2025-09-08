@@ -10,7 +10,7 @@
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => _drawerOpen = !_drawerOpen)" />
         <MudText Typo="Typo.h5" Class="ml-3">Application</MudText>
         <MudSpacer />
-        <MudIconButton Icon="@Icons.Material.Filled.Message" Color="Color.Inherit" />
+        <MudIconButton Icon="@Icons.Material.Filled.Message" Color="Color.Inherit" OnClick="@ToggleChatThreadsPanel" />
         <MudIconButton Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" />
         <MudMenu Icon="@Icons.Material.Filled.Person" Color="Color.Inherit" Edge="Edge.End">
             <MudMenuItem Link="/profile">Profile</MudMenuItem>
@@ -25,14 +25,13 @@
     <MudMainContent Class="pt-16 pa-4">
         @Body
     </MudMainContent>
+
+    @if (_isChatThreadsPanelOpen)
+    {
+        <ChatThreadsPanel OnClose="@ToggleChatThreadsPanel" OnConversationSelected="OpenChatWindowFromConversation" />
+    }
+
 </MudLayout>
-
-<MudFab Color="Color.Primary" Icon="@Icons.Material.Filled.Message" OnClick="@ToggleChatDock" Style="position: fixed; bottom: 20px; left: 20px;" />
-
-@if (_isChatDockOpen)
-{
-    <ChatDock OnClose="@ToggleChatDock" OnUserSelected="OpenChatWindow" OnGroupSelected="OpenChatWindow" />
-}
 
 @for (var i = 0; i < _openChatThreads.Count; i++)
 {

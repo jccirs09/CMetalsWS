@@ -26,16 +26,11 @@ namespace CMetalsWS.Data
         public int? ChatGroupId { get; set; }
         public ChatGroup? ChatGroup { get; set; }
 
-        [NotMapped]
         public bool Sent { get; set; }
-
-        [NotMapped]
         public bool Delivered { get; set; }
 
         [NotMapped]
-        public bool Seen { get; set; }
+        public HashSet<string> SeenBy { get; set; } = new();
 
-        [NotMapped]
-        public Dictionary<string, ApplicationUser> SeenBy { get; set; } = new();
     }
 }
