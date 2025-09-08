@@ -155,51 +155,53 @@ namespace CMetalsWS.Services
 
         public async Task<List<CustomerImportRow>> PreviewImportAsync(Stream stream)
         {
-            var importRows = new List<CustomerImportRow>();
             var rows = stream.Query<CustomerImportDto>().ToList();
+            var tasks = new List<Task<CustomerImportRow>>();
 
             foreach (var row in rows)
             {
-                var importRow = new CustomerImportRow { Dto = row };
-                try
-                {
-                    var customer = new Customer { CustomerCode = row.CustomerCode, CustomerName = row.CustomerName };
-                    var enrichmentResult = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, row.Address);
-                    importRow.Candidates = enrichmentResult.Candidates;
-                    if (enrichmentResult.EnrichedCustomer != null)
-                    {
-                        importRow.SelectedPlaceId = enrichmentResult.EnrichedCustomer.PlaceId;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    importRow.Error = ex.Message;
-                }
-                importRows.Add(importRow);
+                tasks.Add(ProcessImportRow(row));
             }
-            return importRows;
+
+            var results = await Task.WhenAll(tasks);
+            return results.ToList();
+        }
+
+        private async Task<CustomerImportRow> ProcessImportRow(CustomerImportDto row)
+        {
+            var importRow = new CustomerImportRow { Dto = row };
+            try
+            {
+                var customer = new Customer { CustomerCode = row.CustomerCode, CustomerName = row.CustomerName };
+                var enrichmentResult = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, row.Address);
+                importRow.Candidates = enrichmentResult.Candidates;
+                if (enrichmentResult.EnrichedCustomer != null)
+                {
+                    importRow.SelectedPlaceId = enrichmentResult.EnrichedCustomer.PlaceId;
+                }
+            }
+            catch (Exception ex)
+            {
+                // It's better to log the exception here if a logger is available
+                importRow.Error = ex.Message;
+            }
+            return importRow;
         }
 
         public async Task<CustomerImportReport> CommitImportAsync(List<CustomerImportRow> importRows)
         {
             var report = new CustomerImportReport { TotalRows = importRows.Count };
-            using var db = _dbContextFactory.CreateDbContext();
 
             foreach (var row in importRows)
             {
                 try
                 {
+                    using var db = _dbContextFactory.CreateDbContext();
+
                     if (!string.IsNullOrWhiteSpace(row.Error))
                     {
                         report.FailedImports++;
-                        report.Errors.Add(row.Error);
-                        continue;
-                    }
-
-                    if (string.IsNullOrWhiteSpace(row.SelectedPlaceId))
-                    {
-                        report.FailedImports++;
-                        report.Errors.Add($"No candidate selected for {row.Dto.CustomerName}");
+                        report.Errors.Add($"Row for {row.Dto.CustomerCode} had a processing error: {row.Error}");
                         continue;
                     }
 
@@ -211,28 +213,34 @@ namespace CMetalsWS.Services
                         db.Customers.Add(customer);
                     }
 
+                    // Always update basic info from the spreadsheet
                     customer!.CustomerName = row.Dto.CustomerName;
                     customer.BusinessHours = row.Dto.BusinessHours;
                     customer.ContactNumber = row.Dto.ContactNumber;
 
-                    var selectedCandidate = row.Candidates.FirstOrDefault(c => c.PlaceId == row.SelectedPlaceId);
-                    if (selectedCandidate != null)
+                    // Only update address info if a candidate was selected
+                    if (!string.IsNullOrWhiteSpace(row.SelectedPlaceId))
                     {
-                        customer.PlaceId = selectedCandidate.PlaceId;
-                        customer.Latitude = selectedCandidate.Latitude;
-                        customer.Longitude = selectedCandidate.Longitude;
-                        customer.Street1 = selectedCandidate.Street1;
-                        customer.Street2 = selectedCandidate.Street2;
-                        customer.City = selectedCandidate.City;
-                        customer.Province = selectedCandidate.Province;
-                        customer.PostalCode = selectedCandidate.PostalCode;
-                        customer.Country = selectedCandidate.Country;
-                        customer.FullAddress = selectedCandidate.FullAddress;
-                        customer.DestinationRegionCategory = selectedCandidate.DestinationRegionCategory;
-                        customer.DestinationGroupCategory = selectedCandidate.DestinationGroupCategory;
+                        var selectedCandidate = row.Candidates.FirstOrDefault(c => c.PlaceId == row.SelectedPlaceId);
+                        if (selectedCandidate != null)
+                        {
+                            customer.PlaceId = selectedCandidate.PlaceId;
+                            customer.Latitude = selectedCandidate.Latitude;
+                            customer.Longitude = selectedCandidate.Longitude;
+                            customer.Street1 = selectedCandidate.Street1;
+                            customer.Street2 = selectedCandidate.Street2;
+                            customer.City = selectedCandidate.City;
+                            customer.Province = selectedCandidate.Province;
+                            customer.PostalCode = selectedCandidate.PostalCode;
+                            customer.Country = selectedCandidate.Country;
+                            customer.FullAddress = selectedCandidate.FullAddress;
+                            customer.DestinationRegionCategory = selectedCandidate.DestinationRegionCategory;
+                            customer.DestinationGroupCategory = selectedCandidate.DestinationGroupCategory;
+                        }
                     }
 
                     customer.ModifiedUtc = DateTime.UtcNow;
+                    await db.SaveChangesAsync(); // Commit each record individually for robustness
                     report.SuccessfulImports++;
                 }
                 catch (Exception ex)
@@ -242,7 +250,6 @@ namespace CMetalsWS.Services
                 }
             }
 
-            await db.SaveChangesAsync();
             return report;
         }
     }
