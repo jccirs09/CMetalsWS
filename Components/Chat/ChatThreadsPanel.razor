@@ -1,9 +1,12 @@
 @using CMetalsWS.Data
 @using CMetalsWS.Data.Chat
+@using CMetalsWS.Components.Layout
 @inject IChatRepository ChatRepository
 @inject IChatService ChatService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
 @using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
 
 <MudPaper Class="chat-threads-panel" Elevation="8" Style="width:360px;max-height:70vh;overflow:auto;">
   <MudToolBar Dense="true">
@@ -24,7 +27,7 @@
     <MudTabPanel Text="Recent">
       <MudVirtualize Items="_recentConversations" ItemSize="56" Context="context" T="ThreadSummary">
         <ChildContent>
-          <MudListItem T="ThreadSummary" OnClick="() => OnConversationSelected.InvokeAsync(context)">
+          <MudListItem T="ThreadSummary" OnClick="() => OnConversationSelected.InvokeAsync(new ChatThreadRef { Id = context.Id, Title = context.Title })">
             <ChildContent>
               <MudAvatar />
               <div class="ml-4">
@@ -38,13 +41,17 @@
     </MudTabPanel>
 
     <MudTabPanel Text="People">
-      <MudVirtualize Items="_people" ItemSize="56" Context="context" T="ApplicationUser">
-        <ChildContent>
-          <MudListItem T="ApplicationUser" OnClick="() => StartUserConversation(context)">
-            <MudAvatar /><MudText Class="ml-3">@context.UserName</MudText>
-          </MudListItem>
-        </ChildContent>
-      </MudVirtualize>
+      @foreach (var branch in _people)
+      {
+        <MudText Class="mud-text-caption ml-2 mt-2">@branch.Key</MudText>
+        <MudVirtualize Items="branch.Value" ItemSize="56" Context="person" T="ApplicationUser">
+          <ChildContent>
+            <MudListItem T="ApplicationUser" OnClick="() => StartUserConversation(person)">
+              <MudAvatar /><MudText Class="ml-3">@person.UserName</MudText>
+            </MudListItem>
+          </ChildContent>
+        </MudVirtualize>
+      }
     </MudTabPanel>
 
     <MudTabPanel Text="Groups">
@@ -61,19 +68,22 @@
 
 @code {
   [Parameter] public EventCallback OnClose { get; set; }
-  [Parameter] public EventCallback<ThreadSummary> OnConversationSelected { get; set; }
+  [Parameter] public EventCallback<ChatThreadRef> OnConversationSelected { get; set; }
 
   private string _q = string.Empty;
   private System.Timers.Timer? _searchDebounce;
-  private List<ApplicationUser> _people = new();
+  private Dictionary<string, List<ApplicationUser>> _people = new();
   private List<ChatGroup> _groups = new();
   private List<ThreadSummary> _recentConversations = new();
   private string? _currentUserId;
+  private int? _currentBranchId;
 
   protected override async Task OnInitializedAsync()
   {
     var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-    _currentUserId = authState.User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+    var user = await UserManager.GetUserAsync(authState.User);
+    _currentUserId = user?.Id;
+    _currentBranchId = user?.BranchId;
     if (_currentUserId != null)
         _recentConversations = (await ChatRepository.GetThreadSummariesAsync(_currentUserId))?.ToList() ?? new();
   }
@@ -92,11 +102,26 @@
       await InvokeAsync(() => { _people.Clear(); _groups.Clear(); StateHasChanged(); });
       return;
     }
-    var users = await ChatService.SearchUsersAsync(q, take: 30);
+    var users = await ChatService.SearchUsersAsync(q, _currentBranchId, take: 30);
     var groups = await ChatService.SearchGroupsAsync(q, take: 30);
     await InvokeAsync(() => { _people = users; _groups = groups; StateHasChanged(); });
   }
 
-  private void StartUserConversation(ApplicationUser user) { }
-  private void StartGroupConversation(ChatGroup group) { }
+  private async Task StartUserConversation(ApplicationUser user)
+  {
+      if (_currentUserId == null) return;
+      var summary = await ChatService.GetOrCreateThreadAsync(_currentUserId, otherUserId: user.Id);
+      var threadRef = new ChatThreadRef { Id = summary.Id, Title = summary.Title, User = user };
+      await OnConversationSelected.InvokeAsync(threadRef);
+      await OnClose.InvokeAsync();
+  }
+
+  private async Task StartGroupConversation(ChatGroup group)
+  {
+      if (_currentUserId == null) return;
+      var summary = await ChatService.GetOrCreateThreadAsync(_currentUserId, groupId: group.Id);
+      var threadRef = new ChatThreadRef { Id = summary.Id, Title = summary.Title, Group = group };
+      await OnConversationSelected.InvokeAsync(threadRef);
+      await OnClose.InvokeAsync();
+  }
 }

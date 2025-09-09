@@ -62,10 +62,11 @@ namespace CMetalsWS.Components.Layout
 
         private void ToggleChatThreadsPanel() => _isChatThreadsPanelOpen = !_isChatThreadsPanelOpen;
 
-        private void OpenChatWindowFromConversation(ThreadSummary summary)
+        private void OpenChatWindowFromConversation(ChatThreadRef thread)
         {
-            if (_openChatThreads.Any(t => t.Id == summary.Id)) return;
-            _openChatThreads.Add(new ChatThreadRef { Id = summary.Id, Title = summary.Title });
+            if (_openChatThreads.Any(t => t.Id == thread.Id)) return;
+            _openChatThreads.Add(thread);
+            _isChatThreadsPanelOpen = false;
         }
 
         private void CloseChatWindow(ChatThreadRef thread) => _openChatThreads.Remove(thread);

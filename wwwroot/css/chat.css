@@ -17,6 +17,10 @@
     pointer-events: auto;
 }
 
+.z-chat-popover {
+    z-index: 1300;
+}
+
 .chat-dock {
     width: 320px;
     display: flex;

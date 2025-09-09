@@ -3,7 +3,7 @@
 
 <MudPaper Class="chat-dock" Elevation="4">
     <MudAppBar Dense="true" Color="Color.Primary">
-        <MudText>@(ThreadUser?.UserName ?? ThreadGroup?.Name)</MudText>
+        <MudText>@(ThreadUser?.UserName ?? ThreadGroup?.Name ?? Title)</MudText>
         <MudSpacer />
         <MudIconButton Icon="@Icons.Material.Filled.Minimize" OnClick="@(async () => await OnMinimize.InvokeAsync())" Size="Size.Small" />
         <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="@(async () => await OnClose.InvokeAsync())" Size="Size.Small" />
@@ -19,6 +19,7 @@
 @code {
     [Parameter] public ApplicationUser? ThreadUser { get; set; }
     [Parameter] public ChatGroup? ThreadGroup { get; set; }
+    [Parameter] public string? Title { get; set; }
     [Parameter] public bool IsMinimized { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback OnMinimize { get; set; }
@@ -31,15 +32,7 @@
     {
         await ChatClient.ConnectAsync();
         _typingTimer = new System.Timers.Timer(1200) { AutoReset = false };
-        _typingTimer.Elapsed += async (_, __) =>
-        {
-            try
-            {
-                if (ThreadUser != null)
-                    await ChatClient.TypingAsync(ThreadUser.Id, false);
-            }
-            finally { _typingSent = false; }
-        };
+        _typingTimer.Elapsed += TypingTimerElapsed;
     }
 
     private async Task OnDraftChanged(string value)
@@ -58,8 +51,18 @@
     {
         if (_typingTimer is not null)
         {
-            _typingTimer.Elapsed -= async (_, __) => { };
+            _typingTimer.Elapsed -= TypingTimerElapsed;
             _typingTimer.Dispose();
         }
+    }
+
+    private async void TypingTimerElapsed(object? _, System.Timers.ElapsedEventArgs __)
+    {
+        try
+        {
+            if (ThreadUser != null)
+                await ChatClient.TypingAsync(ThreadUser.Id, false);
+        }
+        finally { _typingSent = false; }
     }
 }

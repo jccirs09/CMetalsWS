@@ -32,6 +32,7 @@
 </MudLayout>
 
 <MudPopover Open="_isChatThreadsPanelOpen"
+            Class="z-chat-popover"
             AnchorReference="PopoverAnchorReference.Element"
             AnchorEl="_messagesBtnRef?.Ref"
             AnchorOrigin="Origin.BottomRight"
@@ -49,6 +50,7 @@
         var thread = _openChatThreads[i];
         <ChatThreadWindow ThreadUser="@thread.User"
                           ThreadGroup="@thread.Group"
+                          Title="@thread.Title"
                           IsMinimized="@thread.IsMinimized"
                           OnClose="() => CloseChatWindow(thread)"
                           OnMinimize="() => MinimizeChatWindow(thread)" />
