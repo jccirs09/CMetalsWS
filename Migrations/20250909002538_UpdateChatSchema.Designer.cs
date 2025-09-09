@@ -4,6 +4,7 @@ using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250909002538_UpdateChatSchema")]
+    partial class UpdateChatSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -225,30 +228,6 @@ namespace CMetalsWS.Migrations
                     b.ToTable("MessageSeens");
                 });
 
-            modelBuilder.Entity("CMetalsWS.Data.Chat.PinnedThread", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ThreadId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "ThreadId")
-                        .IsUnique();
-
-                    b.ToTable("PinnedThreads");
-                });
-
             modelBuilder.Entity("CMetalsWS.Data.ChatGroup", b =>
                 {
                     b.Property<int>("Id")
@@ -306,9 +285,6 @@ namespace CMetalsWS.Migrations
 
                     b.Property<DateTime?>("EditedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsPinned")
-                        .HasColumnType("bit");
 
                     b.Property<string>("RecipientId")
                         .HasColumnType("nvarchar(450)");
@@ -1473,17 +1449,6 @@ namespace CMetalsWS.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Message");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("CMetalsWS.Data.Chat.PinnedThread", b =>
-                {
-                    b.HasOne("CMetalsWS.Data.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
 
                     b.Navigation("User");
                 });

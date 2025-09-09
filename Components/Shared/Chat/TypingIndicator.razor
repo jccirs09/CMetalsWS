@@ -1,0 +1,30 @@
+@using MudBlazor
+
+<div class="d-flex align-center">
+    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+    <MudText>@TypingText</MudText>
+</div>
+
+@code {
+    [Parameter] public List<string> TypingUsers { get; set; } = new List<string>();
+
+    private string TypingText
+    {
+        get
+        {
+            if (TypingUsers.Count == 0)
+            {
+                return "";
+            }
+            if (TypingUsers.Count == 1)
+            {
+                return $"{TypingUsers[0]} is typing...";
+            }
+            if (TypingUsers.Count == 2)
+            {
+                return $"{TypingUsers[0]} and {TypingUsers[1]} are typing...";
+            }
+            return $"{TypingUsers[0]} and {TypingUsers.Count - 1} others are typing...";
+        }
+    }
+}

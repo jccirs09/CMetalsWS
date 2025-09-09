@@ -10,12 +10,12 @@
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => _drawerOpen = !_drawerOpen)" />
         <MudText Typo="Typo.h5" Class="ml-3">Application</MudText>
         <MudSpacer />
-        <MudIconButton Icon="@Icons.Material.Filled.Message" Color="Color.Inherit" OnClick="@ToggleChatThreadsPanel" />
         <MudIconButton Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" />
         <MudMenu Icon="@Icons.Material.Filled.Person" Color="Color.Inherit" Edge="Edge.End">
             <MudMenuItem Link="/profile">Profile</MudMenuItem>
             <MudMenuItem OnClick="Logout">Logout</MudMenuItem>
         </MudMenu>
+        <ChatThreadsButton />
     </MudAppBar>
 
     <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
@@ -26,20 +26,9 @@
         @Body
     </MudMainContent>
 
-    @if (_isChatThreadsPanelOpen)
-    {
-        <ChatThreadsPanel OnClose="@ToggleChatThreadsPanel" OnConversationSelected="OpenChatWindowFromConversation" />
-    }
-
 </MudLayout>
 
-@for (var i = 0; i < _openChatThreads.Count; i++)
-{
-    var thread = _openChatThreads[i];
-    <div style="--window-index: @i">
-        <ChatThreadWindow ThreadUser="@thread.User" ThreadGroup="@thread.Group" IsMinimized="@thread.IsMinimized" OnClose="() => CloseChatWindow(thread)" OnMinimize="() => MinimizeChatWindow(thread)" />
-    </div>
-}
+<ChatDockHost />
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.

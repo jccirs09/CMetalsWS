@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+using CMetalsWS.Data.Chat;
 
 namespace CMetalsWS.Data
 {
@@ -13,6 +13,9 @@ namespace CMetalsWS.Data
         public string? Content { get; set; }
 
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime? EditedAt { get; set; }
+        public DateTime? DeletedAt { get; set; }
+        public bool IsPinned { get; set; }
 
         // Foreign key for the sender
         public string? SenderId { get; set; }
@@ -26,11 +29,7 @@ namespace CMetalsWS.Data
         public int? ChatGroupId { get; set; }
         public ChatGroup? ChatGroup { get; set; }
 
-        public bool Sent { get; set; }
-        public bool Delivered { get; set; }
-
-        [NotMapped]
-        public HashSet<string> SeenBy { get; set; } = new();
-
+        public ICollection<MessageReaction> Reactions { get; set; } = new List<MessageReaction>();
+        public ICollection<MessageSeen> SeenBy { get; set; } = new List<MessageSeen>();
     }
 }

@@ -1,0 +1,56 @@
+@using CMetalsWS.Services
+@using CMetalsWS.Data.Chat
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+
+@inject ChatStateService ChatState
+@inject IChatRepository ChatRepository
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="chat-dock @(_isMinimized ? "minimized" : "")">
+    <MudPaper Elevation="4">
+        <MudAppBar Dense="true" Color="Color.Primary" OnClick="ToggleMinimize">
+            <MudText>@_threadTitle</MudText>
+            <MudSpacer />
+            <MudIconButton Icon="@(_isMinimized ? Icons.Material.Filled.KeyboardArrowUp : Icons.Material.Filled.Minimize)" Size="Size.Small" OnClick="ToggleMinimize" />
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="() => ChatState.CloseDock(ThreadId!)" />
+        </MudAppBar>
+        @if (!_isMinimized)
+        {
+            <div class="pa-2" style="height: 300px;">
+                <ChatConversation ThreadId="@ThreadId" />
+            </div>
+        }
+    </MudPaper>
+</div>
+
+@code {
+    [Parameter] public string? ThreadId { get; set; }
+
+    private bool _isMinimized;
+    private string? _threadTitle;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (ThreadId != null)
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var currentUserId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var summaries = await ChatRepository.GetThreadSummariesAsync(currentUserId!);
+            var summary = summaries.FirstOrDefault(s => s.Id == ThreadId);
+            if (summary != null)
+            {
+                _threadTitle = summary.Title;
+            }
+            else
+            {
+                _threadTitle = "Chat";
+            }
+        }
+    }
+
+    private void ToggleMinimize()
+    {
+        _isMinimized = !_isMinimized;
+    }
+}

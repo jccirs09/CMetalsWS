@@ -1,0 +1,24 @@
+@using CMetalsWS.Services
+
+@inject ChatStateService ChatState
+
+@implements IDisposable
+
+<div class="chat-dock-host">
+    @foreach (var threadId in ChatState.OpenDocks)
+    {
+        <ChatDock ThreadId="@threadId" />
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        ChatState.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        ChatState.OnChange -= StateHasChanged;
+    }
+}
