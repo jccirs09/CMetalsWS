@@ -1,0 +1,79 @@
+@using CMetalsWS.Data.Chat
+@using CMetalsWS.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+
+@using CMetalsWS.Services.SignalR
+
+@inject IChatRepository ChatRepository
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ChatHubClient ChatHubClient
+
+@implements IAsyncDisposable
+
+<MudList T="ThreadSummary" Clickable="true">
+    <MudVirtualize ItemsProvider="LoadThreads" T="ThreadSummary">
+        <ItemContent>
+            <MudListItem T="ThreadSummary" OnClick="@(() => OnThreadSelected.InvokeAsync(context))">
+                <MudBadge Color="Color.Primary" Overlap="true" Content="@context.UnreadCount" Visible="@(context.UnreadCount > 0)">
+                    <MudAvatar>
+                        <MudImage Src="@context.AvatarUrl" />
+                    </MudAvatar>
+                </MudBadge>
+                <div class="ml-4 flex-grow-1">
+                    <MudText>@context.Title</MudText>
+                    <MudText Typo="Typo.caption">@context.LastMessagePreview</MudText>
+                </div>
+                <MudIconButton Icon="@(context.IsPinned ? Icons.Material.Filled.PushPin : Icons.Material.Outlined.PushPin)"
+                               Color="@(context.IsPinned ? Color.Primary : Color.Default)"
+                               OnClick="() => PinThread(context)" />
+            </MudListItem>
+        </ItemContent>
+    </MudVirtualize>
+</MudList>
+
+@code {
+    [Parameter] public EventCallback<ThreadSummary> OnThreadSelected { get; set; }
+
+    private string? _currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _currentUserId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        ChatHubClient.ThreadsUpdated += OnThreadsUpdated;
+    }
+
+    private async Task OnThreadsUpdated()
+    {
+        await LoadThreads(new ItemsProviderRequest(0, 100)); // Reload threads
+        StateHasChanged();
+    }
+
+    private async Task PinThread(ThreadSummary thread)
+    {
+        await ChatHubClient.PinThreadAsync(thread.Id!, !thread.IsPinned);
+    }
+
+    private async ValueTask<ItemsProviderResult<ThreadSummary>> LoadThreads(ItemsProviderRequest request)
+    {
+        if (_currentUserId == null)
+        {
+            return new ItemsProviderResult<ThreadSummary>(new List<ThreadSummary>(), 0);
+        }
+
+        // For simplicity, fetching all summaries at once.
+        // A real implementation would support pagination in the repository.
+        var summaries = (await ChatRepository.GetThreadSummariesAsync(_currentUserId)).ToList();
+
+        return new ItemsProviderResult<ThreadSummary>(
+            summaries.Skip(request.StartIndex).Take(request.Count),
+            summaries.Count
+        );
+    }
+
+    public void Dispose()
+    {
+        ChatHubClient.ThreadsUpdated -= OnThreadsUpdated;
+    }
+}

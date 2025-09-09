@@ -1,20 +1,26 @@
-// window-scoped helpers for chat components
 window.cmetalsChat = {
-  scrollToBottom: function (el) {
-    if (!el) return;
-    requestAnimationFrame(()=>{ el.scrollTop = el.scrollHeight; });
-  },
-  isNearTop: function (el, threshold) {
-    if (!el) return false;
-    return el.scrollTop <= (threshold ?? 24);
-  },
-  isNearBottom: function (el, threshold) {
-    if (!el) return false;
-    const t = threshold ?? 48;
-    return (el.scrollHeight - el.scrollTop - el.clientHeight) <= t;
-  },
-  preserveScroll: function (el, prevHeight) {
-    if (!el) return;
-    el.scrollTop = el.scrollHeight - (prevHeight - el.scrollTop);
-  }
+    scrollToBottom: (elementId) => {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.scrollTop = element.scrollHeight;
+        }
+    },
+    playSound: (sound) => {
+        const audio = new Audio(`sounds/${sound}.wav`);
+        audio.play();
+    },
+    isDocumentFocused: () => {
+        return document.hasFocus();
+    },
+    requestNotificationPermission: async () => {
+        if (!("Notification" in window)) {
+            return "unsupported";
+        }
+        return await Notification.requestPermission();
+    },
+    showNotification: (title, body) => {
+        if (Notification.permission === "granted") {
+            new Notification(title, { body: body });
+        }
+    }
 };

@@ -1,8 +1,10 @@
 using CMetalsWS.Components;
 using CMetalsWS.Components.Account;
 using CMetalsWS.Data;
+using CMetalsWS.Data.Chat;
 using CMetalsWS.Security;
 using CMetalsWS.Services;
+using CMetalsWS.Services.SignalR;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -116,10 +118,9 @@ builder.Services.AddScoped<IPickingListImportService, PickingListImportService>(
 builder.Services.AddScoped<IParsingStateService, ParsingStateService>();
 
 
-builder.Services.AddScoped<ChatService>();
-builder.Services.AddScoped<IChatService>(sp => sp.GetRequiredService<ChatService>());
-builder.Services.AddScoped<IMessageStore>(sp => sp.GetRequiredService<ChatService>());
-builder.Services.AddScoped<IChatClient, SignalRChatClient>();
+builder.Services.AddSingleton<ChatStateService>();
+builder.Services.AddScoped<ChatHubClient>();
+builder.Services.AddScoped<IChatRepository, ChatRepository>();
 builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 builder.Services.AddSignalR();
 

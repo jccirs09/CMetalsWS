@@ -1,0 +1,62 @@
+@page "/messages"
+@page "/messages/{ThreadId}"
+
+@using CMetalsWS.Services
+@using CMetalsWS.Data.Chat
+@using MudBlazor
+
+@inject ChatStateService ChatState
+
+@implements IDisposable
+
+<MudDrawerContainer Class="d-flex flex-grow-1">
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Never" Variant="@(Breakpoint == Breakpoint.SmAndDown ? DrawerVariant.Temporary : DrawerVariant.Persistent)">
+        <ChatThreadList OnThreadSelected="OnThreadSelected" />
+    </MudDrawer>
+    <MudMainContent>
+        @if (!string.IsNullOrEmpty(ActiveThreadId))
+        {
+            <ChatConversation ThreadId="@ActiveThreadId" />
+        }
+        else
+        {
+            <div class="d-flex justify-center align-center h-100">
+                <MudText Typo="Typo.h6">Select a conversation to start chatting</MudText>
+            </div>
+        }
+    </MudMainContent>
+</MudDrawerContainer>
+
+@code {
+    [Parameter] public string? ThreadId { get; set; }
+
+    [CascadingParameter] public MudBlazor.Breakpoint Breakpoint { get; set; }
+
+    private bool _drawerOpen = true;
+    private string? ActiveThreadId { get; set; }
+
+    protected override void OnInitialized()
+    {
+        ChatState.OnChange += StateHasChanged;
+        if (ThreadId != null)
+        {
+            ChatState.GoToChatPage(ThreadId);
+        }
+        else
+        {
+            ChatState.GoToChatPage();
+        }
+        ActiveThreadId = ChatState.ActiveThreadId;
+    }
+
+    private void OnThreadSelected(ThreadSummary thread)
+    {
+        ActiveThreadId = thread.Id;
+        ChatState.ActivateThread(thread.Id);
+    }
+
+    public void Dispose()
+    {
+        ChatState.OnChange -= StateHasChanged;
+    }
+}

@@ -6,7 +6,8 @@
 @using CMetalsWS.Components.Pages.Admin
 @attribute [Authorize(Policy = Permissions.Users.Edit)]
 
-@inject IChatService ChatService
+@using CMetalsWS.Data.Chat
+@inject IChatRepository ChatRepository
 @inject BranchService BranchService
 @inject UserService UserService
 @inject IDialogService DialogService
@@ -70,7 +71,8 @@
 
     private async Task LoadGroupsAsync()
     {
-        _groups = await ChatService.GetAllGroupsAsync();
+        var groups = await ChatRepository.GetAllGroupsAsync();
+        _groups = groups.ToList();
         StateHasChanged();
     }
 
@@ -90,7 +92,7 @@
         if (!result.Canceled)
         {
             var dialogResult = (ChatGroupDialog.ChatGroupDialogResult)result.Data;
-            await ChatService.CreateGroupAsync(dialogResult.Group.Name, dialogResult.Group.BranchId, dialogResult.SelectedUsers);
+            await ChatRepository.CreateGroupAsync(dialogResult.Group.Name, dialogResult.Group.BranchId, dialogResult.SelectedUsers);
             await LoadGroupsAsync();
             Snackbar.Add("Group created successfully.", Severity.Success);
         }
@@ -114,7 +116,7 @@
         if (!result.Canceled)
         {
             var dialogResult = (ChatGroupDialog.ChatGroupDialogResult)result.Data;
-            await ChatService.UpdateGroupAsync(dialogResult.Group, dialogResult.SelectedUsers);
+            await ChatRepository.UpdateGroupAsync(dialogResult.Group, dialogResult.SelectedUsers);
             await LoadGroupsAsync();
             Snackbar.Add("Group updated successfully.", Severity.Success);
         }
@@ -135,7 +137,7 @@
 
         if (!result.Canceled)
         {
-            await ChatService.DeleteGroupAsync(group.Id);
+            await ChatRepository.DeleteGroupAsync(group.Id);
             await LoadGroupsAsync();
             Snackbar.Add("Group deleted successfully.", Severity.Success);
         }

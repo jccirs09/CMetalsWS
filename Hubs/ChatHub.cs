@@ -1,149 +1,269 @@
 using CMetalsWS.Data;
+using CMetalsWS.Data.Chat;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace CMetalsWS.Hubs
 {
-    [Authorize] // require an authenticated user for the hub
+    [Authorize]
     public class ChatHub : Hub
     {
-        private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
+        private readonly IChatRepository _chatRepository;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public ChatHub(IDbContextFactory<ApplicationDbContext> contextFactory, UserManager<ApplicationUser> userManager)
+        public ChatHub(IChatRepository chatRepository, UserManager<ApplicationUser> userManager)
         {
-            _contextFactory = contextFactory;
+            _chatRepository = chatRepository;
             _userManager = userManager;
         }
 
         private string GetUserIdOrThrow()
         {
-            var id = Context.UserIdentifier
-                     ?? Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
-
+            var id = Context.UserIdentifier ?? Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(id))
             {
-                var claims = string.Join(", ", Context.User?.Claims?.Select(c => $"{c.Type}: {c.Value}") ?? []);
-                throw new HubException($"Sender not found: missing NameIdentifier. Available claims: {claims}");
+                throw new HubException("User identifier is missing.");
             }
             return id;
         }
 
-        public async Task SendMessageToUser(string recipientId, string message)
+        public async Task SendMessage(string threadId, string content)
         {
-            var senderId = GetUserIdOrThrow();
-
-            var sender = await _userManager.FindByIdAsync(senderId)
-                         ?? throw new HubException("Sender not found.");
-
-            using var context = _contextFactory.CreateDbContext();
-            context.ChatMessages.Add(new ChatMessage
+            try
             {
-                Content = message,
-                Timestamp = DateTime.UtcNow,
-                SenderId = sender.Id,
-                RecipientId = recipientId
-            });
-            await context.SaveChangesAsync();
+                var senderId = GetUserIdOrThrow();
+                var messageDto = await _chatRepository.CreateMessageAsync(threadId, senderId, content);
 
-            // SignalR routes by UserIdentifier. We use Identity user.Id in NameIdentifier, so this matches.
-            await Clients.User(recipientId).SendAsync("ReceiveMessage", sender.Id, message);
-            await Clients.Caller.SendAsync("ReceiveMessage", sender.Id, message);
-        }
-
-        public async Task SendMessageToGroup(int groupId, string message)
-        {
-            var senderId = GetUserIdOrThrow();
-
-            var sender = await _userManager.FindByIdAsync(senderId)
-                         ?? throw new HubException("Sender not found.");
-
-            using var context = _contextFactory.CreateDbContext();
-            context.ChatMessages.Add(new ChatMessage
+                if (int.TryParse(threadId, out _))
+                {
+                    // Group message
+                    await Clients.Group(threadId).SendAsync("ReceiveMessage", messageDto);
+                }
+                else
+                {
+                    // Direct message
+                    await Clients.User(threadId).SendAsync("ReceiveMessage", messageDto);
+                }
+            }
+            catch (Exception ex)
             {
-                Content = message,
-                Timestamp = DateTime.UtcNow,
-                SenderId = sender.Id,
-                ChatGroupId = groupId
-            });
-            await context.SaveChangesAsync();
-
-            await Clients.Group(groupId.ToString()).SendAsync("ReceiveGroupMessage", sender.Id, groupId, message);
+                Console.WriteLine(ex);
+                await Clients.Caller.SendAsync("Error", "An error occurred while sending the message.");
+            }
         }
 
-        public Task AddToGroup(int groupId)
-            => Groups.AddToGroupAsync(Context.ConnectionId, groupId.ToString());
-
-        public Task RemoveFromGroup(int groupId)
-            => Groups.RemoveFromGroupAsync(Context.ConnectionId, groupId.ToString());
-
-        public Task SetTypingStateForUser(string recipientId, bool isTyping)
+        public Task JoinThread(string threadId)
         {
-            var senderId = GetUserIdOrThrow();
-            return Clients.User(recipientId).SendAsync("ReceiveTypingState", senderId, isTyping);
+            return Groups.AddToGroupAsync(Context.ConnectionId, threadId);
         }
 
-        public Task SetTypingStateForGroup(int groupId, bool isTyping)
+        public Task LeaveThread(string threadId)
         {
-            var senderId = GetUserIdOrThrow();
-            return Clients.Group(groupId.ToString()).SendAsync("ReceiveTypingState", senderId, isTyping);
+            return Groups.RemoveFromGroupAsync(Context.ConnectionId, threadId);
         }
 
-        public Task AckReadUser(string partnerId, int lastMessageId)
+        public async Task Typing(string threadId, bool isTyping)
+        {
+            var userId = GetUserIdOrThrow();
+            var typingDto = new TypingDto { ThreadId = threadId, UserId = userId, IsTyping = isTyping };
+
+            await Clients.GroupExcept(threadId, Context.ConnectionId).SendAsync("UserTyping", typingDto);
+        }
+
+        public async Task MarkRead(string threadId)
         {
             var readerId = GetUserIdOrThrow();
+            await _chatRepository.MarkThreadAsReadAsync(threadId, readerId);
 
-            return Clients.User(partnerId).SendAsync("ReceiveReadReceipt", readerId, lastMessageId);
+            var readDto = new { ThreadId = threadId, ReaderId = readerId, Timestamp = DateTime.UtcNow };
 
+            await Clients.GroupExcept(threadId, Context.ConnectionId).SendAsync("ThreadRead", readDto);
         }
 
-        public Task AckReadGroup(int groupId, int lastMessageId)
+        public async Task AddReaction(int messageId, string emoji)
         {
-            var readerId = GetUserIdOrThrow();
+            try
+            {
+                var userId = GetUserIdOrThrow();
+                var messageDto = await _chatRepository.AddReactionAsync(messageId, emoji, userId);
+                if (messageDto != null)
+                {
+                    if (int.TryParse(messageDto.ThreadId, out _))
+                    {
+                        await Clients.Group(messageDto.ThreadId!).SendAsync("ReactionAdded", messageDto);
+                    }
+                    else
+                    {
+                        await Clients.User(messageDto.ThreadId!).SendAsync("ReactionAdded", messageDto);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                await Clients.Caller.SendAsync("Error", "An error occurred while adding the reaction.");
+            }
+        }
 
-            return Clients.Group(groupId.ToString()).SendAsync("ReceiveReadReceipt", readerId, lastMessageId);
+        public async Task RemoveReaction(int messageId, string emoji)
+        {
+            try
+            {
+                var userId = GetUserIdOrThrow();
+                var messageDto = await _chatRepository.RemoveReactionAsync(messageId, emoji, userId);
+                if (messageDto != null)
+                {
+                    if (int.TryParse(messageDto.ThreadId, out _))
+                    {
+                        await Clients.Group(messageDto.ThreadId!).SendAsync("ReactionRemoved", messageDto);
+                    }
+                    else
+                    {
+                        await Clients.User(messageDto.ThreadId!).SendAsync("ReactionRemoved", messageDto);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                await Clients.Caller.SendAsync("Error", "An error occurred while removing the reaction.");
+            }
+        }
 
+        public async Task UpdatePresence(string status)
+        {
+            var userId = GetUserIdOrThrow();
+            await Clients.All.SendAsync("PresenceChanged", new PresenceDto { UserId = userId, Status = status });
+        }
+
+        public async Task PinThread(string threadId, bool isPinned)
+        {
+            try
+            {
+                var userId = GetUserIdOrThrow();
+                await _chatRepository.PinThreadAsync(threadId, userId, isPinned);
+                // Notify the caller that the thread list should be updated
+                await Clients.Caller.SendAsync("ThreadsUpdated");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                await Clients.Caller.SendAsync("Error", "An error occurred while pinning the thread.");
+            }
+        }
+
+        public async Task PinMessage(int messageId, bool isPinned)
+        {
+            try
+            {
+                await _chatRepository.PinMessageAsync(messageId, isPinned);
+                var message = await _chatRepository.GetMessageAsync(messageId, GetUserIdOrThrow());
+                if (message != null)
+                {
+                    // Notify the group that a message has been pinned/unpinned
+                    await Clients.Group(message.ThreadId!).SendAsync("MessagePinned", message);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                await Clients.Caller.SendAsync("Error", "An error occurred while pinning the message.");
+            }
+        }
+
+        public async Task DeleteMessage(int messageId)
+        {
+            try
+            {
+                var userId = GetUserIdOrThrow();
+                var message = await _chatRepository.GetMessageAsync(messageId, userId);
+                if (message == null || message.SenderId != userId)
+                {
+                    // Maybe send a specific error to the caller
+                    return;
+                }
+
+                var success = await _chatRepository.DeleteMessageForEveryoneAsync(messageId, userId);
+                if (success)
+                {
+                    if (message != null)
+                    {
+                        await Clients.Group(message.ThreadId!).SendAsync("MessageDeleted", messageId);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the exception
+                Console.WriteLine(ex);
+                // Optionally, notify the caller of the error
+                await Clients.Caller.SendAsync("Error", "An error occurred while deleting the message.");
+            }
+        }
+
+        public async Task UpdateMessage(int messageId, string newContent)
+        {
+            try
+            {
+                var userId = GetUserIdOrThrow();
+                var message = await _chatRepository.GetMessageAsync(messageId, userId);
+                if (message == null || message.SenderId != userId)
+                {
+                    // Maybe send a specific error to the caller
+                    return;
+                }
+
+                var messageDto = await _chatRepository.UpdateMessageAsync(messageId, newContent, userId);
+                if (messageDto != null)
+                {
+                    if (int.TryParse(messageDto.ThreadId, out _))
+                    {
+                        await Clients.Group(messageDto.ThreadId!).SendAsync("MessageUpdated", messageDto);
+                    }
+                    else
+                    {
+                        await Clients.User(messageDto.ThreadId!).SendAsync("MessageUpdated", messageDto);
+                        await Clients.Caller.SendAsync("MessageUpdated", messageDto);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the exception
+                Console.WriteLine(ex);
+                // Optionally, notify the caller of the error
+                await Clients.Caller.SendAsync("Error", "An error occurred while updating the message.");
+            }
         }
 
         public override async Task OnConnectedAsync()
         {
-            // fail fast if unauthenticated / no ID
-            if (!(Context.User?.Identity?.IsAuthenticated ?? false))
-                throw new HubException("Unauthenticated connection.");
-            _ = GetUserIdOrThrow();
-
-            var user = await _userManager.GetUserAsync(Context.User);
-            if (user != null)
+            var userId = GetUserIdOrThrow();
+            var summaries = await _chatRepository.GetThreadSummariesAsync(userId);
+            foreach (var summary in summaries)
             {
-                using var context = _contextFactory.CreateDbContext();
-                var groups = await context.ChatGroupUsers
-                    .Where(gu => gu.UserId == user.Id)
-                    .Select(gu => gu.ChatGroupId.ToString())
-                    .ToListAsync();
-
-                foreach (var g in groups)
-                    await Groups.AddToGroupAsync(Context.ConnectionId, g);
+                await Groups.AddToGroupAsync(Context.ConnectionId, summary.Id!);
             }
+            // Announce presence
+            await Clients.All.SendAsync("PresenceChanged", new PresenceDto { UserId = userId, Status = "Online" });
+
             await base.OnConnectedAsync();
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
-            var user = await _userManager.GetUserAsync(Context.User);
-            if (user != null)
+            var userId = GetUserIdOrThrow();
+            var summaries = await _chatRepository.GetThreadSummariesAsync(userId);
+            foreach (var summary in summaries)
             {
-                using var context = _contextFactory.CreateDbContext();
-                var groups = await context.ChatGroupUsers
-                    .Where(gu => gu.UserId == user.Id)
-                    .Select(gu => gu.ChatGroupId.ToString())
-                    .ToListAsync();
-
-                foreach (var g in groups)
-                    await Groups.RemoveFromGroupAsync(Context.ConnectionId, g);
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, summary.Id!);
             }
+            // Announce presence
+            await Clients.All.SendAsync("PresenceChanged", new PresenceDto { UserId = userId, Status = "Offline" });
+
             await base.OnDisconnectedAsync(exception);
         }
     }

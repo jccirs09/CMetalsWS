@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using CMetalsWS.Data.Chat;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace CMetalsWS.Data
@@ -32,6 +33,9 @@ namespace CMetalsWS.Data
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
         public DbSet<ChatGroup> ChatGroups => Set<ChatGroup>();
         public DbSet<ChatGroupUser> ChatGroupUsers => Set<ChatGroupUser>();
+        public DbSet<MessageReaction> MessageReactions => Set<MessageReaction>();
+        public DbSet<MessageSeen> MessageSeens => Set<MessageSeen>();
+        public DbSet<PinnedThread> PinnedThreads => Set<PinnedThread>();
 
         public DbSet<PickingListImport> PickingListImports => Set<PickingListImport>();
         public DbSet<PickingListPageImage> PickingListPageImages => Set<PickingListPageImage>();
@@ -255,6 +259,42 @@ namespace CMetalsWS.Data
                 .HasOne(gu => gu.ChatGroup)
                 .WithMany(g => g.ChatGroupUsers)
                 .HasForeignKey(gu => gu.ChatGroupId);
+
+            // MessageReaction relationships
+            modelBuilder.Entity<MessageReaction>()
+                .HasOne(r => r.Message)
+                .WithMany(m => m.Reactions)
+                .HasForeignKey(r => r.MessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<MessageReaction>()
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // MessageSeen relationships
+            modelBuilder.Entity<MessageSeen>()
+                .HasOne(s => s.Message)
+                .WithMany(m => m.SeenBy)
+                .HasForeignKey(s => s.MessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<MessageSeen>()
+                .HasOne(s => s.User)
+                .WithMany()
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // PinnedThread relationships
+            modelBuilder.Entity<PinnedThread>()
+                .HasIndex(pt => new { pt.UserId, pt.ThreadId }).IsUnique();
+
+            modelBuilder.Entity<PinnedThread>()
+                .HasOne(pt => pt.User)
+                .WithMany()
+                .HasForeignKey(pt => pt.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Picking List Import
             modelBuilder.Entity<PickingListImport>(e =>

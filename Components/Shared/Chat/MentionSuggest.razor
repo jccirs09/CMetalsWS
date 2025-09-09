@@ -1,0 +1,39 @@
+@using CMetalsWS.Data
+@using MudBlazor
+
+<MudPopover Open="@_isOpen" AnchorOrigin="Origin.TopCenter" TransformOrigin="Origin.BottomCenter" Class="px-4 py-2">
+    <MudList T="ApplicationUser" Clickable="true">
+        @foreach (var user in Suggestions)
+        {
+            <MudListItem T="ApplicationUser" OnClick="() => SelectUser(user)">
+                <MudAvatar Size="Size.Small" Image="@user.Avatar" />
+                <MudText Class="ml-2">@user.UserName</MudText>
+            </MudListItem>
+        }
+    </MudList>
+</MudPopover>
+
+@code {
+    [Parameter] public IEnumerable<ApplicationUser> Suggestions { get; set; } = new List<ApplicationUser>();
+    [Parameter] public EventCallback<ApplicationUser> OnUserSelected { get; set; }
+
+    private bool _isOpen;
+
+    public void Open()
+    {
+        _isOpen = true;
+        StateHasChanged();
+    }
+
+    public void Close()
+    {
+        _isOpen = false;
+        StateHasChanged();
+    }
+
+    private async Task SelectUser(ApplicationUser user)
+    {
+        await OnUserSelected.InvokeAsync(user);
+        Close();
+    }
+}

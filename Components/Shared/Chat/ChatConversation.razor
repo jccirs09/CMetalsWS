@@ -1,0 +1,344 @@
+@using CMetalsWS.Data.Chat
+@using CMetalsWS.Services
+@using CMetalsWS.Services.SignalR
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using System.Timers
+
+@inject IChatRepository ChatRepository
+@inject ChatHubClient ChatHubClient
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JSRuntime
+@inject IDialogService DialogService
+
+@implements IAsyncDisposable
+
+<div class="d-flex flex-column" style="height: 100%;">
+    <MudPaper Elevation="2" Class="pa-2 d-flex align-center">
+        <MudText Typo="Typo.h6">@_threadTitle</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Material.Filled.Search" OnClick="() => _searchOpen = !_searchOpen" />
+        <MudMenu Icon="@Icons.Material.Filled.MoreVert">
+            <MudMenuItem>Mute</MudMenuItem>
+            <MudMenuItem OnClick="PinThread">@(IsThreadPinned ? "Unpin" : "Pin")</MudMenuItem>
+            <MudMenuItem OnClick="RequestNotificationPermission">Enable Notifications</MudMenuItem>
+        </MudMenu>
+    </MudPaper>
+    @if(_searchOpen)
+    {
+        <MudTextField T="string" @bind-Value="_searchQuery" Placeholder="Search in conversation..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" />
+    }
+
+    @if (PinnedMessage != null)
+    {
+        <MudPaper Elevation="1" Class="pa-2 d-flex align-center">
+            <MudIcon Icon="@Icons.Material.Filled.PushPin" Class="mr-2" />
+            <MudText Typo="Typo.body2" Class="flex-grow-1">@PinnedMessage.Content</MudText>
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="() => HandlePinClicked(PinnedMessage.Id, true)" />
+        </MudPaper>
+    }
+    <div id="@_scrollContainerId" class="flex-grow-1 overflow-y-auto">
+        <MudVirtualize @ref="_virtualizeRef" Items="FilteredMessages.ToList()" T="MessageDto">
+            <ItemContent>
+                <MessageBubble Message="context" IsMine="context.SenderId == _currentUserId" />
+            </ItemContent>
+        </MudVirtualize>
+    </div>
+
+    @*<TypingIndicator TypingUsers="_typingUsers" />*@
+
+    <MudPaper Elevation="2" Class="pa-2">
+        <div class="d-flex align-center">
+            <MudIconButton Icon="@Icons.Material.Filled.TagFaces" />
+            <MudTextField @ref="_textField" @bind-Value="_newMessage" Placeholder="Type a message..." Class="flex-grow-1"
+                          @oninput="OnNewMessageInput" />
+            <MudIconButton Icon="@Icons.Material.Filled.Send" OnClick="SendMessage" Disabled="string.IsNullOrWhiteSpace(_newMessage)" />
+        </div>
+    </MudPaper>
+    @*<MentionSuggest @ref="_mentionSuggest" Suggestions="_participants" OnUserSelected="OnUserMentioned" />*@
+</div>
+
+@code {
+    [Parameter] public string? ThreadId { get; set; }
+
+    private string? _currentUserId;
+    private string? _threadTitle;
+    private List<string> _typingUsers = new();
+    private string _newMessage = string.Empty;
+    private readonly string _scrollContainerId = $"scroll-container-{Guid.NewGuid()}";
+    private MudVirtualize<MessageDto>? _virtualizeRef;
+    private List<MessageDto> _messages = new();
+    private bool _searchOpen;
+    private string _searchQuery = string.Empty;
+    private IEnumerable<MessageDto> FilteredMessages => string.IsNullOrWhiteSpace(_searchQuery) ? _messages : _messages.Where(m => m.Content?.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ?? false);
+    private MessageDto? PinnedMessage => _messages.FirstOrDefault(m => m.IsPinned);
+    private Timer? _typingTimer;
+    private bool _typingSent;
+    private MudTextField<string>? _textField;
+    @* private MentionSuggest? _mentionSuggest; *@
+    @* private List<ApplicationUser> _participants = new(); *@
+    private bool IsThreadPinned { get; set; }
+
+    private async Task PinThread()
+    {
+        if (ThreadId != null)
+        {
+            await ChatHubClient.PinThreadAsync(ThreadId, !IsThreadPinned);
+            IsThreadPinned = !IsThreadPinned;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _currentUserId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        await ChatHubClient.ConnectAsync();
+        ChatHubClient.MessageReceived += OnMessageReceived;
+        ChatHubClient.UserTyping += OnUserTyping;
+        ChatHubClient.MessageUpdated += OnMessageUpdated;
+        ChatHubClient.MessagePinned += OnMessagePinned;
+        ChatHubClient.MessageDeleted += OnMessageDeleted;
+
+        if (ThreadId != null)
+        {
+            await ChatHubClient.JoinThreadAsync(ThreadId);
+            //var participants = await ChatRepository.GetThreadParticipantsAsync(ThreadId, _currentUserId!);
+            //_participants = participants.ToList();
+
+            var summaries = await ChatRepository.GetThreadSummariesAsync(_currentUserId!);
+            var summary = summaries.FirstOrDefault(s => s.Id == ThreadId);
+            if (summary != null)
+            {
+                _threadTitle = summary.Title;
+                IsThreadPinned = summary.IsPinned;
+            }
+            else
+            {
+                // Fallback for user not in summaries yet (new chat)
+                _threadTitle = _participants.FirstOrDefault(p => p.Id != _currentUserId)?.UserName ?? "Chat";
+            }
+
+            _messages = (await ChatRepository.GetMessagesAsync(ThreadId, _currentUserId!)).ToList();
+        }
+    }
+
+    private async Task OnMessageReceived(MessageDto message)
+    {
+        if (message.ThreadId == ThreadId)
+        {
+            if (message.SenderId == _currentUserId)
+            {
+                // This is our own message, find the temporary one and update it
+                var tempMessage = _messages.FirstOrDefault(m => m.Id == 0 && m.Content == message.Content);
+                if (tempMessage != null)
+                {
+                    tempMessage.Id = message.Id;
+                    tempMessage.CreatedAt = message.CreatedAt;
+                    tempMessage.SenderName = message.SenderName;
+                }
+            }
+            else
+            {
+                // This is a message from someone else
+                _messages.Add(message);
+                var isFocused = await JSRuntime.InvokeAsync<bool>("cmetalsChat.isDocumentFocused");
+                if (!isFocused)
+                {
+                    await JSRuntime.InvokeVoidAsync("cmetalsChat.playSound", "pop");
+                    await JSRuntime.InvokeVoidAsync("cmetalsChat.showNotification", message.SenderName, message.Content);
+                }
+            }
+
+            await InvokeAsync(StateHasChanged);
+            await JSRuntime.InvokeVoidAsync("cmetalsChat.scrollToBottom", _scrollContainerId);
+        }
+    }
+
+    private async Task RequestNotificationPermission()
+    {
+        await JSRuntime.InvokeAsync<string>("cmetalsChat.requestNotificationPermission");
+    }
+
+    private async Task OnUserTyping(TypingDto typingInfo)
+    {
+        if (typingInfo.ThreadId == ThreadId && typingInfo.UserId != _currentUserId)
+        {
+            if (typingInfo.IsTyping && !_typingUsers.Contains(typingInfo.UserId!))
+            {
+                _typingUsers.Add(typingInfo.UserId!);
+            }
+            else if (!typingInfo.IsTyping)
+            {
+                _typingUsers.Remove(typingInfo.UserId!);
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnNewMessageInput(ChangeEventArgs e)
+    {
+        _newMessage = e.Value?.ToString() ?? string.Empty;
+
+        //if (_newMessage.EndsWith("@"))
+        //{
+        //    _mentionSuggest?.Open();
+        //}
+        //else
+        //{
+        //    _mentionSuggest?.Close();
+        //}
+
+        if (ThreadId == null) return;
+
+        if (_typingTimer == null)
+        {
+            _typingTimer = new Timer(1500); // 1.5 second delay
+            _typingTimer.Elapsed += async (sender, args) =>
+            {
+                await ChatHubClient.TypingAsync(ThreadId, false);
+                _typingSent = false;
+                _typingTimer.Stop();
+            };
+            _typingTimer.AutoReset = false;
+        }
+
+        if (!_typingSent)
+        {
+            _typingSent = true;
+            ChatHubClient.TypingAsync(ThreadId, true);
+        }
+
+        _typingTimer.Stop();
+        _typingTimer.Start();
+    }
+
+    //private void OnUserMentioned(ApplicationUser user)
+    //{
+    //    var lastAt = _newMessage.LastIndexOf('@');
+    //    if (lastAt != -1)
+    //    {
+    //        _newMessage = _newMessage.Substring(0, lastAt) + $"@{user.UserName} ";
+    //    }
+    //}
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_newMessage) || ThreadId == null) return;
+
+        var tempMessage = new MessageDto
+        {
+            Id = 0, // Temporary ID
+            Content = _newMessage,
+            CreatedAt = DateTime.Now,
+            SenderId = _currentUserId,
+            SenderName = "Me", // Placeholder, will be updated by the server response
+            ThreadId = ThreadId
+        };
+        _messages.Add(tempMessage);
+
+        var messageToSend = _newMessage;
+        _newMessage = string.Empty;
+        await InvokeAsync(StateHasChanged);
+        await JSRuntime.InvokeVoidAsync("cmetalsChat.scrollToBottom", _scrollContainerId);
+
+        await ChatHubClient.SendMessageAsync(ThreadId, messageToSend);
+    }
+
+    private async Task HandleFinishEditing(int messageId, string newContent)
+    {
+        await ChatHubClient.UpdateMessageAsync(messageId, newContent);
+    }
+
+    private async Task OnMessageUpdated(MessageDto message)
+    {
+        var messageToUpdate = _messages.FirstOrDefault(m => m.Id == message.Id);
+        if (messageToUpdate != null)
+        {
+            messageToUpdate.Content = message.Content;
+            messageToUpdate.EditedAt = message.EditedAt;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task HandlePinClicked(int messageId, bool isCurrentlyPinned)
+    {
+        await ChatHubClient.PinMessageAsync(messageId, !isCurrentlyPinned);
+    }
+
+    private async Task HandleReactionClicked(int messageId, string emoji)
+    {
+        var message = _messages.FirstOrDefault(m => m.Id == messageId);
+        if (message != null)
+        {
+            if (message.Reactions.TryGetValue(emoji, out var users) && users.Contains(_currentUserId!))
+            {
+                await ChatHubClient.RemoveReactionAsync(messageId, emoji);
+            }
+            else
+            {
+                await ChatHubClient.AddReactionAsync(messageId, emoji);
+            }
+        }
+    }
+
+    private async Task HandleDeleteClicked(int messageId)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Title"] = "Delete Message",
+            ["ContentText"] = "Are you sure you want to delete this message? This cannot be undone.",
+            ["SubmitText"] = "Delete",
+            ["CancelText"] = "Cancel"
+        };
+
+        var dialog = DialogService.Show<MudMessageBox>("Delete Message", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await ChatHubClient.DeleteMessageAsync(messageId);
+        }
+    }
+
+    private async Task OnMessagePinned(MessageDto message)
+    {
+        // A message was pinned or unpinned, find the old one and the new one and update their state.
+        var oldPinned = _messages.FirstOrDefault(m => m.IsPinned);
+        if (oldPinned != null)
+        {
+            oldPinned.IsPinned = false;
+        }
+
+        var newPinned = _messages.FirstOrDefault(m => m.Id == message.Id);
+        if (newPinned != null)
+        {
+            newPinned.IsPinned = message.IsPinned;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnMessageDeleted(int messageId)
+    {
+        var messageToRemove = _messages.FirstOrDefault(m => m.Id == messageId);
+        if (messageToRemove != null)
+        {
+            _messages.Remove(messageToRemove);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (ThreadId != null)
+        {
+            await ChatHubClient.LeaveThreadAsync(ThreadId);
+        }
+        ChatHubClient.MessageReceived -= OnMessageReceived;
+        ChatHubClient.UserTyping -= OnUserTyping;
+        ChatHubClient.MessageUpdated -= OnMessageUpdated;
+        ChatHubClient.MessagePinned -= OnMessagePinned;
+        ChatHubClient.MessageDeleted -= OnMessageDeleted;
+        _typingTimer?.Dispose();
+    }
+}
