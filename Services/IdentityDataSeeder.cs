@@ -163,23 +163,48 @@ namespace CMetalsWS.Services
             }
 
             // 1. Seed additional users
-            var user1 = new ApplicationUser { UserName = "user1", Email = "user1@example.com", EmailConfirmed = true };
-            await _userManager.CreateAsync(user1, "User123!");
-            await _userManager.AddToRoleAsync(user1, "Viewer");
+            ApplicationUser? user1 = await _userManager.FindByNameAsync("user1");
+            if (user1 == null)
+            {
+                user1 = new ApplicationUser { UserName = "user1", Email = "user1@example.com", EmailConfirmed = true };
+                var result = await _userManager.CreateAsync(user1, "User123!");
+                if (result.Succeeded)
+                {
+                    await _userManager.AddToRoleAsync(user1, "Viewer");
+                }
+            }
 
-            var user2 = new ApplicationUser { UserName = "user2", Email = "user2@example.com", EmailConfirmed = true };
-            await _userManager.CreateAsync(user2, "User123!");
-            await _userManager.AddToRoleAsync(user2, "Viewer");
+            ApplicationUser? user2 = await _userManager.FindByNameAsync("user2");
+            if (user2 == null)
+            {
+                user2 = new ApplicationUser { UserName = "user2", Email = "user2@example.com", EmailConfirmed = true };
+                var result = await _userManager.CreateAsync(user2, "User123!");
+                if (result.Succeeded)
+                {
+                    await _userManager.AddToRoleAsync(user2, "Viewer");
+                }
+            }
+
+            // Ensure users were created before proceeding
+            if (user1 == null || user2 == null)
+            {
+                _logger.LogError("Failed to create seed users for chat.");
+                return;
+            }
 
             // 2. Seed a group chat
-            var group = new ChatGroup { Name = "General" };
-            _context.ChatGroups.Add(group);
-            await _context.SaveChangesAsync(); // Save to get group ID
+            var group = await _context.ChatGroups.FirstOrDefaultAsync(g => g.Name == "General");
+            if (group == null)
+            {
+                group = new ChatGroup { Name = "General" };
+                _context.ChatGroups.Add(group);
+                await _context.SaveChangesAsync(); // Save to get group ID
 
-            _context.ChatGroupUsers.AddRange(
-                new ChatGroupUser { ChatGroupId = group.Id, UserId = admin.Id },
-                new ChatGroupUser { ChatGroupId = group.Id, UserId = user1.Id }
-            );
+                _context.ChatGroupUsers.AddRange(
+                    new ChatGroupUser { ChatGroupId = group.Id, UserId = admin.Id },
+                    new ChatGroupUser { ChatGroupId = group.Id, UserId = user1.Id }
+                );
+            }
 
             _context.ChatMessages.AddRange(
                 new ChatMessage { ChatGroupId = group.Id, SenderId = admin.Id, Content = "Welcome to the general chat!", Timestamp = DateTime.UtcNow.AddMinutes(-10) },
