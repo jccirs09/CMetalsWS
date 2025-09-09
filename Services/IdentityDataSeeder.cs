@@ -161,83 +161,52 @@ namespace CMetalsWS.Services
 
         private async Task SeedChatDataAsync(ApplicationUser admin)
         {
-            _logger.LogInformation("Attempting to seed chat data...");
-            if (await _context.ChatMessages.AnyAsync())
+            if (await _context.ChatMessages.AnyAsync()) return;
+
+            async Task<ApplicationUser?> CreateChatUser(string name, string role)
             {
-                _logger.LogInformation("Chat data already seeded. Skipping.");
+                if (await _userManager.FindByNameAsync(name) != null) return await _userManager.FindByNameAsync(name);
+
+                var user = new ApplicationUser { UserName = name, Email = $"{name}@example.com", EmailConfirmed = true };
+                var result = await _userManager.CreateAsync(user, "User123!");
+                if (!result.Succeeded)
+                {
+                    _logger.LogError($"Failed to create user '{name}'.");
+                    return null;
+                }
+                await _userManager.AddToRoleAsync(user, role);
+                return await _userManager.FindByNameAsync(name);
+            }
+
+            var user1 = await CreateChatUser("user1", "Viewer");
+            var user2 = await CreateChatUser("user2", "Viewer");
+
+            if (admin == null || user1 == null || user2 == null)
+            {
+                _logger.LogError("A required user for chat seeding was not found or created.");
                 return;
             }
 
-            _logger.LogInformation("Seeding additional users for chat...");
-            ApplicationUser? user1 = await _userManager.FindByNameAsync("user1");
-            if (user1 == null)
-            {
-                _logger.LogInformation("User 'user1' not found, creating...");
-                user1 = new ApplicationUser { UserName = "user1", Email = "user1@example.com", EmailConfirmed = true };
-                var result = await _userManager.CreateAsync(user1, "User123!");
-                if (result.Succeeded)
-                {
-                    _logger.LogInformation("User 'user1' created. Adding to role 'Viewer'.");
-                    await _userManager.AddToRoleAsync(user1, "Viewer");
-                }
-                else
-                {
-                    _logger.LogError("Failed to create 'user1': {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
-                }
-            }
-
-            ApplicationUser? user2 = await _userManager.FindByNameAsync("user2");
-            if (user2 == null)
-            {
-                _logger.LogInformation("User 'user2' not found, creating...");
-                user2 = new ApplicationUser { UserName = "user2", Email = "user2@example.com", EmailConfirmed = true };
-                var result = await _userManager.CreateAsync(user2, "User123!");
-                if (result.Succeeded)
-                {
-                    _logger.LogInformation("User 'user2' created. Adding to role 'Viewer'.");
-                    await _userManager.AddToRoleAsync(user2, "Viewer");
-                }
-                else
-                {
-                     _logger.LogError("Failed to create 'user2': {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
-                }
-            }
-
-            if (user1 == null || user2 == null)
-            {
-                _logger.LogError("One or more seed users for chat could not be found or created.");
-                return;
-            }
-
-            _logger.LogInformation("Seeding 'General' group chat...");
             var group = await _context.ChatGroups.FirstOrDefaultAsync(g => g.Name == "General");
             if (group == null)
             {
                 group = new ChatGroup { Name = "General" };
-                _context.ChatGroups.Add(group);
-                _logger.LogInformation("Saving new group to get ID...");
+                await _context.ChatGroups.AddAsync(group);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Adding users to group...");
-                _context.ChatGroupUsers.AddRange(
+                await _context.ChatGroupUsers.AddRangeAsync(
                     new ChatGroupUser { ChatGroupId = group.Id, UserId = admin.Id },
                     new ChatGroupUser { ChatGroupId = group.Id, UserId = user1.Id }
                 );
             }
 
-            _logger.LogInformation("Adding group messages...");
-            _context.ChatMessages.AddRange(
+            await _context.ChatMessages.AddRangeAsync(
                 new ChatMessage { ChatGroupId = group.Id, SenderId = admin.Id, Content = "Welcome to the general chat!", Timestamp = DateTime.UtcNow.AddMinutes(-10) },
-                new ChatMessage { ChatGroupId = group.Id, SenderId = user1.Id, Content = "Glad to be here!", Timestamp = DateTime.UtcNow.AddMinutes(-5) }
-            );
-
-            _logger.LogInformation("Adding direct messages...");
-            _context.ChatMessages.AddRange(
+                new ChatMessage { ChatGroupId = group.Id, SenderId = user1.Id, Content = "Glad to be here!", Timestamp = DateTime.UtcNow.AddMinutes(-5) },
                 new ChatMessage { SenderId = admin.Id, RecipientId = user2.Id, Content = "Hi User 2, this is a private message.", Timestamp = DateTime.UtcNow.AddMinutes(-20) },
                 new ChatMessage { SenderId = user2.Id, RecipientId = admin.Id, Content = "Hi Admin, I got it!", Timestamp = DateTime.UtcNow.AddMinutes(-15) }
             );
 
-            _logger.LogInformation("Saving all chat message changes...");
             await _context.SaveChangesAsync();
             _logger.LogInformation("Chat data seeded successfully.");
         }

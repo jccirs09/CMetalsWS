@@ -32,6 +32,15 @@ namespace CMetalsWS.Data.Chat
 
         private MessageDto ToMessageDto(ChatMessage message, string currentUserId, Dictionary<string, string> reactionUsers)
         {
+            var reactions = (message.Reactions ?? Enumerable.Empty<MessageReaction>())
+                .Where(r => r.Emoji != null && r.UserId != null)
+                .GroupBy(r => r.Emoji!)
+                .ToDictionary(g => g.Key, g => g.Select(r => r.UserId!).ToHashSet());
+
+            var seenBy = (message.SeenBy ?? Enumerable.Empty<MessageSeen>())
+                        .Where(s => s.UserId != null)
+                        .ToDictionary(s => s.UserId!, s => s.Timestamp);
+
             return new MessageDto
             {
                 Id = message.Id,
@@ -43,9 +52,9 @@ namespace CMetalsWS.Data.Chat
                 EditedAt = message.EditedAt,
                 DeletedAt = message.DeletedAt,
                 IsPinned = message.IsPinned,
-                Reactions = message.Reactions.GroupBy(r => r.Emoji).ToDictionary(g => g.Key, g => g.Select(r => r.UserId).ToHashSet()),
+                Reactions = reactions,
                 ReactionUsers = reactionUsers,
-                SeenBy = message.SeenBy.ToDictionary(s => s.UserId, s => s.Timestamp)
+                SeenBy = seenBy
             };
         }
 
@@ -82,7 +91,10 @@ namespace CMetalsWS.Data.Chat
 
             context.ChatMessages.Add(message);
             await context.SaveChangesAsync();
+
             await context.Entry(message).Reference(m => m.Sender).LoadAsync();
+            await context.Entry(message).Collection(m => m.Reactions).LoadAsync();
+            await context.Entry(message).Collection(m => m.SeenBy).LoadAsync();
 
             return ToMessageDto(message, senderId, new Dictionary<string, string>());
         }
@@ -139,9 +151,9 @@ namespace CMetalsWS.Data.Chat
 
         public async Task<IEnumerable<ApplicationUser>> GetThreadParticipantsAsync(string threadId, string currentUserId)
         {
+            await using var context = await _contextFactory.CreateDbContextAsync();
             if (int.TryParse(threadId, out var groupId))
             {
-                await using var context = await _contextFactory.CreateDbContextAsync();
                 return await context.ChatGroupUsers
                     .Where(gu => gu.ChatGroupId == groupId).Select(gu => gu.User).Where(u => u != null).ToListAsync()!;
             }
@@ -165,67 +177,64 @@ namespace CMetalsWS.Data.Chat
                 .Select(gu => gu.ChatGroupId)
                 .ToListAsync();
 
-            var lastMessages = await context.ChatMessages
-                .Where(m => m.RecipientId == userId || m.SenderId == userId || (m.ChatGroupId.HasValue && groupIds.Contains(m.ChatGroupId.Value)))
-                .GroupBy(m => m.ChatGroupId.HasValue ? m.ChatGroupId.ToString() : (m.SenderId == userId ? m.RecipientId : m.SenderId))
-                .Select(g => g.OrderByDescending(m => m.Timestamp).FirstOrDefault())
+            var dmPartnerIds = await context.ChatMessages
+                .Where(m => m.SenderId == userId || m.RecipientId == userId)
+                .Select(m => m.SenderId == userId ? m.RecipientId : m.SenderId)
+                .Distinct()
+                .ToListAsync();
+
+            var groupThreads = await context.ChatGroups
+                .Where(g => groupIds.Contains(g.Id))
+                .Select(g => new {
+                    g.Id,
+                    g.Name,
+                    Participants = g.ChatGroupUsers.Select(gu => gu.UserId).ToList(),
+                    LastMessage = g.Messages.OrderByDescending(m => m.Timestamp).FirstOrDefault()
+                })
+                .ToListAsync();
+
+            var dmThreads = await _userManager.Users
+                .Where(u => dmPartnerIds.Contains(u.Id))
+                .Select(u => new {
+                    u.Id,
+                    u.UserName,
+                    u.Avatar,
+                    LastMessage = context.ChatMessages
+                                    .Where(m => (m.SenderId == userId && m.RecipientId == u.Id) || (m.SenderId == u.Id && m.RecipientId == userId))
+                                    .OrderByDescending(m => m.Timestamp)
+                                    .FirstOrDefault()
+                })
                 .ToListAsync();
 
             var summaries = new List<ThreadSummary>();
-            if (lastMessages is null || !lastMessages.Any()) return summaries;
 
-            foreach (var lastMessage in lastMessages.Where(m => m != null))
+            summaries.AddRange(groupThreads.Select(g => new ThreadSummary
             {
-                string threadId;
-                string title;
-                string? avatarUrl = null;
-                List<string> participants = new();
+                Id = g.Id.ToString(),
+                Title = g.Name,
+                LastMessagePreview = g.LastMessage?.Content,
+                LastActivityAt = g.LastMessage?.Timestamp ?? DateTime.MinValue,
+                Participants = g.Participants
+            }));
 
-                if (lastMessage.ChatGroupId.HasValue)
-                {
-                    var group = await context.ChatGroups
-                        .Include(g => g.ChatGroupUsers)
-                        .ThenInclude(gu => gu.User)
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(g => g.Id == lastMessage.ChatGroupId.Value);
+            summaries.AddRange(dmThreads.Select(t => new ThreadSummary
+            {
+                Id = t.Id,
+                Title = t.UserName,
+                AvatarUrl = t.Avatar,
+                LastMessagePreview = t.LastMessage?.Content,
+                LastActivityAt = t.LastMessage?.Timestamp ?? DateTime.MinValue,
+                Participants = new List<string> { userId, t.Id }
+            }));
 
-                    if (group == null) continue;
-
-                    threadId = group.Id.ToString();
-                    title = group.Name;
-                    participants = group.ChatGroupUsers.Select(gu => gu.UserId).ToList();
-                }
-                else
-                {
-                    var otherUserId = lastMessage.SenderId == userId ? lastMessage.RecipientId : lastMessage.SenderId;
-                    if (otherUserId == null) continue;
-
-                    var otherUser = await _userManager.FindByIdAsync(otherUserId);
-                    if (otherUser == null) continue;
-
-                    threadId = otherUser.Id;
-                    title = otherUser.UserName ?? "Unknown User";
-                    avatarUrl = otherUser.Avatar;
-                    participants = new List<string> { userId, otherUser.Id };
-                }
-
-                var unreadCount = await context.ChatMessages
+            foreach(var summary in summaries)
+            {
+                summary.UnreadCount = await context.ChatMessages
                     .CountAsync(m =>
-                        (m.ChatGroupId.HasValue ? m.ChatGroupId.ToString() == threadId : (m.SenderId == threadId && m.RecipientId == userId))
+                        (m.ChatGroupId.HasValue ? m.ChatGroupId.ToString() == summary.Id : (m.SenderId == summary.Id && m.RecipientId == userId))
                         && m.SenderId != userId
                         && !m.SeenBy.Any(s => s.UserId == userId)
                     );
-
-                summaries.Add(new ThreadSummary
-                {
-                    Id = threadId,
-                    Title = title,
-                    AvatarUrl = avatarUrl,
-                    LastMessagePreview = lastMessage.Content,
-                    UnreadCount = unreadCount,
-                    Participants = participants,
-                    LastActivityAt = lastMessage.Timestamp
-                });
             }
 
             if (!string.IsNullOrWhiteSpace(searchQuery))
@@ -401,9 +410,6 @@ namespace CMetalsWS.Data.Chat
             }
             else
             {
-                // For a 1-on-1 chat, the threadId is the other user's ID.
-                // A user is always a participant in a conversation they are one of the two parties in.
-                // The check is implicitly true unless a blocking system were in place.
                 return true;
             }
         }

@@ -39,9 +39,15 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        _currentUserId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        ChatHubClient.ThreadsUpdated += OnThreadsUpdated;
+      var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+      var u = authState.User;
+
+      _currentUserId =
+          u.FindFirstValue(ClaimTypes.NameIdentifier)
+          ?? u.FindFirst("sub")?.Value
+          ?? u.FindFirst("oid")?.Value;
+
+      ChatHubClient.ThreadsUpdated += OnThreadsUpdated;
     }
 
     private async Task OnThreadsUpdated()
@@ -57,14 +63,13 @@
 
     private async ValueTask<ItemsProviderResult<ThreadSummary>> LoadThreads(ItemsProviderRequest request)
     {
-        if (_currentUserId == null)
-        {
-            return new ItemsProviderResult<ThreadSummary>(new List<ThreadSummary>(), 0);
-        }
+        if (string.IsNullOrEmpty(_currentUserId))
+            return new ItemsProviderResult<ThreadSummary>([], 0);
 
-        // For simplicity, fetching all summaries at once.
-        // A real implementation would support pagination in the repository.
         var summaries = (await ChatRepository.GetThreadSummariesAsync(_currentUserId)).ToList();
+
+        // TEMP: quick console log to confirm we have data
+        Console.WriteLine($"[ChatThreadList] uid={_currentUserId} summaries={summaries.Count}");
 
         return new ItemsProviderResult<ThreadSummary>(
             summaries.Skip(request.StartIndex).Take(request.Count),

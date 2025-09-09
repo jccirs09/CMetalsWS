@@ -48,7 +48,13 @@
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        _currentUserId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var u = authState.User;
+
+        _currentUserId =
+            u.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? u.FindFirst("sub")?.Value
+            ?? u.FindFirst("oid")?.Value;
+
         ChatHubClient.ThreadsUpdated += OnThreadsUpdated;
     }
 
