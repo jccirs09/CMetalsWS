@@ -1,4 +1,5 @@
 ﻿using CMetalsWS.Data;
+using CMetalsWS.Data.Chat;
 using CMetalsWS.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -15,6 +16,10 @@ namespace CMetalsWS.Components.Layout
 
         private bool _isDarkMode = false;
         private bool _drawerOpen = true;
+        private bool _isChatThreadsPanelOpen;
+        private MudIconButton? _messagesBtnRef;
+
+        private readonly List<ChatThreadRef> _openChatThreads = new();
 
         private readonly MudTheme _customTheme = new()
         {
@@ -54,5 +59,26 @@ namespace CMetalsWS.Components.Layout
                 NavigationManager.NavigateTo("Account/Logout", true);
             }
         }
+
+        private void ToggleChatThreadsPanel() => _isChatThreadsPanelOpen = !_isChatThreadsPanelOpen;
+
+        private void OpenChatWindowFromConversation(ThreadSummary summary)
+        {
+            if (_openChatThreads.Any(t => t.Id == summary.Id)) return;
+            _openChatThreads.Add(new ChatThreadRef { Id = summary.Id, Title = summary.Title });
+        }
+
+        private void CloseChatWindow(ChatThreadRef thread) => _openChatThreads.Remove(thread);
+
+        private void MinimizeChatWindow(ChatThreadRef thread) => thread.IsMinimized = !thread.IsMinimized;
+    }
+
+    public class ChatThreadRef
+    {
+        public string? Id { get; set; }
+        public string? Title { get; set; }
+        public ApplicationUser? User { get; set; }
+        public ChatGroup? Group { get; set; }
+        public bool IsMinimized { get; set; }
     }
 }

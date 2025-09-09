@@ -1,0 +1,65 @@
+@using CMetalsWS.Data
+@inject CMetalsWS.Services.SignalR.ChatHubClient ChatClient
+
+<MudPaper Class="chat-dock" Elevation="4">
+    <MudAppBar Dense="true" Color="Color.Primary">
+        <MudText>@(ThreadUser?.UserName ?? ThreadGroup?.Name)</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Material.Filled.Minimize" OnClick="@(async () => await OnMinimize.InvokeAsync())" Size="Size.Small" />
+        <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="@(async () => await OnClose.InvokeAsync())" Size="Size.Small" />
+    </MudAppBar>
+    @if (!IsMinimized)
+    {
+        <div class="pa-2" style="height:300px;">
+            <MudTextField T="string" Value="@_draft" ValueChanged="OnDraftChanged" Placeholder="Type a message..." />
+        </div>
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public ApplicationUser? ThreadUser { get; set; }
+    [Parameter] public ChatGroup? ThreadGroup { get; set; }
+    [Parameter] public bool IsMinimized { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnMinimize { get; set; }
+
+    private System.Timers.Timer? _typingTimer;
+    private bool _typingSent;
+    private string _draft = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ChatClient.ConnectAsync();
+        _typingTimer = new System.Timers.Timer(1200) { AutoReset = false };
+        _typingTimer.Elapsed += async (_, __) =>
+        {
+            try
+            {
+                if (ThreadUser != null)
+                    await ChatClient.TypingAsync(ThreadUser.Id, false);
+            }
+            finally { _typingSent = false; }
+        };
+    }
+
+    private async Task OnDraftChanged(string value)
+    {
+        _draft = value;
+        if (!_typingSent && ThreadUser != null)
+        {
+            _typingSent = true;
+            await ChatClient.TypingAsync(ThreadUser.Id, true);
+        }
+        _typingTimer?.Stop();
+        _typingTimer?.Start();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_typingTimer is not null)
+        {
+            _typingTimer.Elapsed -= async (_, __) => { };
+            _typingTimer.Dispose();
+        }
+    }
+}

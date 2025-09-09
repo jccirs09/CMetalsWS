@@ -11,6 +11,7 @@ namespace CMetalsWS.Services.SignalR
     {
         private readonly HubConnection _hubConnection;
         private bool _isDisposed;
+        private bool _started;
 
         public event Func<MessageDto, Task>? MessageReceived;
         public event Func<MessageDto, Task>? ReactionAdded;
@@ -36,9 +37,12 @@ namespace CMetalsWS.Services.SignalR
 
         public async Task ConnectAsync()
         {
+            if (_started)
+                return;
             if (_hubConnection.State == HubConnectionState.Disconnected)
             {
                 await _hubConnection.StartAsync();
+                _started = true;
             }
         }
 
