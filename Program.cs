@@ -118,7 +118,7 @@ builder.Services.AddScoped<IPickingListImportService, PickingListImportService>(
 builder.Services.AddScoped<IParsingStateService, ParsingStateService>();
 
 
-builder.Services.AddSingleton<ChatStateService>();
+builder.Services.AddScoped<ChatStateService>();
 builder.Services.AddScoped<ChatHubClient>();
 builder.Services.AddScoped<IChatRepository, ChatRepository>();
 builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
