@@ -1,0 +1,92 @@
+@page "/customers/search"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using MudBlazor
+@attribute [Authorize(Policy = Permissions.Customers.Search)]
+@inject CustomerService CustomerService
+@inject IGooglePlacesService GooglePlacesService
+@inject ISnackbar Snackbar
+
+<MudPaper Class="p-4">
+    <MudText Typo="Typo.h5">Search for Customers</MudText>
+    <MudText Typo="Typo.body1" Class="mt-2 mb-4">Enter a customer name and optional address to search Google Places.</MudText>
+
+    <MudTextField @bind-Value="_searchTerm" Label="Customer Name / Address" Variant="Variant.Outlined" Class="mb-4"></MudTextField>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchCustomers" Disabled="@_isSearching">
+        @if (_isSearching)
+        {
+            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+        }
+        Search
+    </MudButton>
+
+    @if (_searchResults.Any())
+    {
+        <MudTable Items="@_searchResults" Class="mt-4" Dense="true" Hover="true">
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Address</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Name">@context.CustomerName</MudTd>
+                <MudTd DataLabel="Address">@context.FullAddress</MudTd>
+                <MudTd>
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => SaveCustomer(context))">Save</MudButton>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudPaper>
+
+@code {
+    private bool _isSearching = false;
+    private string _searchTerm = string.Empty;
+    private List<Customer> _searchResults = new();
+
+    private async Task SearchCustomers()
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            Snackbar.Add("Please enter a search term.", Severity.Warning);
+            return;
+        }
+
+        _isSearching = true;
+        _searchResults.Clear();
+        StateHasChanged();
+
+        try
+        {
+            _searchResults = await CustomerService.SearchFromGooglePlacesAsync(_searchTerm);
+            if (!_searchResults.Any())
+            {
+                Snackbar.Add("No results found.", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSearching = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveCustomer(Customer customer)
+    {
+        try
+        {
+            await CustomerService.CreateCustomerAsync(customer);
+            Snackbar.Add($"Customer '{customer.CustomerName}' saved.", Severity.Success);
+            _searchResults.Remove(customer);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving customer: {ex.Message}", Severity.Error);
+        }
+    }
+}

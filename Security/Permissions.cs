@@ -86,6 +86,7 @@ namespace CMetalsWS.Security
             public const string Edit = "Customers.Edit";
             public const string Delete = "Customers.Delete";
             public const string Import = "Customers.Import";
+            public const string Search = "Customers.Search";
         }
 
         public static IEnumerable<string> All()
@@ -101,7 +102,7 @@ namespace CMetalsWS.Security
             yield return PickingLists.Assign; yield return PickingLists.Dispatch; yield return PickingLists.ManageLoads;
             yield return Dashboards.View;
             yield return Reports.View; yield return Reports.Export;
-            yield return Customers.View; yield return Customers.Add; yield return Customers.Edit; yield return Customers.Delete; yield return Customers.Import;
+            yield return Customers.View; yield return Customers.Add; yield return Customers.Edit; yield return Customers.Delete; yield return Customers.Import; yield return Customers.Search;
         }
     }
 }

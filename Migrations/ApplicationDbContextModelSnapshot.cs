@@ -170,7 +170,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Branches");
+                    b.ToTable("Branches", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.ChatGroup", b =>
@@ -192,7 +192,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("BranchId");
 
-                    b.ToTable("ChatGroups");
+                    b.ToTable("ChatGroups", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.ChatGroupUser", b =>
@@ -207,7 +207,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("ChatGroupId");
 
-                    b.ToTable("ChatGroupUsers");
+                    b.ToTable("ChatGroupUsers", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.ChatMessage", b =>
@@ -242,7 +242,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("SenderId");
 
-                    b.ToTable("ChatMessages");
+                    b.ToTable("ChatMessages", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.CityCentroid", b =>
@@ -498,7 +498,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("ItemId");
 
-                    b.ToTable("InventoryItems");
+                    b.ToTable("InventoryItems", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.ItemRelationship", b =>
@@ -589,7 +589,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("TruckId");
 
-                    b.ToTable("Loads");
+                    b.ToTable("Loads", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.LoadItem", b =>
@@ -624,7 +624,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("PickingListItemId");
 
-                    b.ToTable("LoadItems");
+                    b.ToTable("LoadItems", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.Machine", b =>
@@ -661,7 +661,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("BranchId");
 
-                    b.ToTable("Machines");
+                    b.ToTable("Machines", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.PickingList", b =>
@@ -740,7 +740,7 @@ namespace CMetalsWS.Migrations
                     b.HasIndex("BranchId", "SalesOrderNumber")
                         .IsUnique();
 
-                    b.ToTable("PickingLists");
+                    b.ToTable("PickingLists", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.PickingListImport", b =>
@@ -795,7 +795,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("PickingListId");
 
-                    b.ToTable("PickingListImports");
+                    b.ToTable("PickingListImports", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.PickingListItem", b =>
@@ -868,7 +868,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("PickingListId");
 
-                    b.ToTable("PickingListItems");
+                    b.ToTable("PickingListItems", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.PickingListPageImage", b =>
@@ -893,7 +893,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("PickingListImportId");
 
-                    b.ToTable("PickingListPageImages");
+                    b.ToTable("PickingListPageImages", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.TaskAuditEvent", b =>
@@ -927,7 +927,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("TaskAuditEvents");
+                    b.ToTable("TaskAuditEvents", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.TransferItem", b =>
@@ -954,7 +954,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TransferItems");
+                    b.ToTable("TransferItems", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.Truck", b =>
@@ -1005,7 +1005,7 @@ namespace CMetalsWS.Migrations
                     b.HasIndex("Identifier")
                         .IsUnique();
 
-                    b.ToTable("Trucks");
+                    b.ToTable("Trucks", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.TruckRoute", b =>
@@ -1045,7 +1045,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("BranchId", "RouteDate", "RegionCode");
 
-                    b.ToTable("TruckRoutes");
+                    b.ToTable("TruckRoutes", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.TruckRouteStop", b =>
@@ -1088,7 +1088,7 @@ namespace CMetalsWS.Migrations
                     b.HasIndex("RouteId", "StopOrder")
                         .IsUnique();
 
-                    b.ToTable("TruckRouteStops");
+                    b.ToTable("TruckRouteStops", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.WorkOrder", b =>
@@ -1162,7 +1162,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("MachineId");
 
-                    b.ToTable("WorkOrders");
+                    b.ToTable("WorkOrders", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.WorkOrderItem", b =>
@@ -1238,7 +1238,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("WorkOrderId");
 
-                    b.ToTable("WorkOrderItems");
+                    b.ToTable("WorkOrderItems", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

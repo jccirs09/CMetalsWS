@@ -53,6 +53,14 @@
             {
                 <MudNavLink Href="/customers" Icon="@Icons.Material.Filled.People">Customers</MudNavLink>
             }
+            @if (canImportCustomers)
+            {
+                <MudNavLink Href="/customers/import" Icon="@Icons.Material.Filled.UploadFile">Import</MudNavLink>
+            }
+            @if (canSearchCustomers)
+            {
+                <MudNavLink Href="/customers/search" Icon="@Icons.Material.Filled.Search">Search</MudNavLink>
+            }
             @if (canWorkOrders)
             {
                 <MudNavLink Href="/operations/workorders" Icon="@Icons.Material.Filled.Assignment">Work Orders</MudNavLink>
@@ -123,6 +131,8 @@
     private bool canAssignPickingLists;
     private bool isManager;
     private bool canViewCustomers;
+    private bool canSearchCustomers;
+    private bool canImportCustomers;
 
     protected override async Task OnInitializedAsync()
     {
@@ -144,6 +154,8 @@
         canWorkOrders = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.WorkOrders.View)).Succeeded;
         canPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.View)).Succeeded;
         canAssignPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.Assign)).Succeeded;
+        canSearchCustomers = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Customers.Search)).Succeeded;
+        canImportCustomers = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Customers.Import)).Succeeded;
         isManager = user.IsInRole("Manager");
     }
 
