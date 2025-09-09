@@ -67,7 +67,9 @@ namespace CMetalsWS.Data.Chat
         public DateTime CreatedAt { get; set; }
         public DateTime? EditedAt { get; set; }
         public DateTime? DeletedAt { get; set; }
+    public bool IsPinned { get; set; }
         public Dictionary<string, HashSet<string>> Reactions { get; set; } = new();
+    public Dictionary<string, string> ReactionUsers { get; set; } = new(); // UserId -> UserName
         public Dictionary<string, DateTime> SeenBy { get; set; } = new();
     }
 

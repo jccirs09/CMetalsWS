@@ -46,6 +46,7 @@ namespace CMetalsWS.Hubs
                 {
                     // Direct message
                     await Clients.User(threadId).SendAsync("ReceiveMessage", messageDto);
+                    await Clients.Caller.SendAsync("ReceiveMessage", messageDto);
                 }
             }
             catch (Exception ex)
@@ -98,6 +99,7 @@ namespace CMetalsWS.Hubs
                     else
                     {
                         await Clients.User(messageDto.ThreadId!).SendAsync("ReactionAdded", messageDto);
+                        await Clients.Caller.SendAsync("ReactionAdded", messageDto);
                     }
                 }
             }
@@ -123,6 +125,7 @@ namespace CMetalsWS.Hubs
                     else
                     {
                         await Clients.User(messageDto.ThreadId!).SendAsync("ReactionRemoved", messageDto);
+                        await Clients.Caller.SendAsync("ReactionRemoved", messageDto);
                     }
                 }
             }
@@ -161,10 +164,17 @@ namespace CMetalsWS.Hubs
             {
                 await _chatRepository.PinMessageAsync(messageId, isPinned);
                 var message = await _chatRepository.GetMessageAsync(messageId, GetUserIdOrThrow());
-                if (message != null)
+                if (message != null && message.ThreadId != null)
                 {
-                    // Notify the group that a message has been pinned/unpinned
-                    await Clients.Group(message.ThreadId!).SendAsync("MessagePinned", message);
+                    if (int.TryParse(message.ThreadId, out _))
+                    {
+                        await Clients.Group(message.ThreadId).SendAsync("MessagePinned", message);
+                    }
+                    else
+                    {
+                        await Clients.User(message.ThreadId).SendAsync("MessagePinned", message);
+                        await Clients.Caller.SendAsync("MessagePinned", message);
+                    }
                 }
             }
             catch (Exception ex)

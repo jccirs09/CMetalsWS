@@ -13,11 +13,11 @@
 @implements IAsyncDisposable
 
 <div class="d-flex flex-column" style="max-height: 400px;">
-    <MudTextField @bind-Value="_searchQuery" Placeholder="Search messages..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" />
+    <MudTextField @bind-Value="_searchQuery" Placeholder="Search messages..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" DebounceInterval="300" OnDebounceIntervalElapsed="Refresh" />
     <div class="flex-grow-1 overflow-y-auto">
         <MudList T="ThreadSummary" Clickable="true">
-            <MudVirtualize ItemsProvider="LoadThreads" T="ThreadSummary">
-                <ItemContent>
+            <MudVirtualize @ref="_virtualizeRef" ItemsProvider="LoadThreads" T="ThreadSummary" Context="context">
+                <ChildContent>
                     <MudListItem T="ThreadSummary" OnClick="@(() => OnThreadSelected.InvokeAsync(context))">
                         <MudBadge Color="Color.Primary" Overlap="true" Content="@context.UnreadCount" Visible="@(context.UnreadCount > 0)">
                             <MudAvatar>
@@ -32,7 +32,7 @@
                                        Color="@(context.IsPinned ? Color.Primary : Color.Default)"
                                        OnClick="() => PinThread(context)" />
                     </MudListItem>
-                </ItemContent>
+                </ChildContent>
             </MudVirtualize>
         </MudList>
     </div>
@@ -41,6 +41,7 @@
 @code {
     private string _searchQuery = string.Empty;
     private string? _currentUserId;
+    private MudVirtualize<ThreadSummary>? _virtualizeRef;
 
     [Parameter] public EventCallback<ThreadSummary> OnThreadSelected { get; set; }
 
@@ -51,9 +52,17 @@
         ChatHubClient.ThreadsUpdated += OnThreadsUpdated;
     }
 
+    private async Task Refresh()
+    {
+        if (_virtualizeRef != null)
+        {
+            await _virtualizeRef.RefreshDataAsync();
+        }
+    }
+
     private async Task OnThreadsUpdated()
     {
-        await LoadThreads(new ItemsProviderRequest(0, 100)); // Reload threads
+    await LoadThreads(new ItemsProviderRequest(0, 100, CancellationToken.None)); // Reload threads
         StateHasChanged();
     }
 
@@ -77,8 +86,9 @@
         );
     }
 
-    public void Dispose()
+public async ValueTask DisposeAsync()
     {
         ChatHubClient.ThreadsUpdated -= OnThreadsUpdated;
+    await Task.CompletedTask;
     }
 }

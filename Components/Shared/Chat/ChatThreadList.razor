@@ -12,14 +12,14 @@
 @implements IAsyncDisposable
 
 <MudList T="ThreadSummary" Clickable="true">
-    <MudVirtualize ItemsProvider="LoadThreads" T="ThreadSummary">
-        <ItemContent>
+<MudVirtualize ItemsProvider="LoadThreads" T="ThreadSummary" Context="context">
+    <ChildContent>
             <MudListItem T="ThreadSummary" OnClick="@(() => OnThreadSelected.InvokeAsync(context))">
                 <MudBadge Color="Color.Primary" Overlap="true" Content="@context.UnreadCount" Visible="@(context.UnreadCount > 0)">
                     <MudAvatar>
                         <MudImage Src="@context.AvatarUrl" />
                     </MudAvatar>
-                </MudBadge>
+            </MudBadge>
                 <div class="ml-4 flex-grow-1">
                     <MudText>@context.Title</MudText>
                     <MudText Typo="Typo.caption">@context.LastMessagePreview</MudText>
@@ -28,7 +28,7 @@
                                Color="@(context.IsPinned ? Color.Primary : Color.Default)"
                                OnClick="() => PinThread(context)" />
             </MudListItem>
-        </ItemContent>
+    </ChildContent>
     </MudVirtualize>
 </MudList>
 
@@ -46,7 +46,7 @@
 
     private async Task OnThreadsUpdated()
     {
-        await LoadThreads(new ItemsProviderRequest(0, 100)); // Reload threads
+    await LoadThreads(new ItemsProviderRequest(0, 100, CancellationToken.None)); // Reload threads
         StateHasChanged();
     }
 
@@ -72,8 +72,9 @@
         );
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         ChatHubClient.ThreadsUpdated -= OnThreadsUpdated;
+        await Task.CompletedTask;
     }
 }
