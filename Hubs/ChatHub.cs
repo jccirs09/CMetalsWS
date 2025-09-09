@@ -3,6 +3,7 @@ using CMetalsWS.Data.Chat;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
+using System;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -21,9 +22,161 @@ namespace CMetalsWS.Hubs
             _userManager = userManager;
         }
 
+        // --- Group Key Helpers ---
+        private static string GetUserGroupName(string userId) => $"user:{userId}";
+        private static string GetDmGroupName(string user1, string user2) =>
+            string.CompareOrdinal(user1, user2) < 0
+                ? $"dm:{user1}:{user2}"
+                : $"dm:{user2}:{user1}";
+
+        private static string GetThreadGroupKey(string threadId, string currentUserId) =>
+            int.TryParse(threadId, out var groupId)
+                ? $"g:{groupId}"
+                : GetDmGroupName(currentUserId, threadId);
+
+        // --- Connection Lifecycle ---
+        public override async Task OnConnectedAsync()
+        {
+            var userId = GetUserIdOrThrow();
+            await Groups.AddToGroupAsync(Context.ConnectionId, GetUserGroupName(userId));
+            await base.OnConnectedAsync();
+        }
+
+        public override async Task OnDisconnectedAsync(Exception? exception)
+        {
+            // Groups are automatically cleaned up by SignalR on physical disconnect.
+            // This is more for logical cleanup if needed in the future.
+            var userId = GetUserIdOrThrow();
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, GetUserGroupName(userId));
+            await base.OnDisconnectedAsync(exception);
+        }
+
+
+        // --- Hub Methods ---
+        public async Task JoinThread(string threadId)
+        {
+            await VerifyUserIsParticipantAsync(threadId);
+            var userId = GetUserIdOrThrow();
+            var groupKey = GetThreadGroupKey(threadId, userId);
+            await Groups.AddToGroupAsync(Context.ConnectionId, groupKey);
+        }
+
+        public async Task LeaveThread(string threadId)
+        {
+            var userId = GetUserIdOrThrow();
+            var groupKey = GetThreadGroupKey(threadId, userId);
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupKey);
+        }
+
+        public async Task SendMessage(string threadId, string content)
+        {
+            var senderId = GetUserIdOrThrow();
+            await VerifyUserIsParticipantAsync(threadId);
+
+            var messageDto = await _chatRepository.CreateMessageAsync(threadId, senderId, content);
+
+            var groupKey = GetThreadGroupKey(threadId, senderId);
+            await Clients.Group(groupKey).SendAsync("ReceiveMessage", messageDto);
+
+            var participants = await _chatRepository.GetThreadParticipantsAsync(threadId, senderId);
+            foreach (var p in participants)
+            {
+                await Clients.Group(GetUserGroupName(p.Id)).SendAsync("ThreadsUpdated");
+            }
+        }
+
+        public async Task UpdateMessage(int messageId, string newContent)
+        {
+            var userId = GetUserIdOrThrow();
+            var updatedMessage = await _chatRepository.UpdateMessageAsync(messageId, newContent, userId);
+            if (updatedMessage?.ThreadId != null)
+            {
+                var groupKey = GetThreadGroupKey(updatedMessage.ThreadId, userId);
+                await Clients.Group(groupKey).SendAsync("MessageUpdated", updatedMessage);
+            }
+        }
+
+        public async Task DeleteMessage(int messageId)
+        {
+            var userId = GetUserIdOrThrow();
+            var message = await _chatRepository.GetMessageAsync(messageId, userId);
+            if (message?.ThreadId == null) return;
+
+            var success = await _chatRepository.DeleteMessageForEveryoneAsync(messageId, userId);
+            if (success)
+            {
+                var groupKey = GetThreadGroupKey(message.ThreadId, userId);
+                await Clients.Group(groupKey).SendAsync("MessageDeleted", messageId);
+            }
+        }
+
+        public async Task AddReaction(int messageId, string emoji)
+        {
+            var userId = GetUserIdOrThrow();
+            var messageDto = await _chatRepository.AddReactionAsync(messageId, emoji, userId);
+            if (messageDto?.ThreadId != null)
+            {
+                var groupKey = GetThreadGroupKey(messageDto.ThreadId, userId);
+                await Clients.Group(groupKey).SendAsync("MessageUpdated", messageDto);
+            }
+        }
+
+        public async Task RemoveReaction(int messageId, string emoji)
+        {
+            var userId = GetUserIdOrThrow();
+            var messageDto = await _chatRepository.RemoveReactionAsync(messageId, emoji, userId);
+            if (messageDto?.ThreadId != null)
+            {
+                var groupKey = GetThreadGroupKey(messageDto.ThreadId, userId);
+                await Clients.Group(groupKey).SendAsync("MessageUpdated", messageDto);
+            }
+        }
+
+        public async Task PinMessage(int messageId, bool isPinned)
+        {
+            var userId = GetUserIdOrThrow();
+            var success = await _chatRepository.PinMessageAsync(messageId, isPinned);
+            if (success)
+            {
+                var message = await _chatRepository.GetMessageAsync(messageId, userId);
+                if (message?.ThreadId != null)
+                {
+                    var groupKey = GetThreadGroupKey(message.ThreadId, userId);
+                    await Clients.Group(groupKey).SendAsync("MessagePinned", message);
+                }
+            }
+        }
+
+        public async Task PinThread(string threadId, bool isPinned)
+        {
+            var userId = GetUserIdOrThrow();
+            var success = await _chatRepository.PinThreadAsync(threadId, userId, isPinned);
+            if (success)
+            {
+                await Clients.Group(GetUserGroupName(userId)).SendAsync("ThreadsUpdated");
+            }
+        }
+
+        public async Task Typing(string threadId, bool isTyping)
+        {
+            var userId = GetUserIdOrThrow();
+            var groupKey = GetThreadGroupKey(threadId, userId);
+            await Clients.GroupExcept(groupKey, Context.ConnectionId).SendAsync("UserTyping", new TypingDto { ThreadId = threadId, UserId = userId, IsTyping = isTyping });
+        }
+
+        public async Task MarkRead(string threadId)
+        {
+            var userId = GetUserIdOrThrow();
+            await _chatRepository.MarkThreadAsReadAsync(threadId, userId);
+            var groupKey = GetThreadGroupKey(threadId, userId);
+            // Notify other sessions of the current user that the thread is read
+            await Clients.Group(GetUserGroupName(userId)).SendAsync("ThreadRead", new { ThreadId = threadId, ReaderId = userId });
+        }
+
+        // --- Helpers ---
         private string GetUserIdOrThrow()
         {
-            var id = Context.UserIdentifier ?? Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+            var id = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(id))
             {
                 throw new HubException("User identifier is missing.");
@@ -39,178 +192,6 @@ namespace CMetalsWS.Hubs
             {
                 throw new HubException("You are not a participant of this thread.");
             }
-        }
-
-        public async Task SendMessage(string threadId, string content)
-        {
-            try
-            {
-                var senderId = GetUserIdOrThrow();
-                await VerifyUserIsParticipantAsync(threadId); // Security Check
-                var messageDto = await _chatRepository.CreateMessageAsync(threadId, senderId, content);
-
-                if (int.TryParse(threadId, out _))
-                {
-                    await Clients.Group(threadId).SendAsync("ReceiveMessage", messageDto);
-                    var participants = await _chatRepository.GetThreadParticipantsAsync(threadId, senderId);
-                    var participantIds = participants.Select(p => p.Id).ToList();
-                    await Clients.Users(participantIds).SendAsync("ThreadsUpdated");
-                }
-                else
-                {
-                    await Clients.User(threadId).SendAsync("ReceiveMessage", messageDto);
-                    await Clients.Caller.SendAsync("ReceiveMessage", messageDto);
-
-                    await Clients.User(threadId).SendAsync("ThreadsUpdated");
-                    await Clients.Caller.SendAsync("ThreadsUpdated");
-                }
-            }
-            catch (Exception ex)
-            {
-                await Clients.Caller.SendAsync("Error", "An error occurred while sending the message.");
-            }
-        }
-
-        public async Task JoinThread(string threadId)
-        {
-            await VerifyUserIsParticipantAsync(threadId); // Security Check
-            await Groups.AddToGroupAsync(Context.ConnectionId, threadId);
-        }
-
-        public Task LeaveThread(string threadId) => Groups.RemoveFromGroupAsync(Context.ConnectionId, threadId);
-
-        public async Task Typing(string threadId, bool isTyping)
-        {
-            var userId = GetUserIdOrThrow();
-            await Clients.GroupExcept(threadId, Context.ConnectionId).SendAsync("UserTyping", new TypingDto { ThreadId = threadId, UserId = userId, IsTyping = isTyping });
-        }
-
-        public async Task MarkRead(string threadId)
-        {
-            var readerId = GetUserIdOrThrow();
-            await _chatRepository.MarkThreadAsReadAsync(threadId, readerId);
-            await Clients.GroupExcept(threadId, Context.ConnectionId).SendAsync("ThreadRead", new { ThreadId = threadId, ReaderId = readerId, Timestamp = DateTime.UtcNow });
-        }
-
-        public async Task AddReaction(int messageId, string emoji)
-        {
-            try
-            {
-                var userId = GetUserIdOrThrow();
-                var messageDto = await _chatRepository.AddReactionAsync(messageId, emoji, userId);
-                if (messageDto?.ThreadId != null)
-                {
-                    if (int.TryParse(messageDto.ThreadId, out _))
-                        await Clients.Group(messageDto.ThreadId).SendAsync("MessageUpdated", messageDto);
-                    else
-                    {
-                        await Clients.User(messageDto.ThreadId).SendAsync("MessageUpdated", messageDto);
-                        await Clients.Caller.SendAsync("MessageUpdated", messageDto);
-                    }
-                }
-            }
-            catch (Exception) { await Clients.Caller.SendAsync("Error", "An error occurred while adding the reaction."); }
-        }
-
-        public async Task RemoveReaction(int messageId, string emoji)
-        {
-            try
-            {
-                var userId = GetUserIdOrThrow();
-                var messageDto = await _chatRepository.RemoveReactionAsync(messageId, emoji, userId);
-                if (messageDto?.ThreadId != null)
-                {
-                     if (int.TryParse(messageDto.ThreadId, out _))
-                        await Clients.Group(messageDto.ThreadId).SendAsync("MessageUpdated", messageDto);
-                    else
-                    {
-                        await Clients.User(messageDto.ThreadId).SendAsync("MessageUpdated", messageDto);
-                        await Clients.Caller.SendAsync("MessageUpdated", messageDto);
-                    }
-                }
-            }
-            catch (Exception) { await Clients.Caller.SendAsync("Error", "An error occurred while removing the reaction."); }
-        }
-
-        public async Task UpdateMessage(int messageId, string newContent)
-        {
-            try
-            {
-                var userId = GetUserIdOrThrow();
-                var messageDto = await _chatRepository.UpdateMessageAsync(messageId, newContent, userId);
-                if (messageDto?.ThreadId != null)
-                {
-                     if (int.TryParse(messageDto.ThreadId, out _))
-                        await Clients.Group(messageDto.ThreadId).SendAsync("MessageUpdated", messageDto);
-                    else
-                    {
-                        await Clients.User(messageDto.ThreadId).SendAsync("MessageUpdated", messageDto);
-                        await Clients.Caller.SendAsync("MessageUpdated", messageDto);
-                    }
-                }
-            }
-            catch (Exception) { await Clients.Caller.SendAsync("Error", "An error occurred while updating the message."); }
-        }
-
-        public async Task DeleteMessage(int messageId)
-        {
-            try
-            {
-                var userId = GetUserIdOrThrow();
-                var message = await _chatRepository.GetMessageAsync(messageId, userId);
-                if (message?.ThreadId != null)
-                {
-                    var success = await _chatRepository.DeleteMessageForEveryoneAsync(messageId, userId);
-                    if (success)
-                    {
-                        await Clients.Group(message.ThreadId).SendAsync("MessageDeleted", messageId);
-                    }
-                }
-            }
-            catch (Exception) { await Clients.Caller.SendAsync("Error", "An error occurred while deleting the message.");}
-        }
-
-        public async Task PinMessage(int messageId, bool isPinned)
-        {
-            try
-            {
-                await _chatRepository.PinMessageAsync(messageId, isPinned);
-                var message = await _chatRepository.GetMessageAsync(messageId, GetUserIdOrThrow());
-                if (message?.ThreadId != null)
-                {
-                    if (int.TryParse(message.ThreadId, out _))
-                        await Clients.Group(message.ThreadId).SendAsync("MessagePinned", message);
-                    else
-                    {
-                        await Clients.User(message.ThreadId).SendAsync("MessagePinned", message);
-                        await Clients.Caller.SendAsync("MessagePinned", message);
-                    }
-                }
-            }
-            catch (Exception) { await Clients.Caller.SendAsync("Error", "An error occurred while pinning the message."); }
-        }
-
-        public async Task PinThread(string threadId, bool isPinned)
-        {
-            try
-            {
-                var userId = GetUserIdOrThrow();
-                await _chatRepository.PinThreadAsync(threadId, userId, isPinned);
-                await Clients.User(userId).SendAsync("ThreadsUpdated");
-            }
-            catch (Exception) { await Clients.Caller.SendAsync("Error", "An error occurred while pinning the thread."); }
-        }
-
-        public override async Task OnConnectedAsync()
-        {
-            var userId = GetUserIdOrThrow();
-            var summaries = await _chatRepository.GetThreadSummariesAsync(userId);
-            foreach (var summary in summaries)
-            {
-                if(summary.Id != null)
-                    await Groups.AddToGroupAsync(Context.ConnectionId, summary.Id);
-            }
-            await base.OnConnectedAsync();
         }
     }
 }

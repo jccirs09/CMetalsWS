@@ -1,9 +1,9 @@
 @using CMetalsWS.Data.Chat
 @using CMetalsWS.Services
-@using Microsoft.AspNetCore.Components.Authorization
-@using System.Security.Claims
-
 @using CMetalsWS.Services.SignalR
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using System.Security.Claims
 
 @inject IChatRepository ChatRepository
 @inject AuthenticationStateProvider AuthStateProvider
@@ -12,38 +12,67 @@
 
 @implements IAsyncDisposable
 
-<div class="d-flex flex-column" style="max-height: 400px;">
-    <MudTextField @bind-Value="_searchQuery" Placeholder="Search messages..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" DebounceInterval="300" OnDebounceIntervalElapsed="Refresh" />
-    <div class="flex-grow-1 overflow-y-auto">
-        <MudList T="ThreadSummary" Clickable="true">
-            <MudVirtualize @ref="_virtualizeRef" ItemsProvider="LoadThreads" T="ThreadSummary" Context="context">
-                <ChildContent>
-                    <MudListItem T="ThreadSummary" OnClick="@(() => OnThreadSelected.InvokeAsync(context))">
-                        <MudBadge Color="Color.Primary" Overlap="true" Content="@context.UnreadCount" Visible="@(context.UnreadCount > 0)">
+<div class="d-flex flex-column">
+    <!-- Search -->
+    <MudTextField @bind-Value="_searchQuery"
+                  Placeholder="Search messages..."
+                  Adornment="Adornment.Start"
+                  AdornmentIcon="@Icons.Material.Filled.Search"
+                  DebounceInterval="300"
+                  OnDebounceIntervalElapsed="Refresh" />
+
+    <!-- SCROLLABLE VIEWPORT (important for Virtualize on Blazor Server) -->
+    <div class="thread-viewport">
+        <MudList T="ThreadSummary" Clickable="true" Dense="true">
+            <Virtualize TItem="ThreadSummary"
+                        ItemsProvider="LoadThreads"
+                        Context="t"
+                        ItemSize="72"
+                        OverscanCount="3"
+                        @ref="_virt"
+                        @key="_currentUserId">
+                <ItemContent>
+                    <MudListItem T="ThreadSummary" OnClick="@(() => OnThreadSelected.InvokeAsync(t))">
+                        <MudBadge Color="Color.Primary"
+                                  Overlap="true"
+                                  Content="@t.UnreadCount"
+                                  Visible="@(t.UnreadCount > 0)">
                             <MudAvatar>
-                                <MudImage Src="@context.AvatarUrl" />
+                                <MudImage Src="@t.AvatarUrl" />
                             </MudAvatar>
                         </MudBadge>
+
                         <div class="ml-4 flex-grow-1">
-                            <MudText>@context.Title</MudText>
-                            <MudText Typo="Typo.caption">@context.LastMessagePreview</MudText>
+                            <MudText>@t.Title</MudText>
+                            <MudText Typo="Typo.caption">@t.LastMessagePreview</MudText>
                         </div>
-                        <MudIconButton Icon="@(context.IsPinned ? Icons.Material.Filled.PushPin : Icons.Material.Outlined.PushPin)"
-                                       Color="@(context.IsPinned ? Color.Primary : Color.Default)"
-                                       OnClick="() => PinThread(context)" />
+
+                        <MudIconButton Icon="@(t.IsPinned? Icons.Material.Filled.PushPin : Icons.Material.Outlined.PushPin)"
+                                       Color="@(t.IsPinned ? Color.Primary : Color.Default)"
+                                       OnClick="@(() => PinThread(t))" />
                     </MudListItem>
-                </ChildContent>
-            </MudVirtualize>
+                </ItemContent>
+            </Virtualize>
         </MudList>
     </div>
 </div>
 
+@if (_providerRan && _lastCount == 0)
+{
+    <div class="pa-3">
+        <MudText Typo="Typo.caption" Class="mud-text-secondary">No conversations found.</MudText>
+    </div>
+}
+
 @code {
+    [Parameter] public EventCallback<ThreadSummary> OnThreadSelected { get; set; }
+
     private string _searchQuery = string.Empty;
     private string? _currentUserId;
-    private MudVirtualize<ThreadSummary>? _virtualizeRef;
 
-    [Parameter] public EventCallback<ThreadSummary> OnThreadSelected { get; set; }
+    private Virtualize<ThreadSummary>? _virt;
+    private bool _providerRan;
+    private int _lastCount;
 
     protected override async Task OnInitializedAsync()
     {
@@ -53,48 +82,65 @@
         _currentUserId =
             u.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? u.FindFirst("sub")?.Value
-            ?? u.FindFirst("oid")?.Value;
+            ?? u.FindFirst("oid")?.Value
+            ?? u.FindFirst("uid")?.Value;
 
         ChatHubClient.ThreadsUpdated += OnThreadsUpdated;
+        await ChatHubClient.ConnectAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Force the first provider run after the virtualizer mounts
+        if (firstRender && _virt != null)
+        {
+            await _virt.RefreshDataAsync();
+        }
     }
 
     private async Task Refresh()
     {
-        if (_virtualizeRef != null)
-        {
-            await _virtualizeRef.RefreshDataAsync();
-        }
+        if (_virt != null)
+            await _virt.RefreshDataAsync();
     }
 
     private async Task OnThreadsUpdated()
     {
         await Refresh();
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task PinThread(ThreadSummary thread)
     {
         await ChatHubClient.PinThreadAsync(thread.Id!, !thread.IsPinned);
+        await Refresh();
     }
 
     private async ValueTask<ItemsProviderResult<ThreadSummary>> LoadThreads(ItemsProviderRequest request)
     {
-        if (_currentUserId == null)
-        {
-            return new ItemsProviderResult<ThreadSummary>(new List<ThreadSummary>(), 0);
-        }
+        _providerRan = true;
 
-        var summaries = (await ChatRepository.GetThreadSummariesAsync(_currentUserId, _searchQuery)).ToList();
+        if (string.IsNullOrEmpty(_currentUserId))
+            return new ItemsProviderResult<ThreadSummary>(Array.Empty<ThreadSummary>(), 0);
 
-        return new ItemsProviderResult<ThreadSummary>(
-            summaries.Skip(request.StartIndex).Take(request.Count),
-            summaries.Count
-        );
+        var all = (await ChatRepository.GetThreadSummariesAsync(_currentUserId, _searchQuery)).ToList();
+        _lastCount = all.Count;
+
+        var page = all.Skip(request.StartIndex).Take(request.Count);
+        return new ItemsProviderResult<ThreadSummary>(page, all.Count);
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         ChatHubClient.ThreadsUpdated -= OnThreadsUpdated;
-        await Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 }
+
+<style>
+    /* Give the virtualizer a real viewport; adjust offset to fit your layout */
+    .thread-viewport {
+        height: calc(100vh - 220px);
+        overflow: auto;
+    }
+</style>
