@@ -1,17 +1,19 @@
-﻿using CMetalsWS.Data;
 using CMetalsWS.Services;
+using CMetalsWS.Data;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using MudBlazor;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace CMetalsWS.Components.Layout
 {
-    public partial class MainLayout : LayoutComponentBase
+    public partial class MainLayout : LayoutComponentBase, IDisposable
     {
         [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
         [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+        [Inject] private ChatStateService ChatState { get; set; } = default!;
 
         private bool _isDarkMode = false;
         private bool _drawerOpen = true;
@@ -53,6 +55,22 @@ namespace CMetalsWS.Components.Layout
             {
                 NavigationManager.NavigateTo("Account/Logout", true);
             }
+        }
+
+        protected override void OnInitialized()
+        {
+            ChatState.OnChange += StateHasChanged;
+        }
+
+        private void OnHeaderThreadSelected(CMetalsWS.Data.Chat.ThreadSummary t)
+        {
+            // Off page -> open dock (or navigate if already on messages page, handled by service)
+            ChatState.HandleThreadClick(t);
+        }
+
+        public void Dispose()
+        {
+            ChatState.OnChange -= StateHasChanged;
         }
     }
 }

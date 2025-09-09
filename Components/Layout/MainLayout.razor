@@ -15,7 +15,15 @@
             <MudMenuItem Link="/profile">Profile</MudMenuItem>
             <MudMenuItem OnClick="Logout">Logout</MudMenuItem>
         </MudMenu>
-        <ChatThreadsButton />
+        @if (!ChatState.IsChatPageOpen)
+        {
+            <MudIconButton Icon="@Icons.Material.Filled.Chat" OnClick="@(() => ChatState.ToggleThreadPanel())" Color="Color.Inherit" />
+            <MudPopover Open="ChatState.IsThreadPanelOpen" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" OnClose="@(() => ChatState.ToggleThreadPanel())">
+                <div class="pa-2" style="width: 350px;">
+                    <ChatThreadPanel OnThreadSelected="OnHeaderThreadSelected" />
+                </div>
+            </MudPopover>
+        }
     </MudAppBar>
 
     <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
@@ -28,7 +36,10 @@
 
 </MudLayout>
 
-<ChatDockHost />
+@if (!ChatState.IsChatPageOpen)
+{
+    <ChatDockHost />
+}
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
