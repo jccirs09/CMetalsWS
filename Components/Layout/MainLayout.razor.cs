@@ -1,4 +1,5 @@
 ﻿using CMetalsWS.Data;
+using CMetalsWS.Data.Chat;
 using CMetalsWS.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -8,13 +9,15 @@ using System.Linq;
 
 namespace CMetalsWS.Components.Layout
 {
-    public partial class MainLayout : LayoutComponentBase
+    public partial class MainLayout : LayoutComponentBase, IDisposable
     {
         [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
         [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+        [Inject] private ChatStateService ChatState { get; set; } = default!;
 
         private bool _isDarkMode = false;
         private bool _drawerOpen = true;
+        private MudIconButton? _messagesBtnRef;
 
         private readonly MudTheme _customTheme = new()
         {
@@ -46,6 +49,11 @@ namespace CMetalsWS.Components.Layout
             }
         };
 
+        protected override void OnInitialized()
+        {
+            ChatState.OnChange += StateHasChanged;
+        }
+
         private async void Logout()
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -53,6 +61,11 @@ namespace CMetalsWS.Components.Layout
             {
                 NavigationManager.NavigateTo("Account/Logout", true);
             }
+        }
+
+        public void Dispose()
+        {
+            ChatState.OnChange -= StateHasChanged;
         }
     }
 }

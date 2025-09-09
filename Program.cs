@@ -121,6 +121,7 @@ builder.Services.AddScoped<IParsingStateService, ParsingStateService>();
 builder.Services.AddScoped<ChatStateService>();
 builder.Services.AddScoped<ChatHubClient>();
 builder.Services.AddScoped<IChatRepository, ChatRepository>();
+builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 builder.Services.AddSignalR();
 

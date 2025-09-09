@@ -1,0 +1,144 @@
+@using CMetalsWS.Data
+@using CMetalsWS.Data.Chat
+@using CMetalsWS.Components.Layout
+@inject IChatRepository ChatRepository
+@inject IChatService ChatService
+@inject ChatStateService ChatState
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@implements IDisposable
+
+<MudPaper Class="chat-threads-panel" Elevation="8" Style="width:360px;max-height:70vh;overflow:auto;">
+  <MudToolBar Dense="true">
+    <MudText Typo="Typo.subtitle1">Chats</MudText>
+    <MudSpacer />
+    <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="ChatState.ToggleThreadPanel" />
+  </MudToolBar>
+
+  <MudTextField @bind-Value="_q"
+                Placeholder="Search people, groups, messages"
+                Adornment="Adornment.Start"
+                AdornmentIcon="@Icons.Material.Filled.Search"
+                Immediate="true"
+                OnKeyUp="@(_ => DebounceSearch())"
+                Class="ma-2" />
+
+  <MudTabs>
+    <MudTabPanel Text="Recent">
+      <MudVirtualize Items="_recentConversations" ItemSize="56" Context="context" T="ThreadSummary">
+        <ChildContent>
+          <MudListItem T="ThreadSummary" OnClick="() => OpenThread(context)">
+            <ChildContent>
+              <MudAvatar />
+              <div class="ml-4">
+                <MudText>@context.Title</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mud-truncate">@context.LastMessagePreview</MudText>
+              </div>
+            </ChildContent>
+          </MudListItem>
+        </ChildContent>
+      </MudVirtualize>
+    </MudTabPanel>
+
+    <MudTabPanel Text="People">
+      @foreach (var branch in _people)
+      {
+        <MudText Class="mud-text-caption ml-2 mt-2">@branch.Key</MudText>
+        <MudVirtualize Items="branch.Value" ItemSize="56" Context="person" T="ApplicationUser">
+          <ChildContent>
+            <MudListItem T="ApplicationUser" OnClick="() => StartUserConversation(person)">
+              <MudAvatar /><MudText Class="ml-3">@person.UserName</MudText>
+            </MudListItem>
+          </ChildContent>
+        </MudVirtualize>
+      }
+    </MudTabPanel>
+
+    <MudTabPanel Text="Groups">
+      <MudVirtualize Items="_groups" ItemSize="56" Context="context" T="ChatGroup">
+        <ChildContent>
+          <MudListItem T="ChatGroup" OnClick="() => StartGroupConversation(context)">
+            <MudAvatar Icon="@Icons.Material.Filled.Group" /><MudText Class="ml-3">@context.Name</MudText>
+          </MudListItem>
+        </ChildContent>
+      </MudVirtualize>
+    </MudTabPanel>
+  </MudTabs>
+</MudPaper>
+
+@code {
+  private string _q = string.Empty;
+  private System.Timers.Timer? _searchDebounce;
+  private bool _disposed;
+  private Dictionary<string, List<ApplicationUser>> _people = new();
+  private List<ChatGroup> _groups = new();
+  private List<ThreadSummary> _recentConversations = new();
+  private string? _currentUserId;
+  private int? _currentBranchId;
+
+  protected override async Task OnInitializedAsync()
+  {
+    var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+    var user = await UserManager.GetUserAsync(authState.User);
+    _currentUserId = user?.Id;
+    _currentBranchId = user?.BranchId;
+    if (_currentUserId != null)
+        _recentConversations = (await ChatRepository.GetThreadSummariesAsync(_currentUserId))?.ToList() ?? new();
+  }
+
+  private void DebounceSearch() {
+    _searchDebounce ??= new System.Timers.Timer(250) { AutoReset = false };
+    _searchDebounce.Stop();
+    _searchDebounce.Elapsed -= OnSearchElapsed;
+    _searchDebounce.Elapsed += OnSearchElapsed;
+    _searchDebounce.Start();
+  }
+
+  private async void OnSearchElapsed(object? s, System.Timers.ElapsedEventArgs e) {
+    if (_disposed) return;
+    var q = _q?.Trim();
+    if (string.IsNullOrEmpty(q)) {
+      await InvokeAsync(() => { _people.Clear(); _groups.Clear(); StateHasChanged(); });
+      return;
+    }
+    var users = await ChatService.SearchUsersAsync(q, _currentBranchId, take: 30);
+    var groups = await ChatService.SearchGroupsAsync(q, take: 30);
+    if (_disposed) return;
+    await InvokeAsync(() => { _people = users; _groups = groups; StateHasChanged(); });
+  }
+
+  private void OpenThread(ThreadSummary summary)
+  {
+      if (summary.Id != null)
+          ChatState.OpenDock(summary.Id);
+  }
+
+  private async Task StartUserConversation(ApplicationUser user)
+  {
+      if (_currentUserId == null) return;
+      var summary = await ChatService.GetOrCreateThreadAsync(_currentUserId, otherUserId: user.Id);
+      if (summary.Id != null)
+          ChatState.OpenDock(summary.Id);
+  }
+
+  private async Task StartGroupConversation(ChatGroup group)
+  {
+      if (_currentUserId == null) return;
+      var summary = await ChatService.GetOrCreateThreadAsync(_currentUserId, groupId: group.Id);
+      if (summary.Id != null)
+          ChatState.OpenDock(summary.Id);
+  }
+
+  public void Dispose()
+  {
+      _disposed = true;
+      if (_searchDebounce != null)
+      {
+          _searchDebounce.Stop();
+          _searchDebounce.Elapsed -= OnSearchElapsed;
+          _searchDebounce.Dispose();
+      }
+  }
+}
