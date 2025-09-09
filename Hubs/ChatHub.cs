@@ -30,11 +30,22 @@ namespace CMetalsWS.Hubs
             return id;
         }
 
+        private async Task VerifyUserIsParticipantAsync(string threadId)
+        {
+            var userId = GetUserIdOrThrow();
+            var isParticipant = await _chatRepository.IsParticipantAsync(threadId, userId);
+            if (!isParticipant)
+            {
+                throw new HubException("You are not a participant of this thread.");
+            }
+        }
+
         public async Task SendMessage(string threadId, string content)
         {
             try
             {
                 var senderId = GetUserIdOrThrow();
+                await VerifyUserIsParticipantAsync(threadId); // Security Check
                 var messageDto = await _chatRepository.CreateMessageAsync(threadId, senderId, content);
 
                 if (int.TryParse(threadId, out _))
@@ -53,7 +64,11 @@ namespace CMetalsWS.Hubs
             }
         }
 
-        public Task JoinThread(string threadId) => Groups.AddToGroupAsync(Context.ConnectionId, threadId);
+        public async Task JoinThread(string threadId)
+        {
+            await VerifyUserIsParticipantAsync(threadId); // Security Check
+            await Groups.AddToGroupAsync(Context.ConnectionId, threadId);
+        }
 
         public Task LeaveThread(string threadId) => Groups.RemoveFromGroupAsync(Context.ConnectionId, threadId);
 

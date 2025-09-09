@@ -20,6 +20,8 @@ namespace CMetalsWS.Data.Chat
         Task<bool> PinThreadAsync(string threadId, string userId, bool isPinned);
         Task<bool> PinMessageAsync(int messageId, bool isPinned);
 
+        Task<bool> IsParticipantAsync(string threadId, string userId);
+
         // Group Management
         Task<IEnumerable<ChatGroup>> GetAllGroupsAsync();
         Task<ChatGroup> CreateGroupAsync(string name, int? branchId, List<string> userIds);

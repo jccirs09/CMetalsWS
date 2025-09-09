@@ -1,48 +1,31 @@
+@using CMetalsWS.Data.Chat
 @using CMetalsWS.Services
 
 @inject ChatStateService ChatState
-@inject NavigationManager NavManager
 
 @implements IDisposable
 
 <div class="ml-2">
-    @if (!ChatState.IsChatPageOpen)
-    {
-        <MudMenu Icon="@Icons.Material.Filled.ChatBubble" Color="Color.Inherit" AnchorOrigin="Origin.BottomRight">
-            <div class="pa-2" style="width: 350px;">
-                <ChatThreadPanel OnThreadSelected="OnThreadSelected" />
-            </div>
-        </MudMenu>
-    }
+    <MudMenu Icon="@Icons.Material.Filled.ChatBubble" Color="Color.Inherit" AnchorOrigin="Origin.BottomRight">
+        <div class="pa-2" style="width: 350px;">
+            <ChatThreadPanel OnThreadSelected="OnThreadSelected" />
+        </div>
+    </MudMenu>
 </div>
 
 @code {
     protected override void OnInitialized()
     {
         ChatState.OnChange += StateHasChanged;
-        NavManager.LocationChanged += OnLocationChanged;
     }
 
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    private void OnThreadSelected(ThreadSummary thread)
     {
-        if (e.Location.Contains("/messages"))
-        {
-            ChatState.GoToChatPage();
-        }
-        else
-        {
-            ChatState.LeaveChatPage();
-        }
-    }
-
-    private void OnThreadSelected(CMetalsWS.Data.Chat.ThreadSummary thread)
-    {
-        ChatState.OpenDock(thread.Id!);
+    ChatState.HandleThreadClick(thread);
     }
 
     public void Dispose()
     {
         ChatState.OnChange -= StateHasChanged;
-        NavManager.LocationChanged -= OnLocationChanged;
     }
 }

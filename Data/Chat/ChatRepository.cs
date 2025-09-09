@@ -353,5 +353,21 @@ namespace CMetalsWS.Data.Chat
                 await context.SaveChangesAsync();
             }
         }
+
+        public async Task<bool> IsParticipantAsync(string threadId, string userId)
+        {
+            if (int.TryParse(threadId, out var groupId))
+            {
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                return await context.ChatGroupUsers.AnyAsync(gu => gu.ChatGroupId == groupId && gu.UserId == userId);
+            }
+            else
+            {
+                // For a 1-on-1 chat, the threadId is the other user's ID.
+                // A user is always a participant in a conversation they are one of the two parties in.
+                // The check is implicitly true unless a blocking system were in place.
+                return true;
+            }
+        }
     }
 }

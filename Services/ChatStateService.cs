@@ -3,17 +3,20 @@ using Microsoft.AspNetCore.Components.Routing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace CMetalsWS.Services
 {
     public class ChatStateService : IDisposable
     {
         private readonly NavigationManager _navManager;
+        private readonly List<string> _openDocks = new();
 
+        // Public properties
         public bool IsChatPageOpen { get; private set; }
         public bool IsThreadPanelOpen { get; private set; }
         public string? ActiveThreadId { get; private set; }
-        public List<string> OpenDocks { get; } = new List<string>();
+        public IReadOnlyList<string> OpenDocks => _openDocks.AsReadOnly();
         public int MaxDocks { get; set; } = 3;
 
         public event Action? OnChange;
@@ -21,18 +24,81 @@ namespace CMetalsWS.Services
         public ChatStateService(NavigationManager navManager)
         {
             _navManager = navManager;
+            // Subscribe to location changes
             _navManager.LocationChanged += OnLocationChanged;
+            // Set initial state based on the current URL
+            UpdateChatPageState(_navManager.Uri);
         }
 
         private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
         {
-            if (_navManager.Uri.Contains("/messages"))
+            UpdateChatPageState(e.Location);
+        }
+
+        private void UpdateChatPageState(string location)
+        {
+            var uri = new Uri(location, UriKind.Absolute);
+            if (uri.AbsolutePath.StartsWith("/messages"))
             {
-                if (!IsChatPageOpen) GoToChatPage();
+                var match = Regex.Match(uri.AbsolutePath, @"^/messages/([^/]+)");
+                var threadId = match.Success ? match.Groups[1].Value : null;
+                GoToChatPage(threadId);
             }
             else
             {
-                if (IsChatPageOpen) LeaveChatPage();
+                LeaveChatPage();
+            }
+        }
+
+        public void GoToChatPage(string? threadId)
+        {
+            if (IsChatPageOpen && ActiveThreadId == threadId) return;
+
+            IsChatPageOpen = true;
+            ActiveThreadId = threadId;
+            _openDocks.Clear();
+            IsThreadPanelOpen = false;
+            NotifyStateChanged();
+        }
+
+        public void LeaveChatPage()
+        {
+            if (!IsChatPageOpen) return;
+
+            IsChatPageOpen = false;
+            ActiveThreadId = null;
+            NotifyStateChanged();
+        }
+
+        public void ActivateThread(string id)
+        {
+            if (ActiveThreadId == id) return;
+            ActiveThreadId = id;
+            NotifyStateChanged();
+        }
+
+        public void OpenDock(string id)
+        {
+            if (_openDocks.Contains(id))
+            {
+                return;
+            }
+
+            if (_openDocks.Count >= MaxDocks)
+            {
+                _openDocks.RemoveAt(0);
+            }
+
+            _openDocks.Add(id);
+            IsThreadPanelOpen = false;
+            NotifyStateChanged();
+        }
+
+        public void CloseDock(string id)
+        {
+            if (_openDocks.Remove(id))
+            {
+                NotifyStateChanged();
             }
         }
 
@@ -42,51 +108,18 @@ namespace CMetalsWS.Services
             NotifyStateChanged();
         }
 
-        public void OpenDock(string threadId)
+        public void HandleThreadClick(Data.Chat.ThreadSummary thread)
         {
-            if (OpenDocks.Contains(threadId))
+            if (thread.Id == null) return;
+
+            if (IsChatPageOpen)
             {
-                // Already open, maybe focus it
-                return;
+                _navManager.NavigateTo($"/messages/{thread.Id}");
             }
-
-            if (OpenDocks.Count >= MaxDocks)
+            else
             {
-                // Close the least recently used dock (the first one in the list)
-                OpenDocks.RemoveAt(0);
+                OpenDock(thread.Id);
             }
-
-            OpenDocks.Add(threadId);
-            IsThreadPanelOpen = false; // Close panel when a dock opens
-            NotifyStateChanged();
-        }
-
-        public void CloseDock(string threadId)
-        {
-            OpenDocks.Remove(threadId);
-            NotifyStateChanged();
-        }
-
-        public void ActivateThread(string? threadId)
-        {
-            ActiveThreadId = threadId;
-            NotifyStateChanged();
-        }
-
-        public void GoToChatPage(string? threadId = null)
-        {
-            IsChatPageOpen = true;
-            ActiveThreadId = threadId;
-            OpenDocks.Clear();
-            IsThreadPanelOpen = false;
-            NotifyStateChanged();
-        }
-
-        public void LeaveChatPage()
-        {
-            IsChatPageOpen = false;
-            ActiveThreadId = null;
-            NotifyStateChanged();
         }
 
         private void NotifyStateChanged() => OnChange?.Invoke();
