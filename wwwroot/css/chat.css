@@ -1,13 +1,24 @@
+.z-appbar {
+    z-index: 1400;
+}
+
 .chat-dock-host {
     position: fixed;
     right: 16px;
-    bottom: 0; /* Changed from 16px to 0 to align with bottom of screen */
+    bottom: 16px;
     display: flex;
     gap: 8px;
-    flex-wrap: wrap-reverse; /* To stack docks up */
+    flex-wrap: wrap;
     z-index: 1200;
-    max-width: calc(100vw - 32px); /* Prevent overflow on small screens */
-    align-items: flex-end;
+    pointer-events: none;
+}
+
+.chat-dock-host > * {
+    pointer-events: auto;
+}
+
+.z-chat-popover {
+    z-index: 1300;
 }
 
 .chat-dock {
