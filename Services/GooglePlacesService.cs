@@ -62,7 +62,7 @@ namespace CMetalsWS.Services
             return content?.places?.Select(p => new Customer
             {
                 CustomerName = p.displayName?.text ?? p.name,
-                FullAddress = p.formattedAddress,
+                Address = p.formattedAddress,
                 Latitude = (decimal?)p.location?.latitude,
                 Longitude = (decimal?)p.location?.longitude,
                 PlaceId = p.name?.Split('/').Last(),
@@ -91,6 +91,7 @@ namespace CMetalsWS.Services
 
             var customer = new Customer();
             MapPlaceDetailsToCustomer(content.result, customer);
+            customer.Address = content.result.formatted_address;
             return customer;
         }
 
@@ -101,7 +102,7 @@ namespace CMetalsWS.Services
             customer.Province = details.address_components?.FirstOrDefault(c => c.types != null && c.types.Contains("administrative_area_level_1"))?.short_name;
             customer.PostalCode = details.address_components?.FirstOrDefault(c => c.types != null && c.types.Contains("postal_code"))?.long_name;
             customer.Country = details.address_components?.FirstOrDefault(c => c.types != null && c.types.Contains("country"))?.long_name;
-            customer.FullAddress = details.formatted_address;
+            customer.Address = details.formatted_address;
         }
     }
 

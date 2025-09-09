@@ -62,7 +62,7 @@ namespace CMetalsWS.Services
                     c.CustomerCode.ToLower().Contains(t) ||
                     c.CustomerName.ToLower().Contains(t) ||
                     (c.City != null && c.City.ToLower().Contains(t)) ||
-                    (c.FullAddress != null && c.FullAddress.ToLower().Contains(t)));
+                    (c.Address != null && c.Address.ToLower().Contains(t)));
             }
 
             if (!string.IsNullOrWhiteSpace(regionFilter))
@@ -125,12 +125,12 @@ namespace CMetalsWS.Services
         {
             using var db = _dbContextFactory.CreateDbContext();
             var customer = await db.Customers.FindAsync(customerId);
-            if (customer == null || string.IsNullOrWhiteSpace(customer.FullAddress))
+            if (customer == null || string.IsNullOrWhiteSpace(customer.Address))
             {
                 return new CustomerEnrichmentResult { EnrichedCustomer = customer };
             }
 
-            var result = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, customer.FullAddress);
+            var result = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, customer.Address);
             if (result.EnrichedCustomer != null)
             {
                 await UpdateCustomerAsync(result.EnrichedCustomer);
@@ -247,7 +247,7 @@ namespace CMetalsWS.Services
                             customer.Province = selectedCandidate.Province;
                             customer.PostalCode = selectedCandidate.PostalCode;
                             customer.Country = selectedCandidate.Country;
-                            customer.FullAddress = selectedCandidate.FullAddress;
+                            customer.Address = selectedCandidate.Address;
                             customer.DestinationRegionCategory = selectedCandidate.DestinationRegionCategory;
                             customer.DestinationGroupCategory = selectedCandidate.DestinationGroupCategory;
                         }

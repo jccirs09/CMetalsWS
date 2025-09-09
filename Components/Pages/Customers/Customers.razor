@@ -191,7 +191,7 @@
         try
         {
             var result = await CustomerService.RecomputeCustomerRegionAsync(customerId);
-            if (result.EnrichedCustomer != null && !string.IsNullOrWhiteSpace(result.EnrichedCustomer.FullAddress))
+            if (result.EnrichedCustomer != null && !string.IsNullOrWhiteSpace(result.EnrichedCustomer.Address))
             {
                 Snackbar.Add($"Successfully re-geocoded '{result.EnrichedCustomer.CustomerName}'. New Region: {result.EnrichedCustomer.DestinationRegionCategory}", Severity.Success);
             }

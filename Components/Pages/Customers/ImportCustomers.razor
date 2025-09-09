@@ -73,7 +73,7 @@
                         <MudRadioGroup T="string" @bind-SelectedValue="context.SelectedPlaceId">
                             @foreach (var candidate in context.Candidates)
                             {
-                                <MudRadio Value="@candidate.PlaceId">@candidate.FullAddress</MudRadio>
+                                <MudRadio Value="@candidate.PlaceId">@candidate.Address</MudRadio>
                             }
                         </MudRadioGroup>
                     }

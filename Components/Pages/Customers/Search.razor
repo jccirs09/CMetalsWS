@@ -31,7 +31,7 @@
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Name">@context.CustomerName</MudTd>
-                <MudTd DataLabel="Address">@context.FullAddress</MudTd>
+                <MudTd DataLabel="Address">@context.Address</MudTd>
                 <MudTd>
                     <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => SaveCustomer(context))">Save</MudButton>
                 </MudTd>
@@ -87,6 +87,14 @@
             try
             {
                 var updatedCustomer = (Customer)result.Data;
+
+                var existingCustomer = await CustomerService.SearchAsync(updatedCustomer.CustomerCode);
+                if (existingCustomer.Any())
+                {
+                    Snackbar.Add($"Customer with code '{updatedCustomer.CustomerCode}' already exists.", Severity.Error);
+                    return;
+                }
+
                 await CustomerService.CreateCustomerAsync(updatedCustomer);
                 Snackbar.Add($"Customer '{updatedCustomer.CustomerName}' saved.", Severity.Success);
                 _searchResults.Remove(customer);

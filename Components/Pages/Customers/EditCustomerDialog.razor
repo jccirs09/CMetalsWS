@@ -16,7 +16,7 @@
                 </MudItem>
 
                 <MudItem xs="12">
-                    <MudTextField @bind-Value="Customer.FullAddress" Label="Full Address" Lines="3" HelperText="This address will be used for geocoding." />
+                    <MudTextField @bind-Value="Customer.Address" Label="Full Address" Lines="3" HelperText="This address will be used for geocoding." />
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
@@ -55,7 +55,7 @@
                 </MudItem>
                 <MudItem xs="12" sm="4">
                      <MudSelect @bind-Value="Customer.Priority" Label="Priority">
-                        @foreach (var p in Enum.GetValues<Priority>())
+                        @foreach (var p in Enum.GetValues<PriorityLevel>())
                         {
                             <MudSelectItem Value="@p">@p.ToString()</MudSelectItem>
                         }

@@ -18,9 +18,26 @@ namespace CMetalsWS.Services
         private readonly ILogger<CustomerEnrichmentService> _logger;
         private static readonly SemaphoreSlim _googleApiSemaphore = new(5);
 
-        private static readonly List<string> MetroVancouverCities = new() { "Vancouver", "Surrey", "Richmond", "Burnaby", "Delta", "Langley", "Coquitlam", "Port Coquitlam", "Port Moody", "New Westminster", "North Vancouver", "West Vancouver", "Maple Ridge", "Pitt Meadows", "White Rock" };
-        private static readonly List<string> VancouverIslandCities = new() { "Victoria", "Nanaimo", "Duncan", "Parksville", "Courtenay", "Comox", "Campbell River", "Port Alberni" };
-        private static readonly List<string> OkanaganCities = new() { "Okanagan Falls", "Penticton", "Kelowna", "Vernon", "Salmon Arm", "Kamloops" };
+        static readonly HashSet<string> MetroVancouver = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Vancouver","Burnaby","Richmond","Surrey","Delta","Langley","Langley Township",
+            "White Rock","New Westminster","Coquitlam","Port Coquitlam","Port Moody",
+            "North Vancouver","West Vancouver","Maple Ridge","Pitt Meadows"
+        };
+
+        static readonly HashSet<string> VancouverIsland = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Victoria","Saanich","Langford","Colwood","Esquimalt","Sidney","Sooke",
+            "Nanaimo","Parksville","Qualicum Beach","Duncan","Ladysmith",
+            "Courtenay","Comox","Campbell River","Port Alberni"
+        };
+
+        static readonly HashSet<string> OkanaganCorridor = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Okanagan Falls","Penticton","Summerland","Peachland","West Kelowna",
+            "Kelowna","Lake Country","Vernon","Coldstream","Armstrong",
+            "Enderby","Salmon Arm","Sicamous","Kamloops"
+        };
 
         public CustomerEnrichmentService(IGooglePlacesService googlePlacesService, IDbContextFactory<ApplicationDbContext> dbContextFactory, ILogger<CustomerEnrichmentService> logger)
         {
@@ -79,10 +96,10 @@ namespace CMetalsWS.Services
                 _logger.LogWarning("Weak match for customer {CustomerCode}. Top 3 candidates: {Candidates}", customer.CustomerCode, string.Join(", ", result.Candidates.Select(c => c.CustomerName)));
             }
 
-            if (customer.Latitude.HasValue && customer.Longitude.HasValue)
+            if (customer.Latitude.HasValue && customer.Longitude.HasValue && customer.City != null && customer.Province != null && customer.Country != null)
             {
-                customer.DestinationRegionCategory = ComputeDestinationRegionCategory(customer);
-                customer.DestinationGroupCategory = await ComputeDestinationGroupCategoryAsync(customer);
+                customer.DestinationRegionCategory = ComputeRegion(customer.City, customer.Province, customer.Country);
+                customer.DestinationGroupCategory = ComputeGroup(customer.DestinationRegionCategory, customer.City, (double?)customer.Latitude, (double?)customer.Longitude);
             }
 
             return result;
@@ -103,7 +120,7 @@ namespace CMetalsWS.Services
             candidates.Add($"{cleanedName}, British Columbia, Canada");
             candidates.Add($"{cleanedName}, Canada");
 
-            var allCities = MetroVancouverCities.Concat(VancouverIslandCities).Concat(OkanaganCities);
+            var allCities = MetroVancouver.Concat(VancouverIsland).Concat(OkanaganCorridor);
             foreach (var city in allCities)
             {
                 candidates.Add($"{cleanedName}, {city}, BC, Canada");
@@ -128,9 +145,9 @@ namespace CMetalsWS.Services
             // Bonus for city match
             if (!string.IsNullOrWhiteSpace(candidate.City))
             {
-                if (MetroVancouverCities.Contains(candidate.City, StringComparer.OrdinalIgnoreCase)) score += 10;
-                else if (VancouverIslandCities.Contains(candidate.City, StringComparer.OrdinalIgnoreCase)) score += 10;
-                else if (OkanaganCities.Contains(candidate.City, StringComparer.OrdinalIgnoreCase)) score += 10;
+                if (MetroVancouver.Contains(candidate.City)) score += 10;
+                else if (VancouverIsland.Contains(candidate.City)) score += 10;
+                else if (OkanaganCorridor.Contains(candidate.City)) score += 10;
             }
 
             // Penalty for irrelevant types
@@ -156,51 +173,30 @@ namespace CMetalsWS.Services
             originalCustomer.Province = enrichedCustomer.Province;
             originalCustomer.PostalCode = enrichedCustomer.PostalCode;
             originalCustomer.Country = enrichedCustomer.Country;
-            originalCustomer.FullAddress = enrichedCustomer.FullAddress;
+            originalCustomer.Address = enrichedCustomer.Address;
             return originalCustomer;
         }
 
-        private DestinationRegionCategory ComputeDestinationRegionCategory(Customer customer)
+        public static DestinationRegionCategory ComputeRegion(string city, string province, string country)
         {
-            if (string.IsNullOrWhiteSpace(customer.City)) return DestinationRegionCategory.OUT_OF_TOWN;
+            if (!"Canada".Equals(country, StringComparison.OrdinalIgnoreCase)) return DestinationRegionCategory.OUT_OF_TOWN;
+            if (!"BC".Equals(province, StringComparison.OrdinalIgnoreCase))    return DestinationRegionCategory.OUT_OF_TOWN;
 
-            if (MetroVancouverCities.Contains(customer.City, StringComparer.OrdinalIgnoreCase)) return DestinationRegionCategory.LOCAL;
-            if (VancouverIslandCities.Contains(customer.City, StringComparer.OrdinalIgnoreCase)) return DestinationRegionCategory.ISLAND;
-            if (OkanaganCities.Contains(customer.City, StringComparer.OrdinalIgnoreCase)) return DestinationRegionCategory.OKANAGAN;
+            if (MetroVancouver.Contains(city)) return DestinationRegionCategory.LOCAL;
+            if (VancouverIsland.Contains(city)) return DestinationRegionCategory.ISLAND;
+            if (OkanaganCorridor.Contains(city)) return DestinationRegionCategory.OKANAGAN;
 
-            return DestinationRegionCategory.OUT_OF_TOWN;
+            return DestinationRegionCategory.OUT_OF_TOWN; // rest of BC
         }
 
-        private async Task<string> ComputeDestinationGroupCategoryAsync(Customer customer)
+        public static string ComputeGroup(DestinationRegionCategory region, string city, double? lat, double? lng)
         {
-            if (customer.DestinationRegionCategory != DestinationRegionCategory.LOCAL)
+            if (region == DestinationRegionCategory.LOCAL && lat.HasValue && lng.HasValue)
             {
-                return customer.City ?? "UNKNOWN";
+                var quad = ToCardinal(GetQuadrant(city, lat.Value, lng.Value));
+                return $"{quad} {city}".ToUpperInvariant();
             }
-
-            using var db = _dbContextFactory.CreateDbContext();
-            var centroids = await db.CityCentroids.Where(c => c.Province == "BC").ToListAsync();
-
-            if (!centroids.Any() || !customer.Latitude.HasValue || !customer.Longitude.HasValue)
-            {
-                return customer.City ?? "UNKNOWN";
-            }
-
-            var closestCentroid = centroids
-                .Select(c => new { Centroid = c, Distance = GetDistance(customer.Latitude.Value, customer.Longitude.Value, c.Latitude, c.Longitude) })
-                .OrderBy(x => x.Distance)
-                .FirstOrDefault()?.Centroid;
-
-            if (closestCentroid == null)
-            {
-                return customer.City ?? "UNKNOWN";
-            }
-
-            var centralPointLat = 49.2609m;
-            var centralPointLon = -123.1139m;
-            var direction = (customer.Latitude > centralPointLat ? "N" : "S") + (customer.Longitude > centralPointLon ? "E" : "W");
-
-            return $"{direction}_{customer.City}".ToUpper();
+            return city?.ToUpperInvariant() ?? "UNKNOWN";
         }
 
         private double GetDistance(decimal lat1, decimal lon1, decimal lat2, decimal lon2)
@@ -213,6 +209,45 @@ namespace CMetalsWS.Services
                     Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
             var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
             return r * c;
+        }
+
+        public record LatLng(double Lat, double Lng);
+
+        static readonly Dictionary<string, LatLng> CityCentroids = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Surrey"] = new(49.1044, -122.8011),
+            ["Vancouver"] = new(49.2827, -123.1207),
+            ["Richmond"] = new(49.1666, -123.1336),
+        };
+
+        public static string GetQuadrant(string city, double lat, double lng)
+        {
+            if (!CityCentroids.TryGetValue(city, out var c)) return "CENTER"; // fallback
+
+            var dLat = lat - c.Lat;
+            var dLng = lng - c.Lng;
+
+            if (Math.Abs(dLat) < 0.01 && Math.Abs(dLng) < 0.01) return "CENTER";
+
+            var north = dLat > 0;
+            var east  = dLng > 0;
+
+            if (north && east)  return "NORTHEAST";
+            if (north && !east) return "NORTHWEST";
+            if (!north && east) return "SOUTHEAST";
+            return "SOUTHWEST";
+        }
+
+        public static string ToCardinal(string quadrant)
+        {
+            return quadrant switch
+            {
+                "NORTHEAST" => "NORTH",
+                "NORTHWEST" => "NORTH",
+                "SOUTHEAST" => "SOUTH",
+                "SOUTHWEST" => "SOUTH",
+                _ => "CENTER"
+            };
         }
     }
 }

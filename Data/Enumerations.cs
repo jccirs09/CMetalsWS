@@ -1,11 +1,16 @@
-﻿namespace CMetalsWS.Data
+namespace CMetalsWS.Data
 {
-    // --- Enums for Customer & Routing ---
-    public enum DestinationRegionCategory { LOCAL, ISLAND, OKANAGAN, OUT_OF_TOWN }
-    public enum DockType { NONE, DOCK, GRADE, RAMP }
-    public enum PreferredTruckType { PICKUP, VAN_5TON, FLATBED, TEN_TON, TRACTOR_53 }
-    public enum Priority { LOW, NORMAL, HIGH }
+    public enum DestinationRegionCategory
+    {
+        LOCAL = 0,
+        ISLAND = 1,
+        OKANAGAN = 2,
+        OUT_OF_TOWN = 3
+    }
 
+    public enum DockType { NONE = 0, DOCK = 1, GRADE = 2, RAMP = 3 }
+    public enum PreferredTruckType { PICKUP = 0, VAN_5TON = 1, FLATBED = 2, TEN_TON = 3, TRACTOR_53 = 4 }
+    public enum PriorityLevel { LOW = 0, NORMAL = 1, HIGH = 2 }
 
     public enum PickingListStatus
     {
@@ -52,6 +57,3 @@
     public enum ShippingGroup { Standard, Pool, BranchTransfer }
     public enum LoadStatus { Pending, Loaded, Scheduled, InTransit, Delivered, Canceled }
 }
-
-
-
