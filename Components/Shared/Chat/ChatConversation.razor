@@ -41,32 +41,28 @@
     }
 
     <div id="@_scrollContainerId" class="flex-grow-1 overflow-y-auto">
+        @if (!_allMessagesLoaded)
+        {
+            <div class="d-flex justify-center pa-2">
+                <MudButton OnClick="LoadMoreMessages" Disabled="@_isLoadingMore">
+                    @if (_isLoadingMore)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    }
+                    else
+                    {
+                        <MudText>Load More</MudText>
+                    }
+                </MudButton>
+            </div>
+        }
         <MudVirtualize Items="@FilteredMessages.ToList()" Context="message">
-            <PreContent>
-                @if (!_allMessagesLoaded)
-                {
-                    <div class="d-flex justify-center pa-2">
-                        <MudButton OnClick="LoadMoreMessages" Disabled="@_isLoadingMore">
-                            @if (_isLoadingMore)
-                            {
-                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
-                            }
-                            else
-                            {
-                                <MudText>Load More</MudText>
-                            }
-                        </MudButton>
-                    </div>
-                }
-            </PreContent>
-            <ChildContent>
-                <MessageBubble Message="message"
-                             IsMine="message.SenderId == _currentUserId"
-                             OnFinishEditing="(newContent) => HandleFinishEditing(message.Id, newContent)"
-                             OnReactionClicked="(emoji) => HandleReactionClicked(message.Id, emoji)"
-                             OnDeleteClicked="() => HandleDeleteClicked(message.Id)"
+            <MessageBubble Message="message"
+                         IsMine="message.SenderId == _currentUserId"
+                         OnFinishEditing="(newContent) => HandleFinishEditing(message.Id, newContent)"
+                         OnReactionClicked="(emoji) => HandleReactionClicked(message.Id, emoji)"
+                         OnDeleteClicked="() => HandleDeleteClicked(message.Id)"
                          OnPinClicked="() => HandlePinClicked(message.Id, message.IsPinned)" />
-            </ChildContent>
         </MudVirtualize>
     </div>
 
