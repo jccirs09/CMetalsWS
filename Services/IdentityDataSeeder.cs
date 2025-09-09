@@ -152,6 +152,48 @@ namespace CMetalsWS.Services
             }
 
             await SeedUserClaimsAsync();
+            await SeedChatDataAsync(admin);
+        }
+
+        private async Task SeedChatDataAsync(ApplicationUser admin)
+        {
+            if (await _context.ChatMessages.AnyAsync())
+            {
+                return; // Chat data already seeded
+            }
+
+            // 1. Seed additional users
+            var user1 = new ApplicationUser { UserName = "user1", Email = "user1@example.com", EmailConfirmed = true };
+            await _userManager.CreateAsync(user1, "User123!");
+            await _userManager.AddToRoleAsync(user1, "Viewer");
+
+            var user2 = new ApplicationUser { UserName = "user2", Email = "user2@example.com", EmailConfirmed = true };
+            await _userManager.CreateAsync(user2, "User123!");
+            await _userManager.AddToRoleAsync(user2, "Viewer");
+
+            // 2. Seed a group chat
+            var group = new ChatGroup { Name = "General" };
+            _context.ChatGroups.Add(group);
+            await _context.SaveChangesAsync(); // Save to get group ID
+
+            _context.ChatGroupUsers.AddRange(
+                new ChatGroupUser { ChatGroupId = group.Id, UserId = admin.Id },
+                new ChatGroupUser { ChatGroupId = group.Id, UserId = user1.Id }
+            );
+
+            _context.ChatMessages.AddRange(
+                new ChatMessage { ChatGroupId = group.Id, SenderId = admin.Id, Content = "Welcome to the general chat!", Timestamp = DateTime.UtcNow.AddMinutes(-10) },
+                new ChatMessage { ChatGroupId = group.Id, SenderId = user1.Id, Content = "Glad to be here!", Timestamp = DateTime.UtcNow.AddMinutes(-5) }
+            );
+
+            // 3. Seed a direct message conversation
+            _context.ChatMessages.AddRange(
+                new ChatMessage { SenderId = admin.Id, RecipientId = user2.Id, Content = "Hi User 2, this is a private message.", Timestamp = DateTime.UtcNow.AddMinutes(-20) },
+                new ChatMessage { SenderId = user2.Id, RecipientId = admin.Id, Content = "Hi Admin, I got it!", Timestamp = DateTime.UtcNow.AddMinutes(-15) }
+            );
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Chat data seeded successfully.");
         }
 
         private async Task SeedUserClaimsAsync()
