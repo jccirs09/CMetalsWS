@@ -28,7 +28,7 @@ namespace CMetalsWS.Services.SignalR
         public ChatHubClient(NavigationManager navManager)
         {
             _hubConnection = new HubConnectionBuilder()
-                .WithUrl(navManager.ToAbsoluteUri("/chathub"))
+                .WithUrl(navManager.ToAbsoluteUri("/hubs/chat"))
                 .WithAutomaticReconnect()
                 .Build();
 
