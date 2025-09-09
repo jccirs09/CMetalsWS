@@ -176,7 +176,19 @@ namespace CMetalsWS.Services
             {
                 var customer = new Customer { CustomerCode = row.CustomerCode, CustomerName = row.CustomerName };
                 var enrichmentResult = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, row.Address);
-                importRow.Candidates = enrichmentResult.Candidates;
+
+                var enrichedCandidates = new List<Customer>();
+                foreach (var candidate in enrichmentResult.Candidates)
+                {
+                    var enrichedCandidate = await _googlePlacesService.GetPlaceDetailsAsync(candidate.PlaceId!);
+                    if (enrichedCandidate != null)
+                    {
+                        enrichedCandidate.CustomerName = candidate.CustomerName; // Preserve the name from the search result
+                        enrichedCandidates.Add(enrichedCandidate);
+                    }
+                }
+                importRow.Candidates = enrichedCandidates;
+
                 if (enrichmentResult.EnrichedCustomer != null)
                 {
                     importRow.SelectedPlaceId = enrichmentResult.EnrichedCustomer.PlaceId;
@@ -193,13 +205,19 @@ namespace CMetalsWS.Services
         public async Task<CustomerImportReport> CommitImportAsync(List<CustomerImportRow> importRows)
         {
             var report = new CustomerImportReport { TotalRows = importRows.Count };
-            var readyRows = importRows.Where(r => string.IsNullOrWhiteSpace(r.Error) && !r.RequiresManualSelection).ToList();
 
-            foreach (var row in readyRows)
+            foreach (var row in importRows)
             {
                 try
                 {
                     using var db = _dbContextFactory.CreateDbContext();
+
+                    if (!string.IsNullOrWhiteSpace(row.Error))
+                    {
+                        report.FailedImports++;
+                        report.Errors.Add($"Row for {row.Dto.CustomerCode} had a processing error: {row.Error}");
+                        continue;
+                    }
 
                     var customer = await db.Customers.FirstOrDefaultAsync(c => c.CustomerCode == row.Dto.CustomerCode);
                     var isNew = customer == null;
@@ -245,8 +263,6 @@ namespace CMetalsWS.Services
                     report.Errors.Add($"Failed to import customer {row.Dto.CustomerCode}: {ex.Message}");
                 }
             }
-
-            report.FailedImports = importRows.Count - report.SuccessfulImports;
 
             return report;
         }

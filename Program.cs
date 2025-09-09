@@ -116,12 +116,12 @@ builder.Services.AddScoped<IPickingListImportService, PickingListImportService>(
 builder.Services.AddScoped<IParsingStateService, ParsingStateService>();
 
 
-// builder.Services.AddScoped<ChatService>();
-// builder.Services.AddScoped<IChatService>(sp => sp.GetRequiredService<ChatService>());
-// builder.Services.AddScoped<IMessageStore>(sp => sp.GetRequiredService<ChatService>());
-// builder.Services.AddScoped<IChatClient, SignalRChatClient>();
-// builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
-// builder.Services.AddSignalR();
+builder.Services.AddScoped<ChatService>();
+builder.Services.AddScoped<IChatService>(sp => sp.GetRequiredService<ChatService>());
+builder.Services.AddScoped<IMessageStore>(sp => sp.GetRequiredService<ChatService>());
+builder.Services.AddScoped<IChatClient, SignalRChatClient>();
+builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
+builder.Services.AddSignalR();
 
 
 var app = builder.Build();
@@ -162,7 +162,7 @@ app.MapRazorComponents<App>()
 app.MapAdditionalIdentityEndpoints();
 
 app.MapHub<ScheduleHub>("/hubs/schedule");
-// app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<ChatHub>("/hubs/chat");
 
 
 

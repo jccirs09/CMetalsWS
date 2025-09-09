@@ -200,7 +200,7 @@ namespace CMetalsWS.Services
             var centralPointLon = -123.1139m;
             var direction = (customer.Latitude > centralPointLat ? "N" : "S") + (customer.Longitude > centralPointLon ? "E" : "W");
 
-            return $"{direction}_{closestCentroid.City}".ToUpper();
+            return $"{direction}_{customer.City}".ToUpper();
         }
 
         private double GetDistance(decimal lat1, decimal lon1, decimal lat2, decimal lon2)

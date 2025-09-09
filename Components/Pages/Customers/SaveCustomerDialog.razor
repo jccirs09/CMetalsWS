@@ -1,0 +1,37 @@
+@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Save New Customer</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="Customer.CustomerName" Label="Customer Name" ReadOnly="true" />
+        <MudTextField @bind-Value="Customer.FullAddress" Label="Address" ReadOnly="true" />
+        <MudTextField @bind-Value="Customer.CustomerCode" Label="Customer Code" Required="true" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public Customer Customer { get; set; } = new();
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private void Save()
+    {
+        if (string.IsNullOrWhiteSpace(Customer.CustomerCode))
+        {
+            // This should be handled by the form validation, but as a fallback
+            return;
+        }
+        MudDialog.Close(DialogResult.Ok(Customer));
+    }
+}

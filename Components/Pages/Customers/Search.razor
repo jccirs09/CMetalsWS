@@ -6,6 +6,7 @@
 @inject CustomerService CustomerService
 @inject IGooglePlacesService GooglePlacesService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <MudPaper Class="p-4">
     <MudText Typo="Typo.h5">Search for Customers</MudText>
@@ -77,16 +78,24 @@
 
     private async Task SaveCustomer(Customer customer)
     {
-        try
+        var parameters = new DialogParameters { ["Customer"] = customer };
+        var dialog = DialogService.Show<SaveCustomerDialog>("Save Customer", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
         {
-            await CustomerService.CreateCustomerAsync(customer);
-            Snackbar.Add($"Customer '{customer.CustomerName}' saved.", Severity.Success);
-            _searchResults.Remove(customer);
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Error saving customer: {ex.Message}", Severity.Error);
+            try
+            {
+                var updatedCustomer = (Customer)result.Data;
+                await CustomerService.CreateCustomerAsync(updatedCustomer);
+                Snackbar.Add($"Customer '{updatedCustomer.CustomerName}' saved.", Severity.Success);
+                _searchResults.Remove(customer);
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error saving customer: {ex.Message}", Severity.Error);
+            }
         }
     }
 }
