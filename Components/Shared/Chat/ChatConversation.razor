@@ -133,8 +133,6 @@
         ChatHubClient.MessageUpdated += OnMessageUpdated;
         ChatHubClient.MessagePinned += OnMessagePinned;
         ChatHubClient.MessageDeleted += OnMessageDeleted;
-        ChatHubClient.ReactionAdded += OnReactionChanged;
-        ChatHubClient.ReactionRemoved += OnReactionChanged;
 
         if (ThreadId != null)
         {
@@ -153,7 +151,6 @@
                 _threadTitle = _participants.FirstOrDefault(p => p.Id != _currentUserId)?.UserName ?? "Chat";
             }
 
-            // Load initial page of messages
             var initialMessages = (await ChatRepository.GetMessagesAsync(ThreadId, _currentUserId!)).ToList();
             _messages.AddRange(initialMessages);
             if (!initialMessages.Any() || initialMessages.Count() < 50)
@@ -174,13 +171,10 @@
 
     private async Task LoadMoreMessages()
     {
-        if (_isLoadingMore || _allMessagesLoaded || ThreadId == null || !_messages.Any())
-        {
-            return;
-        }
+        if (_isLoadingMore || _allMessagesLoaded || ThreadId == null || !_messages.Any()) return;
 
         _isLoadingMore = true;
-        StateHasChanged(); // Show loading spinner
+        StateHasChanged();
 
         var oldestMessage = _messages.FirstOrDefault();
         if (oldestMessage == null)
@@ -209,7 +203,6 @@
         if (message.ThreadId == ThreadId)
         {
             var tempMessage = _messages.FirstOrDefault(m => m.Id == 0 && m.SenderId == message.SenderId && m.Content == message.Content);
-
             if (tempMessage != null)
             {
                 tempMessage.Id = message.Id;
@@ -233,26 +226,28 @@
         }
     }
 
+    private async Task OnMessageUpdated(MessageDto message)
+    {
+        var messageToUpdate = _messages.FirstOrDefault(m => m.Id == message.Id);
+        if (messageToUpdate != null)
+        {
+            messageToUpdate.Content = message.Content;
+            messageToUpdate.EditedAt = message.EditedAt;
+            messageToUpdate.Reactions = message.Reactions;
+            messageToUpdate.ReactionUsers = message.ReactionUsers;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     private async Task SendMessage()
     {
         if (string.IsNullOrWhiteSpace(_newMessage) || ThreadId == null) return;
-
-        var tempMessage = new MessageDto
-        {
-            Id = 0,
-            Content = _newMessage,
-            CreatedAt = DateTime.UtcNow,
-            SenderId = _currentUserId,
-            SenderName = "Me",
-            ThreadId = ThreadId
-        };
+        var tempMessage = new MessageDto { Id = 0, Content = _newMessage, CreatedAt = DateTime.UtcNow, SenderId = _currentUserId, SenderName = "Me", ThreadId = ThreadId };
         _messages.Add(tempMessage);
-
         var messageToSend = _newMessage;
         _newMessage = string.Empty;
         _shouldScrollToBottom = true;
         await InvokeAsync(StateHasChanged);
-
         await ChatHubClient.SendMessageAsync(ThreadId, messageToSend);
     }
 
@@ -267,12 +262,9 @@
         ChatHubClient.MessageUpdated -= OnMessageUpdated;
         ChatHubClient.MessagePinned -= OnMessagePinned;
         ChatHubClient.MessageDeleted -= OnMessageDeleted;
-        ChatHubClient.ReactionAdded -= OnReactionChanged;
-        ChatHubClient.ReactionRemoved -= OnReactionChanged;
         _typingTimer?.Dispose();
     }
 
-    // --- Other methods (unchanged) ---
     private async Task PinThread()
     {
         if (ThreadId != null)
@@ -282,33 +274,14 @@
         }
     }
 
-    private async Task RequestNotificationPermission()
-    {
-        await JSRuntime.InvokeAsync<string>("cmetalsChat.requestNotificationPermission");
-    }
+    private async Task RequestNotificationPermission() => await JSRuntime.InvokeAsync<string>("cmetalsChat.requestNotificationPermission");
 
     private async Task OnUserTyping(TypingDto typingInfo)
     {
         if (typingInfo.ThreadId == ThreadId && typingInfo.UserId != _currentUserId)
         {
-            if (typingInfo.IsTyping && !_typingUsers.Contains(typingInfo.UserId!))
-            {
-                _typingUsers.Add(typingInfo.UserId!);
-            }
-            else if (!typingInfo.IsTyping)
-            {
-                _typingUsers.Remove(typingInfo.UserId!);
-            }
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-
-    private async Task OnReactionChanged(MessageDto message)
-    {
-        var messageToUpdate = _messages.FirstOrDefault(m => m.Id == message.Id);
-        if (messageToUpdate != null)
-        {
-            messageToUpdate.Reactions = message.Reactions;
+            if (typingInfo.IsTyping && !_typingUsers.Contains(typingInfo.UserId!)) _typingUsers.Add(typingInfo.UserId!);
+            else if (!typingInfo.IsTyping) _typingUsers.Remove(typingInfo.UserId!);
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -359,26 +332,9 @@
         _mentionSuggest?.Close();
     }
 
-    private async Task HandleFinishEditing(int messageId, string newContent)
-    {
-        await ChatHubClient.UpdateMessageAsync(messageId, newContent);
-    }
+    private async Task HandleFinishEditing(int messageId, string newContent) => await ChatHubClient.UpdateMessageAsync(messageId, newContent);
 
-    private async Task OnMessageUpdated(MessageDto message)
-    {
-        var messageToUpdate = _messages.FirstOrDefault(m => m.Id == message.Id);
-        if (messageToUpdate != null)
-        {
-            messageToUpdate.Content = message.Content;
-            messageToUpdate.EditedAt = message.EditedAt;
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-
-    private async Task HandlePinClicked(int messageId, bool isCurrentlyPinned)
-    {
-        await ChatHubClient.PinMessageAsync(messageId, !isCurrentlyPinned);
-    }
+    private async Task HandlePinClicked(int messageId, bool isCurrentlyPinned) => await ChatHubClient.PinMessageAsync(messageId, !isCurrentlyPinned);
 
     private async Task HandleReactionClicked(int messageId, string emoji)
     {
@@ -386,13 +342,9 @@
         if (message != null)
         {
             if (message.Reactions.TryGetValue(emoji, out var users) && users.Contains(_currentUserId!))
-            {
                 await ChatHubClient.RemoveReactionAsync(messageId, emoji);
-            }
             else
-            {
                 await ChatHubClient.AddReactionAsync(messageId, emoji);
-            }
         }
     }
 
@@ -402,33 +354,21 @@
         var dialog = DialogService.Show<MudMessageBox>("Delete Message", parameters);
         var result = await dialog.Result;
         if (!result.Canceled)
-        {
             await ChatHubClient.DeleteMessageAsync(messageId);
-        }
     }
 
     private async Task OnMessagePinned(MessageDto message)
     {
         var oldPinned = _messages.FirstOrDefault(m => m.IsPinned);
-        if (oldPinned != null)
-        {
-            oldPinned.IsPinned = false;
-        }
+        if (oldPinned != null) oldPinned.IsPinned = false;
         var newPinned = _messages.FirstOrDefault(m => m.Id == message.Id);
-        if (newPinned != null)
-        {
-            newPinned.IsPinned = message.IsPinned;
-        }
+        if (newPinned != null) newPinned.IsPinned = message.IsPinned;
         await InvokeAsync(StateHasChanged);
     }
 
     private async Task OnMessageDeleted(int messageId)
     {
-        var messageToRemove = _messages.FirstOrDefault(m => m.Id == messageId);
-        if (messageToRemove != null)
-        {
-            _messages.Remove(messageToRemove);
-            await InvokeAsync(StateHasChanged);
-        }
+        _messages.RemoveAll(m => m.Id == messageId);
+        await InvokeAsync(StateHasChanged);
     }
 }

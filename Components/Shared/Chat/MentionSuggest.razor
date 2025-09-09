@@ -3,7 +3,7 @@
 
 <MudPopover Open="@_isOpen" AnchorOrigin="Origin.TopCenter" TransformOrigin="Origin.BottomCenter" Class="px-4 py-2">
     <MudList T="ApplicationUser" Clickable="true">
-        @foreach (var user in FilteredSuggestions)
+        @foreach (var user in Suggestions)
         {
             <MudListItem T="ApplicationUser" OnClick="() => SelectUser(user)">
                 <MudAvatar Size="Size.Small" Image="@user.Avatar" />
@@ -16,10 +16,6 @@
 @code {
     [Parameter] public IEnumerable<ApplicationUser> Suggestions { get; set; } = new List<ApplicationUser>();
     [Parameter] public EventCallback<ApplicationUser> OnUserSelected { get; set; }
-    [Parameter] public string Filter { get; set; } = string.Empty;
-
-    private IEnumerable<ApplicationUser> FilteredSuggestions =>
-        Suggestions.Where(u => string.IsNullOrWhiteSpace(Filter) || u.UserName.Contains(Filter, StringComparison.OrdinalIgnoreCase));
 
     private bool _isOpen;
 

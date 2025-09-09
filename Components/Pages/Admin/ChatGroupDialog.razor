@@ -50,6 +50,14 @@
     [Parameter]
     public string SubmitText { get; set; } = "Add";
 
+    protected override void OnInitialized()
+    {
+        if (Branches.Count == 1 && GroupModel.BranchId == null)
+        {
+            GroupModel.BranchId = Branches[0].Id;
+        }
+    }
+
     private void Cancel()
     {
         MudDialog.Cancel();

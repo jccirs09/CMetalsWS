@@ -62,7 +62,7 @@
 
     private async Task OnThreadsUpdated()
     {
-    await LoadThreads(new ItemsProviderRequest(0, 100, CancellationToken.None)); // Reload threads
+        await Refresh();
         StateHasChanged();
     }
 
@@ -86,9 +86,9 @@
         );
     }
 
-public async ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         ChatHubClient.ThreadsUpdated -= OnThreadsUpdated;
-    await Task.CompletedTask;
+        await Task.CompletedTask;
     }
 }

@@ -19,13 +19,41 @@ namespace CMetalsWS.Data.Chat
             _userManager = userManager;
         }
 
+        private async Task<Dictionary<string, string>> GetReactionUsers(ChatMessage message)
+        {
+            if (message.Reactions == null || !message.Reactions.Any())
+                return new Dictionary<string, string>();
+
+            var userIds = message.Reactions.Select(r => r.UserId).Distinct().ToList();
+            return await _userManager.Users
+                .Where(u => userIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.UserName ?? "Unknown");
+        }
+
+        private MessageDto ToMessageDto(ChatMessage message, string currentUserId, Dictionary<string, string> reactionUsers)
+        {
+            return new MessageDto
+            {
+                Id = message.Id,
+                ThreadId = message.ChatGroupId?.ToString() ?? (message.SenderId == currentUserId ? message.RecipientId : message.SenderId),
+                SenderId = message.SenderId,
+                SenderName = message.Sender?.UserName,
+                Content = message.Content,
+                CreatedAt = message.Timestamp,
+                EditedAt = message.EditedAt,
+                DeletedAt = message.DeletedAt,
+                IsPinned = message.IsPinned,
+                Reactions = message.Reactions.GroupBy(r => r.Emoji).ToDictionary(g => g.Key, g => g.Select(r => r.UserId).ToHashSet()),
+                ReactionUsers = reactionUsers,
+                SeenBy = message.SeenBy.ToDictionary(s => s.UserId, s => s.Timestamp)
+            };
+        }
+
         public async Task<MessageDto?> AddReactionAsync(int messageId, string emoji, string userId)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
             var message = await context.ChatMessages
-                .Include(m => m.Sender)
-                .Include(m => m.Reactions)
-                .Include(m => m.SeenBy)
+                .Include(m => m.Sender).Include(m => m.Reactions).Include(m => m.SeenBy)
                 .FirstOrDefaultAsync(m => m.Id == messageId);
 
             if (message == null) return null;
@@ -40,11 +68,7 @@ namespace CMetalsWS.Data.Chat
                 await context.Entry(message).Collection(m => m.Reactions).LoadAsync();
             }
 
-            var reactionUserIds = message.Reactions.Select(r => r.UserId).Distinct().ToList();
-            var reactionUsers = await _userManager.Users
-                .Where(u => reactionUserIds.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, u => u.UserName ?? "Unknown");
-
+            var reactionUsers = await GetReactionUsers(message);
             return ToMessageDto(message, userId, reactionUsers);
         }
 
@@ -84,11 +108,7 @@ namespace CMetalsWS.Data.Chat
 
             if (message == null) return null;
 
-            var reactionUserIds = message.Reactions.Select(r => r.UserId).Distinct().ToList();
-            var reactionUsers = await _userManager.Users
-                .Where(u => reactionUserIds.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, u => u.UserName ?? "Unknown");
-
+            var reactionUsers = await GetReactionUsers(message);
             return ToMessageDto(message, currentUserId, reactionUsers);
         }
 
@@ -115,31 +135,6 @@ namespace CMetalsWS.Data.Chat
                 .ToDictionaryAsync(u => u.Id, u => u.UserName ?? "Unknown");
 
             return messages.Select(m => ToMessageDto(m, currentUserId, allReactionUsers));
-        }
-
-        private static MessageDto ToMessageDto(ChatMessage message, string currentUserId, Dictionary<string, string> allReactionUsers)
-        {
-            var messageReactionUsers = message.Reactions
-                .Select(r => r.UserId)
-                .Distinct()
-                .Where(id => allReactionUsers.ContainsKey(id))
-                .ToDictionary(id => id, id => allReactionUsers[id]);
-
-            return new MessageDto
-            {
-                Id = message.Id,
-                ThreadId = message.ChatGroupId?.ToString() ?? (message.SenderId == currentUserId ? message.RecipientId : message.SenderId),
-                SenderId = message.SenderId,
-                SenderName = message.Sender?.UserName,
-                Content = message.Content,
-                CreatedAt = message.Timestamp,
-                EditedAt = message.EditedAt,
-                DeletedAt = message.DeletedAt,
-                IsPinned = message.IsPinned,
-                Reactions = message.Reactions.GroupBy(r => r.Emoji).ToDictionary(g => g.Key, g => g.Select(r => r.UserId).ToHashSet()),
-                ReactionUsers = messageReactionUsers,
-                SeenBy = message.SeenBy.ToDictionary(s => s.UserId, s => s.Timestamp)
-            };
         }
 
         public async Task<IEnumerable<ApplicationUser>> GetThreadParticipantsAsync(string threadId, string currentUserId)
@@ -294,11 +289,7 @@ namespace CMetalsWS.Data.Chat
                 await context.Entry(message).Collection(m => m.Reactions).LoadAsync();
             }
 
-            var reactionUserIds = message.Reactions.Select(r => r.UserId).Distinct().ToList();
-            var reactionUsers = await _userManager.Users
-                .Where(u => reactionUserIds.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, u => u.UserName ?? "Unknown");
-
+            var reactionUsers = await GetReactionUsers(message);
             return ToMessageDto(message, userId, reactionUsers);
         }
 
@@ -315,11 +306,7 @@ namespace CMetalsWS.Data.Chat
             message.EditedAt = DateTime.UtcNow;
             await context.SaveChangesAsync();
 
-            var reactionUserIds = message.Reactions.Select(r => r.UserId).Distinct().ToList();
-            var reactionUsers = await _userManager.Users
-                .Where(u => reactionUserIds.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, u => u.UserName ?? "Unknown");
-
+            var reactionUsers = await GetReactionUsers(message);
             return ToMessageDto(message, currentUserId, reactionUsers);
         }
 
