@@ -9,17 +9,15 @@ using System.Linq;
 
 namespace CMetalsWS.Components.Layout
 {
-    public partial class MainLayout : LayoutComponentBase
+    public partial class MainLayout : LayoutComponentBase, IDisposable
     {
         [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
         [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+        [Inject] private ChatStateService ChatState { get; set; } = default!;
 
         private bool _isDarkMode = false;
         private bool _drawerOpen = true;
-        private bool _isChatThreadsPanelOpen;
         private MudIconButton? _messagesBtnRef;
-
-        private readonly List<ChatThreadRef> _openChatThreads = new();
 
         private readonly MudTheme _customTheme = new()
         {
@@ -51,6 +49,11 @@ namespace CMetalsWS.Components.Layout
             }
         };
 
+        protected override void OnInitialized()
+        {
+            ChatState.OnChange += StateHasChanged;
+        }
+
         private async void Logout()
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -60,26 +63,9 @@ namespace CMetalsWS.Components.Layout
             }
         }
 
-        private void ToggleChatThreadsPanel() => _isChatThreadsPanelOpen = !_isChatThreadsPanelOpen;
-
-        private void OpenChatWindowFromConversation(ChatThreadRef thread)
+        public void Dispose()
         {
-            if (_openChatThreads.Any(t => t.Id == thread.Id)) return;
-            _openChatThreads.Add(thread);
-            _isChatThreadsPanelOpen = false;
+            ChatState.OnChange -= StateHasChanged;
         }
-
-        private void CloseChatWindow(ChatThreadRef thread) => _openChatThreads.Remove(thread);
-
-        private void MinimizeChatWindow(ChatThreadRef thread) => thread.IsMinimized = !thread.IsMinimized;
-    }
-
-    public class ChatThreadRef
-    {
-        public string? Id { get; set; }
-        public string? Title { get; set; }
-        public ApplicationUser? User { get; set; }
-        public ChatGroup? Group { get; set; }
-        public bool IsMinimized { get; set; }
     }
 }

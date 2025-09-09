@@ -3,16 +3,18 @@
 @using CMetalsWS.Components.Layout
 @inject IChatRepository ChatRepository
 @inject IChatService ChatService
+@inject ChatStateService ChatState
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Identity
+@implements IDisposable
 
 <MudPaper Class="chat-threads-panel" Elevation="8" Style="width:360px;max-height:70vh;overflow:auto;">
   <MudToolBar Dense="true">
     <MudText Typo="Typo.subtitle1">Chats</MudText>
     <MudSpacer />
-    <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="OnClose" />
+    <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="ChatState.ToggleThreadPanel" />
   </MudToolBar>
 
   <MudTextField @bind-Value="_q"
@@ -27,7 +29,7 @@
     <MudTabPanel Text="Recent">
       <MudVirtualize Items="_recentConversations" ItemSize="56" Context="context" T="ThreadSummary">
         <ChildContent>
-          <MudListItem T="ThreadSummary" OnClick="() => OnConversationSelected.InvokeAsync(new ChatThreadRef { Id = context.Id, Title = context.Title })">
+          <MudListItem T="ThreadSummary" OnClick="() => OpenThread(context)">
             <ChildContent>
               <MudAvatar />
               <div class="ml-4">
@@ -67,11 +69,9 @@
 </MudPaper>
 
 @code {
-  [Parameter] public EventCallback OnClose { get; set; }
-  [Parameter] public EventCallback<ChatThreadRef> OnConversationSelected { get; set; }
-
   private string _q = string.Empty;
   private System.Timers.Timer? _searchDebounce;
+  private bool _disposed;
   private Dictionary<string, List<ApplicationUser>> _people = new();
   private List<ChatGroup> _groups = new();
   private List<ThreadSummary> _recentConversations = new();
@@ -97,6 +97,7 @@
   }
 
   private async void OnSearchElapsed(object? s, System.Timers.ElapsedEventArgs e) {
+    if (_disposed) return;
     var q = _q?.Trim();
     if (string.IsNullOrEmpty(q)) {
       await InvokeAsync(() => { _people.Clear(); _groups.Clear(); StateHasChanged(); });
@@ -104,24 +105,40 @@
     }
     var users = await ChatService.SearchUsersAsync(q, _currentBranchId, take: 30);
     var groups = await ChatService.SearchGroupsAsync(q, take: 30);
+    if (_disposed) return;
     await InvokeAsync(() => { _people = users; _groups = groups; StateHasChanged(); });
+  }
+
+  private void OpenThread(ThreadSummary summary)
+  {
+      if (summary.Id != null)
+          ChatState.OpenDock(summary.Id);
   }
 
   private async Task StartUserConversation(ApplicationUser user)
   {
       if (_currentUserId == null) return;
       var summary = await ChatService.GetOrCreateThreadAsync(_currentUserId, otherUserId: user.Id);
-      var threadRef = new ChatThreadRef { Id = summary.Id, Title = summary.Title, User = user };
-      await OnConversationSelected.InvokeAsync(threadRef);
-      await OnClose.InvokeAsync();
+      if (summary.Id != null)
+          ChatState.OpenDock(summary.Id);
   }
 
   private async Task StartGroupConversation(ChatGroup group)
   {
       if (_currentUserId == null) return;
       var summary = await ChatService.GetOrCreateThreadAsync(_currentUserId, groupId: group.Id);
-      var threadRef = new ChatThreadRef { Id = summary.Id, Title = summary.Title, Group = group };
-      await OnConversationSelected.InvokeAsync(threadRef);
-      await OnClose.InvokeAsync();
+      if (summary.Id != null)
+          ChatState.OpenDock(summary.Id);
+  }
+
+  public void Dispose()
+  {
+      _disposed = true;
+      if (_searchDebounce != null)
+      {
+          _searchDebounce.Stop();
+          _searchDebounce.Elapsed -= OnSearchElapsed;
+          _searchDebounce.Dispose();
+      }
   }
 }

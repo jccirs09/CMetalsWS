@@ -1,68 +1,45 @@
-@using CMetalsWS.Data
-@inject CMetalsWS.Services.SignalR.ChatHubClient ChatClient
+@using CMetalsWS.Data.Chat
+@using System.Security.Claims
+@using System.Linq
+@inject IChatRepository ChatRepository
+@inject AuthenticationStateProvider AuthStateProvider
 
 <MudPaper Class="chat-dock" Elevation="4">
-    <MudAppBar Dense="true" Color="Color.Primary">
-        <MudText>@(ThreadUser?.UserName ?? ThreadGroup?.Name ?? Title)</MudText>
+    <MudAppBar Dense="true" Color="Color.Primary" OnClick="ToggleMinimize">
+        <MudText>@_title</MudText>
         <MudSpacer />
-        <MudIconButton Icon="@Icons.Material.Filled.Minimize" OnClick="@(async () => await OnMinimize.InvokeAsync())" Size="Size.Small" />
-        <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="@(async () => await OnClose.InvokeAsync())" Size="Size.Small" />
+        <MudIconButton Icon="@(_isMinimized ? Icons.Material.Filled.KeyboardArrowUp : Icons.Material.Filled.Minimize)" Size="Size.Small" OnClick="ToggleMinimize" />
+        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="() => OnClose.InvokeAsync()" />
     </MudAppBar>
-    @if (!IsMinimized)
+    @if (!_isMinimized && ThreadId != null)
     {
         <div class="pa-2" style="height:300px;">
-            <MudTextField T="string" Value="@_draft" ValueChanged="OnDraftChanged" Placeholder="Type a message..." />
+            <ChatConversation ThreadId="@ThreadId" HideHeader="true" />
         </div>
     }
 </MudPaper>
 
 @code {
-    [Parameter] public ApplicationUser? ThreadUser { get; set; }
-    [Parameter] public ChatGroup? ThreadGroup { get; set; }
-    [Parameter] public string? Title { get; set; }
-    [Parameter] public bool IsMinimized { get; set; }
+    [Parameter] public string? ThreadId { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
-    [Parameter] public EventCallback OnMinimize { get; set; }
 
-    private System.Timers.Timer? _typingTimer;
-    private bool _typingSent;
-    private string _draft = string.Empty;
+    private bool _isMinimized;
+    private string? _title;
 
     protected override async Task OnInitializedAsync()
     {
-        await ChatClient.ConnectAsync();
-        _typingTimer = new System.Timers.Timer(1200) { AutoReset = false };
-        _typingTimer.Elapsed += TypingTimerElapsed;
-    }
-
-    private async Task OnDraftChanged(string value)
-    {
-        _draft = value;
-        if (!_typingSent && ThreadUser != null)
+        if (ThreadId != null)
         {
-            _typingSent = true;
-            await ChatClient.TypingAsync(ThreadUser.Id, true);
-        }
-        _typingTimer?.Stop();
-        _typingTimer?.Start();
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_typingTimer is not null)
-        {
-            _typingTimer.Elapsed -= TypingTimerElapsed;
-            _typingTimer.Dispose();
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var currentUserId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var summaries = await ChatRepository.GetThreadSummariesAsync(currentUserId!);
+            var summary = summaries.FirstOrDefault(s => s.Id == ThreadId);
+            _title = summary?.Title ?? "Chat";
         }
     }
 
-    private async void TypingTimerElapsed(object? _, System.Timers.ElapsedEventArgs __)
+    private void ToggleMinimize()
     {
-        try
-        {
-            if (ThreadUser != null)
-                await ChatClient.TypingAsync(ThreadUser.Id, false);
-        }
-        finally { _typingSent = false; }
+        _isMinimized = !_isMinimized;
     }
 }

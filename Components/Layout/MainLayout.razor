@@ -10,10 +10,13 @@
         <MudIconButton Icon="@Icons.Material.Filled.Menu" OnClick="@(()=>_drawerOpen=!_drawerOpen)" />
         <MudText Typo="Typo.h5" Class="ml-3">Application</MudText>
         <MudSpacer />
-        <MudIconButton @ref="_messagesBtnRef"
-                       Icon="@Icons.Material.Filled.Message"
-                       AriaLabel="Open messages"
-                       OnClick="@ToggleChatThreadsPanel" />
+        @if (!ChatState.IsChatPageOpen)
+        {
+            <MudIconButton @ref="_messagesBtnRef"
+                           Icon="@Icons.Material.Filled.Message"
+                           AriaLabel="Open messages"
+                           OnClick="ChatState.ToggleThreadPanel" />
+        }
         <MudIconButton Icon="@Icons.Material.Filled.Notifications" />
         <MudMenu Icon="@Icons.Material.Filled.Person">
             <MudMenuItem Link="/profile">Profile</MudMenuItem>
@@ -31,31 +34,28 @@
 
 </MudLayout>
 
-<MudPopover Open="_isChatThreadsPanelOpen"
-            Class="z-chat-popover"
-            AnchorReference="PopoverAnchorReference.Element"
-            AnchorEl="_messagesBtnRef?.Ref"
-            AnchorOrigin="Origin.BottomRight"
-            TransformOrigin="Origin.TopRight"
-            Fixed="true"
-            CloseOnOutsideClick="true"
-            OnClose="ToggleChatThreadsPanel">
-    <ChatThreadsPanel OnClose="ToggleChatThreadsPanel"
-                      OnConversationSelected="OpenChatWindowFromConversation" />
-</MudPopover>
+@if (!ChatState.IsChatPageOpen)
+{
+    <MudPopover Open="ChatState.IsThreadPanelOpen"
+                Class="z-chat-popover"
+                AnchorReference="PopoverAnchorReference.Element"
+                AnchorEl="_messagesBtnRef?.Ref"
+                AnchorOrigin="Origin.BottomRight"
+                TransformOrigin="Origin.TopRight"
+                Fixed="true"
+                CloseOnOutsideClick="true"
+                OnClose="ChatState.ToggleThreadPanel">
+        <ChatThreadsPanel />
+    </MudPopover>
 
-<div class="chat-dock-host">
-    @for (var i = 0; i < _openChatThreads.Count; i++)
-    {
-        var thread = _openChatThreads[i];
-        <ChatThreadWindow ThreadUser="@thread.User"
-                          ThreadGroup="@thread.Group"
-                          Title="@thread.Title"
-                          IsMinimized="@thread.IsMinimized"
-                          OnClose="() => CloseChatWindow(thread)"
-                          OnMinimize="() => MinimizeChatWindow(thread)" />
-    }
-</div>
+    <div class="chat-dock-host">
+        @foreach (var threadId in ChatState.OpenDocks)
+        {
+            <ChatThreadWindow ThreadId="@threadId"
+                              OnClose="() => ChatState.CloseDock(threadId)" />
+        }
+    </div>
+}
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.

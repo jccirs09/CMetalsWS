@@ -16,16 +16,19 @@
 @implements IAsyncDisposable
 
 <div class="d-flex flex-column" style="height: 100%;">
-    <MudPaper Elevation="2" Class="pa-2 d-flex align-center">
-        <MudText Typo="Typo.h6">@_threadTitle</MudText>
-        <MudSpacer />
-        <MudIconButton Icon="@Icons.Material.Filled.Search" OnClick="() => _searchOpen = !_searchOpen" />
-        <MudMenu Icon="@Icons.Material.Filled.MoreVert">
-            <MudMenuItem>Mute</MudMenuItem>
-            <MudMenuItem OnClick="PinThread">@(IsThreadPinned ? "Unpin" : "Pin")</MudMenuItem>
-            <MudMenuItem OnClick="RequestNotificationPermission">Enable Notifications</MudMenuItem>
-        </MudMenu>
-    </MudPaper>
+    @if (!HideHeader)
+    {
+        <MudPaper Elevation="2" Class="pa-2 d-flex align-center">
+            <MudText Typo="Typo.h6">@_threadTitle</MudText>
+            <MudSpacer />
+            <MudIconButton Icon="@Icons.Material.Filled.Search" OnClick="() => _searchOpen = !_searchOpen" />
+            <MudMenu Icon="@Icons.Material.Filled.MoreVert">
+                <MudMenuItem>Mute</MudMenuItem>
+                <MudMenuItem OnClick="PinThread">@(IsThreadPinned ? "Unpin" : "Pin")</MudMenuItem>
+                <MudMenuItem OnClick="RequestNotificationPermission">Enable Notifications</MudMenuItem>
+            </MudMenu>
+        </MudPaper>
+    }
     @if(_searchOpen)
     {
         <MudTextField T="string" @bind-Value="_searchQuery" Placeholder="Search in conversation..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" />
@@ -87,6 +90,7 @@
 
 @code {
     [Parameter] public string? ThreadId { get; set; }
+    [Parameter] public bool HideHeader { get; set; }
 
     // Basic state
     private string? _currentUserId;

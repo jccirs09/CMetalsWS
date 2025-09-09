@@ -82,19 +82,38 @@ namespace CMetalsWS.Services
 
             if (groupId.HasValue)
             {
-                var group = await context.ChatGroups.FindAsync(groupId.Value);
+                var group = await context.ChatGroups
+                    .Include(g => g.ChatGroupUsers)
+                    .FirstOrDefaultAsync(g => g.Id == groupId.Value);
                 if (group == null) throw new KeyNotFoundException("Group not found");
-                return new ThreadSummary { Id = group.Id.ToString(), Title = group.Name };
+                return new ThreadSummary
+                {
+                    Id = group.Id.ToString(),
+                    Title = group.Name,
+                    Participants = group.ChatGroupUsers.Select(gu => gu.UserId).ToList()
+                };
             }
 
-            if (otherUserId != null)
+            if (!string.IsNullOrEmpty(otherUserId))
             {
-                var user = await _userManager.FindByIdAsync(otherUserId);
-                if (user == null) throw new KeyNotFoundException("User not found");
-                return new ThreadSummary { Id = user.Id, Title = user.UserName };
+                var otherUser = await _userManager.FindByIdAsync(otherUserId);
+                if (otherUser == null) throw new KeyNotFoundException("User not found");
+
+                // check if any messages exist between users (thread exists implicitly)
+                _ = await context.ChatMessages.AnyAsync(m =>
+                    (m.SenderId == currentUserId && m.RecipientId == otherUserId) ||
+                    (m.SenderId == otherUserId && m.RecipientId == currentUserId));
+
+                return new ThreadSummary
+                {
+                    Id = otherUser.Id,
+                    Title = otherUser.UserName,
+                    AvatarUrl = otherUser.Avatar,
+                    Participants = new List<string> { currentUserId, otherUser.Id }
+                };
             }
 
-            throw new System.ArgumentException("Either otherUserId or groupId must be provided");
+            throw new ArgumentException("Either otherUserId or groupId must be provided");
         }
     }
 }
