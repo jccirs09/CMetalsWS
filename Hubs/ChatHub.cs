@@ -3,6 +3,7 @@ using CMetalsWS.Data.Chat;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -50,12 +51,18 @@ namespace CMetalsWS.Hubs
 
                 if (int.TryParse(threadId, out _))
                 {
-                    await Clients.Group(threadId).SendAsync("MessageReceived", messageDto);
+                    await Clients.Group(threadId).SendAsync("ReceiveMessage", messageDto);
+                    var participants = await _chatRepository.GetThreadParticipantsAsync(threadId, senderId);
+                    var participantIds = participants.Select(p => p.Id).ToList();
+                    await Clients.Users(participantIds).SendAsync("ThreadsUpdated");
                 }
                 else
                 {
-                    await Clients.User(threadId).SendAsync("MessageReceived", messageDto);
-                    await Clients.Caller.SendAsync("MessageReceived", messageDto);
+                    await Clients.User(threadId).SendAsync("ReceiveMessage", messageDto);
+                    await Clients.Caller.SendAsync("ReceiveMessage", messageDto);
+
+                    await Clients.User(threadId).SendAsync("ThreadsUpdated");
+                    await Clients.Caller.SendAsync("ThreadsUpdated");
                 }
             }
             catch (Exception ex)
@@ -189,7 +196,7 @@ namespace CMetalsWS.Hubs
             {
                 var userId = GetUserIdOrThrow();
                 await _chatRepository.PinThreadAsync(threadId, userId, isPinned);
-                await Clients.Caller.SendAsync("ThreadsUpdated");
+                await Clients.User(userId).SendAsync("ThreadsUpdated");
             }
             catch (Exception) { await Clients.Caller.SendAsync("Error", "An error occurred while pinning the thread."); }
         }
