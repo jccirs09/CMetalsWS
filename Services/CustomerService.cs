@@ -14,11 +14,13 @@ namespace CMetalsWS.Services
     {
         private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
         private readonly ICustomerEnrichmentService _customerEnrichmentService;
+        private readonly IGooglePlacesService _googlePlacesService;
 
-        public CustomerService(IDbContextFactory<ApplicationDbContext> dbContextFactory, ICustomerEnrichmentService customerEnrichmentService)
+        public CustomerService(IDbContextFactory<ApplicationDbContext> dbContextFactory, ICustomerEnrichmentService customerEnrichmentService, IGooglePlacesService googlePlacesService)
         {
             _dbContextFactory = dbContextFactory;
             _customerEnrichmentService = customerEnrichmentService;
+            _googlePlacesService = googlePlacesService;
         }
 
         public async Task<Customer?> GetByIdAsync(int id)
@@ -191,19 +193,13 @@ namespace CMetalsWS.Services
         public async Task<CustomerImportReport> CommitImportAsync(List<CustomerImportRow> importRows)
         {
             var report = new CustomerImportReport { TotalRows = importRows.Count };
+            var readyRows = importRows.Where(r => string.IsNullOrWhiteSpace(r.Error) && !r.RequiresManualSelection).ToList();
 
-            foreach (var row in importRows)
+            foreach (var row in readyRows)
             {
                 try
                 {
                     using var db = _dbContextFactory.CreateDbContext();
-
-                    if (!string.IsNullOrWhiteSpace(row.Error))
-                    {
-                        report.FailedImports++;
-                        report.Errors.Add($"Row for {row.Dto.CustomerCode} had a processing error: {row.Error}");
-                        continue;
-                    }
 
                     var customer = await db.Customers.FirstOrDefaultAsync(c => c.CustomerCode == row.Dto.CustomerCode);
                     var isNew = customer == null;
@@ -250,7 +246,14 @@ namespace CMetalsWS.Services
                 }
             }
 
+            report.FailedImports = importRows.Count - report.SuccessfulImports;
+
             return report;
+        }
+
+        public async Task<List<Customer>> SearchFromGooglePlacesAsync(string query)
+        {
+            return await _googlePlacesService.SearchPlacesAsync(query);
         }
     }
 
