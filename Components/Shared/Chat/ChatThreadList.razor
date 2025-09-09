@@ -12,8 +12,8 @@
 @implements IAsyncDisposable
 
 <MudList T="ThreadSummary" Clickable="true">
-    <MudVirtualize ItemsProvider="LoadThreads" T="ThreadSummary" Context="context">
-        <ChildContent>
+    <MudVirtualize ItemsProvider="LoadThreads" T="ThreadSummary">
+        <ItemContent>
             <MudListItem T="ThreadSummary" OnClick="@(() => OnThreadSelected.InvokeAsync(context))">
                 <MudBadge Color="Color.Primary" Overlap="true" Content="@context.UnreadCount" Visible="@(context.UnreadCount > 0)">
                     <MudAvatar>
@@ -28,7 +28,7 @@
                                Color="@(context.IsPinned ? Color.Primary : Color.Default)"
                                OnClick="() => PinThread(context)" />
             </MudListItem>
-        </ChildContent>
+        </ItemContent>
     </MudVirtualize>
 </MudList>
 
@@ -46,7 +46,7 @@
 
     private async Task OnThreadsUpdated()
     {
-        await LoadThreads(new ItemsProviderRequest(0, 100, CancellationToken.None)); // Reload threads
+        await LoadThreads(new ItemsProviderRequest(0, 100)); // Reload threads
         StateHasChanged();
     }
 
@@ -72,9 +72,8 @@
         );
     }
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
         ChatHubClient.ThreadsUpdated -= OnThreadsUpdated;
-        await Task.CompletedTask;
     }
 }

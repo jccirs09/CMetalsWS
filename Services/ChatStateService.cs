@@ -1,15 +1,11 @@
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Routing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace CMetalsWS.Services
 {
-    public class ChatStateService : IDisposable
+    public class ChatStateService
     {
-        private readonly NavigationManager _navManager;
-
         public bool IsChatPageOpen { get; private set; }
         public bool IsThreadPanelOpen { get; private set; }
         public string? ActiveThreadId { get; private set; }
@@ -17,24 +13,6 @@ namespace CMetalsWS.Services
         public int MaxDocks { get; set; } = 3;
 
         public event Action? OnChange;
-
-        public ChatStateService(NavigationManager navManager)
-        {
-            _navManager = navManager;
-            _navManager.LocationChanged += OnLocationChanged;
-        }
-
-        private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
-        {
-            if (_navManager.Uri.Contains("/messages"))
-            {
-                if (!IsChatPageOpen) GoToChatPage();
-            }
-            else
-            {
-                if (IsChatPageOpen) LeaveChatPage();
-            }
-        }
 
         public void ToggleThreadPanel()
         {

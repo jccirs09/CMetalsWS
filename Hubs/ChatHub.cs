@@ -47,27 +47,37 @@ namespace CMetalsWS.Hubs
                     await Clients.Caller.SendAsync("MessageReceived", messageDto);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 await Clients.Caller.SendAsync("Error", "An error occurred while sending the message.");
             }
         }
 
-        public Task JoinThread(string threadId) => Groups.AddToGroupAsync(Context.ConnectionId, threadId);
-
-        public Task LeaveThread(string threadId) => Groups.RemoveFromGroupAsync(Context.ConnectionId, threadId);
-
         public async Task Typing(string threadId, bool isTyping)
         {
             var userId = GetUserIdOrThrow();
-            await Clients.GroupExcept(threadId, Context.ConnectionId).SendAsync("UserTyping", new TypingDto { ThreadId = threadId, UserId = userId, IsTyping = isTyping });
+            var typingDto = new TypingDto { ThreadId = threadId, UserId = userId, IsTyping = isTyping };
+
+            await Clients.GroupExcept(threadId, Context.ConnectionId).SendAsync("UserTyping", typingDto);
         }
 
         public async Task MarkRead(string threadId)
         {
             var readerId = GetUserIdOrThrow();
             await _chatRepository.MarkThreadAsReadAsync(threadId, readerId);
-            await Clients.GroupExcept(threadId, Context.ConnectionId).SendAsync("ThreadRead", new { ThreadId = threadId, ReaderId = readerId, Timestamp = DateTime.UtcNow });
+
+            var readDto = new { ThreadId = threadId, ReaderId = readerId, Timestamp = DateTime.UtcNow };
+
+            await Clients.GroupExcept(threadId, Context.ConnectionId).SendAsync("ThreadRead", readDto);
+        }
+
+        private async Task<bool> IsUserParticipantOfMessageThread(int messageId, string userId)
+        {
+            var message = await _chatRepository.GetMessageAsync(messageId, userId);
+            if (message?.ThreadId == null) return false;
+
+            var participants = await _chatRepository.GetThreadParticipantsAsync(message.ThreadId, userId);
+            return participants.Any(p => p.Id == userId);
         }
 
         public async Task AddReaction(int messageId, string emoji)
@@ -75,6 +85,7 @@ namespace CMetalsWS.Hubs
             try
             {
                 var userId = GetUserIdOrThrow();
+                if (!await IsUserParticipantOfMessageThread(messageId, userId)) throw new HubException("Unauthorized");
                 var messageDto = await _chatRepository.AddReactionAsync(messageId, emoji, userId);
                 if (messageDto?.ThreadId != null)
                 {
@@ -95,6 +106,7 @@ namespace CMetalsWS.Hubs
             try
             {
                 var userId = GetUserIdOrThrow();
+                if (!await IsUserParticipantOfMessageThread(messageId, userId)) throw new HubException("Unauthorized");
                 var messageDto = await _chatRepository.RemoveReactionAsync(messageId, emoji, userId);
                 if (messageDto?.ThreadId != null)
                 {
@@ -108,6 +120,69 @@ namespace CMetalsWS.Hubs
                 }
             }
             catch (Exception) { await Clients.Caller.SendAsync("Error", "An error occurred while removing the reaction."); }
+        }
+
+        public async Task PinThread(string threadId, bool isPinned)
+        {
+            try
+            {
+                var userId = GetUserIdOrThrow();
+                await _chatRepository.PinThreadAsync(threadId, userId, isPinned);
+                // Notify the caller that the thread list should be updated
+                await Clients.Caller.SendAsync("ThreadsUpdated");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                await Clients.Caller.SendAsync("Error", "An error occurred while pinning the thread.");
+            }
+        }
+
+        public async Task PinMessage(int messageId, bool isPinned)
+        {
+            try
+            {
+                var userId = GetUserIdOrThrow();
+                if (!await IsUserParticipantOfMessageThread(messageId, userId)) throw new HubException("Unauthorized");
+
+                await _chatRepository.PinMessageAsync(messageId, isPinned);
+                var message = await _chatRepository.GetMessageAsync(messageId, userId);
+                if (message?.ThreadId != null)
+                {
+                    if (int.TryParse(message.ThreadId, out _))
+                        await Clients.Group(message.ThreadId).SendAsync("MessagePinned", message);
+                    else
+                    {
+                        await Clients.User(message.ThreadId).SendAsync("MessagePinned", message);
+                        await Clients.Caller.SendAsync("MessagePinned", message);
+                    }
+                }
+            }
+            catch (Exception) { await Clients.Caller.SendAsync("Error", "An error occurred while pinning the message."); }
+        }
+
+        public async Task DeleteMessage(int messageId)
+        {
+            try
+            {
+                var userId = GetUserIdOrThrow();
+                var message = await _chatRepository.GetMessageAsync(messageId, userId);
+                if (message?.ThreadId != null)
+                {
+                    var success = await _chatRepository.DeleteMessageForEveryoneAsync(messageId, userId);
+                    if (success)
+                    {
+                        if (int.TryParse(message.ThreadId, out _))
+                            await Clients.Group(message.ThreadId).SendAsync("MessageDeleted", messageId);
+                        else
+                        {
+                            await Clients.User(message.ThreadId).SendAsync("MessageDeleted", messageId);
+                            await Clients.Caller.SendAsync("MessageDeleted", messageId);
+                        }
+                    }
+                }
+            }
+            catch (Exception) { await Clients.Caller.SendAsync("Error", "An error occurred while deleting the message.");}
         }
 
         public async Task UpdateMessage(int messageId, string newContent)
@@ -130,55 +205,6 @@ namespace CMetalsWS.Hubs
             catch (Exception) { await Clients.Caller.SendAsync("Error", "An error occurred while updating the message."); }
         }
 
-        public async Task DeleteMessage(int messageId)
-        {
-            try
-            {
-                var userId = GetUserIdOrThrow();
-                var message = await _chatRepository.GetMessageAsync(messageId, userId);
-                if (message?.ThreadId != null)
-                {
-                    var success = await _chatRepository.DeleteMessageForEveryoneAsync(messageId, userId);
-                    if (success)
-                    {
-                        await Clients.Group(message.ThreadId).SendAsync("MessageDeleted", messageId);
-                    }
-                }
-            }
-            catch (Exception) { await Clients.Caller.SendAsync("Error", "An error occurred while deleting the message.");}
-        }
-
-        public async Task PinMessage(int messageId, bool isPinned)
-        {
-            try
-            {
-                await _chatRepository.PinMessageAsync(messageId, isPinned);
-                var message = await _chatRepository.GetMessageAsync(messageId, GetUserIdOrThrow());
-                if (message?.ThreadId != null)
-                {
-                    if (int.TryParse(message.ThreadId, out _))
-                        await Clients.Group(message.ThreadId).SendAsync("MessagePinned", message);
-                    else
-                    {
-                        await Clients.User(message.ThreadId).SendAsync("MessagePinned", message);
-                        await Clients.Caller.SendAsync("MessagePinned", message);
-                    }
-                }
-            }
-            catch (Exception) { await Clients.Caller.SendAsync("Error", "An error occurred while pinning the message."); }
-        }
-
-        public async Task PinThread(string threadId, bool isPinned)
-        {
-            try
-            {
-                var userId = GetUserIdOrThrow();
-                await _chatRepository.PinThreadAsync(threadId, userId, isPinned);
-                await Clients.Caller.SendAsync("ThreadsUpdated");
-            }
-            catch (Exception) { await Clients.Caller.SendAsync("Error", "An error occurred while pinning the thread."); }
-        }
-
         public override async Task OnConnectedAsync()
         {
             var userId = GetUserIdOrThrow();
@@ -189,6 +215,12 @@ namespace CMetalsWS.Hubs
                     await Groups.AddToGroupAsync(Context.ConnectionId, summary.Id);
             }
             await base.OnConnectedAsync();
+        }
+
+        public override async Task OnDisconnectedAsync(Exception? exception)
+        {
+            // Groups are automatically managed by SignalR
+            await base.OnDisconnectedAsync(exception);
         }
     }
 }

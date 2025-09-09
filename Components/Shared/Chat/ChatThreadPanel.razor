@@ -9,6 +9,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ChatStateService ChatState
 @inject ChatHubClient ChatHubClient
+@inject NavigationManager Nav
 
 @implements IAsyncDisposable
 
@@ -18,7 +19,7 @@
         <MudList T="ThreadSummary" Clickable="true">
             <MudVirtualize @ref="_virtualizeRef" ItemsProvider="LoadThreads" T="ThreadSummary" Context="context">
                 <ChildContent>
-                    <MudListItem T="ThreadSummary" OnClick="@(() => OnThreadSelected.InvokeAsync(context))">
+                    <MudListItem T="ThreadSummary" OnClick="@(() => OpenThread(context))">
                         <MudBadge Color="Color.Primary" Overlap="true" Content="@context.UnreadCount" Visible="@(context.UnreadCount > 0)">
                             <MudAvatar>
                                 <MudImage Src="@context.AvatarUrl" />
@@ -42,8 +43,6 @@
     private string _searchQuery = string.Empty;
     private string? _currentUserId;
     private MudVirtualize<ThreadSummary>? _virtualizeRef;
-
-    [Parameter] public EventCallback<ThreadSummary> OnThreadSelected { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -69,6 +68,18 @@
     private async Task PinThread(ThreadSummary thread)
     {
         await ChatHubClient.PinThreadAsync(thread.Id!, !thread.IsPinned);
+    }
+
+    private void OpenThread(ThreadSummary thread)
+    {
+        if (ChatState.IsChatPageOpen)
+        {
+            Nav.NavigateTo($"/chat/{thread.Id}");
+        }
+        else
+        {
+            ChatState.OpenDock(thread.Id!);
+        }
     }
 
     private async ValueTask<ItemsProviderResult<ThreadSummary>> LoadThreads(ItemsProviderRequest request)

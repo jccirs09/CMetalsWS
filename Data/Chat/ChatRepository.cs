@@ -19,18 +19,140 @@ namespace CMetalsWS.Data.Chat
             _userManager = userManager;
         }
 
-        private async Task<Dictionary<string, string>> GetReactionUsers(ChatMessage message)
+        public async Task<MessageDto?> AddReactionAsync(int messageId, string emoji, string userId)
         {
-            if (message.Reactions == null || !message.Reactions.Any())
-                return new Dictionary<string, string>();
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var message = await context.ChatMessages
+                .Include(m => m.Sender)
+                .Include(m => m.Reactions)
+                .Include(m => m.SeenBy)
+                .FirstOrDefaultAsync(m => m.Id == messageId);
 
-            var userIds = message.Reactions.Select(r => r.UserId).Distinct().ToList();
-            return await _userManager.Users
-                .Where(u => userIds.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, u => u.UserName ?? "Unknown");
+            if (message == null)
+            {
+                return null;
+            }
+
+            var existingReaction = await context.MessageReactions
+                .FirstOrDefaultAsync(r => r.MessageId == messageId && r.UserId == userId && r.Emoji == emoji);
+
+            if (existingReaction == null)
+            {
+                var reaction = new MessageReaction
+                {
+                    MessageId = messageId,
+                    UserId = userId,
+                    Emoji = emoji
+                };
+                context.MessageReactions.Add(reaction);
+                await context.SaveChangesAsync();
+
+                // Reload reactions for the DTO
+                await context.Entry(message).Collection(m => m.Reactions).LoadAsync();
+            }
+
+            return ToMessageDto(message, userId);
         }
 
-        private MessageDto ToMessageDto(ChatMessage message, string currentUserId, Dictionary<string, string> reactionUsers)
+        public async Task<MessageDto> CreateMessageAsync(string threadId, string senderId, string content)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var message = new ChatMessage
+            {
+                SenderId = senderId,
+                Content = content,
+                Timestamp = DateTime.UtcNow
+            };
+
+            if (int.TryParse(threadId, out var groupId))
+            {
+                message.ChatGroupId = groupId;
+            }
+            else
+            {
+                message.RecipientId = threadId;
+            }
+
+            context.ChatMessages.Add(message);
+            await context.SaveChangesAsync();
+
+            // Reload the sender to include it in the DTO
+            await context.Entry(message).Reference(m => m.Sender).LoadAsync();
+
+            return ToMessageDto(message, senderId);
+        }
+
+        public async Task<bool> DeleteMessageForEveryoneAsync(int messageId, string currentUserId)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var message = await context.ChatMessages.FirstOrDefaultAsync(m => m.Id == messageId);
+
+            if (message == null)
+            {
+                return false;
+            }
+
+            // Add policy checks in the service/hub layer (e.g., only sender or admin can delete)
+            if (message.SenderId != currentUserId)
+            {
+                 // For now, let's be strict. This should be a policy decision.
+                 return false;
+            }
+
+            message.DeletedAt = DateTime.UtcNow;
+            message.Content = "This message was deleted."; // Or set to null, depending on UI handling
+
+            await context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<MessageDto?> GetMessageAsync(int messageId, string currentUserId)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var message = await context.ChatMessages
+                .AsNoTracking()
+                .Include(m => m.Sender)
+                .Include(m => m.Reactions)
+                .Include(m => m.SeenBy)
+                .FirstOrDefaultAsync(m => m.Id == messageId);
+
+            return message == null ? null : ToMessageDto(message, currentUserId);
+        }
+
+        public async Task<IEnumerable<MessageDto>> GetMessagesAsync(string threadId, string currentUserId, DateTime? before = null, int take = 50)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var query = context.ChatMessages
+                .AsNoTracking()
+                .Include(m => m.Sender)
+                .Include(m => m.Reactions)
+                .Include(m => m.SeenBy)
+                .AsQueryable();
+
+            if (int.TryParse(threadId, out var groupId))
+            {
+                query = query.Where(m => m.ChatGroupId == groupId);
+            }
+            else
+            {
+                query = query.Where(m => (m.SenderId == currentUserId && m.RecipientId == threadId) || (m.SenderId == threadId && m.RecipientId == currentUserId));
+            }
+
+            if (before.HasValue)
+            {
+                query = query.Where(m => m.Timestamp < before.Value);
+            }
+
+            var messages = await query.OrderByDescending(m => m.Timestamp).Take(take).ToListAsync();
+
+            // Reverse the list to have the newest message last
+            messages.Reverse();
+
+            return messages.Select(m => ToMessageDto(m, currentUserId));
+        }
+
+        private static MessageDto ToMessageDto(ChatMessage message, string currentUserId)
         {
             return new MessageDto
             {
@@ -42,99 +164,11 @@ namespace CMetalsWS.Data.Chat
                 CreatedAt = message.Timestamp,
                 EditedAt = message.EditedAt,
                 DeletedAt = message.DeletedAt,
-                IsPinned = message.IsPinned,
-                Reactions = message.Reactions.GroupBy(r => r.Emoji).ToDictionary(g => g.Key, g => g.Select(r => r.UserId).ToHashSet()),
-                ReactionUsers = reactionUsers,
+                Reactions = message.Reactions
+                    .GroupBy(r => r.Emoji)
+                    .ToDictionary(g => g.Key, g => g.Select(r => r.UserId).ToHashSet()),
                 SeenBy = message.SeenBy.ToDictionary(s => s.UserId, s => s.Timestamp)
             };
-        }
-
-        public async Task<MessageDto?> AddReactionAsync(int messageId, string emoji, string userId)
-        {
-            await using var context = await _contextFactory.CreateDbContextAsync();
-            var message = await context.ChatMessages
-                .Include(m => m.Sender).Include(m => m.Reactions).Include(m => m.SeenBy)
-                .FirstOrDefaultAsync(m => m.Id == messageId);
-
-            if (message == null) return null;
-
-            var existingReaction = await context.MessageReactions
-                .FirstOrDefaultAsync(r => r.MessageId == messageId && r.UserId == userId && r.Emoji == emoji);
-
-            if (existingReaction == null)
-            {
-                context.MessageReactions.Add(new MessageReaction { MessageId = messageId, UserId = userId, Emoji = emoji });
-                await context.SaveChangesAsync();
-                await context.Entry(message).Collection(m => m.Reactions).LoadAsync();
-            }
-
-            var reactionUsers = await GetReactionUsers(message);
-            return ToMessageDto(message, userId, reactionUsers);
-        }
-
-        public async Task<MessageDto> CreateMessageAsync(string threadId, string senderId, string content)
-        {
-            await using var context = await _contextFactory.CreateDbContextAsync();
-            var message = new ChatMessage { SenderId = senderId, Content = content, Timestamp = DateTime.UtcNow };
-
-            if (int.TryParse(threadId, out var groupId)) message.ChatGroupId = groupId;
-            else message.RecipientId = threadId;
-
-            context.ChatMessages.Add(message);
-            await context.SaveChangesAsync();
-            await context.Entry(message).Reference(m => m.Sender).LoadAsync();
-
-            return ToMessageDto(message, senderId, new Dictionary<string, string>());
-        }
-
-        public async Task<bool> DeleteMessageForEveryoneAsync(int messageId, string currentUserId)
-        {
-            await using var context = await _contextFactory.CreateDbContextAsync();
-            var message = await context.ChatMessages.FirstOrDefaultAsync(m => m.Id == messageId);
-            if (message == null || message.SenderId != currentUserId) return false;
-
-            message.DeletedAt = DateTime.UtcNow;
-            message.Content = "This message was deleted.";
-            await context.SaveChangesAsync();
-            return true;
-        }
-
-        public async Task<MessageDto?> GetMessageAsync(int messageId, string currentUserId)
-        {
-            await using var context = await _contextFactory.CreateDbContextAsync();
-            var message = await context.ChatMessages.AsNoTracking()
-                .Include(m => m.Sender).Include(m => m.Reactions).Include(m => m.SeenBy)
-                .FirstOrDefaultAsync(m => m.Id == messageId);
-
-            if (message == null) return null;
-
-            var reactionUsers = await GetReactionUsers(message);
-            return ToMessageDto(message, currentUserId, reactionUsers);
-        }
-
-        public async Task<IEnumerable<MessageDto>> GetMessagesAsync(string threadId, string currentUserId, DateTime? before = null, int take = 50)
-        {
-            await using var context = await _contextFactory.CreateDbContextAsync();
-            var query = context.ChatMessages.AsNoTracking()
-                .Include(m => m.Sender).Include(m => m.Reactions).Include(m => m.SeenBy).AsQueryable();
-
-            if (int.TryParse(threadId, out var groupId))
-                query = query.Where(m => m.ChatGroupId == groupId);
-            else
-                query = query.Where(m => (m.SenderId == currentUserId && m.RecipientId == threadId) || (m.SenderId == threadId && m.RecipientId == currentUserId));
-
-            if (before.HasValue)
-                query = query.Where(m => m.Timestamp < before.Value);
-
-            var messages = await query.OrderByDescending(m => m.Timestamp).Take(take).ToListAsync();
-            messages.Reverse();
-
-            var allReactionUserIds = messages.SelectMany(m => m.Reactions.Select(r => r.UserId)).Distinct().ToList();
-            var allReactionUsers = await _userManager.Users
-                .Where(u => allReactionUserIds.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, u => u.UserName ?? "Unknown");
-
-            return messages.Select(m => ToMessageDto(m, currentUserId, allReactionUsers));
         }
 
         public async Task<IEnumerable<ApplicationUser>> GetThreadParticipantsAsync(string threadId, string currentUserId)
@@ -143,7 +177,10 @@ namespace CMetalsWS.Data.Chat
             {
                 await using var context = await _contextFactory.CreateDbContextAsync();
                 return await context.ChatGroupUsers
-                    .Where(gu => gu.ChatGroupId == groupId).Select(gu => gu.User).Where(u => u != null).ToListAsync()!;
+                    .Where(gu => gu.ChatGroupId == groupId)
+                    .Select(gu => gu.User)
+                    .Where(u => u != null)
+                    .ToListAsync()!;
             }
             else
             {
@@ -159,53 +196,94 @@ namespace CMetalsWS.Data.Chat
         public async Task<IEnumerable<ThreadSummary>> GetThreadSummariesAsync(string userId, string? searchQuery = null)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
+
+            // Get all messages where the user is either the sender or recipient
             var userMessages = context.ChatMessages
                 .Where(m => m.SenderId == userId || m.RecipientId == userId || (m.ChatGroupId.HasValue && m.ChatGroup.ChatGroupUsers.Any(gu => gu.UserId == userId)))
                 .OrderByDescending(m => m.Timestamp)
-                .Select(m => new {
+                .Select(m => new
+                {
                     ThreadId = m.ChatGroupId.HasValue ? m.ChatGroupId.ToString() : (m.SenderId == userId ? m.RecipientId : m.SenderId),
-                    m.Content, m.Timestamp,
+                    m.Content,
+                    m.Timestamp,
+                    IsRead = m.SeenBy.Any(s => s.UserId == userId) || m.SenderId == userId,
+                    m.SenderId,
+                    m.RecipientId,
+                    m.ChatGroupId,
+                    m.ChatGroup
                 });
 
-            var threadSummaries = await userMessages.GroupBy(m => m.ThreadId)
-                .Select(g => new { ThreadId = g.Key, LastMessage = g.OrderByDescending(m => m.Timestamp).FirstOrDefault() })
+            // Group messages by thread to get the latest message and unread count for each thread
+            var threadSummaries = await userMessages
+                .GroupBy(m => m.ThreadId)
+                .Select(g => new
+                {
+                    ThreadId = g.Key,
+                    LastMessage = g.OrderByDescending(m => m.Timestamp).FirstOrDefault()
+                })
                 .ToListAsync();
 
             var summaries = new List<ThreadSummary>();
             foreach (var summary in threadSummaries)
             {
                 if (summary.LastMessage == null || summary.ThreadId == null) continue;
+
                 var unreadCount = await context.ChatMessages
                     .CountAsync(m => (m.ChatGroupId.ToString() == summary.ThreadId || (m.SenderId == summary.ThreadId && m.RecipientId == userId)) && !m.SeenBy.Any(s => s.UserId == userId) && m.SenderId != userId);
 
                 if (int.TryParse(summary.ThreadId, out var groupId))
                 {
-                    var group = await context.ChatGroups.Include(g => g.ChatGroupUsers).ThenInclude(gu => gu.User).FirstOrDefaultAsync(g => g.Id == groupId);
+                    var group = await context.ChatGroups
+                        .Include(g => g.ChatGroupUsers)
+                        .ThenInclude(gu => gu.User)
+                        .FirstOrDefaultAsync(g => g.Id == groupId);
+
                     if (group != null)
-                        summaries.Add(new ThreadSummary {
-                            Id = group.Id.ToString(), Title = group.Name, AvatarUrl = null, LastMessagePreview = summary.LastMessage.Content,
-                            UnreadCount = unreadCount, Participants = group.ChatGroupUsers.Select(gu => gu.User?.Id).Where(id => id != null).ToList()!,
+                    {
+                        summaries.Add(new ThreadSummary
+                        {
+                            Id = group.Id.ToString(),
+                            Title = group.Name,
+                            AvatarUrl = null, // Groups don't have avatars in this schema
+                            LastMessagePreview = summary.LastMessage.Content,
+                            UnreadCount = unreadCount,
+                            Participants = group.ChatGroupUsers.Select(gu => gu.User?.Id).Where(id => id != null).ToList()!,
                             LastActivityAt = summary.LastMessage.Timestamp
                         });
+                    }
                 }
                 else
                 {
-                    var otherUser = await _userManager.FindByIdAsync(summary.ThreadId);
+                    var otherUserId = summary.ThreadId;
+                    var otherUser = await _userManager.FindByIdAsync(otherUserId);
                     if (otherUser != null)
-                        summaries.Add(new ThreadSummary {
-                            Id = otherUser.Id, Title = otherUser.UserName, AvatarUrl = otherUser.Avatar, LastMessagePreview = summary.LastMessage.Content,
-                            UnreadCount = unreadCount, Participants = new List<string> { userId, otherUser.Id }, LastActivityAt = summary.LastMessage.Timestamp
+                    {
+                        summaries.Add(new ThreadSummary
+                        {
+                            Id = otherUser.Id,
+                            Title = otherUser.UserName,
+                            AvatarUrl = otherUser.Avatar,
+                            LastMessagePreview = summary.LastMessage.Content,
+                            UnreadCount = unreadCount,
+                            Participants = new List<string> { userId, otherUserId },
+                            LastActivityAt = summary.LastMessage.Timestamp
                         });
+                    }
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(searchQuery))
-                summaries = summaries.Where(s => (s.Title != null && s.Title.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)) || (s.LastMessagePreview != null && s.LastMessagePreview.Contains(searchQuery, StringComparison.OrdinalIgnoreCase))).ToList();
+            var pinnedThreads = await context.PinnedThreads
+                .Where(p => p.UserId == userId)
+                .Select(p => p.ThreadId)
+                .ToListAsync();
 
-            var pinnedThreads = await context.PinnedThreads.Where(p => p.UserId == userId).Select(p => p.ThreadId).ToListAsync();
             foreach (var summary in summaries)
+            {
                 if (pinnedThreads.Contains(summary.Id!))
+                {
                     summary.IsPinned = true;
+                }
+            }
 
             return summaries.OrderByDescending(s => s.IsPinned).ThenByDescending(s => s.LastActivityAt);
         }
@@ -213,16 +291,34 @@ namespace CMetalsWS.Data.Chat
         public async Task MarkThreadAsReadAsync(string threadId, string userId)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
+
             var now = DateTime.UtcNow;
+
             IQueryable<ChatMessage> messagesToMark;
             if (int.TryParse(threadId, out var groupId))
-                messagesToMark = context.ChatMessages.Where(m => m.ChatGroupId == groupId && m.SenderId != userId);
+            {
+                messagesToMark = context.ChatMessages
+                    .Where(m => m.ChatGroupId == groupId && m.SenderId != userId);
+            }
             else
-                messagesToMark = context.ChatMessages.Where(m => m.SenderId == threadId && m.RecipientId == userId);
-            var unseenMessageIds = await messagesToMark.Where(m => !m.SeenBy.Any(s => s.UserId == userId)).Select(m => m.Id).ToListAsync();
+            {
+                messagesToMark = context.ChatMessages
+                    .Where(m => m.SenderId == threadId && m.RecipientId == userId);
+            }
+
+            var unseenMessageIds = await messagesToMark
+                .Where(m => !m.SeenBy.Any(s => s.UserId == userId))
+                .Select(m => m.Id)
+                .ToListAsync();
+
             if (unseenMessageIds.Any())
             {
-                var seenRecords = unseenMessageIds.Select(messageId => new MessageSeen { MessageId = messageId, UserId = userId, Timestamp = now });
+                var seenRecords = unseenMessageIds.Select(messageId => new MessageSeen
+                {
+                    MessageId = messageId,
+                    UserId = userId,
+                    Timestamp = now
+                });
                 await context.MessageSeens.AddRangeAsync(seenRecords);
                 await context.SaveChangesAsync();
             }
@@ -232,14 +328,25 @@ namespace CMetalsWS.Data.Chat
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
             var messageToPin = await context.ChatMessages.FindAsync(messageId);
-            if (messageToPin == null) return false;
+            if (messageToPin == null)
+            {
+                return false;
+            }
+
+            // Unpin any other message in the same thread
             var threadId = messageToPin.ChatGroupId?.ToString() ?? messageToPin.RecipientId ?? messageToPin.SenderId;
             if (threadId != null)
             {
                 var currentlyPinned = await context.ChatMessages
-                    .Where(m => (m.ChatGroupId.ToString() == threadId || (m.SenderId == threadId || m.RecipientId == threadId)) && m.IsPinned).ToListAsync();
-                foreach (var msg in currentlyPinned) msg.IsPinned = false;
+                    .Where(m => (m.ChatGroupId.ToString() == threadId || (m.SenderId == threadId || m.RecipientId == threadId)) && m.IsPinned)
+                    .ToListAsync();
+
+                foreach (var msg in currentlyPinned)
+                {
+                    msg.IsPinned = false;
+                }
             }
+
             messageToPin.IsPinned = isPinned;
             await context.SaveChangesAsync();
             return true;
@@ -249,6 +356,7 @@ namespace CMetalsWS.Data.Chat
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
             var existingPin = await context.PinnedThreads.FirstOrDefaultAsync(p => p.ThreadId == threadId && p.UserId == userId);
+
             if (isPinned)
             {
                 if (existingPin == null)
@@ -274,10 +382,15 @@ namespace CMetalsWS.Data.Chat
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
             var message = await context.ChatMessages
-                .Include(m => m.Sender).Include(m => m.Reactions).Include(m => m.SeenBy)
+                .Include(m => m.Sender)
+                .Include(m => m.Reactions)
+                .Include(m => m.SeenBy)
                 .FirstOrDefaultAsync(m => m.Id == messageId);
 
-            if (message == null) return null;
+            if (message == null)
+            {
+                return null;
+            }
 
             var reactionToRemove = await context.MessageReactions
                 .FirstOrDefaultAsync(r => r.MessageId == messageId && r.UserId == userId && r.Emoji == emoji);
@@ -286,28 +399,40 @@ namespace CMetalsWS.Data.Chat
             {
                 context.MessageReactions.Remove(reactionToRemove);
                 await context.SaveChangesAsync();
+
+                // Reload reactions for the DTO
                 await context.Entry(message).Collection(m => m.Reactions).LoadAsync();
             }
 
-            var reactionUsers = await GetReactionUsers(message);
-            return ToMessageDto(message, userId, reactionUsers);
+            return ToMessageDto(message, userId);
         }
 
         public async Task<MessageDto?> UpdateMessageAsync(int messageId, string newContent, string currentUserId)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
             var message = await context.ChatMessages
-                .Include(m => m.Sender).Include(m => m.Reactions).Include(m => m.SeenBy)
+                .Include(m => m.Sender)
+                .Include(m => m.Reactions)
+                .Include(m => m.SeenBy)
                 .FirstOrDefaultAsync(m => m.Id == messageId);
 
-            if (message == null || message.SenderId != currentUserId) return null;
+            if (message == null || message.SenderId != currentUserId)
+            {
+                return null;
+            }
+
+            // Optional: Add time limit check here or in a service layer
+            // if ((DateTime.UtcNow - message.Timestamp).TotalMinutes > 15)
+            // {
+            //     return null;
+            // }
 
             message.Content = newContent;
             message.EditedAt = DateTime.UtcNow;
+
             await context.SaveChangesAsync();
 
-            var reactionUsers = await GetReactionUsers(message);
-            return ToMessageDto(message, currentUserId, reactionUsers);
+            return ToMessageDto(message, currentUserId);
         }
 
         public async Task<IEnumerable<ChatGroup>> GetAllGroupsAsync()
@@ -319,26 +444,42 @@ namespace CMetalsWS.Data.Chat
         public async Task<ChatGroup> CreateGroupAsync(string name, int? branchId, List<string> userIds)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
-            var group = new ChatGroup { Name = name, BranchId = branchId };
+            var group = new ChatGroup
+            {
+                Name = name,
+                BranchId = branchId
+            };
+
             context.ChatGroups.Add(group);
             await context.SaveChangesAsync();
+
             foreach (var userId in userIds)
+            {
                 context.ChatGroupUsers.Add(new ChatGroupUser { ChatGroupId = group.Id, UserId = userId });
+            }
             await context.SaveChangesAsync();
+
             return group;
         }
 
         public async Task UpdateGroupAsync(ChatGroup group, List<string> userIds)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
-            var existingGroup = await context.ChatGroups.Include(g => g.ChatGroupUsers).FirstOrDefaultAsync(g => g.Id == group.Id);
+            var existingGroup = await context.ChatGroups
+                .Include(g => g.ChatGroupUsers)
+                .FirstOrDefaultAsync(g => g.Id == group.Id);
+
             if (existingGroup != null)
             {
                 existingGroup.Name = group.Name;
                 existingGroup.BranchId = group.BranchId;
+
                 existingGroup.ChatGroupUsers.Clear();
                 foreach (var userId in userIds)
+                {
                     existingGroup.ChatGroupUsers.Add(new ChatGroupUser { UserId = userId });
+                }
+
                 await context.SaveChangesAsync();
             }
         }

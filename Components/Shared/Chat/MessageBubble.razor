@@ -1,4 +1,3 @@
-@using CMetalsWS.Data
 @using CMetalsWS.Data.Chat
 @using MudBlazor
 
@@ -33,21 +32,14 @@
                 }
             </div>
         </MudPaper>
-        <div class="reaction-bar mt-1">
-            @if (Message?.Reactions.Any() == true)
+        @*<div class="reaction-bar mt-1">
+            @foreach (var reaction in Message?.Reactions.Select(r => r.Key).Distinct() ?? Enumerable.Empty<string>())
             {
-                @foreach (var reaction in Message.Reactions)
-                {
-                    <MudTooltip Text="@GetReactionUsernames(reaction.Key)">
-                        <MudChip T="string" Size="Size.Small" OnClick="@(() => OnReactionClicked.InvokeAsync(reaction.Key))">
-                            @reaction.Key @reaction.Value.Count
-                        </MudChip>
-                    </MudTooltip>
-                }
+                <MudChip T="string" Size="Size.Small" OnClick="@(() => OnReactionClicked.InvokeAsync(reaction))">@reaction</MudChip>
             }
-        </div>
+        </div>*@
     </div>
-    <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" Class="message-actions">
+    @*<MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" Class="message-actions">
         <MudMenuItem OnClick="@(() => OnReactionClicked.InvokeAsync("👍"))">👍</MudMenuItem>
         <MudMenuItem OnClick="@(() => OnReactionClicked.InvokeAsync("❤️"))">❤️</MudMenuItem>
         <MudMenuItem OnClick="@(() => OnReactionClicked.InvokeAsync("😂"))">😂</MudMenuItem>
@@ -57,16 +49,16 @@
         <MudMenuItem OnClick="OnEditClicked">Edit</MudMenuItem>
         <MudMenuItem OnClick="@(() => OnDeleteClicked.InvokeAsync())">Delete</MudMenuItem>
         <MudMenuItem OnClick="@(() => OnPinClicked.InvokeAsync())">@(Message?.IsPinned == true ? "Unpin" : "Pin")</MudMenuItem>
-    </MudMenu>
+    </MudMenu>*@
 </div>
 
 @code {
     [Parameter] public MessageDto? Message { get; set; }
     [Parameter] public bool IsMine { get; set; }
-    [Parameter] public EventCallback<string> OnReactionClicked { get; set; }
-    [Parameter] public EventCallback<string> OnFinishEditing { get; set; }
-    [Parameter] public EventCallback OnDeleteClicked { get; set; }
-    [Parameter] public EventCallback OnPinClicked { get; set; }
+    @* [Parameter] public EventCallback<string> OnReactionClicked { get; set; } *@
+    @* [Parameter] public EventCallback<string> OnFinishEditing { get; set; } *@
+    @* [Parameter] public EventCallback OnDeleteClicked { get; set; } *@
+    @* [Parameter] public EventCallback OnPinClicked { get; set; } *@
 
     private bool _isEditing;
     private string _editedContent = string.Empty;
@@ -93,15 +85,21 @@
     private string GetReadReceiptIcon()
     {
         if (Message == null) return Icons.Material.Filled.AccessTime;
+
         var seenByOthersCount = Message.SeenBy.Count(s => s.Key != Message.SenderId);
+
         if (seenByOthersCount > 0) return Icons.Material.Filled.DoneAll;
+        // The spec implies a "delivered" state, but we only have sent and seen.
+        // We'll use single check for "sent".
         return Icons.Material.Filled.Check;
     }
 
     private string GetReadReceiptColor()
     {
         if (Message == null) return "color: var(--mud-palette-action-disabled);";
+
         var seenByOthersCount = Message.SeenBy.Count(s => s.Key != Message.SenderId);
+
         return seenByOthersCount > 0 ? "color: var(--mud-palette-info);" : "color: var(--mud-palette-action-disabled);";
     }
 
@@ -109,18 +107,10 @@
     {
         if (string.IsNullOrWhiteSpace(name)) return null;
         var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length > 1 ? $"{parts[0][0]}{parts[1][0]}".ToUpper() : $"{name[0]}".ToUpper();
-    }
-
-    private string GetReactionUsernames(string emoji)
-    {
-        if (Message?.Reactions.TryGetValue(emoji, out var userIds) != true)
-            return string.Empty;
-
-        var names = userIds
-            .Select(id => Message.ReactionUsers.GetValueOrDefault(id, "A user"))
-            .ToList();
-
-        return string.Join(", ", names);
+        if (parts.Length > 1)
+        {
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        }
+        return $"{name[0]}".ToUpper();
     }
 }

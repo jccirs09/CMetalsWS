@@ -6,7 +6,7 @@ window.cmetalsChat = {
         }
     },
     playSound: (sound) => {
-        const audio = new Audio(`sounds/${sound}.mp3`);
+        const audio = new Audio(`sounds/${sound}.wav`);
         audio.play();
     },
     isDocumentFocused: () => {

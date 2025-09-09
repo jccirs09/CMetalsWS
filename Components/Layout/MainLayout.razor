@@ -1,4 +1,7 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
+@using CMetalsWS.Services
+@using Microsoft.AspNetCore.Components.Routing
 
 <MudThemeProvider Theme="_customTheme" @bind-IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -15,7 +18,10 @@
             <MudMenuItem Link="/profile">Profile</MudMenuItem>
             <MudMenuItem OnClick="Logout">Logout</MudMenuItem>
         </MudMenu>
-        <ChatThreadsButton />
+        @if (!ChatState.IsChatPageOpen)
+        {
+            <ChatThreadsButton />
+        }
     </MudAppBar>
 
     <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
@@ -28,7 +34,10 @@
 
 </MudLayout>
 
-<ChatDockHost />
+@if (!ChatState.IsChatPageOpen)
+{
+    <ChatDockHost />
+}
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
