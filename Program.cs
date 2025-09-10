@@ -94,6 +94,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 // App services
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 builder.Services.AddScoped<BranchService>();
 builder.Services.AddScoped<RoleService>();

@@ -1,8 +1,10 @@
 using CMetalsWS.Data.Chat;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR.Client;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -26,10 +28,21 @@ namespace CMetalsWS.Services.SignalR
         public event Func<MessageDto, Task>? MessagePinned;
         public event Func<int, Task>? MessageDeleted;
 
-        public ChatHubClient(NavigationManager navManager)
+        public ChatHubClient(NavigationManager navManager, IHttpContextAccessor httpContextAccessor)
         {
+            var uri = new Uri(navManager.BaseUri);
+
             _hubConnection = new HubConnectionBuilder()
-                .WithUrl(navManager.ToAbsoluteUri("/chathub"))
+                .WithUrl(navManager.ToAbsoluteUri("/chathub"), options =>
+                {
+                    if (httpContextAccessor.HttpContext != null)
+                    {
+                        foreach (var cookie in httpContextAccessor.HttpContext.Request.Cookies)
+                        {
+                            options.Cookies.Add(new Cookie(cookie.Key, cookie.Value) { Domain = uri.Host });
+                        }
+                    }
+                })
                 .WithAutomaticReconnect(new[]
                 {
                     TimeSpan.Zero,
