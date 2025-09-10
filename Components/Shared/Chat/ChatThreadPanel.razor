@@ -1,6 +1,7 @@
 @using CMetalsWS.Data.Chat
 @using CMetalsWS.Services
 @using CMetalsWS.Services.SignalR
+@using CMetalsWS.Utils
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web.Virtualization
 @using System.Security.Claims
@@ -10,7 +11,7 @@
 @inject ChatStateService ChatState
 @inject ChatHubClient ChatHubClient
 
-@implements IAsyncDisposable
+@implements IDisposable
 
 <div class="d-flex flex-column">
     <MudTextField @bind-Value="_searchQuery"
@@ -34,7 +35,7 @@
                             }
                             else
                             {
-                                <span class="mud-typography-h6">@GetInitials(t.FullName)</span>
+                                <span class="mud-typography-h6">@UiHelper.GetInitials(t.FullName)</span>
                             }
                         </MudAvatar>
 
@@ -117,18 +118,10 @@
         return new ItemsProviderResult<ThreadSummary>(page, all.Count);
     }
 
-    private string GetInitials(string? fullName)
-    {
-        if (string.IsNullOrWhiteSpace(fullName)) return "?";
-        var parts = fullName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length > 1 ? $"{parts[0][0]}{parts[1][0]}".ToUpper() : $"{parts[0][0]}".ToUpper();
-    }
-
-    public ValueTask DisposeAsync()
+    public void Dispose()
     {
         ChatState.OnChange -= StateHasChanged;
         ChatHubClient.ThreadsUpdated -= OnThreadsUpdated;
-        return ValueTask.CompletedTask;
     }
 }
 

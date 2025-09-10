@@ -9,7 +9,7 @@
 
 <MudGrid Class="h-100 pa-3" Style="min-height:calc(100vh - 128px)">
   <MudItem xs="12" md="4" lg="3">
-    <ChatThreadList OnThreadSelected="OpenThread" />
+    <ChatThreadPanel OnThreadSelected="OpenThread" />
   </MudItem>
 
   <MudItem xs="12" md="8" lg="9">
@@ -33,13 +33,13 @@
 @code {
   [Parameter] public string? ThreadId { get; set; }
 
+  [Inject] private IChatRepository ChatRepository { get; set; } = default!;
+  [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+
   protected override void OnInitialized()
   {
     ChatState.OnChange += StateHasChanged;
   }
-
-  [Inject] private IChatRepository ChatRepository { get; set; } = default!;
-  [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
 
   protected override async Task OnParametersSetAsync()
   {
@@ -50,7 +50,7 @@
     else
     {
       var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-      var userId = authState.User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+      var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
       if (userId != null)
       {
         var summaries = await ChatRepository.GetThreadSummariesAsync(userId);
@@ -63,7 +63,7 @@
     }
   }
 
-  private void OpenThread(ThreadSummary t) => ChatState.HandleThreadClick(t);
+  private void OpenThread(ThreadSummary t) => Nav.NavigateTo($"/messages/{t.Id}");
 
   public void Dispose() => ChatState.OnChange -= StateHasChanged;
 }
