@@ -209,7 +209,19 @@
 
     private async Task OnMessageReceived(MessageDto message)
     {
-        if (message.ThreadId == ThreadId)
+        bool isRelevant = false;
+        if (message.ThreadId != null && message.ThreadId.StartsWith("g:"))
+        {
+            isRelevant = message.ThreadId == ThreadId;
+        }
+        else
+        {
+            var conversationParticipants = new HashSet<string?> { _currentUserId, ThreadId };
+            var messageParticipants = new HashSet<string?> { message.SenderId, message.ThreadId };
+            isRelevant = conversationParticipants.SetEquals(messageParticipants);
+        }
+
+        if (isRelevant)
         {
             var tempMessage = _messages.FirstOrDefault(m => m.Id == 0 && m.SenderId == message.SenderId && m.Content == message.Content);
             if (tempMessage != null)
