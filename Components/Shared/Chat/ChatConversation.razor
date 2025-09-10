@@ -116,7 +116,6 @@
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         _currentUserId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        await ChatHubClient.ConnectAsync();
         ChatHubClient.MessageReceived += OnMessageReceived;
         ChatHubClient.UserTyping += OnUserTyping;
         ChatHubClient.MessageUpdated += OnMessageUpdated;
@@ -167,6 +166,11 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            await ChatHubClient.ConnectAsync();
+        }
+
         if (_shouldScrollToBottom)
         {
             await JSRuntime.InvokeVoidAsync("cmetalsChat.scrollToBottom", _scrollContainerId);

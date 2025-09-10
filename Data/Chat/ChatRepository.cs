@@ -101,21 +101,50 @@ namespace CMetalsWS.Data.Chat
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
 
+            if (string.IsNullOrWhiteSpace(threadId))
+                throw new InvalidOperationException("ThreadId is required.");
+            if (string.IsNullOrWhiteSpace(senderId))
+                throw new InvalidOperationException("SenderId is required.");
+            if (string.IsNullOrWhiteSpace(content))
+                content = string.Empty;
+
             var message = new ChatMessage
             {
                 SenderId = senderId,
-                Content = content,
+                Content  = content,
                 Timestamp = DateTime.UtcNow
             };
 
             if (int.TryParse(threadId, out var groupId))
+            {
+                // Validate group existence
+                var exists = await context.ChatGroups.AsNoTracking().AnyAsync(g => g.Id == groupId);
+                if (!exists)
+                    throw new InvalidOperationException($"Chat group '{groupId}' was not found.");
                 message.ChatGroupId = groupId;
+            }
             else
+            {
+                // DM: validate recipient exists (prevents FK/logic errors)
+                var recipientExists = await context.Users.AsNoTracking().AnyAsync(u => u.Id == threadId);
+                if (!recipientExists)
+                    throw new InvalidOperationException($"Recipient user '{threadId}' was not found.");
                 message.RecipientId = threadId;
+            }
 
             context.ChatMessages.Add(message);
-            await context.SaveChangesAsync();
 
+            try
+            {
+                await context.SaveChangesAsync();
+            }
+            catch (DbUpdateException dbx)
+            {
+                // Make the real problem visible to the hub/client
+                throw new InvalidOperationException($"Failed to save message: {dbx.GetBaseException().Message}", dbx);
+            }
+
+            // Load minimal refs for DTO
             await context.Entry(message).Reference(m => m.Sender).LoadAsync();
             await context.Entry(message).Collection(m => m.Reactions).LoadAsync();
             await context.Entry(message).Collection(m => m.SeenBy).LoadAsync();

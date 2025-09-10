@@ -123,7 +123,10 @@ builder.Services.AddScoped<ChatStateService>();
 builder.Services.AddScoped<ChatHubClient>();
 builder.Services.AddScoped<IChatRepository, ChatRepository>();
 builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(o =>
+{
+    o.EnableDetailedErrors = true;
+});
 
 
 var app = builder.Build();

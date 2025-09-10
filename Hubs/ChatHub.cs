@@ -70,28 +70,27 @@ namespace CMetalsWS.Hubs
 
         public async Task SendMessage(string threadId, string content)
         {
+            var currentUserId = GetUserIdOrThrow();
             try
             {
-                var senderId = GetUserIdOrThrow();
+                if (string.IsNullOrWhiteSpace(content))
+                    return;
+
                 await VerifyUserIsParticipantAsync(threadId);
 
-                var messageDto = await _chatRepository.CreateMessageAsync(threadId, senderId, content);
+                var dto = await _chatRepository.CreateMessageAsync(threadId, currentUserId, content);
 
-                var groupKey = GetThreadGroupKey(threadId, senderId);
-                await Clients.Group(groupKey).SendAsync("ReceiveMessage", messageDto);
+                var key = GetThreadGroupKey(threadId, currentUserId);
+                await Clients.Group(key).SendAsync("ReceiveMessage", dto);
 
-                var participants = await _chatRepository.GetThreadParticipantsAsync(threadId, senderId);
-                foreach (var p in participants)
-                {
-                    await Clients.Group(GetUserGroupName(p.Id)).SendAsync("ThreadsUpdated");
-                }
+                var participants = await _chatRepository.GetThreadParticipantsAsync(threadId, currentUserId);
+                foreach (var uid in participants.Where(u => !string.IsNullOrEmpty(u.Id)).Select(u => u.Id!))
+                    await Clients.Group(GetUserGroupName(uid)).SendAsync("ThreadsUpdated");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ChatHub SendMessage ERROR] {ex}");
-                // We re-throw the exception to let SignalR's built-in error handling pipeline deal with it.
-                // This might involve logging it further or sending a generic error to the client.
-                throw;
+                Console.WriteLine($"[ChatHub.SendMessage] user={currentUserId} threadId={threadId} failed: {ex}");
+                throw new HubException($"SendMessage failed: {ex.GetBaseException().Message}");
             }
         }
 
