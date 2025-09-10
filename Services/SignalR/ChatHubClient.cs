@@ -41,39 +41,45 @@ namespace CMetalsWS.Services.SignalR
 
             RegisterHubEventHandlers();
 
-            // Optional: light self-heal
-            _hubConnection.Closed += async _ =>
+            _hubConnection.Closed += async (error) =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(2));
-                try { await EnsureConnectedAsync(); } catch { /* swallow */ }
+                if (error != null)
+                {
+                    Console.WriteLine($"SignalR connection closed due to an error: {error}");
+                }
+                await Task.Delay(TimeSpan.FromSeconds(5));
+                await EnsureConnectedAsync();
             };
         }
 
         public HubConnectionState State => _hubConnection.State;
         public bool IsConnected => State == HubConnectionState.Connected;
 
-        // Call this at startup or before any hub action.
         public async Task EnsureConnectedAsync()
         {
-            if (_isDisposed) return;
-            if (IsConnected) return;
+            if (_isDisposed || IsConnected) return;
 
             await _connectGate.WaitAsync();
             try
             {
-                if (!_isDisposed && !IsConnected)
-                {
-                    try { await _hubConnection.StartAsync(); }
-                    catch
-                    {
-                        // Keep silent; SafeInvoke() will no-op if still disconnected.
-                    }
-                }
+                if (_isDisposed || IsConnected) return;
+
+                Console.WriteLine("Attempting to connect to SignalR hub...");
+                await _hubConnection.StartAsync();
+                Console.WriteLine("SignalR connection established.");
             }
-            finally { _connectGate.Release(); }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to connect to SignalR hub: {ex}");
+                // Re-throw the exception so the caller knows the connection failed.
+                throw;
+            }
+            finally
+            {
+                _connectGate.Release();
+            }
         }
 
-        // Back-compat
         public Task ConnectAsync() => EnsureConnectedAsync();
 
         private void RegisterHubEventHandlers()
@@ -91,12 +97,18 @@ namespace CMetalsWS.Services.SignalR
             _hubConnection.On<int>("MessageDeleted", id => MessageDeleted?.Invoke(id) ?? Task.CompletedTask);
         }
 
-        // Centralized safe invoker for hub methods
         private async Task SafeInvoke(string methodName, params object?[] args)
         {
-            await EnsureConnectedAsync();
-            if (!IsConnected) return;
-            await _hubConnection.InvokeAsync(methodName, args);
+            try
+            {
+                await EnsureConnectedAsync();
+                await _hubConnection.InvokeAsync(methodName, args);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error invoking hub method '{methodName}': {ex}");
+                // Depending on the app's needs, you might want to show a notification to the user.
+            }
         }
 
         // ---- Public API (all guarded) ----
@@ -148,26 +160,19 @@ namespace CMetalsWS.Services.SignalR
 
             try
             {
-                _hubConnection.Remove("ReceiveMessage");
-                _hubConnection.Remove("ReactionAdded");
-                _hubConnection.Remove("ReactionRemoved");
-                _hubConnection.Remove("UserTyping");
-                _hubConnection.Remove("ThreadRead");
-                _hubConnection.Remove("PresenceChanged");
-                _hubConnection.Remove("ThreadUpdated");
-                _hubConnection.Remove("ThreadsUpdated");
-                _hubConnection.Remove("MessageUpdated");
-                _hubConnection.Remove("MessagePinned");
-                _hubConnection.Remove("MessageDeleted");
-
+                _hubConnection.Closed -= null; // Unsubscribe from all Closed events
                 if (State != HubConnectionState.Disconnected)
                 {
-                    try { await _hubConnection.StopAsync(); } catch { /* ignore */ }
+                    await _hubConnection.StopAsync();
                 }
-                await _hubConnection.DisposeAsync();
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"Error during ChatHubClient disposal: {ex}");
             }
             finally
             {
+                await _hubConnection.DisposeAsync();
                 GC.SuppressFinalize(this);
             }
         }
