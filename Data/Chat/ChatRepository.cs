@@ -207,6 +207,7 @@ namespace CMetalsWS.Data.Chat
                 return await context.ChatGroupUsers
                     .AsNoTracking()
                     .Where(gu => gu.ChatGroupId == groupId)
+                    .Include(gu => gu.User)
                     .Select(gu => gu.User!)
                     .ToListAsync();
             }
