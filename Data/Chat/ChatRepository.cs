@@ -19,6 +19,16 @@ namespace CMetalsWS.Data.Chat
             _userManager = userManager;
         }
 
+        private static bool IsGroupThread(string threadId, out int groupId)
+        {
+            groupId = 0;
+            if (threadId != null && threadId.StartsWith("g:"))
+            {
+                return int.TryParse(threadId.Substring(2), out groupId);
+            }
+            return false;
+        }
+
         // -----------------------------
         // Helpers
         // -----------------------------
@@ -36,8 +46,7 @@ namespace CMetalsWS.Data.Chat
             return new MessageDto
             {
                 Id = message.Id,
-                ThreadId = message.ChatGroupId?.ToString()
-                           ?? (message.SenderId == currentUserId ? message.RecipientId : message.SenderId),
+                ThreadId = message.ChatGroupId.HasValue ? $"g:{message.ChatGroupId.Value}" : (message.SenderId == currentUserId ? message.RecipientId : message.SenderId),
                 SenderId = message.SenderId,
                 SenderName = message.Sender?.UserName,
                 Content = message.Content,
@@ -115,7 +124,7 @@ namespace CMetalsWS.Data.Chat
                 Timestamp = DateTime.UtcNow
             };
 
-            if (int.TryParse(threadId, out var groupId))
+            if (IsGroupThread(threadId, out var groupId))
             {
                 // Validate group existence
                 var exists = await context.ChatGroups.AsNoTracking().AnyAsync(g => g.Id == groupId);
@@ -191,7 +200,7 @@ namespace CMetalsWS.Data.Chat
                 .Include(m => m.SeenBy)
                 .AsQueryable();
 
-            if (int.TryParse(threadId, out var groupId))
+            if (IsGroupThread(threadId, out var groupId))
             {
                 query = query.Where(m => m.ChatGroupId == groupId);
             }
@@ -230,7 +239,7 @@ namespace CMetalsWS.Data.Chat
         // -----------------------------
         public async Task<IEnumerable<ApplicationUser>> GetThreadParticipantsAsync(string threadId, string currentUserId)
         {
-            if (int.TryParse(threadId, out var groupId))
+            if (IsGroupThread(threadId, out var groupId))
             {
                 await using var context = await _contextFactory.CreateDbContextAsync();
                 return await context.ChatGroupUsers
@@ -311,7 +320,7 @@ namespace CMetalsWS.Data.Chat
                 var parts = groupParticipants.FirstOrDefault(x => x.GroupId == g.Id)?.UserIds ?? new List<string>();
                 return new ThreadSummary
                 {
-                    Id = g.Id.ToString(),
+                    Id = $"g:{g.Id}",
                     Title = g.Name,
                     AvatarUrl = null,
                     LastMessagePreview = last?.Content,
@@ -433,7 +442,7 @@ namespace CMetalsWS.Data.Chat
 
             IQueryable<ChatMessage> q;
 
-            if (int.TryParse(threadId, out var groupId))
+            if (IsGroupThread(threadId, out var groupId))
                 q = context.ChatMessages.Where(m => m.ChatGroupId == groupId && m.SenderId != userId);
             else
                 q = context.ChatMessages.Where(m => m.SenderId == threadId && m.RecipientId == userId);
@@ -625,7 +634,7 @@ namespace CMetalsWS.Data.Chat
         // -----------------------------
         public async Task<bool> IsParticipantAsync(string threadId, string userId)
         {
-            if (int.TryParse(threadId, out var groupId))
+            if (IsGroupThread(threadId, out var groupId))
             {
                 await using var context = await _contextFactory.CreateDbContextAsync();
                 return await context.ChatGroupUsers

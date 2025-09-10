@@ -30,8 +30,8 @@ namespace CMetalsWS.Hubs
                 : $"dm:{user2}:{user1}";
 
         private static string GetThreadGroupKey(string threadId, string currentUserId) =>
-            int.TryParse(threadId, out var groupId)
-                ? $"g:{groupId}"
+            threadId.StartsWith("g:")
+                ? threadId
                 : GetDmGroupName(currentUserId, threadId);
 
         // --- Connection Lifecycle ---
