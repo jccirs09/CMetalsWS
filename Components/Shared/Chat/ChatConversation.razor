@@ -56,14 +56,32 @@
                 </MudButton>
             </div>
         }
-        <MudVirtualize Items="@FilteredMessages.ToList()" Context="message">
-            <MessageBubble Message="message"
-                         IsMine="message.SenderId == _currentUserId"
-                         OnFinishEditing="(newContent) => HandleFinishEditing(message.Id, newContent)"
-                         OnReactionClicked="(emoji) => HandleReactionClicked(message.Id, emoji)"
-                         OnDeleteClicked="() => HandleDeleteClicked(message.Id)"
-                         OnPinClicked="() => HandlePinClicked(message.Id, message.IsPinned)" />
-        </MudVirtualize>
+        <div class="pa-4 mud-chat-container">
+            @foreach (var group in GroupedMessages)
+            {
+                <MudChat ChatPosition="@(group.SenderId == _currentUserId ? ChatBubblePosition.End : ChatBubblePosition.Start)">
+                    <ChatAvatar>
+                        <MudAvatar Size="Size.Small">
+                            <MudImage Src="@group.AvatarUrl" />
+                        </MudAvatar>
+                    </ChatAvatar>
+                    <ChatMessages>
+                        @for (var i = 0; i < group.Messages.Count; i++)
+                        {
+                            var message = group.Messages[i];
+                            var showName = i == 0; // Only show name for the first message in a group
+                            <MessageBubble Message="message"
+                                         IsMine="group.SenderId == _currentUserId"
+                                         ShowSenderName="showName"
+                                         OnFinishEditing="(newContent) => HandleFinishEditing(message.Id, newContent)"
+                                         OnReactionClicked="(emoji) => HandleReactionClicked(message.Id, emoji)"
+                                         OnDeleteClicked="() => HandleDeleteClicked(message.Id)"
+                                         OnPinClicked="() => HandlePinClicked(message.Id, message.IsPinned)" />
+                        }
+                    </ChatMessages>
+                </MudChat>
+            }
+        </div>
     </div>
 
     <MudPaper Elevation="2" Class="pa-2">
@@ -84,6 +102,41 @@
 </div>
 
 @code {
+    public class MessageGroup
+    {
+        public string? SenderId { get; set; }
+        public string? SenderName { get; set; }
+        public string? AvatarUrl { get; set; }
+        public List<MessageDto> Messages { get; set; } = new();
+    }
+
+    private IEnumerable<MessageGroup> GroupedMessages
+    {
+        get
+        {
+            var groups = new List<MessageGroup>();
+            if (FilteredMessages == null || !FilteredMessages.Any())
+                return groups;
+
+            MessageGroup? currentGroup = null;
+            foreach (var message in FilteredMessages)
+            {
+                if (currentGroup == null || currentGroup.SenderId != message.SenderId)
+                {
+                    currentGroup = new MessageGroup
+                    {
+                        SenderId = message.SenderId,
+                        SenderName = message.SenderName,
+                        AvatarUrl = _participants.FirstOrDefault(p => p.Id == message.SenderId)?.Avatar
+                    };
+                    groups.Add(currentGroup);
+                }
+                currentGroup.Messages.Add(message);
+            }
+            return groups;
+        }
+    }
+
     [Parameter] public string? ThreadId { get; set; }
 
     private string? _currentUserId;
