@@ -13,18 +13,23 @@
 
 @implements IAsyncDisposable
 
-<div class="d-flex flex-column">
+<MudPaper Class="d-flex flex-column" Style="height: 100%; overflow:hidden;">
     <!-- Search -->
-    <MudTextField @bind-Value="_searchQuery"
-                  Placeholder="Search messages..."
-                  Adornment="Adornment.Start"
-                  AdornmentIcon="@Icons.Material.Filled.Search"
-                  DebounceInterval="300"
-                  OnDebounceIntervalElapsed="Refresh" />
+    <MudToolBar Dense="true">
+        <MudTextField @bind-Value="_searchQuery"
+                      Placeholder="Search messages..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      DebounceInterval="300"
+                      OnDebounceIntervalElapsed="Refresh"
+                      Variant="Variant.Text"
+                      Margin="Margin.None"
+                      HideDetails="true" />
+    </MudToolBar>
 
     <!-- Real scrollable viewport for virtualization -->
-    <div class="thread-viewport">
-        <MudList T="ThreadSummary" Dense="true">
+    <div class="flex-grow-1" style="overflow-y: auto;">
+        <MudList T="ThreadSummary" Dense="true" Class="py-0">
             <MudVirtualize T="ThreadSummary"
                            @ref="_virt"
                            ItemsProvider="LoadThreads"
@@ -181,9 +186,6 @@
 }
 
 <style>
-/* give the virtualizer a real viewport */
-.thread-viewport { height: 400px; overflow: auto; }
-
 /* single-line truncation */
 .thread-item .text-ellipsis {
     overflow: hidden;
