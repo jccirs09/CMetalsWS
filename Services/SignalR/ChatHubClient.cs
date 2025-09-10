@@ -15,6 +15,7 @@ namespace CMetalsWS.Services.SignalR
         private readonly HubConnection _hubConnection;
         private readonly SemaphoreSlim _connectGate = new(1, 1);
         private bool _isDisposed;
+        private readonly Func<Exception?, Task> _closedHandler;
 
         public event Func<MessageDto, Task>? MessageReceived;
         public event Func<MessageDto, Task>? ReactionAdded;
@@ -54,15 +55,20 @@ namespace CMetalsWS.Services.SignalR
 
             RegisterHubEventHandlers();
 
-            _hubConnection.Closed += async (error) =>
+            _closedHandler = async (error) =>
             {
+                if (_isDisposed) return;
                 if (error != null)
                 {
                     Console.WriteLine($"SignalR connection closed due to an error: {error}");
                 }
-                await Task.Delay(TimeSpan.FromSeconds(5));
-                await EnsureConnectedAsync();
+                await Task.Delay(5000);
+                if (!_isDisposed)
+                {
+                    await EnsureConnectedAsync();
+                }
             };
+            _hubConnection.Closed += _closedHandler;
         }
 
         public HubConnectionState State => _hubConnection.State;
@@ -77,15 +83,11 @@ namespace CMetalsWS.Services.SignalR
             {
                 if (_isDisposed || IsConnected) return;
 
-                Console.WriteLine("Attempting to connect to SignalR hub...");
                 await _hubConnection.StartAsync();
-                Console.WriteLine("SignalR connection established.");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Failed to connect to SignalR hub: {ex}");
-                // Re-throw the exception so the caller knows the connection failed.
-                throw;
             }
             finally
             {
@@ -112,17 +114,18 @@ namespace CMetalsWS.Services.SignalR
 
         private async Task SafeInvoke(string methodName, params object?[] args)
         {
+            if (_isDisposed) return;
+
             try
             {
                 await EnsureConnectedAsync();
-                // Use SendAsync with the (string, object[], CancellationToken) overload
-                // so args are treated as multiple parameters, not one array parameter.
+                if (!IsConnected) return;
+
                 await _hubConnection.SendAsync(methodName, args, CancellationToken.None);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error invoking hub method '{methodName}': {ex}");
-                throw; // rethrow so caller sees the real error
             }
         }
 
@@ -168,22 +171,18 @@ namespace CMetalsWS.Services.SignalR
             if (_isDisposed) return;
             _isDisposed = true;
 
-            try
+            if (_hubConnection != null)
             {
-                _hubConnection.Closed -= null; // Unsubscribe from all Closed events
-                if (State != HubConnectionState.Disconnected)
+                _hubConnection.Closed -= _closedHandler;
+                try
                 {
                     await _hubConnection.StopAsync();
                 }
-            }
-            catch(Exception ex)
-            {
-                Console.WriteLine($"Error during ChatHubClient disposal: {ex}");
-            }
-            finally
-            {
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error stopping hub connection: {ex}");
+                }
                 await _hubConnection.DisposeAsync();
-                GC.SuppressFinalize(this);
             }
         }
     }
