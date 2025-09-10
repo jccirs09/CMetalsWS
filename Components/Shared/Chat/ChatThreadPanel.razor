@@ -13,7 +13,6 @@
 @implements IAsyncDisposable
 
 <div class="d-flex flex-column">
-    <!-- Search -->
     <MudTextField @bind-Value="_searchQuery"
                   Placeholder="Search messages..."
                   Adornment="Adornment.Start"
@@ -21,30 +20,27 @@
                   DebounceInterval="300"
                   OnDebounceIntervalElapsed="Refresh" />
 
-    <!-- SCROLLABLE VIEWPORT (important for Virtualize on Blazor Server) -->
     <div class="thread-viewport">
         <MudList T="ThreadSummary" Clickable="true" Dense="true">
-            <Virtualize TItem="ThreadSummary"
-                        ItemsProvider="LoadThreads"
-                        Context="t"
-                        ItemSize="72"
-                        OverscanCount="3"
-                        @ref="_virt"
-                        @key="_currentUserId">
+            <Virtualize TItem="ThreadSummary" ItemsProvider="LoadThreads" Context="t" ItemSize="72" OverscanCount="3" @ref="_virt" @key="_currentUserId">
                 <ItemContent>
-                    <MudListItem T="ThreadSummary" OnClick="@(() => OnThreadSelected.InvokeAsync(t))">
-                        <MudBadge Color="Color.Primary"
-                                  Overlap="true"
-                                  Content="@t.UnreadCount"
-                                  Visible="@(t.UnreadCount > 0)">
-                            <MudAvatar>
+                    <MudListItem T="ThreadSummary" OnClick="@(() => OnThreadSelected.InvokeAsync(t))"
+                                 Class="@(ChatState.ActiveThreadId == t.Id ? "mud-selected-item mud-primary-text mud-primary-hover" : "")">
+
+                        <MudAvatar>
+                            @if (!string.IsNullOrWhiteSpace(t.AvatarUrl))
+                            {
                                 <MudImage Src="@t.AvatarUrl" />
-                            </MudAvatar>
-                        </MudBadge>
+                            }
+                            else
+                            {
+                                <span class="mud-typography-h6">@GetInitials(t.FullName)</span>
+                            }
+                        </MudAvatar>
 
                         <div class="ml-4 flex-grow-1">
-                            <MudText>@t.Title</MudText>
-                            <MudText Typo="Typo.caption">@t.LastMessagePreview</MudText>
+                            <MudText Typo="Typo.subtitle2" Style="font-weight: bold;">@t.FullName</MudText>
+                            <MudText Typo="Typo.caption" Style="@(t.UnreadCount > 0 ? "font-weight: bold;" : "")">@t.LastMessagePreview</MudText>
                         </div>
 
                         <MudIconButton Icon="@(t.IsPinned? Icons.Material.Filled.PushPin : Icons.Material.Outlined.PushPin)"
@@ -78,20 +74,13 @@
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var u = authState.User;
-
-        _currentUserId =
-            u.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? u.FindFirst("sub")?.Value
-            ?? u.FindFirst("oid")?.Value
-            ?? u.FindFirst("uid")?.Value;
-
+        _currentUserId = u.FindFirstValue(ClaimTypes.NameIdentifier);
+        ChatState.OnChange += StateHasChanged;
         ChatHubClient.ThreadsUpdated += OnThreadsUpdated;
-        await ChatHubClient.ConnectAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Force the first provider run after the virtualizer mounts
         if (firstRender && _virt != null)
         {
             await _virt.RefreshDataAsync();
@@ -100,8 +89,7 @@
 
     private async Task Refresh()
     {
-        if (_virt != null)
-            await _virt.RefreshDataAsync();
+        if (_virt != null) await _virt.RefreshDataAsync();
     }
 
     private async Task OnThreadsUpdated()
@@ -119,7 +107,6 @@
     private async ValueTask<ItemsProviderResult<ThreadSummary>> LoadThreads(ItemsProviderRequest request)
     {
         _providerRan = true;
-
         if (string.IsNullOrEmpty(_currentUserId))
             return new ItemsProviderResult<ThreadSummary>(Array.Empty<ThreadSummary>(), 0);
 
@@ -130,15 +117,22 @@
         return new ItemsProviderResult<ThreadSummary>(page, all.Count);
     }
 
+    private string GetInitials(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return "?";
+        var parts = fullName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 1 ? $"{parts[0][0]}{parts[1][0]}".ToUpper() : $"{parts[0][0]}".ToUpper();
+    }
+
     public ValueTask DisposeAsync()
     {
+        ChatState.OnChange -= StateHasChanged;
         ChatHubClient.ThreadsUpdated -= OnThreadsUpdated;
         return ValueTask.CompletedTask;
     }
 }
 
 <style>
-    /* Give the virtualizer a real viewport; adjust offset to fit your layout */
     .thread-viewport {
         height: calc(100vh - 220px);
         overflow: auto;

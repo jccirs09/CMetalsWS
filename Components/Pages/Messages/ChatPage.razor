@@ -8,7 +8,7 @@
 
 <MudGrid Class="h-100 pa-3" Style="min-height:calc(100vh - 128px)">
   <MudItem xs="12" md="4" lg="3">
-    <ChatThreadPanel OnThreadSelected="OpenThread" />
+    <ChatThreadList OnThreadSelected="OpenThread" />
   </MudItem>
 
   <MudItem xs="12" md="8" lg="9">
@@ -37,11 +37,28 @@
     ChatState.OnChange += StateHasChanged;
   }
 
-  protected override void OnParametersSet()
+  [Inject] private IChatRepository ChatRepository { get; set; } = default!;
+  [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+
+  protected override async Task OnParametersSetAsync()
   {
     if (!string.IsNullOrWhiteSpace(ThreadId))
     {
       ChatState.ActivateThread(ThreadId);
+    }
+    else
+    {
+      var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+      var userId = authState.User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+      if (userId != null)
+      {
+        var summaries = await ChatRepository.GetThreadSummariesAsync(userId);
+        var latestThread = summaries.OrderByDescending(s => s.LastActivityAt).FirstOrDefault();
+        if (latestThread?.Id != null)
+        {
+          Nav.NavigateTo($"/messages/{latestThread.Id}", replace: true);
+        }
+      }
     }
   }
 

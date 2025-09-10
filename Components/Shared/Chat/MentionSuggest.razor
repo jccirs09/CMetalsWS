@@ -1,42 +1,35 @@
 @using CMetalsWS.Data
 @using MudBlazor
 
-<MudPopover Open="IsOpen"
-            AnchorOrigin="Origin.TopCenter"
-            TransformOrigin="Origin.BottomCenter"
-            RelativeWidth="DropdownWidth.Adaptive"
-            Class="px-4 py-2">
-    <MudList T="ApplicationUser" Clickable="true" Dense="true">
-        @foreach (var user in Filtered)
+<MudPopover Open="@_isOpen" AnchorOrigin="Origin.TopCenter" TransformOrigin="Origin.BottomCenter" Class="px-4 py-2">
+    <MudList T="ApplicationUser" Clickable="true">
+        @foreach (var user in Suggestions)
         {
-            <MudListItem T="ApplicationUser" OnClick="@(() => SelectUser(user))">
+            <MudListItem T="ApplicationUser" OnClick="() => SelectUser(user)">
                 <MudAvatar Size="Size.Small" Image="@user.Avatar" />
-                <MudText Class="ml-2">@(!string.IsNullOrWhiteSpace(user.UserName) ? user.UserName : user.Email)</MudText>
+                <MudText Class="ml-2">@user.UserName</MudText>
             </MudListItem>
         }
     </MudList>
 </MudPopover>
 
 @code {
-    [Parameter] public IEnumerable<ApplicationUser> Suggestions { get; set; } = Array.Empty<ApplicationUser>();
+    [Parameter] public IEnumerable<ApplicationUser> Suggestions { get; set; } = new List<ApplicationUser>();
     [Parameter] public EventCallback<ApplicationUser> OnUserSelected { get; set; }
-    [Parameter] public string? Filter { get; set; }    // required by ChatConversation
 
     private bool _isOpen;
 
-    public void Open() { _isOpen = true; StateHasChanged(); }
-    public void Close() { _isOpen = false; StateHasChanged(); }
+    public void Open()
+    {
+        _isOpen = true;
+        StateHasChanged();
+    }
 
-    private IEnumerable<ApplicationUser> Filtered =>
-        string.IsNullOrWhiteSpace(Filter)
-            ? Enumerable.Empty<ApplicationUser>()
-            : Suggestions
-                .Where(u =>
-                    (!string.IsNullOrEmpty(u.UserName) && u.UserName.Contains(Filter, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrEmpty(u.Email) && u.Email.Contains(Filter, StringComparison.OrdinalIgnoreCase)))
-                .Take(8);
-
-    private bool IsOpen => _isOpen && Filtered.Any();
+    public void Close()
+    {
+        _isOpen = false;
+        StateHasChanged();
+    }
 
     private async Task SelectUser(ApplicationUser user)
     {

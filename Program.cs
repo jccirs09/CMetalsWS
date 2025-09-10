@@ -94,7 +94,6 @@ builder.Services.AddAuthorization(options =>
 });
 
 // App services
-builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 builder.Services.AddScoped<BranchService>();
 builder.Services.AddScoped<RoleService>();
@@ -123,10 +122,7 @@ builder.Services.AddScoped<ChatStateService>();
 builder.Services.AddScoped<ChatHubClient>();
 builder.Services.AddScoped<IChatRepository, ChatRepository>();
 builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
-builder.Services.AddSignalR(o =>
-{
-    o.EnableDetailedErrors = true;
-});
+builder.Services.AddSignalR();
 
 
 var app = builder.Build();
@@ -167,7 +163,7 @@ app.MapRazorComponents<App>()
 app.MapAdditionalIdentityEndpoints();
 
 app.MapHub<ScheduleHub>("/hubs/schedule");
-app.MapHub<ChatHub>("/chathub");
+app.MapHub<ChatHub>("/hubs/chat");
 
 
 
