@@ -314,7 +314,7 @@
 
     private async Task RequestNotificationPermission() => await JSRuntime.InvokeAsync<string>("cmetalsChat.requestNotificationPermission");
 
-    private async Task OnUserTyping(TypingDto typingInfo)
+    private void OnUserTyping(TypingDto typingInfo)
     {
         if (typingInfo.ThreadId == ThreadId && typingInfo.UserId != _currentUserId)
         {
