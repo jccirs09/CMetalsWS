@@ -10,52 +10,89 @@
 @inject ChatStateService ChatState
 @inject ChatHubClient ChatHubClient
 
-@implements IAsyncDisposable
+@implements IDisposable
 
-<div class="d-flex flex-column" style="max-height: 400px;">
-    <MudTextField @bind-Value="_searchQuery" Placeholder="Search messages..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" DebounceInterval="300" OnDebounceIntervalElapsed="Refresh" />
-    <div class="flex-grow-1 overflow-y-auto">
-        <MudList T="ThreadSummary" Clickable="true">
+<MudPaper Class="d-flex flex-column flex-grow-1 overflow-hidden" Style="height: 100%;" Elevation="0">
+    <MudToolBar Dense="true">
+        <MudTextField @bind-Value="_searchQuery" Placeholder="Search messages..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" DebounceInterval="300" OnDebounceIntervalElapsed="Refresh" Variant="Variant.Text" Margin="Margin.None" HideDetails="true" />
+    </MudToolBar>
+    <div class="flex-grow-1" style="overflow-y: auto;">
+        <MudList T="ThreadSummary" Clickable="true" Class="py-0">
             <MudVirtualize @ref="_virtualizeRef" ItemsProvider="LoadThreads" T="ThreadSummary" Context="context">
                 <ChildContent>
-                    <MudListItem T="ThreadSummary" OnClick="@(() => OnThreadSelected.InvokeAsync(context))">
+                    <MudListItem T="ThreadSummary" OnClick="@(() => OnThreadSelected.InvokeAsync(context))" Class="@(ChatState.ActiveThreadId == context.Id ? "mud-selected-item" : "")">
                         <MudBadge Color="Color.Primary" Overlap="true" Content="@context.UnreadCount" Visible="@(context.UnreadCount > 0)">
                             <MudAvatar>
-                                <MudImage Src="@context.AvatarUrl" />
+                                @if (!string.IsNullOrEmpty(context.AvatarUrl))
+                                {
+                                    <MudImage Src="@context.AvatarUrl" />
+                                }
+                                else
+                                {
+                                    <span class="mud-typography-h6">@GetInitials(context)</span>
+                                }
                             </MudAvatar>
                         </MudBadge>
                         <div class="ml-4 flex-grow-1">
-                            <MudText>@context.Title</MudText>
-                            <MudText Typo="Typo.caption">@context.LastMessagePreview</MudText>
+                            <MudText Typo="Typo.body1"><b>@GetTitle(context)</b></MudText>
+                            <MudText Typo="@(context.UnreadCount > 0 ? Typo.body2 : Typo.caption)" Style="@(context.UnreadCount > 0 ? "font-weight: bold;" : "")">@context.LastMessagePreview</MudText>
                         </div>
                         <MudIconButton Icon="@(context.IsPinned ? Icons.Material.Filled.PushPin : Icons.Material.Outlined.PushPin)"
                                        Color="@(context.IsPinned ? Color.Primary : Color.Default)"
-                                       OnClick="() => PinThread(context)" />
+                                       OnClick="() => PinThread(context)" OnClickStopPropagation="true" />
                     </MudListItem>
+                    <MudDivider />
                 </ChildContent>
+                <Placeholder>
+                    @for (int i = 0; i < 5; i++)
+                    {
+                        <MudListItem>
+                            <MudSkeleton SkeletonType="SkeletonType.Circle" Animation="Animation.Wave" Width="40px" Height="40px" />
+                            <div class="ml-4 flex-grow-1">
+                                <MudSkeleton Animation="Animation.Wave" Width="80%" />
+                                <MudSkeleton Animation="Animation.Wave" Width="50%" />
+                            </div>
+                        </MudListItem>
+                    }
+                </Placeholder>
             </MudVirtualize>
         </MudList>
     </div>
-</div>
+</MudPaper>
+
+@inject NavigationManager Nav
 
 @code {
     private string _searchQuery = string.Empty;
     private string? _currentUserId;
     private MudVirtualize<ThreadSummary>? _virtualizeRef;
+    private List<ThreadSummary> _loadedSummaries = new();
 
     [Parameter] public EventCallback<ThreadSummary> OnThreadSelected { get; set; }
+
+    private string GetInitials(ThreadSummary context)
+    {
+        if (!string.IsNullOrWhiteSpace(context.FirstName) && !string.IsNullOrWhiteSpace(context.LastName))
+            return $"{context.FirstName[0]}{context.LastName[0]}";
+        if (!string.IsNullOrWhiteSpace(context.Title))
+            return context.Title.Length > 1 ? context.Title.Substring(0, 2) : context.Title;
+        return "?";
+    }
+
+    private string GetTitle(ThreadSummary context)
+    {
+        if (!string.IsNullOrWhiteSpace(context.FirstName))
+            return $"{context.FirstName} {context.LastName}";
+        return context.Title ?? "Unknown";
+    }
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var u = authState.User;
-
-        _currentUserId =
-            u.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? u.FindFirst("sub")?.Value
-            ?? u.FindFirst("oid")?.Value;
+        _currentUserId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         ChatHubClient.ThreadsUpdated += OnThreadsUpdated;
+        ChatState.OnChange += StateHasChanged;
     }
 
     private async Task Refresh()
@@ -79,22 +116,32 @@
 
     private async ValueTask<ItemsProviderResult<ThreadSummary>> LoadThreads(ItemsProviderRequest request)
     {
-        if (_currentUserId == null)
-        {
-            return new ItemsProviderResult<ThreadSummary>(new List<ThreadSummary>(), 0);
-        }
-
-        var summaries = (await ChatRepository.GetThreadSummariesAsync(_currentUserId, _searchQuery)).ToList();
-
+        // This method is now only responsible for fetching the data.
+        _loadedSummaries = (await ChatRepository.GetThreadSummariesAsync(_currentUserId, _searchQuery)).ToList();
         return new ItemsProviderResult<ThreadSummary>(
-            summaries.Skip(request.StartIndex).Take(request.Count),
-            summaries.Count
+            _loadedSummaries.Skip(request.StartIndex).Take(request.Count),
+            _loadedSummaries.Count
         );
     }
 
-    public async ValueTask DisposeAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // On the first render, manually trigger the virtualize component to load its data.
+            await _virtualizeRef.RefreshDataAsync();
+
+            // After the data is loaded, check if we should auto-select the first thread.
+            if (_loadedSummaries.Any() && string.IsNullOrWhiteSpace(ChatState.ActiveThreadId))
+            {
+                await OnThreadSelected.InvokeAsync(_loadedSummaries.First());
+            }
+        }
+    }
+
+    public void Dispose()
     {
         ChatHubClient.ThreadsUpdated -= OnThreadsUpdated;
-        await Task.CompletedTask;
+        ChatState.OnChange -= StateHasChanged;
     }
 }

@@ -97,71 +97,39 @@ namespace CMetalsWS.Services.SignalR
             _hubConnection.On<int>("MessageDeleted", id => MessageDeleted?.Invoke(id) ?? Task.CompletedTask);
         }
 
-        private async Task TryInvokeAsync(Func<Task> hubAction, string methodName)
+        private async Task InvokeApi(Func<HubConnection, Task> action, string methodName)
         {
             if (_isDisposed) return;
-            try
+            await EnsureConnectedAsync();
+            if (!IsConnected)
             {
-                await EnsureConnectedAsync();
-                if (!IsConnected) return;
-                await hubAction();
-            }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("not active"))
-            {
-                Console.WriteLine($"Ignoring expected error during {methodName}: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error invoking hub method '{methodName}': {ex}");
-            }
-        }
-
-        private async Task TrySendAsync(Func<Task> hubAction, string methodName)
-        {
-            if (_isDisposed) return;
-            try
-            {
-                await EnsureConnectedAsync();
-                if (!IsConnected) return;
-                await hubAction();
-            }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("not active"))
-            {
-                Console.WriteLine($"Ignoring expected error during {methodName}: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error sending to hub method '{methodName}': {ex}");
-            }
-        }
-
-        public Task SendMessageAsync(string threadId, string content) => TryInvokeAsync(() => _hubConnection.InvokeAsync("SendMessage", threadId, content), nameof(SendMessageAsync));
-        public Task AddReactionAsync(int messageId, string emoji) => TryInvokeAsync(() => _hubConnection.InvokeAsync("AddReaction", messageId, emoji), nameof(AddReactionAsync));
-        public Task RemoveReactionAsync(int messageId, string emoji) => TryInvokeAsync(() => _hubConnection.InvokeAsync("RemoveReaction", messageId, emoji), nameof(RemoveReactionAsync));
-        public Task UpdateMessageAsync(int messageId, string newContent) => TryInvokeAsync(() => _hubConnection.InvokeAsync("UpdateMessage", messageId, newContent), nameof(UpdateMessageAsync));
-        public Task MarkReadAsync(string threadId) => TryInvokeAsync(() => _hubConnection.InvokeAsync("MarkRead", threadId), nameof(MarkReadAsync));
-        public Task JoinThreadAsync(string threadId) => TryInvokeAsync(() => _hubConnection.InvokeAsync("JoinThread", threadId), nameof(JoinThreadAsync));
-        public Task UpdatePresenceAsync(string status) => TryInvokeAsync(() => _hubConnection.InvokeAsync("UpdatePresence", status), nameof(UpdatePresenceAsync));
-        public Task PinThreadAsync(string threadId, bool isPinned) => TryInvokeAsync(() => _hubConnection.InvokeAsync("PinThread", threadId, isPinned), nameof(PinThreadAsync));
-        public Task PinMessageAsync(int messageId, bool isPinned) => TryInvokeAsync(() => _hubConnection.InvokeAsync("PinMessage", messageId, isPinned), nameof(PinMessageAsync));
-        public Task DeleteMessageAsync(int messageId) => TryInvokeAsync(() => _hubConnection.InvokeAsync("DeleteMessage", messageId), nameof(DeleteMessageAsync));
-        public Task TypingAsync(string threadId, bool isTyping) => TrySendAsync(() => _hubConnection.SendAsync("Typing", threadId, isTyping), nameof(TypingAsync));
-
-        public async Task LeaveThreadAsync(string threadId)
-        {
-            if (_isDisposed || _hubConnection.State != HubConnectionState.Connected)
-            {
+                Console.WriteLine($"Cannot invoke '{methodName}', connection not active.");
                 return;
             }
+
             try
             {
-                await _hubConnection.InvokeAsync("LeaveThread", threadId);
+                await action(_hubConnection);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Ignoring error during LeaveThreadAsync: {ex.Message}");
+                // This is often called during component disposal, so we just log instead of throwing.
+                Console.WriteLine($"Ignoring error during {methodName}: {ex.Message}");
             }
         }
+
+        public Task SendMessageAsync(string threadId, string content) => InvokeApi(hub => hub.InvokeAsync("SendMessage", threadId, content), nameof(SendMessageAsync));
+        public Task AddReactionAsync(int messageId, string emoji) => InvokeApi(hub => hub.InvokeAsync("AddReaction", messageId, emoji), nameof(AddReactionAsync));
+        public Task RemoveReactionAsync(int messageId, string emoji) => InvokeApi(hub => hub.InvokeAsync("RemoveReaction", messageId, emoji), nameof(RemoveReactionAsync));
+        public Task UpdateMessageAsync(int messageId, string newContent) => InvokeApi(hub => hub.InvokeAsync("UpdateMessage", messageId, newContent), nameof(UpdateMessageAsync));
+        public Task MarkReadAsync(string threadId) => InvokeApi(hub => hub.InvokeAsync("MarkRead", threadId), nameof(MarkReadAsync));
+        public Task JoinThreadAsync(string threadId) => InvokeApi(hub => hub.InvokeAsync("JoinThread", threadId), nameof(JoinThreadAsync));
+        public Task LeaveThreadAsync(string threadId) => InvokeApi(hub => hub.InvokeAsync("LeaveThread", threadId), nameof(LeaveThreadAsync));
+        public Task UpdatePresenceAsync(string status) => InvokeApi(hub => hub.InvokeAsync("UpdatePresence", status), nameof(UpdatePresenceAsync));
+        public Task PinThreadAsync(string threadId, bool isPinned) => InvokeApi(hub => hub.InvokeAsync("PinThread", threadId, isPinned), nameof(PinThreadAsync));
+        public Task PinMessageAsync(int messageId, bool isPinned) => InvokeApi(hub => hub.InvokeAsync("PinMessage", messageId, isPinned), nameof(PinMessageAsync));
+        public Task DeleteMessageAsync(int messageId) => InvokeApi(hub => hub.InvokeAsync("DeleteMessage", messageId), nameof(DeleteMessageAsync));
+        public Task TypingAsync(string threadId, bool isTyping) => InvokeApi(hub => hub.SendAsync("Typing", threadId, isTyping), nameof(TypingAsync));
 
         public async ValueTask DisposeAsync()
         {

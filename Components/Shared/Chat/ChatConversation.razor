@@ -29,7 +29,18 @@
     </MudPaper>
     @if(_searchOpen)
     {
-        <MudTextField T="string" @bind-Value="_searchQuery" Placeholder="Search in conversation..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" />
+        <MudToolBar Dense="true">
+            <MudTextField T="string"
+                          Value="_searchQuery"
+                          ValueChanged="(s) => { _searchQuery = s; StateHasChanged(); }"
+                          Placeholder="Search in conversation..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          DebounceInterval="300"
+                          Variant="Variant.Text"
+                          Margin="Margin.None"
+                          HideDetails="true" />
+        </MudToolBar>
     }
 
     @if (PinnedMessage != null)
