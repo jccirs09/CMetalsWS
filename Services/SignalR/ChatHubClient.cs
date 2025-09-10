@@ -115,12 +115,14 @@ namespace CMetalsWS.Services.SignalR
             try
             {
                 await EnsureConnectedAsync();
-                await _hubConnection.InvokeAsync(methodName, args);
+                // Use SendAsync with the (string, object[], CancellationToken) overload
+                // so args are treated as multiple parameters, not one array parameter.
+                await _hubConnection.SendAsync(methodName, args, CancellationToken.None);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error invoking hub method '{methodName}': {ex}");
-                // Depending on the app's needs, you might want to show a notification to the user.
+                throw; // rethrow so caller sees the real error
             }
         }
 
@@ -146,12 +148,7 @@ namespace CMetalsWS.Services.SignalR
         public Task JoinThreadAsync(string threadId)
             => SafeInvoke("JoinThread", threadId);
 
-        public Task LeaveThreadAsync(string threadId)
-        {
-            // During dispose/navigation we don't want to throw when disconnected
-            if (!IsConnected) return Task.CompletedTask;
-            return _hubConnection.InvokeAsync("LeaveThread", threadId);
-        }
+        public Task LeaveThreadAsync(string threadId) => SafeInvoke("LeaveThread", threadId);
 
         public Task UpdatePresenceAsync(string status)
             => SafeInvoke("UpdatePresence", status);
