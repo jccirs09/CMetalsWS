@@ -12,7 +12,7 @@
     <ChatThreadPanel OnThreadSelected="OpenThread" />
   </MudItem>
 
-  <MudItem xs="12" md="8" lg="9">
+  <MudItem xs="12" md="8" lg="9" Style="height: 100%;">
     @if (!string.IsNullOrWhiteSpace(ChatState.ActiveThreadId))
     {
       <ChatConversation

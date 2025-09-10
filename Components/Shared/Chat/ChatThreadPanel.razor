@@ -11,7 +11,7 @@
 @inject ChatStateService ChatState
 @inject ChatHubClient ChatHubClient
 
-@implements IDisposable
+@implements IAsyncDisposable
 
 <div class="d-flex flex-column">
     <MudTextField @bind-Value="_searchQuery"
@@ -118,10 +118,11 @@
         return new ItemsProviderResult<ThreadSummary>(page, all.Count);
     }
 
-    public void Dispose()
+    public ValueTask DisposeAsync()
     {
         ChatState.OnChange -= StateHasChanged;
         ChatHubClient.ThreadsUpdated -= OnThreadsUpdated;
+        return ValueTask.CompletedTask;
     }
 }
 
