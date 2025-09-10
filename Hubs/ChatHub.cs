@@ -70,18 +70,28 @@ namespace CMetalsWS.Hubs
 
         public async Task SendMessage(string threadId, string content)
         {
-            var senderId = GetUserIdOrThrow();
-            await VerifyUserIsParticipantAsync(threadId);
-
-            var messageDto = await _chatRepository.CreateMessageAsync(threadId, senderId, content);
-
-            var groupKey = GetThreadGroupKey(threadId, senderId);
-            await Clients.Group(groupKey).SendAsync("ReceiveMessage", messageDto);
-
-            var participants = await _chatRepository.GetThreadParticipantsAsync(threadId, senderId);
-            foreach (var p in participants)
+            try
             {
-                await Clients.Group(GetUserGroupName(p.Id)).SendAsync("ThreadsUpdated");
+                var senderId = GetUserIdOrThrow();
+                await VerifyUserIsParticipantAsync(threadId);
+
+                var messageDto = await _chatRepository.CreateMessageAsync(threadId, senderId, content);
+
+                var groupKey = GetThreadGroupKey(threadId, senderId);
+                await Clients.Group(groupKey).SendAsync("ReceiveMessage", messageDto);
+
+                var participants = await _chatRepository.GetThreadParticipantsAsync(threadId, senderId);
+                foreach (var p in participants)
+                {
+                    await Clients.Group(GetUserGroupName(p.Id)).SendAsync("ThreadsUpdated");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ChatHub SendMessage ERROR] {ex}");
+                // We re-throw the exception to let SignalR's built-in error handling pipeline deal with it.
+                // This might involve logging it further or sending a generic error to the client.
+                throw;
             }
         }
 
