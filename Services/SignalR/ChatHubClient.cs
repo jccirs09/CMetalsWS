@@ -21,7 +21,7 @@ namespace CMetalsWS.Services.SignalR
         public event Func<MessageDto, Task>? ReactionAdded;
         public event Func<MessageDto, Task>? ReactionRemoved;
         public event Func<TypingDto, Task>? UserTyping;
-        public event Func<object, Task>? ThreadRead; // Using object for anonymous type
+        public event Func<object, Task>? ThreadRead;
         public event Func<PresenceDto, Task>? PresenceChanged;
         public event Func<ThreadSummary, Task>? ThreadUpdated;
         public event Func<MessageDto, Task>? MessageUpdated;
@@ -32,7 +32,6 @@ namespace CMetalsWS.Services.SignalR
         public ChatHubClient(NavigationManager navManager, IHttpContextAccessor httpContextAccessor)
         {
             var uri = new Uri(navManager.BaseUri);
-
             _hubConnection = new HubConnectionBuilder()
                 .WithUrl(navManager.ToAbsoluteUri("/chathub"), options =>
                 {
@@ -44,13 +43,7 @@ namespace CMetalsWS.Services.SignalR
                         }
                     }
                 })
-                .WithAutomaticReconnect(new[]
-                {
-                    TimeSpan.Zero,
-                    TimeSpan.FromSeconds(2),
-                    TimeSpan.FromSeconds(5),
-                    TimeSpan.FromSeconds(10)
-                })
+                .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
                 .Build();
 
             RegisterHubEventHandlers();
@@ -58,15 +51,9 @@ namespace CMetalsWS.Services.SignalR
             _closedHandler = async (error) =>
             {
                 if (_isDisposed) return;
-                if (error != null)
-                {
-                    Console.WriteLine($"SignalR connection closed due to an error: {error}");
-                }
+                if (error != null) Console.WriteLine($"SignalR connection closed: {error}");
                 await Task.Delay(5000);
-                if (!_isDisposed)
-                {
-                    await EnsureConnectedAsync();
-                }
+                if (!_isDisposed) await EnsureConnectedAsync();
             };
             _hubConnection.Closed += _closedHandler;
         }
@@ -77,17 +64,11 @@ namespace CMetalsWS.Services.SignalR
         public async Task EnsureConnectedAsync()
         {
             if (_isDisposed || IsConnected) return;
-
             await _connectGate.WaitAsync();
             try
             {
                 if (_isDisposed || IsConnected) return;
-
                 await _hubConnection.StartAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to connect to SignalR hub: {ex}");
             }
             finally
             {
@@ -112,76 +93,48 @@ namespace CMetalsWS.Services.SignalR
             _hubConnection.On<int>("MessageDeleted", id => MessageDeleted?.Invoke(id) ?? Task.CompletedTask);
         }
 
-        private async Task SafeInvoke(string methodName, params object?[] args)
+        private async Task InvokeApi(Func<Task> hubAction)
         {
             if (_isDisposed) return;
-
             try
             {
                 await EnsureConnectedAsync();
                 if (!IsConnected) return;
-
-                await _hubConnection.SendAsync(methodName, args, CancellationToken.None);
+                await hubAction();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error invoking hub method '{methodName}': {ex}");
+                Console.WriteLine($"Error invoking hub method: {ex}");
+                // In a real app, you might use a proper logging framework
+                // or a UI notification service to show a user-friendly error.
             }
         }
 
-        // ---- Public API (all guarded) ----
-        public Task SendMessageAsync(string threadId, string content)
-            => SafeInvoke("SendMessage", threadId, content);
+        // ---- Public API ----
+        public Task SendMessageAsync(string threadId, string content) => InvokeApi(() => _hubConnection.InvokeAsync("SendMessage", threadId, content));
+        public Task AddReactionAsync(int messageId, string emoji) => InvokeApi(() => _hubConnection.InvokeAsync("AddReaction", messageId, emoji));
+        public Task RemoveReactionAsync(int messageId, string emoji) => InvokeApi(() => _hubConnection.InvokeAsync("RemoveReaction", messageId, emoji));
+        public Task UpdateMessageAsync(int messageId, string newContent) => InvokeApi(() => _hubConnection.InvokeAsync("UpdateMessage", messageId, newContent));
+        public Task MarkReadAsync(string threadId) => InvokeApi(() => _hubConnection.InvokeAsync("MarkRead", threadId));
+        public Task JoinThreadAsync(string threadId) => InvokeApi(() => _hubConnection.InvokeAsync("JoinThread", threadId));
+        public Task LeaveThreadAsync(string threadId) => InvokeApi(() => _hubConnection.InvokeAsync("LeaveThread", threadId));
+        public Task UpdatePresenceAsync(string status) => InvokeApi(() => _hubConnection.InvokeAsync("UpdatePresence", status));
+        public Task PinThreadAsync(string threadId, bool isPinned) => InvokeApi(() => _hubConnection.InvokeAsync("PinThread", threadId, isPinned));
+        public Task PinMessageAsync(int messageId, bool isPinned) => InvokeApi(() => _hubConnection.InvokeAsync("PinMessage", messageId, isPinned));
+        public Task DeleteMessageAsync(int messageId) => InvokeApi(() => _hubConnection.InvokeAsync("DeleteMessage", messageId));
 
-        public Task AddReactionAsync(int messageId, string emoji)
-            => SafeInvoke("AddReaction", messageId, emoji);
+        // Typing is fire-and-forget, so it uses SendAsync
+        public Task TypingAsync(string threadId, bool isTyping) => InvokeApi(() => _hubConnection.SendAsync("Typing", threadId, isTyping));
 
-        public Task RemoveReactionAsync(int messageId, string emoji)
-            => SafeInvoke("RemoveReaction", messageId, emoji);
-
-        public Task UpdateMessageAsync(int messageId, string newContent)
-            => SafeInvoke("UpdateMessage", messageId, newContent);
-
-        public Task TypingAsync(string threadId, bool isTyping)
-            => SafeInvoke("Typing", threadId, isTyping);
-
-        public Task MarkReadAsync(string threadId)
-            => SafeInvoke("MarkRead", threadId);
-
-        public Task JoinThreadAsync(string threadId)
-            => SafeInvoke("JoinThread", threadId);
-
-        public Task LeaveThreadAsync(string threadId) => SafeInvoke("LeaveThread", threadId);
-
-        public Task UpdatePresenceAsync(string status)
-            => SafeInvoke("UpdatePresence", status);
-
-        public Task PinThreadAsync(string threadId, bool isPinned)
-            => SafeInvoke("PinThread", threadId, isPinned);
-
-        public Task PinMessageAsync(int messageId, bool isPinned)
-            => SafeInvoke("PinMessage", messageId, isPinned);
-
-        public Task DeleteMessageAsync(int messageId)
-            => SafeInvoke("DeleteMessage", messageId);
-
-        // ---- Disposal ----
         public async ValueTask DisposeAsync()
         {
             if (_isDisposed) return;
             _isDisposed = true;
-
             if (_hubConnection != null)
             {
                 _hubConnection.Closed -= _closedHandler;
-                try
-                {
-                    await _hubConnection.StopAsync();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error stopping hub connection: {ex}");
-                }
+                try { await _hubConnection.StopAsync(); }
+                catch (Exception ex) { Console.WriteLine($"Error stopping hub connection: {ex}"); }
                 await _hubConnection.DisposeAsync();
             }
         }
