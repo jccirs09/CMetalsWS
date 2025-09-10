@@ -40,6 +40,9 @@ namespace CMetalsWS.Data.Chat
     {
         public string? Id { get; set; } // Can be a user ID or a group ID
         public string? Title { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public string? FullName => $"{FirstName} {LastName}".Trim();
         public string? AvatarUrl { get; set; }
         public string? LastMessagePreview { get; set; }
         public int UnreadCount { get; set; }

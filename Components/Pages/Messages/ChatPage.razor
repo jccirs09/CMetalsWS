@@ -1,19 +1,23 @@
 @page "/messages"
 @page "/messages/{ThreadId}"
-@using CMetalsWS.Services
+@using System.Security.Claims
 @using CMetalsWS.Data.Chat
+@using CMetalsWS.Services
 @inject ChatStateService ChatState
+@inject NavigationManager Nav
 @implements IDisposable
 
 <MudGrid Class="h-100 pa-3" Style="min-height:calc(100vh - 128px)">
   <MudItem xs="12" md="4" lg="3">
-    <ChatThreadList OnThreadSelected="OpenThread" />
+    <ChatThreadPanel OnThreadSelected="OpenThread" />
   </MudItem>
 
-  <MudItem xs="12" md="8" lg="9">
+  <MudItem xs="12" md="8" lg="9" Style="height: 100%;">
     @if (!string.IsNullOrWhiteSpace(ChatState.ActiveThreadId))
     {
-      <ChatConversation ThreadId="ChatState.ActiveThreadId" />
+      <ChatConversation
+          @key="ChatState.ActiveThreadId"
+          ThreadId="@ChatState.ActiveThreadId" />
     }
     else
     {
@@ -29,18 +33,37 @@
 @code {
   [Parameter] public string? ThreadId { get; set; }
 
+  [Inject] private IChatRepository ChatRepository { get; set; } = default!;
+  [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+
   protected override void OnInitialized()
   {
     ChatState.OnChange += StateHasChanged;
   }
 
-  private void OpenThread(ThreadSummary t)
+  protected override async Task OnParametersSetAsync()
   {
-    ChatState.HandleThreadClick(t);
+    if (!string.IsNullOrWhiteSpace(ThreadId))
+    {
+      ChatState.ActivateThread(ThreadId);
+    }
+    else
+    {
+      var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+      var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+      if (userId != null)
+      {
+        var summaries = await ChatRepository.GetThreadSummariesAsync(userId);
+        var latestThread = summaries.OrderByDescending(s => s.LastActivityAt).FirstOrDefault();
+        if (latestThread?.Id != null)
+        {
+          Nav.NavigateTo($"/messages/{latestThread.Id}", replace: true);
+        }
+      }
+    }
   }
 
-  public void Dispose()
-  {
-    ChatState.OnChange -= StateHasChanged;
-  }
+  private void OpenThread(ThreadSummary t) => Nav.NavigateTo($"/messages/{t.Id}");
+
+  public void Dispose() => ChatState.OnChange -= StateHasChanged;
 }

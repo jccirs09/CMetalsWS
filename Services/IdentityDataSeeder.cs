@@ -132,23 +132,27 @@ namespace CMetalsWS.Services
             // Seed admin user
             var adminEmail = "admin@example.com";
             var admin = await _userManager.FindByEmailAsync(adminEmail);
-            if (admin is null)
+            if (admin == null)
             {
-                admin = new ApplicationUser
+                var newAdminUser = new ApplicationUser { UserName = "admin", Email = adminEmail, EmailConfirmed = true };
+                var result = await _userManager.CreateAsync(newAdminUser, "Admin123!");
+                if (result.Succeeded)
                 {
-                    UserName = "admin",
-                    Email = adminEmail,
-                    EmailConfirmed = true
-                };
-
-                var created = await _userManager.CreateAsync(admin, "Admin123!");
-                if (!created.Succeeded)
-                {
-                    _logger.LogError("Admin create failed: {E}", string.Join(", ", created.Errors.Select(e => e.Description)));
-                    return;
+                    await _userManager.AddToRoleAsync(newAdminUser, "Admin");
                 }
+                else
+                {
+                     _logger.LogError("Failed to create admin user: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
+                     return;
+                }
+            }
 
-                await _userManager.AddToRoleAsync(admin, "Admin");
+            // Re-fetch the admin user to ensure we have a valid instance for subsequent operations.
+            admin = await _userManager.FindByEmailAsync(adminEmail);
+            if (admin == null)
+            {
+                _logger.LogError("Admin user could not be found or created. Aborting further seeding.");
+                return;
             }
 
             await SeedUserClaimsAsync();
@@ -157,62 +161,48 @@ namespace CMetalsWS.Services
 
         private async Task SeedChatDataAsync(ApplicationUser admin)
         {
-            if (await _context.ChatMessages.AnyAsync())
-            {
-                return; // Chat data already seeded
-            }
+            if (await _context.ChatMessages.AnyAsync()) return;
 
-            // 1. Seed additional users
-            ApplicationUser? user1 = await _userManager.FindByNameAsync("user1");
-            if (user1 == null)
+            async Task<ApplicationUser?> CreateChatUser(string name, string role)
             {
-                user1 = new ApplicationUser { UserName = "user1", Email = "user1@example.com", EmailConfirmed = true };
-                var result = await _userManager.CreateAsync(user1, "User123!");
-                if (result.Succeeded)
+                if (await _userManager.FindByNameAsync(name) != null) return await _userManager.FindByNameAsync(name);
+
+                var user = new ApplicationUser { UserName = name, Email = $"{name}@example.com", EmailConfirmed = true };
+                var result = await _userManager.CreateAsync(user, "User123!");
+                if (!result.Succeeded)
                 {
-                    await _userManager.AddToRoleAsync(user1, "Viewer");
+                    _logger.LogError($"Failed to create user '{name}'.");
+                    return null;
                 }
+                await _userManager.AddToRoleAsync(user, role);
+                return await _userManager.FindByNameAsync(name);
             }
 
-            ApplicationUser? user2 = await _userManager.FindByNameAsync("user2");
-            if (user2 == null)
-            {
-                user2 = new ApplicationUser { UserName = "user2", Email = "user2@example.com", EmailConfirmed = true };
-                var result = await _userManager.CreateAsync(user2, "User123!");
-                if (result.Succeeded)
-                {
-                    await _userManager.AddToRoleAsync(user2, "Viewer");
-                }
-            }
+            var user1 = await CreateChatUser("user1", "Viewer");
+            var user2 = await CreateChatUser("user2", "Viewer");
 
-            // Ensure users were created before proceeding
-            if (user1 == null || user2 == null)
+            if (admin == null || user1 == null || user2 == null)
             {
-                _logger.LogError("Failed to create seed users for chat.");
+                _logger.LogError("A required user for chat seeding was not found or created.");
                 return;
             }
 
-            // 2. Seed a group chat
             var group = await _context.ChatGroups.FirstOrDefaultAsync(g => g.Name == "General");
             if (group == null)
             {
                 group = new ChatGroup { Name = "General" };
-                _context.ChatGroups.Add(group);
-                await _context.SaveChangesAsync(); // Save to get group ID
+                await _context.ChatGroups.AddAsync(group);
+                await _context.SaveChangesAsync();
 
-                _context.ChatGroupUsers.AddRange(
+                await _context.ChatGroupUsers.AddRangeAsync(
                     new ChatGroupUser { ChatGroupId = group.Id, UserId = admin.Id },
                     new ChatGroupUser { ChatGroupId = group.Id, UserId = user1.Id }
                 );
             }
 
-            _context.ChatMessages.AddRange(
+            await _context.ChatMessages.AddRangeAsync(
                 new ChatMessage { ChatGroupId = group.Id, SenderId = admin.Id, Content = "Welcome to the general chat!", Timestamp = DateTime.UtcNow.AddMinutes(-10) },
-                new ChatMessage { ChatGroupId = group.Id, SenderId = user1.Id, Content = "Glad to be here!", Timestamp = DateTime.UtcNow.AddMinutes(-5) }
-            );
-
-            // 3. Seed a direct message conversation
-            _context.ChatMessages.AddRange(
+                new ChatMessage { ChatGroupId = group.Id, SenderId = user1.Id, Content = "Glad to be here!", Timestamp = DateTime.UtcNow.AddMinutes(-5) },
                 new ChatMessage { SenderId = admin.Id, RecipientId = user2.Id, Content = "Hi User 2, this is a private message.", Timestamp = DateTime.UtcNow.AddMinutes(-20) },
                 new ChatMessage { SenderId = user2.Id, RecipientId = admin.Id, Content = "Hi Admin, I got it!", Timestamp = DateTime.UtcNow.AddMinutes(-15) }
             );
