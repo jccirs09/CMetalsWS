@@ -44,6 +44,7 @@ namespace CMetalsWS.Data
         {
             base.OnModelCreating(modelBuilder);
 
+
             // Machine -> Branch
             modelBuilder.Entity<Machine>()
                 .HasOne(m => m.Branch)
@@ -80,7 +81,9 @@ namespace CMetalsWS.Data
                 entity.HasIndex(c => c.DestinationGroupCategory);
                 entity.HasIndex(c => c.Active);
             });
-
+            modelBuilder.Entity<ApplicationUser>().HasIndex(u => u.FirstName);
+            modelBuilder.Entity<ApplicationUser>().HasIndex(u => u.LastName);
+            modelBuilder.Entity<ApplicationUser>().HasIndex(u => new { u.FirstName, u.LastName });
             // City Centroid
             modelBuilder.Entity<CityCentroid>(entity =>
             {
@@ -238,6 +241,15 @@ namespace CMetalsWS.Data
                 .WithMany(g => g.Messages)
                 .HasForeignKey(m => m.ChatGroupId)
                 .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ChatMessage>().HasIndex(m => new { m.ChatGroupId, m.Timestamp });
+
+            modelBuilder.Entity<ChatMessage>().HasIndex(m => new { m.SenderId, m.RecipientId, m.Timestamp });
+
+            modelBuilder.Entity<MessageSeen>().HasIndex(ms => new { ms.MessageId, ms.UserId }).IsUnique();
+
+            modelBuilder.Entity<ChatGroupUser>().HasIndex(gu => new { gu.ChatGroupId, gu.UserId });
+
+            modelBuilder.Entity<PinnedThread>().HasIndex(p => new { p.UserId, p.ThreadId }).IsUnique();
 
             // ChatGroup relationships
             modelBuilder.Entity<ChatGroup>()

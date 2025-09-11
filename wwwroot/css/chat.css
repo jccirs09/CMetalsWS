@@ -60,3 +60,49 @@
 .message-bubble:hover .reaction-bar {
     display: flex;
 }
+.thread-item .text-ellipsis {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.font-italic {
+    font-style: italic;
+}
+.thread-item .thread-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 12px;
+}
+
+.thread-item .thread-avatar {
+    flex: 0 0 auto;
+}
+
+.thread-item .thread-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.thread-item .name {
+    font-weight: 600;
+}
+
+
+.thread-item .preview {
+    margin-top: 2px;
+}
+
+.thread-item .font-italic {
+    font-style: italic;
+}
+
+.thread-item .thread-pin {
+    flex: 0 0 auto;
+    margin-left: 8px;
+}
+

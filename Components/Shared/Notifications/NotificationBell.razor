@@ -1,95 +1,85 @@
-﻿@using CMetalsWS.Services
-@using MudBlazor
-@using System.Linq
+﻿@using MudBlazor
+@using CMetalsWS.Services
+
 @inject NotificationService Notifications
 @inject ChatStateService ChatState
 
-<!-- Wrap the button in a plain element to capture an ElementReference for the popover -->
-<span @ref="_anchorRef">
-    <MudBadge Color="Color.Error"
-              Content="@(Notifications.UnreadTotal)"
-              MaxValue="99"
-              Overlap="true"
-              Visible="@(Notifications.UnreadTotal > 0)">
-        <MudIconButton Icon="@Icons.Material.Filled.Notifications"
-                       Color="Color.Inherit"
-                       OnClick="@Toggle"
-                       AriaLabel="Notifications" />
-    </MudBadge>
-</span>
+<MudBadge Color="Color.Error"
+          Content="@(Notifications.UnreadTotal)"
+          MaxValue="99"
+          Overlap="true"
+          Visible="@(Notifications.UnreadTotal > 0)">
+    <MudIconButton Id="@_anchorId"
+                   Icon="@Icons.Material.Filled.Notifications"
+                   Color="Color.Inherit"
+                   OnClick="@Toggle" />
+</MudBadge>
 
 <MudPopover Open="@_open"
-            AnchorReference="AnchorReference.Element"
-            AnchorEl="_anchorRef"
+            AnchorReference="AnchorReference.Id"
+            AnchorId="@_anchorId"
             AnchorOrigin="Origin.BottomRight"
             TransformOrigin="Origin.TopRight"
-            CloseOnOutsideClick="true"
+            Class="px-2 py-2"
             Elevation="8"
-            Class="px-2 py-2">
-
-    <MudPaper Class="notif-root">
-        <div class="d-flex align-center px-2 py-1">
-            <MudText Typo="Typo.subtitle2" Class="flex-grow-1">Notifications</MudText>
-            @if (Notifications.UnreadTotal > 0)
+            OnClose="@Close">
+    <MudList T="NotificationItem" Dense="true" Class="py-0" Style="width:360px; max-height:60vh; overflow:auto;">
+        @if (Notifications.Recent.Count == 0)
+        {
+            <MudListItem T="NotificationItem">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">No new messages</MudText>
+            </MudListItem>
+        }
+        else
+        {
+            @foreach (var n in Notifications.Recent)
             {
-                <MudButton Variant="Variant.Text"
-                           Color="Color.Primary"
-                           Class="px-2 py-0"
-                           OnClick="MarkAllAsRead">
-                    Mark all as read
-                </MudButton>
-            }
-        </div>
-        <MudDivider />
+                <MudListItem T="NotificationItem"
+                             Class="thread-item"
+                             OnClick="@(() => OpenThread(n.ThreadId))">
+                    <div class="thread-row">
 
-        <MudList T="object" Dense="true" Class="notif-list">
-            @if (Notifications.Recent.Count == 0)
-            {
-                <MudListItem T="object">
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                        No new messages
-                    </MudText>
-                </MudListItem>
-            }
-            else
-            {
-                @foreach (var n in Notifications.Recent.Take(20))
-                {
-                    <MudListItem T="object"
-                                 Class="notif-item"
-                                 Style="cursor:pointer"
-                                 OnClick="() => OpenThread(n.ThreadId)">
-                        <MudAvatar Size="Size.Medium" Class="mr-2">
-                            @if (!string.IsNullOrWhiteSpace(n.AvatarUrl))
-                            {
-                                <MudImage Src="@n.AvatarUrl" />
-                            }
-                            else
-                            {
-                                @Initials(n.Title)
-                            }
-                        </MudAvatar>
+                        <div class="thread-avatar">
+                            <MudBadge Dot="true"
+                                      Color="Color.Primary"
+                                      Overlap="true"
+                                      Visible="@( !string.IsNullOrEmpty(n.ThreadId) && Notifications.GetThreadUnread(n.ThreadId) > 0 )">
+                                <MudAvatar Size="Size.Medium">
+                                    @if (!string.IsNullOrWhiteSpace(n.AvatarUrl))
+                                    {
+                                        <MudImage Src="@n.AvatarUrl" />
+                                    }
+                                    else
+                                    {
+                                        @Initials(DisplayTitle(n))
+                                    }
+                                </MudAvatar>
+                            </MudBadge>
+                        </div>
 
-                        <div class="min-w-0 flex-grow-1">
-                            <MudText Class="mud-font-weight-bold text-ellipsis">@n.Title</MudText>
-                            <MudText Typo="Typo.caption" Class="text-ellipsis">
+                        <div class="thread-main">
+                            <MudText Class="name text-ellipsis">@DisplayTitle(n)</MudText>
+                            <MudText Typo="Typo.caption" Class="preview text-ellipsis">
                                 @n.Preview
                             </MudText>
                         </div>
 
-                        <MudText Typo="Typo.caption" Class="ml-2 mud-text-secondary">
-                            @n.Timestamp.ToLocalTime().ToShortTimeString()
-                        </MudText>
-                    </MudListItem>
-                }
+                        <div class="thread-pin">
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                @n.Timestamp.ToLocalTime().ToShortTimeString()
+                            </MudText>
+                        </div>
+
+                    </div>
+                </MudListItem>
             }
-        </MudList>
-    </MudPaper>
+        }
+    </MudList>
 </MudPopover>
 
 @code {
-    private ElementReference _anchorRef;   // DOM anchor for popover
     private bool _open;
+    private readonly string _anchorId = $"notif-bell-{Guid.NewGuid()}";
 
     protected override async Task OnInitializedAsync()
     {
@@ -98,22 +88,27 @@
     }
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
-
     private void Toggle() => _open = !_open;
-
-    private async Task MarkAllAsRead()
-    {
-        Notifications.ClearAll();
-        _open = false;
-        await InvokeAsync(StateHasChanged);
-    }
+    private void Close() => _open = false;
 
     private async Task OpenThread(string threadId)
     {
         _open = false;
-        ChatState.ActivateThread(threadId);
-        Notifications.ClearThread(threadId);
+        if (!string.IsNullOrEmpty(threadId))
+        {
+            ChatState.ActivateThread(threadId);
+            Notifications.ClearThread(threadId);
+        }
         await InvokeAsync(StateHasChanged);
+    }
+
+    private static string DisplayTitle(NotificationItem n)
+    {
+        var full = $"{n.FirstName} {n.LastName}".Trim();
+        if (!string.IsNullOrWhiteSpace(full))
+            return full;
+
+        return string.IsNullOrWhiteSpace(n.Title) ? "Conversation" : n.Title!;
     }
 
     private static string Initials(string? name)
@@ -121,8 +116,8 @@
         if (string.IsNullOrWhiteSpace(name)) return "?";
         var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return parts.Length == 1
-            ? parts[0].Substring(0, 1).ToUpperInvariant()
-            : $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
+             ? parts[0].Substring(0, 1).ToUpperInvariant()
+             : $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
     }
 
     public void Dispose()
@@ -130,22 +125,3 @@
         Notifications.Changed -= OnChanged;
     }
 }
-
-<style>
-    .notif-root {
-        width: 360px;
-        max-height: 60vh;
-        overflow: auto;
-    }
-
-    .notif-list {
-        padding-top: 0;
-        padding-bottom: 0;
-    }
-
-    .notif-item .text-ellipsis {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-</style>

@@ -124,6 +124,8 @@
     private int _mentionStartPosition;
     private string _mentionFilter = string.Empty;
     private bool _typingSent;
+    private CancellationTokenSource? _loadCts;
+
 
     private bool _isInitialized = false;
 
@@ -141,20 +143,28 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        if (!string.IsNullOrWhiteSpace(ThreadId) && ThreadId != _lastThreadId)
-        {
-            _lastThreadId = ThreadId;
-            // load the thread UI
-            await LoadThreadAsync(ThreadId);
-            // clear badge immediately in the UI
-            Notifications.ClearThread(ThreadId);
-            // tell the server it's read (hub will broadcast ThreadRead)
-            await ChatHubClient.MarkReadAsync(ThreadId);
-        }
+        if (string.IsNullOrWhiteSpace(ThreadId) || ThreadId == _lastThreadId)
+            return;
+
+        var newId = ThreadId;
+        _lastThreadId = newId;
+
+        // Instant local feedback
+        Notifications.ClearThread(newId);
+
+        // Tell server, but don't block UI
+        _ = ChatHubClient.MarkReadAsync(newId);
+
+        // Load the thread UI (joins/leaves are inside this)
+        await LoadThreadAsync(newId);
     }
 
     private async Task LoadThreadAsync(string threadId)
     {
+        _loadCts?.Cancel();
+        _loadCts = new CancellationTokenSource();
+        var ct = _loadCts.Token;
+
         var previous = _messages.FirstOrDefault()?.ThreadId;
         if (!string.IsNullOrEmpty(previous) && previous != threadId)
         {

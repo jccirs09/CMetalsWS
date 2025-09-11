@@ -8,6 +8,8 @@ namespace CMetalsWS.Data.Chat
     public interface IChatRepository
     {
         Task<IEnumerable<ThreadSummary>> GetThreadSummariesAsync(string userId, string? searchQuery = null);
+        Task<(IReadOnlyList<ThreadSummary> Items, int Total)> GetThreadSummariesAsync(string userId, string? searchQuery, int skip, int take, CancellationToken ct = default);
+
         Task<IEnumerable<MessageDto>> GetMessagesAsync(string threadId, string currentUserId, DateTime? before = null, int take = 50);
         Task<MessageDto?> GetMessageAsync(int messageId, string currentUserId);
         Task<MessageDto> CreateMessageAsync(string threadId, string senderId, string content);

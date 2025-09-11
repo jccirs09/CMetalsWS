@@ -66,7 +66,6 @@ namespace CMetalsWS.Hubs
         public async Task SendMessage(string threadId, string content)
         {
             var currentUserId = GetUserIdOrThrow();
-
             try
             {
                 if (string.IsNullOrWhiteSpace(content))
