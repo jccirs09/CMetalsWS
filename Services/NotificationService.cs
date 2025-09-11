@@ -1,163 +1,118 @@
-﻿using System.Collections.Concurrent;
-using System.Text.Json;
-using CMetalsWS.Data;
-using CMetalsWS.Data.Chat;
+﻿using CMetalsWS.Data.Chat;
 using CMetalsWS.Services.SignalR;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
 
-namespace CMetalsWS.Services
+public record NotificationItem
 {
-    public class NotificationItem
+    public string ThreadId { get; init; } = "";
+    public string Title { get; init; } = "";
+    public string? AvatarUrl { get; init; }
+    public string Preview { get; init; } = "";
+    public DateTime Timestamp { get; init; }
+}
+
+public class NotificationService
+{
+    private readonly ChatHubClient _hub;
+    private readonly IChatRepository _repo;
+    private readonly AuthenticationStateProvider _auth;
+
+    private string? _userId;
+    private bool _wired;
+
+    public event Action? Changed;
+
+    private readonly Dictionary<string, int> _threadUnread = new();
+    private readonly List<NotificationItem> _recent = new();
+
+    public int UnreadTotal => _threadUnread.Values.Sum();
+    public IReadOnlyList<NotificationItem> Recent => _recent;
+
+    public NotificationService(ChatHubClient hub, IChatRepository repo, AuthenticationStateProvider auth)
     {
-        public string ThreadId { get; set; } = default!;
-        public string? Title { get; set; }
-        public string? AvatarUrl { get; set; }
-        public string? Preview { get; set; }
-        public DateTime Timestamp { get; set; }
-        public string? SenderId { get; set; }
+        _hub = hub; _repo = repo; _auth = auth;
     }
 
-    /// <summary>
-    /// Tracks unread counts & a small “inbox” feed for the current user.
-    /// Keeps itself in sync via SignalR events + occasional repo refresh.
-    /// </summary>
-    public class NotificationService
+    public async Task InitializeAsync()
     {
-        private readonly IChatRepository _repo;
-        private readonly ChatHubClient _hub;
-        private readonly AuthenticationStateProvider _auth;
-        private readonly ChatStateService _chatState;
+        if (_wired) return;
 
-        private string? _userId;
+        var authState = await _auth.GetAuthenticationStateAsync();
+        _userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        // fast lookups
-        private readonly ConcurrentDictionary<string, int> _threadUnread = new();
-        private readonly LinkedList<NotificationItem> _recent = new(); // newest first
-        private const int MaxRecent = 25;
+        _hub.InboxNewMessage += OnInboxNewMessage;
+        _hub.ThreadsUpdated += OnThreadsUpdated;
+        _hub.ThreadRead += OnThreadRead;
+        await _hub.ConnectAsync();
 
-        public event Action? Changed;
+        await RefreshCountsFromRepo(); // bootstrap unread counts
+        _wired = true;
+    }
 
-        public int UnreadTotal => _threadUnread.Values.Sum();
-        public IReadOnlyCollection<NotificationItem> Recent => _recent;
+    private async Task RefreshCountsFromRepo()
+    {
+        if (_userId is null) return;
+        var summaries = await _repo.GetThreadSummariesAsync(_userId);
+        _threadUnread.Clear();
+        foreach (var s in summaries)
+            if (s.Id != null) _threadUnread[s.Id] = s.UnreadCount;
+        Changed?.Invoke();
+    }
 
-        public NotificationService(
-            IChatRepository repo,
-            ChatHubClient hub,
-            AuthenticationStateProvider auth,
-            ChatStateService chatState)
+    private Task OnThreadRead(object _) => RefreshCountsFromRepo();
+    private Task OnThreadsUpdated() => RefreshCountsFromRepo();
+
+    private async Task OnInboxNewMessage(MessageDto dto)
+    {
+        if (dto.ThreadId is null) return;
+
+        _threadUnread.TryGetValue(dto.ThreadId, out var c);
+        _threadUnread[dto.ThreadId] = c + 1;
+
+        // Build a nice title/avatar (best-effort)
+        string title = dto.SenderName ?? "New message";
+        string? avatar = null;
+
+        if (_userId != null)
         {
-            _repo = repo;
-            _hub = hub;
-            _auth = auth;
-            _chatState = chatState;
-
-            // hook hub events
-            _hub.ThreadsUpdated += OnThreadsUpdated;
-            _hub.MessageReceived += OnMessageReceived;
-            _hub.ThreadRead += OnThreadRead;
-        }
-
-        public async Task InitializeAsync()
-        {
-            if (_userId != null) return;
-
-            var authState = await _auth.GetAuthenticationStateAsync();
-            var u = authState.User;
-            _userId =
-                u.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? u.FindFirst("sub")?.Value
-                ?? u.FindFirst("oid")?.Value
-                ?? u.FindFirst("uid")?.Value;
-
-            await RefreshFromRepo();
-        }
-
-        public int GetThreadUnread(string threadId)
-            => _threadUnread.TryGetValue(threadId, out var n) ? n : 0;
-
-        private async Task RefreshFromRepo()
-        {
-            if (_userId == null) return;
-            var list = await _repo.GetThreadSummariesAsync(_userId);
-            _threadUnread.Clear();
-            foreach (var t in list)
+            var people = (await _repo.GetThreadParticipantsAsync(dto.ThreadId, _userId)).ToList();
+            var other = people.FirstOrDefault(p => p.Id != _userId);
+            if (other != null)
             {
-                if (!string.IsNullOrEmpty(t.Id))
-                    _threadUnread[t.Id] = Math.Max(0, t.UnreadCount);
+                var full = $"{other.FirstName} {other.LastName}".Trim();
+                title = string.IsNullOrWhiteSpace(full) ? (other.UserName ?? title) : full;
+                avatar = other.Avatar;
             }
-            Changed?.Invoke();
         }
 
-        private Task OnThreadsUpdated()
-            => RefreshFromRepo();
-
-        private Task OnMessageReceived(MessageDto m)
+        _recent.Insert(0, new NotificationItem
         {
-            // Don’t count my own messages
-            if (m.SenderId == _userId) return Task.CompletedTask;
+            ThreadId = dto.ThreadId,
+            Title = title,
+            AvatarUrl = avatar,
+            Preview = dto.Content ?? "",
+            Timestamp = dto.CreatedAt
+        });
+        if (_recent.Count > 20) _recent.RemoveAt(_recent.Count - 1);
 
-            // If I’m currently viewing this thread, ChatConversation should call MarkRead(),
-            // which will clear via ThreadRead event. To avoid flicker we can skip increment
-            // when the thread is the active one.
-            if (_chatState.ActiveThreadId == m.ThreadId)
-                return Task.CompletedTask;
+        Changed?.Invoke();
+    }
 
-            // increment unread for this thread
-            if (!string.IsNullOrEmpty(m.ThreadId))
-                _threadUnread.AddOrUpdate(m.ThreadId, 1, (_, old) => old + 1);
+    public int GetThreadUnread(string? threadId)
+        => threadId is null ? 0 : (_threadUnread.TryGetValue(threadId, out var c) ? c : 0);
 
-            // add to recent feed (cap to MaxRecent)
-            _recent.AddFirst(new NotificationItem
-            {
-                ThreadId = m.ThreadId!,
-                Title = m.SenderName,
-                AvatarUrl = null,   // you can enrich with a user lookup if you store avatars
-                Preview = m.Content,
-                Timestamp = m.CreatedAt,
-                SenderId = m.SenderId
-            });
-            while (_recent.Count > MaxRecent) _recent.RemoveLast();
+    public void ClearThread(string threadId)
+    {
+        _threadUnread[threadId] = 0;
+        _recent.RemoveAll(n => n.ThreadId == threadId);
+        Changed?.Invoke();
+    }
 
-            Changed?.Invoke();
-            return Task.CompletedTask;
-        }
-
-        private Task OnThreadRead(object payload)
-        {
-            // payload arrives as JsonElement when subscribed as object
-            if (payload is JsonElement je)
-            {
-                var threadId = je.TryGetProperty("ThreadId", out var t) ? t.GetString() : null;
-                var readerId = je.TryGetProperty("ReaderId", out var r) ? r.GetString() : null;
-
-                if (!string.IsNullOrEmpty(threadId) && readerId == _userId)
-                {
-                    _threadUnread[threadId] = 0;
-                    Changed?.Invoke();
-                }
-            }
-            return Task.CompletedTask;
-        }
-        public void ClearAll()
-        {
-            // If you want to preserve keys and just zero them:
-            foreach (var key in _threadUnread.Keys.ToList())
-                _threadUnread[key] = 0;
-
-            // Or if your code tolerates missing keys, you could:
-            // _threadUnread.Clear();
-
-            Changed?.Invoke();
-        }
-        /// <summary>
-        /// Optional: call this to locally clear a thread’s unread without waiting for hub echo.
-        /// (ChatConversation already causes hub to emit ThreadRead).
-        /// </summary>
-        public void ClearThread(string threadId)
-        {
-            _threadUnread[threadId] = 0;
-            Changed?.Invoke();
-        }
+    public void ClearAll()
+    {
+        _threadUnread.Clear();
+        _recent.Clear();
+        Changed?.Invoke();
     }
 }

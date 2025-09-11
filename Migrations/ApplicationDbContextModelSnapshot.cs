@@ -17,7 +17,7 @@ namespace CMetalsWS.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.8")
+                .HasAnnotation("ProductVersion", "9.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -218,9 +218,11 @@ namespace CMetalsWS.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("MessageId");
-
                     b.HasIndex("UserId");
+
+                    b.HasIndex("MessageId", "UserId")
+                        .IsUnique()
+                        .HasFilter("[UserId] IS NOT NULL");
 
                     b.ToTable("MessageSeens");
                 });
@@ -281,7 +283,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasKey("UserId", "ChatGroupId");
 
-                    b.HasIndex("ChatGroupId");
+                    b.HasIndex("ChatGroupId", "UserId");
 
                     b.ToTable("ChatGroupUsers");
                 });
@@ -321,11 +323,11 @@ namespace CMetalsWS.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ChatGroupId");
-
                     b.HasIndex("RecipientId");
 
-                    b.HasIndex("SenderId");
+                    b.HasIndex("ChatGroupId", "Timestamp");
+
+                    b.HasIndex("SenderId", "RecipientId", "Timestamp");
 
                     b.ToTable("ChatMessages");
                 });

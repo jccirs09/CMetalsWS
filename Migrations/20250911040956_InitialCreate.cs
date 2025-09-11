@@ -48,6 +48,22 @@ namespace CMetalsWS.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "CityCentroid",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    City = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    Province = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    Latitude = table.Column<decimal>(type: "decimal(9,6)", nullable: false),
+                    Longitude = table.Column<decimal>(type: "decimal(9,6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CityCentroid", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Customer",
                 columns: table => new
                 {
@@ -55,12 +71,39 @@ namespace CMetalsWS.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     CustomerCode = table.Column<string>(type: "nvarchar(16)", maxLength: 16, nullable: false),
                     CustomerName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    LocationCode = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: true),
-                    Address = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    FullAddress = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    BusinessHours = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    ContactNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    Active = table.Column<bool>(type: "bit", nullable: false),
+                    PlaceId = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    Latitude = table.Column<decimal>(type: "decimal(9,6)", nullable: true),
+                    Longitude = table.Column<decimal>(type: "decimal(9,6)", nullable: true),
+                    Street1 = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    Street2 = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    City = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
+                    Province = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
+                    PostalCode = table.Column<string>(type: "nvarchar(16)", maxLength: 16, nullable: true),
+                    Country = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
+                    DestinationRegionCategory = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    DestinationGroupCategory = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
+                    TimeWindowStart = table.Column<TimeSpan>(type: "time", nullable: true),
+                    TimeWindowEnd = table.Column<TimeSpan>(type: "time", nullable: true),
+                    ServiceTimeMinutes = table.Column<int>(type: "int", nullable: false),
+                    ContactName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    ContactEmail = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    DeliveryNotes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    AccessRestrictions = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    DockType = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    LiftgateRequired = table.Column<bool>(type: "bit", nullable: false),
+                    AppointmentRequired = table.Column<bool>(type: "bit", nullable: false),
+                    PreferredTruckType = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    FerryRequired = table.Column<bool>(type: "bit", nullable: false),
+                    TollRoutesAllowed = table.Column<bool>(type: "bit", nullable: false),
+                    Priority = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    Timezone = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    CustomTags = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     CreatedUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ModifiedUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    DestinationRegionCategory = table.Column<int>(type: "int", nullable: false)
+                    ModifiedUtc = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -151,6 +194,7 @@ namespace CMetalsWS.Migrations
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     FirstName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     LastName = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Avatar = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     BranchId = table.Column<int>(type: "int", nullable: true),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -235,11 +279,14 @@ namespace CMetalsWS.Migrations
                     SalesRep = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
                     ShippingVia = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
                     FOB = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    Buyer = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    PrintDateTime = table.Column<DateTime>(type: "datetime2", nullable: true),
                     BranchId = table.Column<int>(type: "int", nullable: false),
                     CustomerId = table.Column<int>(type: "int", nullable: true),
                     TotalWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
                     RemainingWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false)
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    Priority = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -343,6 +390,26 @@ namespace CMetalsWS.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "PinnedThreads",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ThreadId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PinnedThreads", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PinnedThreads_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "TaskAuditEvents",
                 columns: table => new
                 {
@@ -430,6 +497,9 @@ namespace CMetalsWS.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Content = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Timestamp = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    EditedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsPinned = table.Column<bool>(type: "bit", nullable: false),
                     SenderId = table.Column<string>(type: "nvarchar(450)", nullable: true),
                     RecipientId = table.Column<string>(type: "nvarchar(450)", nullable: true),
                     ChatGroupId = table.Column<int>(type: "int", nullable: true)
@@ -495,6 +565,41 @@ namespace CMetalsWS.Migrations
                         column: x => x.MachineId,
                         principalTable: "Machines",
                         principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PickingListImports",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PickingListId = table.Column<int>(type: "int", nullable: true),
+                    BranchId = table.Column<int>(type: "int", nullable: false),
+                    SalesOrderNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    SourcePdfPath = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ImagesPath = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModelUsed = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    StartedUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CompletedUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    Error = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    RawJson = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PickingListImports", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PickingListImports_Branches_BranchId",
+                        column: x => x.BranchId,
+                        principalTable: "Branches",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PickingListImports_PickingLists_PickingListId",
+                        column: x => x.PickingListId,
+                        principalTable: "PickingLists",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateTable(
@@ -595,6 +700,81 @@ namespace CMetalsWS.Migrations
                         principalTable: "Trucks",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MessageReactions",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    MessageId = table.Column<int>(type: "int", nullable: false),
+                    Emoji = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MessageReactions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MessageReactions_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_MessageReactions_ChatMessages_MessageId",
+                        column: x => x.MessageId,
+                        principalTable: "ChatMessages",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MessageSeens",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    MessageId = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    Timestamp = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MessageSeens", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MessageSeens_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_MessageSeens_ChatMessages_MessageId",
+                        column: x => x.MessageId,
+                        principalTable: "ChatMessages",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PickingListPageImages",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PickingListImportId = table.Column<int>(type: "int", nullable: false),
+                    PageNumber = table.Column<int>(type: "int", nullable: false),
+                    ImagePath = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PickingListPageImages", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PickingListPageImages_PickingListImports_PickingListImportId",
+                        column: x => x.PickingListImportId,
+                        principalTable: "PickingListImports",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -752,14 +932,14 @@ namespace CMetalsWS.Migrations
                 column: "BranchId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ChatGroupUsers_ChatGroupId",
+                name: "IX_ChatGroupUsers_ChatGroupId_UserId",
                 table: "ChatGroupUsers",
-                column: "ChatGroupId");
+                columns: new[] { "ChatGroupId", "UserId" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_ChatMessages_ChatGroupId",
+                name: "IX_ChatMessages_ChatGroupId_Timestamp",
                 table: "ChatMessages",
-                column: "ChatGroupId");
+                columns: new[] { "ChatGroupId", "Timestamp" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ChatMessages_RecipientId",
@@ -767,9 +947,25 @@ namespace CMetalsWS.Migrations
                 column: "RecipientId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ChatMessages_SenderId",
+                name: "IX_ChatMessages_SenderId_RecipientId_Timestamp",
                 table: "ChatMessages",
-                column: "SenderId");
+                columns: new[] { "SenderId", "RecipientId", "Timestamp" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CityCentroid_City_Province",
+                table: "CityCentroid",
+                columns: new[] { "City", "Province" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Customer_Active",
+                table: "Customer",
+                column: "Active");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Customer_City",
+                table: "Customer",
+                column: "City");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Customer_CustomerCode",
@@ -778,9 +974,24 @@ namespace CMetalsWS.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Customer_LocationCode",
+                name: "IX_Customer_DestinationGroupCategory",
                 table: "Customer",
-                column: "LocationCode");
+                column: "DestinationGroupCategory");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Customer_DestinationRegionCategory",
+                table: "Customer",
+                column: "DestinationRegionCategory");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Customer_PostalCode",
+                table: "Customer",
+                column: "PostalCode");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Customer_Province",
+                table: "Customer",
+                column: "Province");
 
             migrationBuilder.CreateIndex(
                 name: "IX_InventoryItems_BranchId",
@@ -834,6 +1045,38 @@ namespace CMetalsWS.Migrations
                 column: "BranchId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_MessageReactions_MessageId",
+                table: "MessageReactions",
+                column: "MessageId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessageReactions_UserId",
+                table: "MessageReactions",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessageSeens_MessageId_UserId",
+                table: "MessageSeens",
+                columns: new[] { "MessageId", "UserId" },
+                unique: true,
+                filter: "[UserId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessageSeens_UserId",
+                table: "MessageSeens",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PickingListImports_BranchId",
+                table: "PickingListImports",
+                column: "BranchId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PickingListImports_PickingListId",
+                table: "PickingListImports",
+                column: "PickingListId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_PickingListItems_MachineId",
                 table: "PickingListItems",
                 column: "MachineId");
@@ -842,6 +1085,11 @@ namespace CMetalsWS.Migrations
                 name: "IX_PickingListItems_PickingListId",
                 table: "PickingListItems",
                 column: "PickingListId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PickingListPageImages_PickingListImportId",
+                table: "PickingListPageImages",
+                column: "PickingListImportId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PickingLists_BranchId_SalesOrderNumber",
@@ -858,6 +1106,12 @@ namespace CMetalsWS.Migrations
                 name: "IX_PickingLists_SalesOrderNumber",
                 table: "PickingLists",
                 column: "SalesOrderNumber",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PinnedThreads_UserId_ThreadId",
+                table: "PinnedThreads",
+                columns: new[] { "UserId", "ThreadId" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -945,7 +1199,7 @@ namespace CMetalsWS.Migrations
                 name: "ChatGroupUsers");
 
             migrationBuilder.DropTable(
-                name: "ChatMessages");
+                name: "CityCentroid");
 
             migrationBuilder.DropTable(
                 name: "InventoryItems");
@@ -955,6 +1209,18 @@ namespace CMetalsWS.Migrations
 
             migrationBuilder.DropTable(
                 name: "LoadItems");
+
+            migrationBuilder.DropTable(
+                name: "MessageReactions");
+
+            migrationBuilder.DropTable(
+                name: "MessageSeens");
+
+            migrationBuilder.DropTable(
+                name: "PickingListPageImages");
+
+            migrationBuilder.DropTable(
+                name: "PinnedThreads");
 
             migrationBuilder.DropTable(
                 name: "TaskAuditEvents");
@@ -972,7 +1238,10 @@ namespace CMetalsWS.Migrations
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
-                name: "ChatGroups");
+                name: "ChatMessages");
+
+            migrationBuilder.DropTable(
+                name: "PickingListImports");
 
             migrationBuilder.DropTable(
                 name: "Loads");
@@ -985,6 +1254,9 @@ namespace CMetalsWS.Migrations
 
             migrationBuilder.DropTable(
                 name: "WorkOrders");
+
+            migrationBuilder.DropTable(
+                name: "ChatGroups");
 
             migrationBuilder.DropTable(
                 name: "Trucks");

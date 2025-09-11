@@ -238,6 +238,15 @@ namespace CMetalsWS.Data
                 .WithMany(g => g.Messages)
                 .HasForeignKey(m => m.ChatGroupId)
                 .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ChatMessage>().HasIndex(m => new { m.ChatGroupId, m.Timestamp });
+
+            modelBuilder.Entity<ChatMessage>().HasIndex(m => new { m.SenderId, m.RecipientId, m.Timestamp });
+
+            modelBuilder.Entity<MessageSeen>().HasIndex(ms => new { ms.MessageId, ms.UserId }).IsUnique();
+
+            modelBuilder.Entity<ChatGroupUser>().HasIndex(gu => new { gu.ChatGroupId, gu.UserId });
+
+            modelBuilder.Entity<PinnedThread>().HasIndex(p => new { p.UserId, p.ThreadId }).IsUnique();
 
             // ChatGroup relationships
             modelBuilder.Entity<ChatGroup>()

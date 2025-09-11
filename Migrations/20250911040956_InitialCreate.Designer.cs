@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250905225411_InitialCreate")]
+    [Migration("20250911040956_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -20,7 +20,7 @@ namespace CMetalsWS.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.8")
+                .HasAnnotation("ProductVersion", "9.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -62,6 +62,9 @@ namespace CMetalsWS.Migrations
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
+
+                    b.Property<string>("Avatar")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("BranchId")
                         .HasColumnType("int");
@@ -173,6 +176,84 @@ namespace CMetalsWS.Migrations
                     b.ToTable("Branches");
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.Chat.MessageReaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Emoji")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("MessageId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("MessageReactions");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.Chat.MessageSeen", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("MessageId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("MessageId", "UserId")
+                        .IsUnique()
+                        .HasFilter("[UserId] IS NOT NULL");
+
+                    b.ToTable("MessageSeens");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.Chat.PinnedThread", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ThreadId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "ThreadId")
+                        .IsUnique();
+
+                    b.ToTable("PinnedThreads");
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.ChatGroup", b =>
                 {
                     b.Property<int>("Id")
@@ -205,7 +286,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasKey("UserId", "ChatGroupId");
 
-                    b.HasIndex("ChatGroupId");
+                    b.HasIndex("ChatGroupId", "UserId");
 
                     b.ToTable("ChatGroupUsers");
                 });
@@ -225,6 +306,15 @@ namespace CMetalsWS.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("bit");
+
                     b.Property<string>("RecipientId")
                         .HasColumnType("nvarchar(450)");
 
@@ -236,13 +326,45 @@ namespace CMetalsWS.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ChatGroupId");
-
                     b.HasIndex("RecipientId");
 
-                    b.HasIndex("SenderId");
+                    b.HasIndex("ChatGroupId", "Timestamp");
+
+                    b.HasIndex("SenderId", "RecipientId", "Timestamp");
 
                     b.ToTable("ChatMessages");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.CityCentroid", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<decimal>("Latitude")
+                        .HasColumnType("decimal(9, 6)");
+
+                    b.Property<decimal>("Longitude")
+                        .HasColumnType("decimal(9, 6)");
+
+                    b.Property<string>("Province")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("City", "Province")
+                        .IsUnique();
+
+                    b.ToTable("CityCentroid", (string)null);
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.Customer", b =>
@@ -253,12 +375,46 @@ namespace CMetalsWS.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Address")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                    b.Property<string>("AccessRestrictions")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AppointmentRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("BusinessHours")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ContactEmail")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ContactName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ContactNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Country")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("CustomTags")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("CustomerCode")
                         .IsRequired()
@@ -270,25 +426,106 @@ namespace CMetalsWS.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<int>("DestinationRegionCategory")
-                        .HasColumnType("int");
+                    b.Property<string>("DeliveryNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                    b.Property<string>("DestinationGroupCategory")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
-                    b.Property<string>("LocationCode")
+                    b.Property<string>("DestinationRegionCategory")
+                        .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("DockType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<bool>("FerryRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("FullAddress")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<decimal?>("Latitude")
+                        .HasColumnType("decimal(9, 6)");
+
+                    b.Property<bool>("LiftgateRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal?>("Longitude")
+                        .HasColumnType("decimal(9, 6)");
 
                     b.Property<DateTime?>("ModifiedUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("PlaceId")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("PreferredTruckType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Province")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("ServiceTimeMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Street1")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("Street2")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<TimeSpan?>("TimeWindowEnd")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("TimeWindowStart")
+                        .HasColumnType("time");
+
+                    b.Property<string>("Timezone")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("TollRoutesAllowed")
+                        .HasColumnType("bit");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("Active");
+
+                    b.HasIndex("City");
 
                     b.HasIndex("CustomerCode")
                         .IsUnique();
 
-                    b.HasIndex("LocationCode");
+                    b.HasIndex("DestinationGroupCategory");
+
+                    b.HasIndex("DestinationRegionCategory");
+
+                    b.HasIndex("PostalCode");
+
+                    b.HasIndex("Province");
 
                     b.ToTable("Customer", (string)null);
                 });
@@ -528,6 +765,10 @@ namespace CMetalsWS.Migrations
                     b.Property<int>("BranchId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Buyer")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
                     b.Property<int?>("CustomerId")
                         .HasColumnType("int");
 
@@ -537,6 +778,12 @@ namespace CMetalsWS.Migrations
 
                     b.Property<DateTime?>("OrderDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("PrintDateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("RemainingWeight")
                         .HasPrecision(18, 3)
@@ -584,6 +831,61 @@ namespace CMetalsWS.Migrations
                         .IsUnique();
 
                     b.ToTable("PickingLists");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.PickingListImport", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CompletedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ImagesPath")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModelUsed")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("PickingListId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RawJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SalesOrderNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SourcePdfPath")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("StartedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("PickingListId");
+
+                    b.ToTable("PickingListImports");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.PickingListItem", b =>
@@ -657,6 +959,31 @@ namespace CMetalsWS.Migrations
                     b.HasIndex("PickingListId");
 
                     b.ToTable("PickingListItems");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.PickingListPageImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ImagePath")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("PageNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PickingListImportId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PickingListImportId");
+
+                    b.ToTable("PickingListPageImages");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.TaskAuditEvent", b =>
@@ -1119,6 +1446,53 @@ namespace CMetalsWS.Migrations
                     b.Navigation("Branch");
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.Chat.MessageReaction", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.ChatMessage", "Message")
+                        .WithMany("Reactions")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMetalsWS.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Message");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.Chat.MessageSeen", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.ChatMessage", "Message")
+                        .WithMany("SeenBy")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMetalsWS.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Message");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.Chat.PinnedThread", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.ChatGroup", b =>
                 {
                     b.HasOne("CMetalsWS.Data.Branch", "Branch")
@@ -1251,6 +1625,24 @@ namespace CMetalsWS.Migrations
                     b.Navigation("Customer");
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.PickingListImport", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMetalsWS.Data.PickingList", "PickingList")
+                        .WithMany()
+                        .HasForeignKey("PickingListId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("PickingList");
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.PickingListItem", b =>
                 {
                     b.HasOne("CMetalsWS.Data.Machine", "Machine")
@@ -1267,6 +1659,17 @@ namespace CMetalsWS.Migrations
                     b.Navigation("Machine");
 
                     b.Navigation("PickingList");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.PickingListPageImage", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.PickingListImport", "Import")
+                        .WithMany("PageImages")
+                        .HasForeignKey("PickingListImportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Import");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.TaskAuditEvent", b =>
@@ -1432,6 +1835,13 @@ namespace CMetalsWS.Migrations
                     b.Navigation("Messages");
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.ChatMessage", b =>
+                {
+                    b.Navigation("Reactions");
+
+                    b.Navigation("SeenBy");
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.Load", b =>
                 {
                     b.Navigation("Items");
@@ -1440,6 +1850,11 @@ namespace CMetalsWS.Migrations
             modelBuilder.Entity("CMetalsWS.Data.PickingList", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.PickingListImport", b =>
+                {
+                    b.Navigation("PageImages");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.TruckRoute", b =>

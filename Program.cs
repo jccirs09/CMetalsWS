@@ -47,11 +47,21 @@ builder.Services.AddAuthentication(options =>
 
 // EF Core
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
+{
+    options.UseSqlServer(connectionString, sql =>
+    {
+        sql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(5), null);
+    });
+});
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
-builder.Services.AddScoped(p => p.GetRequiredService<IDbContextFactory<ApplicationDbContext>>().CreateDbContext());
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Storage", LogLevel.Information);
 
 // IdentityCore with Roles
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
