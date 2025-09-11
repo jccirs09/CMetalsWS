@@ -1,58 +1,87 @@
 @using CMetalsWS.Data.Chat
 @using CMetalsWS.Services
 @using CMetalsWS.Services.SignalR
-@using CMetalsWS.Utils
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.Components.Web.Virtualization
+@using MudBlazor
 @using System.Security.Claims
 
 @inject IChatRepository ChatRepository
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ChatStateService ChatState
 @inject ChatHubClient ChatHubClient
+@inject NotificationService Notifications
 
 @implements IAsyncDisposable
 
-<div class="d-flex flex-column">
-    <MudTextField @bind-Value="_searchQuery"
-                  Placeholder="Search messages..."
-                  Adornment="Adornment.Start"
-                  AdornmentIcon="@Icons.Material.Filled.Search"
-                  DebounceInterval="300"
-                  OnDebounceIntervalElapsed="Refresh" />
+<MudPaper Class="d-flex flex-column" Style="height:100%;overflow:hidden;">
+    <!-- Search -->
+    <MudToolBar Dense="true">
+        <MudTextField @bind-Value="_searchQuery"
+                      Placeholder="Search messages..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      DebounceInterval="300"
+                      OnDebounceIntervalElapsed="Refresh"
+                      Variant="Variant.Text"
+                      Margin="Margin.None"
+                      HideDetails="true" />
+    </MudToolBar>
 
-    <div class="thread-viewport">
-        <MudList T="ThreadSummary" Clickable="true" Dense="true">
-            <Virtualize TItem="ThreadSummary" ItemsProvider="LoadThreads" Context="t" ItemSize="72" OverscanCount="3" @ref="_virt" @key="_currentUserId">
-                <ItemContent>
-                    <MudListItem T="ThreadSummary" OnClick="@(() => OnThreadSelected.InvokeAsync(t))"
-                                 Class="@(ChatState.ActiveThreadId == t.Id ? "mud-selected-item mud-primary-text mud-primary-hover" : "")">
+    <!-- Viewport must scroll so Virtualize can measure -->
+    <div class="flex-grow-1" style="overflow-y:auto;">
+        <MudList T="ThreadSummary" Dense="true" Class="py-0">
+            <Virtualize TItem="ThreadSummary"
+                        @ref="_virt"
+                        ItemsProvider="LoadThreads"
+                        ItemSize="72"
+                        OverscanCount="4">
+                <ItemContent Context="t">
+                    <MudListItem T="ThreadSummary"
+                                 Class="thread-item"
+                                 Selected="@(t.Id == ChatState.ActiveThreadId)"
+                                 OnClick="@(() => SelectThread(t))">
 
-                        <MudAvatar>
-                            @if (!string.IsNullOrWhiteSpace(t.AvatarUrl))
-                            {
-                                <MudImage Src="@t.AvatarUrl" />
-                            }
-                            else
-                            {
-                                <span class="mud-typography-h6">@UiHelper.GetInitials(t.FullName)</span>
-                            }
-                        </MudAvatar>
+                        <!-- Unread dot + Avatar with initials fallback -->
+                        <MudBadge Dot="true"
+                                  Color="Color.Primary"
+                                  Overlap="true"
+                                  Visible="@( !string.IsNullOrEmpty(t.Id) && Notifications.GetThreadUnread(t.Id) > 0 )">
+                            <MudAvatar Size="Size.Medium" Class="mr-3">
+                                @if (!string.IsNullOrWhiteSpace(t.AvatarUrl))
+                                {
+                                    <MudImage Src="@t.AvatarUrl" />
+                                }
+                                else
+                                {
+                                    @Initials(DisplayTitle(t))
+                                }
+                            </MudAvatar>
+                        </MudBadge>
 
-                        <div class="ml-4 flex-grow-1">
-                            <MudText Typo="Typo.subtitle2" Style="font-weight: bold;">@t.FullName</MudText>
-                            <MudText Typo="Typo.caption" Style="@(t.UnreadCount > 0 ? "font-weight: bold;" : "")">@t.LastMessagePreview</MudText>
+                        <!-- Title + last message preview -->
+                        <div class="flex-grow-1 min-w-0">
+                            <MudText Class="mud-font-weight-bold text-ellipsis">
+                                @DisplayTitle(t)
+                            </MudText>
+                            <MudText Typo="Typo.caption" Class="@GetPreviewClass(t)">
+                                @t.LastMessagePreview
+                            </MudText>
                         </div>
 
+                        <!-- Pin / Unpin -->
                         <MudIconButton Icon="@(t.IsPinned? Icons.Material.Filled.PushPin : Icons.Material.Outlined.PushPin)"
                                        Color="@(t.IsPinned ? Color.Primary : Color.Default)"
-                                       OnClick="@(() => PinThread(t))" />
+                                       OnClick="@((MouseEventArgs _) => PinThread(t))"
+                                       OnClickStopPropagation="true"
+                                       Edge="Edge.End" />
                     </MudListItem>
                 </ItemContent>
             </Virtualize>
         </MudList>
     </div>
-</div>
+</MudPaper>
 
 @if (_providerRan && _lastCount == 0)
 {
@@ -67,36 +96,80 @@
     private string _searchQuery = string.Empty;
     private string? _currentUserId;
 
-    private Virtualize<ThreadSummary>? _virt;
+    private Virtualize<ThreadSummary>? _virt;   // native Virtualize ref
     private bool _providerRan;
     private int _lastCount;
+    private bool _autoSelected;
+    private bool _refreshScheduled;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var u = authState.User;
-        _currentUserId = u.FindFirstValue(ClaimTypes.NameIdentifier);
-        ChatState.OnChange += StateHasChanged;
+
+        _currentUserId =
+            u.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? u.FindFirst("sub")?.Value
+            ?? u.FindFirst("oid")?.Value
+            ?? u.FindFirst("uid")?.Value;
+
+        // Hub-driven refreshes
         ChatHubClient.ThreadsUpdated += OnThreadsUpdated;
+        ChatHubClient.ThreadRead += OnThreadRead;
+        ChatHubClient.InboxNewMessage += OnInboxNewMessage;
+
+        // Notification service (local counters & dot badges)
+        Notifications.Changed += OnNotificationsChanged;
+        await Notifications.InitializeAsync();
+
+        await ChatHubClient.ConnectAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && _virt != null)
-        {
             await _virt.RefreshDataAsync();
-        }
     }
 
-    private async Task Refresh()
+    private Task Refresh()
     {
-        if (_virt != null) await _virt.RefreshDataAsync();
+        // coalesce rapid refreshes (search typing & hub pings)
+        if (_refreshScheduled) return Task.CompletedTask;
+        _refreshScheduled = true;
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Delay(40);
+            _refreshScheduled = false;
+            if (_virt != null) await _virt.RefreshDataAsync();
+        });
+        return Task.CompletedTask;
     }
 
     private async Task OnThreadsUpdated()
     {
         await Refresh();
         await InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnThreadRead(object _)
+      => Refresh();
+
+    private async Task OnInboxNewMessage(MessageDto _)
+    {
+        await Refresh();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void OnNotificationsChanged()
+      => InvokeAsync(StateHasChanged);
+
+    private async Task SelectThread(ThreadSummary t)
+    {
+        if (!string.IsNullOrEmpty(t.Id))
+            Notifications.ClearThread(t.Id);  // immediate local drop
+
+        ChatState.ActivateThread(t.Id!);
+        await OnThreadSelected.InvokeAsync(t);
     }
 
     private async Task PinThread(ThreadSummary thread)
@@ -108,27 +181,63 @@
     private async ValueTask<ItemsProviderResult<ThreadSummary>> LoadThreads(ItemsProviderRequest request)
     {
         _providerRan = true;
+
         if (string.IsNullOrEmpty(_currentUserId))
             return new ItemsProviderResult<ThreadSummary>(Array.Empty<ThreadSummary>(), 0);
 
+        // Repo returns sorted (pinned first, then last activity desc)
         var all = (await ChatRepository.GetThreadSummariesAsync(_currentUserId, _searchQuery)).ToList();
         _lastCount = all.Count;
+
+        // Auto-select newest once
+        if (!_autoSelected && string.IsNullOrEmpty(ChatState.ActiveThreadId) && all.Count > 0)
+        {
+            _autoSelected = true;
+            var first = all[0];
+            ChatState.ActivateThread(first.Id!);
+            _ = OnThreadSelected.InvokeAsync(first);
+        }
 
         var page = all.Skip(request.StartIndex).Take(request.Count);
         return new ItemsProviderResult<ThreadSummary>(page, all.Count);
     }
 
+    private static string DisplayTitle(ThreadSummary t)
+    {
+        var full = $"{t.FirstName} {t.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(full)
+          ? (string.IsNullOrWhiteSpace(t.Title) ? "Conversation" : t.Title!)
+          : full;
+    }
+
+    private static string Initials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 1
+          ? parts[0].Substring(0, 1).ToUpperInvariant()
+          : $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
+    }
+
+    private static string GetPreviewClass(ThreadSummary t)
+      => t.UnreadCount > 0 ? "text-ellipsis mud-font-weight-semibold mt-1"
+                           : "text-ellipsis mt-1";
+
     public ValueTask DisposeAsync()
     {
-        ChatState.OnChange -= StateHasChanged;
         ChatHubClient.ThreadsUpdated -= OnThreadsUpdated;
+        ChatHubClient.ThreadRead -= OnThreadRead;
+        ChatHubClient.InboxNewMessage -= OnInboxNewMessage;
+        Notifications.Changed -= OnNotificationsChanged;
         return ValueTask.CompletedTask;
     }
 }
 
 <style>
-    .thread-viewport {
-        height: calc(100vh - 220px);
-        overflow: auto;
+    /* single-line truncation */
+    .thread-item .text-ellipsis {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
     }
 </style>

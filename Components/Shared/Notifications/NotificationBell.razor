@@ -1,0 +1,151 @@
+﻿@using CMetalsWS.Services
+@using MudBlazor
+@using System.Linq
+@inject NotificationService Notifications
+@inject ChatStateService ChatState
+
+<!-- Wrap the button in a plain element to capture an ElementReference for the popover -->
+<span @ref="_anchorRef">
+    <MudBadge Color="Color.Error"
+              Content="@(Notifications.UnreadTotal)"
+              MaxValue="99"
+              Overlap="true"
+              Visible="@(Notifications.UnreadTotal > 0)">
+        <MudIconButton Icon="@Icons.Material.Filled.Notifications"
+                       Color="Color.Inherit"
+                       OnClick="@Toggle"
+                       AriaLabel="Notifications" />
+    </MudBadge>
+</span>
+
+<MudPopover Open="@_open"
+            AnchorReference="AnchorReference.Element"
+            AnchorEl="_anchorRef"
+            AnchorOrigin="Origin.BottomRight"
+            TransformOrigin="Origin.TopRight"
+            CloseOnOutsideClick="true"
+            Elevation="8"
+            Class="px-2 py-2">
+
+    <MudPaper Class="notif-root">
+        <div class="d-flex align-center px-2 py-1">
+            <MudText Typo="Typo.subtitle2" Class="flex-grow-1">Notifications</MudText>
+            @if (Notifications.UnreadTotal > 0)
+            {
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Primary"
+                           Class="px-2 py-0"
+                           OnClick="MarkAllAsRead">
+                    Mark all as read
+                </MudButton>
+            }
+        </div>
+        <MudDivider />
+
+        <MudList T="object" Dense="true" Class="notif-list">
+            @if (Notifications.Recent.Count == 0)
+            {
+                <MudListItem T="object">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                        No new messages
+                    </MudText>
+                </MudListItem>
+            }
+            else
+            {
+                @foreach (var n in Notifications.Recent.Take(20))
+                {
+                    <MudListItem T="object"
+                                 Class="notif-item"
+                                 Style="cursor:pointer"
+                                 OnClick="() => OpenThread(n.ThreadId)">
+                        <MudAvatar Size="Size.Medium" Class="mr-2">
+                            @if (!string.IsNullOrWhiteSpace(n.AvatarUrl))
+                            {
+                                <MudImage Src="@n.AvatarUrl" />
+                            }
+                            else
+                            {
+                                @Initials(n.Title)
+                            }
+                        </MudAvatar>
+
+                        <div class="min-w-0 flex-grow-1">
+                            <MudText Class="mud-font-weight-bold text-ellipsis">@n.Title</MudText>
+                            <MudText Typo="Typo.caption" Class="text-ellipsis">
+                                @n.Preview
+                            </MudText>
+                        </div>
+
+                        <MudText Typo="Typo.caption" Class="ml-2 mud-text-secondary">
+                            @n.Timestamp.ToLocalTime().ToShortTimeString()
+                        </MudText>
+                    </MudListItem>
+                }
+            }
+        </MudList>
+    </MudPaper>
+</MudPopover>
+
+@code {
+    private ElementReference _anchorRef;   // DOM anchor for popover
+    private bool _open;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Notifications.Changed += OnChanged;
+        await Notifications.InitializeAsync();
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private void Toggle() => _open = !_open;
+
+    private async Task MarkAllAsRead()
+    {
+        Notifications.ClearAll();
+        _open = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OpenThread(string threadId)
+    {
+        _open = false;
+        ChatState.ActivateThread(threadId);
+        Notifications.ClearThread(threadId);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static string Initials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 1
+            ? parts[0].Substring(0, 1).ToUpperInvariant()
+            : $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
+    }
+
+    public void Dispose()
+    {
+        Notifications.Changed -= OnChanged;
+    }
+}
+
+<style>
+    .notif-root {
+        width: 360px;
+        max-height: 60vh;
+        overflow: auto;
+    }
+
+    .notif-list {
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+
+    .notif-item .text-ellipsis {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+</style>

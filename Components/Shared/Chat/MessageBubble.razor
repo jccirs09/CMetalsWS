@@ -1,44 +1,51 @@
+@using CMetalsWS.Data
 @using CMetalsWS.Data.Chat
 @using MudBlazor
 
-<div class="message-bubble-container">
-    <MudPaper Elevation="2" Class="pa-2 rounded-lg message-content">
-        @if (!IsMine && ShowSenderName)
-        {
-            <MudText Typo="Typo.caption" Class="font-weight-bold">@Message?.SenderName</MudText>
-        }
-        @if (_isEditing)
-        {
-            <MudTextField T="string" Value="@_editedContent" ValueChanged="@((s) => _editedContent = s)" OnKeyDown="OnEditKeyDown" />
-        }
-        else
-        {
-            <MudText>@Message?.Content</MudText>
-        }
-        <div class="d-flex align-center justify-end mt-1">
-            @if (Message?.EditedAt != null)
+<div class="d-flex flex-row my-2 message-bubble @(IsMine ? "mine" : "theirs")">
+    @if (!IsMine)
+    {
+        <MudAvatar Size="Size.Medium" Class="mr-2">@GetInitials(Message?.SenderName)</MudAvatar>
+    }
+    <div class="d-flex flex-column">
+        <MudPaper Elevation="2" Class="pa-2 rounded-lg">
+            @if (!IsMine)
             {
-                <MudText Typo="Typo.caption" Class="mr-1">(edited)</MudText>
+                <MudText Typo="Typo.caption" Class="font-weight-bold">@Message?.SenderName</MudText>
             }
-            <MudText Typo="Typo.caption" Class="mr-1">@Message?.CreatedAt.ToLocalTime().ToString("h:mm tt")</MudText>
-            @if (IsMine)
+            @if (_isEditing)
             {
-                <MudIcon Icon="@GetReadReceiptIcon()" Size="Size.Small" Style="@GetReadReceiptColor()" />
+                <MudTextField T="string" Value="@_editedContent" ValueChanged="@((s) => _editedContent = s)" OnKeyDown="OnEditKeyDown" />
+            }
+            else
+            {
+                <MudText>@Message?.Content</MudText>
+            }
+            <div class="d-flex align-center justify-end mt-1">
+                @if (Message?.EditedAt != null)
+                {
+                    <MudText Typo="Typo.caption" Class="mr-1">(edited)</MudText>
+                }
+                <MudText Typo="Typo.caption" Class="mr-1">@Message?.CreatedAt.ToLocalTime().ToString("h:mm tt")</MudText>
+                @if (IsMine)
+                {
+                    <MudIcon Icon="@GetReadReceiptIcon()" Size="Size.Small" Style="@GetReadReceiptColor()" />
+                }
+            </div>
+        </MudPaper>
+        <div class="reaction-bar mt-1">
+            @if (Message?.Reactions.Any() == true)
+            {
+                @foreach (var reaction in Message.Reactions)
+                {
+                    <MudTooltip Text="@GetReactionUsernames(reaction.Key)">
+                        <MudChip T="string" Size="Size.Small" OnClick="@(() => OnReactionClicked.InvokeAsync(reaction.Key))">
+                            @reaction.Key @reaction.Value.Count
+                        </MudChip>
+                    </MudTooltip>
+                }
             }
         </div>
-    </MudPaper>
-    <div class="reaction-bar mt-1 @(IsMine ? "justify-end" : "")">
-        @if (Message?.Reactions.Any() == true)
-        {
-            @foreach (var reaction in Message.Reactions)
-            {
-                <MudTooltip Text="@GetReactionUsernames(reaction.Key)">
-                    <MudChip T="string" Size="Size.Small" OnClick="@(() => OnReactionClicked.InvokeAsync(reaction.Key))">
-                        @reaction.Key @reaction.Value.Count
-                    </MudChip>
-                </MudTooltip>
-            }
-        }
     </div>
     <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" Class="message-actions">
         <MudMenuItem OnClick="@(() => OnReactionClicked.InvokeAsync("👍"))">👍</MudMenuItem>
@@ -56,7 +63,6 @@
 @code {
     [Parameter] public MessageDto? Message { get; set; }
     [Parameter] public bool IsMine { get; set; }
-    [Parameter] public bool ShowSenderName { get; set; }
     [Parameter] public EventCallback<string> OnReactionClicked { get; set; }
     [Parameter] public EventCallback<string> OnFinishEditing { get; set; }
     [Parameter] public EventCallback OnDeleteClicked { get; set; }
@@ -97,6 +103,13 @@
         if (Message == null) return "color: var(--mud-palette-action-disabled);";
         var seenByOthersCount = Message.SeenBy.Count(s => s.Key != Message.SenderId);
         return seenByOthersCount > 0 ? "color: var(--mud-palette-info);" : "color: var(--mud-palette-action-disabled);";
+    }
+
+    private string? GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 1 ? $"{parts[0][0]}{parts[1][0]}".ToUpper() : $"{name[0]}".ToUpper();
     }
 
     private string GetReactionUsernames(string emoji)

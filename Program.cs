@@ -120,9 +120,14 @@ builder.Services.AddScoped<IParsingStateService, ParsingStateService>();
 
 builder.Services.AddScoped<ChatStateService>();
 builder.Services.AddScoped<ChatHubClient>();
+builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<IChatRepository, ChatRepository>();
 builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
-builder.Services.AddSignalR();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+});
 
 
 var app = builder.Build();
@@ -163,7 +168,7 @@ app.MapRazorComponents<App>()
 app.MapAdditionalIdentityEndpoints();
 
 app.MapHub<ScheduleHub>("/hubs/schedule");
-app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<ChatHub>("/chathub");
 
 
 
