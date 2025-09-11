@@ -44,6 +44,7 @@ namespace CMetalsWS.Data
         {
             base.OnModelCreating(modelBuilder);
 
+
             // Machine -> Branch
             modelBuilder.Entity<Machine>()
                 .HasOne(m => m.Branch)
@@ -80,7 +81,9 @@ namespace CMetalsWS.Data
                 entity.HasIndex(c => c.DestinationGroupCategory);
                 entity.HasIndex(c => c.Active);
             });
-
+            modelBuilder.Entity<ApplicationUser>().HasIndex(u => u.FirstName);
+            modelBuilder.Entity<ApplicationUser>().HasIndex(u => u.LastName);
+            modelBuilder.Entity<ApplicationUser>().HasIndex(u => new { u.FirstName, u.LastName });
             // City Centroid
             modelBuilder.Entity<CityCentroid>(entity =>
             {

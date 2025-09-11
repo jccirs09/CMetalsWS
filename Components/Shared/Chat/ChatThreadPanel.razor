@@ -1,3 +1,11 @@
+@using CMetalsWS.Data.Chat
+@using CMetalsWS.Services
+@using CMetalsWS.Services.SignalR
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using MudBlazor
+@using System.Security.Claims
 
 @inject IChatRepository ChatRepository
 @inject AuthenticationStateProvider AuthStateProvider
@@ -8,20 +16,19 @@
 @implements IAsyncDisposable
 
 <MudPaper Class="d-flex flex-column" Style="height:100%;overflow:hidden;">
-    <!-- Search -->
     <MudToolBar Dense="true">
-        <MudTextField @bind-Value="_searchQuery"
-                      Placeholder="Search messages..."
+        <MudTextField @bind-Value="_rawSearch"
+                      Immediate="true"
+                      DebounceInterval="300"
+                      OnDebounceIntervalElapsed="@(async (string v) => await OnSearchDebounced(v))"
+                      Placeholder="Search messages or people…"
                       Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search"
-                      DebounceInterval="300"
-                      OnDebounceIntervalElapsed="Refresh"
                       Variant="Variant.Text"
                       Margin="Margin.None"
                       HideDetails="true" />
     </MudToolBar>
 
-    <!-- Scrollable viewport for Virtualize -->
     <div class="flex-grow-1" style="overflow-y:auto;">
         <MudList T="ThreadSummary" Dense="true" Class="py-0">
             <Virtualize TItem="ThreadSummary"
@@ -35,7 +42,7 @@
                                  Selected="@(t.Id == ChatState.ActiveThreadId)"
                                  OnClick="@(() => SelectThread(t))">
                         <div class="thread-row">
-                            <!-- Avatar with unread dot -->
+                            <!-- Avatar + unread dot -->
                             <div class="thread-avatar">
                                 <MudBadge Dot="true"
                                           Color="Color.Primary"
@@ -56,13 +63,9 @@
 
                             <!-- Name + preview -->
                             <div class="thread-main">
-                                <MudText Class="name text-ellipsis">
-                                    @DisplayTitle(t)
-                                </MudText>
+                                <MudText Class="name text-ellipsis">@DisplayTitle(t)</MudText>
                                 <MudText Typo="Typo.caption" Class="@GetPreviewClass(t)">
-                                    @(!string.IsNullOrWhiteSpace(t.LastMessagePreview)
-                                                                        ? t.LastMessagePreview
-                                                                        : "Tap to start chat")
+                                    @(!string.IsNullOrWhiteSpace(t.LastMessagePreview) ? t.LastMessagePreview : "Tap to start chat")
                                 </MudText>
                             </div>
 
@@ -91,14 +94,24 @@
 @code {
     [Parameter] public EventCallback<ThreadSummary> OnThreadSelected { get; set; }
 
-    private string _searchQuery = string.Empty;
-    private string? _currentUserId;
+    private string _rawSearch = string.Empty;   // what user typed
+    private string _searchQuery = string.Empty; // debounced + min length 2
 
+    private string? _currentUserId;
     private Virtualize<ThreadSummary>? _virt;
     private bool _providerRan;
     private int _lastCount;
     private bool _autoSelected;
     private bool _refreshScheduled;
+
+    // cache last successful page for canceled queries
+    private IReadOnlyList<ThreadSummary> _cacheItems = Array.Empty<ThreadSummary>();
+    private int _cacheTotal = 0;
+
+    // named handlers so we can unsubscribe cleanly
+    private Func<Task>? _threadsUpdatedHandler;
+    private Func<object, Task>? _threadReadHandler;
+    private Action? _notificationsChangedHandler;
 
     protected override async Task OnInitializedAsync()
     {
@@ -111,12 +124,16 @@
             ?? u.FindFirst("oid")?.Value
             ?? u.FindFirst("uid")?.Value;
 
-        // Hub-driven refreshes
-        ChatHubClient.ThreadsUpdated += OnThreadsUpdated;
-        ChatHubClient.ThreadRead += OnThreadRead; // drop unread counters after server marks read
+        // Hub-driven refresh (use named handlers)
+        _threadsUpdatedHandler = OnThreadsUpdated;
+        ChatHubClient.ThreadsUpdated += _threadsUpdatedHandler;
 
-        // Local notifications (for unread dot)
-        Notifications.Changed += OnNotificationsChanged;
+        _threadReadHandler = OnThreadRead;
+        ChatHubClient.ThreadRead += _threadReadHandler;
+
+        // Local notifications (dot badges / total)
+        _notificationsChangedHandler = OnNotificationsChanged;
+        Notifications.Changed += _notificationsChangedHandler;
         await Notifications.InitializeAsync();
 
         await ChatHubClient.ConnectAsync();
@@ -128,34 +145,40 @@
             await _virt.RefreshDataAsync();
     }
 
+    private Task OnSearchDebounced(string value)
+    {
+        _rawSearch = value ?? string.Empty;
+
+        // only trigger directory expansion at 2+ chars
+        var trimmed = _rawSearch.Trim();
+        _searchQuery = trimmed.Length >= 2 ? trimmed : string.Empty;
+
+        return Refresh();
+    }
+
     private Task Refresh()
     {
-        // coalesce rapid refreshes (search typing & hub pings)
         if (_refreshScheduled) return Task.CompletedTask;
         _refreshScheduled = true;
+
         _ = InvokeAsync(async () =>
         {
-            await Task.Delay(40);
+            await Task.Delay(40); // coalesce bursts
             _refreshScheduled = false;
             if (_virt != null) await _virt.RefreshDataAsync();
         });
+
         return Task.CompletedTask;
     }
 
-    private async Task OnThreadsUpdated()
-    {
-        await Refresh();
-        await InvokeAsync(StateHasChanged);
-    }
-
+    private Task OnThreadsUpdated() => Refresh();
     private Task OnThreadRead(object _) => Refresh();
-
     private void OnNotificationsChanged() => InvokeAsync(StateHasChanged);
 
     private async Task SelectThread(ThreadSummary t)
     {
         if (!string.IsNullOrEmpty(t.Id))
-            Notifications.ClearThread(t.Id); // immediate local drop
+            Notifications.ClearThread(t.Id); // drop local badge immediately
 
         ChatState.ActivateThread(t.Id!);
         await OnThreadSelected.InvokeAsync(t);
@@ -180,8 +203,9 @@
                 _currentUserId, _searchQuery, request.StartIndex, request.Count, request.CancellationToken);
 
             _lastCount = total;
+            _cacheItems = items;
+            _cacheTotal = total;
 
-            // Auto-select newest once (guard when page is empty)
             if (!_autoSelected && string.IsNullOrEmpty(ChatState.ActiveThreadId) && total > 0 && items.Count > 0)
             {
                 _autoSelected = true;
@@ -194,8 +218,8 @@
         }
         catch (OperationCanceledException)
         {
-            // Virtualize canceled a prior request—return empty and let it requery.
-            return new ItemsProviderResult<ThreadSummary>(Array.Empty<ThreadSummary>(), 0);
+            // Serve last good data to avoid a blank panel
+            return new ItemsProviderResult<ThreadSummary>(_cacheItems, _cacheTotal);
         }
     }
 
@@ -219,13 +243,13 @@
     private static string GetPreviewClass(ThreadSummary t)
         => t.UnreadCount > 0
             ? "preview text-ellipsis mud-font-weight-semibold"
-            : "preview text-ellipsis font-italic"; // italic when it's the synthetic "Tap to start chat"
+            : "preview text-ellipsis";
 
     public ValueTask DisposeAsync()
     {
-        ChatHubClient.ThreadsUpdated -= OnThreadsUpdated;
-        ChatHubClient.ThreadRead -= OnThreadRead;
-        Notifications.Changed -= OnNotificationsChanged;
+        if (_threadsUpdatedHandler != null) ChatHubClient.ThreadsUpdated -= _threadsUpdatedHandler;
+        if (_threadReadHandler != null) ChatHubClient.ThreadRead -= _threadReadHandler;
+        if (_notificationsChangedHandler != null) Notifications.Changed -= _notificationsChangedHandler;
         return ValueTask.CompletedTask;
     }
 }

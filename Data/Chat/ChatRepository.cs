@@ -8,6 +8,14 @@ using System.Threading.Tasks;
 
 namespace CMetalsWS.Data.Chat
 {
+    public sealed class UserBasics
+    {
+        public string Id { get; init; } = "";
+        public string? UserName { get; init; }
+        public string? FirstName { get; init; }
+        public string? LastName { get; init; }
+        public string? Avatar { get; init; }
+    }
     public class ChatRepository : IChatRepository
     {
         private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
@@ -28,7 +36,21 @@ namespace CMetalsWS.Data.Chat
             }
             return false;
         }
-
+        public async Task<UserBasics?> GetUserBasicsAsync(string id)
+        {
+            await using var c = await _contextFactory.CreateDbContextAsync();
+            return await c.Users.AsNoTracking()
+                .Where(u => u.Id == id)
+                .Select(u => new UserBasics
+                {
+                    Id = u.Id,
+                    UserName = u.UserName,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
+                    Avatar = u.Avatar
+                })
+                .FirstOrDefaultAsync();
+        }
         private static MessageDto ToMessageDto(ChatMessage message, string currentUserId, Dictionary<string, string> reactionUsers)
         {
             var reactions = (message.Reactions ?? Enumerable.Empty<MessageReaction>())
@@ -485,43 +507,43 @@ namespace CMetalsWS.Data.Chat
             if (!string.IsNullOrWhiteSpace(searchQuery))
             {
                 var q = searchQuery.Trim();
-                var existingDm = new HashSet<string>(dmAgg.Select(x => x.OtherId));
-
-                var matches = await cUsers.Users
-                    .AsNoTracking()
-                    .Where(u => u.Id != userId &&
-                        (
-                            (u.UserName != null && EF.Functions.Like(u.UserName, $"%{q}%")) ||
-                            (u.FirstName != null && EF.Functions.Like(u.FirstName, $"%{q}%")) ||
-                            (u.LastName != null && EF.Functions.Like(u.LastName, $"%{q}%")) ||
-                            (u.Email != null && EF.Functions.Like(u.Email, $"%{q}%")) ||
-                            // full name
-                            (u.FirstName != null && u.LastName != null &&
-                             EF.Functions.Like(u.FirstName + " " + u.LastName, $"%{q}%"))
-                        // If you have a custom column:
-                        // || (u.UserLogin != null && EF.Functions.Like(u.UserLogin, $"%{q}%"))
-                        ))
-                    .Select(u => new { u.Id, u.UserName, u.FirstName, u.LastName, u.Avatar })
-                    .Take(50)
-                    .ToListAsync(ct);
-
-                foreach (var m in matches)
+                if (q.Length >= 2)
                 {
-                    if (existingDm.Contains(m.Id)) continue;
+                    var qUpper = q.ToUpper();
+                    var existingDm = new HashSet<string>(dmAgg.Select(x => x.OtherId));
 
-                    dmSummaries.Add(new ThreadSummary
+                    var matches = await cUsers.Users
+                        .AsNoTracking()
+                        .Where(u => u.Id != userId &&
+                            (
+                                u.NormalizedUserName!.Contains(qUpper) ||
+                                u.NormalizedEmail!.Contains(qUpper) ||
+                                (u.FirstName != null && EF.Functions.Like(u.FirstName, $"%{q}%")) ||
+                                (u.LastName != null && EF.Functions.Like(u.LastName, $"%{q}%")) ||
+                                (u.FirstName != null && u.LastName != null &&
+                                 EF.Functions.Like(u.FirstName + " " + u.LastName, $"%{q}%"))
+                            ))
+                        .Select(u => new { u.Id, u.UserName, u.FirstName, u.LastName, u.Avatar })
+                        .Take(50) 
+                        .ToListAsync(ct);
+
+                    foreach (var m in matches)
                     {
-                        Id = m.Id,
-                        Title = m.UserName,
-                        FirstName = m.FirstName,
-                        LastName = m.LastName,
-                        AvatarUrl = m.Avatar,
-                        LastMessagePreview = null,
-                        UnreadCount = 0,
-                        Participants = new List<string> { userId, m.Id },
-                        LastActivityAt = DateTime.MinValue,
-                        IsPinned = pinnedIds.Contains(m.Id)
-                    });
+                        if (existingDm.Contains(m.Id)) continue;
+                        dmSummaries.Add(new ThreadSummary
+                        {
+                            Id = m.Id,
+                            Title = m.UserName,
+                            FirstName = m.FirstName,
+                            LastName = m.LastName,
+                            AvatarUrl = m.Avatar,
+                            LastMessagePreview = null,
+                            UnreadCount = 0,
+                            Participants = new List<string> { userId, m.Id },
+                            LastActivityAt = DateTime.MinValue,
+                            IsPinned = pinnedIds.Contains(m.Id)
+                        });
+                    }
                 }
             }
 
