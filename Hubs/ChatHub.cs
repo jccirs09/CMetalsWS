@@ -1,5 +1,6 @@
 using CMetalsWS.Data;
 using CMetalsWS.Data.Chat;
+using Humanizer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
@@ -65,6 +66,7 @@ namespace CMetalsWS.Hubs
         public async Task SendMessage(string threadId, string content)
         {
             var currentUserId = GetUserIdOrThrow();
+
             try
             {
                 if (string.IsNullOrWhiteSpace(content))
@@ -72,14 +74,25 @@ namespace CMetalsWS.Hubs
 
                 await VerifyUserIsParticipantAsync(threadId);
 
+                // Persist the message and get the DTO we broadcast everywhere
                 var dto = await _chatRepository.CreateMessageAsync(threadId, currentUserId, content);
 
+                // Broadcast to the active thread group (DM normalized or group)
                 var key = GetThreadGroupKey(threadId, currentUserId);
                 await Clients.Group(key).SendAsync("ReceiveMessage", dto);
 
+                // Update thread lists and nudge inbox for each participant
                 var participants = await _chatRepository.GetThreadParticipantsAsync(threadId, currentUserId);
                 foreach (var uid in participants.Where(u => !string.IsNullOrEmpty(u.Id)).Select(u => u.Id!))
+                {
                     await Clients.Group(GetUserGroupName(uid)).SendAsync("ThreadsUpdated");
+
+                    // inbox ping for everyone except the sender
+                    if (uid != currentUserId)
+                    {
+                        await Clients.Group(GetUserGroupName(uid)).SendAsync("InboxNewMessage", dto);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -87,6 +100,7 @@ namespace CMetalsWS.Hubs
                 throw new HubException($"SendMessage failed: {ex.GetBaseException().Message}");
             }
         }
+
 
         public async Task UpdateMessage(int messageId, string newContent)
         {
@@ -173,6 +187,7 @@ namespace CMetalsWS.Hubs
             await _chatRepository.MarkThreadAsReadAsync(threadId, userId);
             // Notify other sessions of the current user that the thread is read
             await Clients.Group(GetUserGroupName(userId)).SendAsync("ThreadRead", new { ThreadId = threadId, ReaderId = userId });
+            await Clients.Group(GetUserGroupName(userId)).SendAsync("ThreadsUpdated");
         }
 
         private string GetUserIdOrThrow()

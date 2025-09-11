@@ -13,6 +13,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IJSRuntime JSRuntime
 @inject IDialogService DialogService
+@inject NotificationService Notifications
 
 @implements IAsyncDisposable
 
@@ -100,6 +101,7 @@
 
     private string? _currentUserId;
     private string? _threadTitle;
+    private string? _lastThreadId;
     private List<MessageDto> _messages = new();
     private List<ApplicationUser> _participants = new();
     private bool _allMessagesLoaded;
@@ -139,9 +141,15 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        if (ThreadId != null && !_messages.Any(m => m.ThreadId == ThreadId))
+        if (!string.IsNullOrWhiteSpace(ThreadId) && ThreadId != _lastThreadId)
         {
+            _lastThreadId = ThreadId;
+            // load the thread UI
             await LoadThreadAsync(ThreadId);
+            // clear badge immediately in the UI
+            Notifications.ClearThread(ThreadId);
+            // tell the server it's read (hub will broadcast ThreadRead)
+            await ChatHubClient.MarkReadAsync(ThreadId);
         }
     }
 
@@ -169,8 +177,9 @@
         _messages.AddRange(initial);
         _allMessagesLoaded = !initial.Any() || initial.Count < 50;
 
-        _shouldScrollToBottom = true;
+        _shouldScrollToBottom = true;        
         StateHasChanged();
+        await ChatHubClient.MarkReadAsync(threadId);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -262,6 +271,11 @@
             _shouldScrollToBottom = true;
             await InvokeAsync(StateHasChanged);
         }
+        if (message.ThreadId == ThreadId)
+        {
+            // tell the server we've read it; hub will push ThreadRead to update counters
+            await ChatHubClient.MarkReadAsync(ThreadId);
+        }
     }
 
     private async Task OnMessageUpdated(MessageDto message)
@@ -300,6 +314,7 @@
         ChatHubClient.MessageUpdated -= OnMessageUpdated;
         ChatHubClient.MessagePinned -= OnMessagePinned;
         ChatHubClient.MessageDeleted -= OnMessageDeleted;
+
         _typingTimer?.Dispose();
     }
 

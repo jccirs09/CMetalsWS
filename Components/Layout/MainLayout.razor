@@ -1,5 +1,4 @@
 @inherits LayoutComponentBase
-@using CMetalsWS.Services
 @implements IDisposable
 
 <MudThemeProvider Theme="_customTheme" @bind-IsDarkMode="_isDarkMode" />
@@ -9,18 +8,31 @@
 
 <MudLayout>
     <MudAppBar Elevation="1">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => _drawerOpen = !_drawerOpen)" />
+        <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                       Color="Color.Inherit"
+                       Edge="Edge.Start"
+                       OnClick="@((e) => _drawerOpen = !_drawerOpen)" />
+
         <MudText Typo="Typo.h5" Class="ml-3">Application</MudText>
         <MudSpacer />
-        <MudIconButton Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" />
+
+        <!-- Use the unified NotificationBell component here -->
+        <NotificationBell />
+
         <MudMenu Icon="@Icons.Material.Filled.Person" Color="Color.Inherit" Edge="Edge.End">
             <MudMenuItem Link="/profile">Profile</MudMenuItem>
             <MudMenuItem OnClick="Logout">Logout</MudMenuItem>
         </MudMenu>
+
         @if (!ChatState.IsChatPageOpen)
         {
-            <MudIconButton Icon="@Icons.Material.Filled.Chat" OnClick="@(() => ChatState.ToggleThreadPanel())" Color="Color.Inherit" />
-            <MudPopover Open="ChatState.IsThreadPanelOpen" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" OnClose="@(() => ChatState.ToggleThreadPanel())">
+            <MudIconButton Icon="@Icons.Material.Filled.Chat"
+                           OnClick="@(() => ChatState.ToggleThreadPanel())"
+                           Color="Color.Inherit" />
+            <MudPopover Open="ChatState.IsThreadPanelOpen"
+                        AnchorOrigin="Origin.BottomRight"
+                        TransformOrigin="Origin.TopRight"
+                        OnClose="@(() => ChatState.ToggleThreadPanel())">
                 <div class="pa-2" style="width: 350px;">
                     <ChatThreadPanel OnThreadSelected="OnHeaderThreadSelected" />
                 </div>
@@ -35,7 +47,6 @@
     <MudMainContent Class="pt-16 pa-4">
         @Body
     </MudMainContent>
-
 </MudLayout>
 
 @if (!ChatState.IsChatPageOpen)

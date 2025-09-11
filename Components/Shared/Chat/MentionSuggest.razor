@@ -1,23 +1,59 @@
 @using CMetalsWS.Data
 @using MudBlazor
+@using System.Globalization
 
-<MudPopover Open="@_isOpen" AnchorOrigin="Origin.TopCenter" TransformOrigin="Origin.BottomCenter" Class="px-4 py-2">
-    <MudList T="ApplicationUser" Clickable="true">
-        @foreach (var user in Suggestions)
+<MudPopover Open="@_isOpen"
+            AnchorOrigin="Origin.TopCenter"
+            TransformOrigin="Origin.BottomCenter"
+            Class="px-2 py-2">
+    <MudList T="ApplicationUser" Dense="true" Clickable="true" Class="min-w-64">
+        @if (!Filtered.Any())
         {
-            <MudListItem T="ApplicationUser" OnClick="() => SelectUser(user)">
-                <MudAvatar Size="Size.Small" Image="@user.Avatar" />
-                <MudText Class="ml-2">@user.UserName</MudText>
+            <MudListItem>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">No matches</MudText>
             </MudListItem>
+        }
+        else
+        {
+            @foreach (var user in Filtered)
+            {
+                <MudListItem T="ApplicationUser" OnClick="() => SelectUser(user)">
+                    <MudAvatar Size="Size.Small">
+                        @if (!string.IsNullOrWhiteSpace(user.Avatar))
+                        {
+                            <MudImage Src="@user.Avatar" />
+                        }
+                        else
+                        {
+                            @Initials(DisplayName(user))
+                        }
+                    </MudAvatar>
+                    <MudText Class="ml-2">@DisplayName(user)</MudText>
+                </MudListItem>
+            }
         }
     </MudList>
 </MudPopover>
 
 @code {
-    [Parameter] public IEnumerable<ApplicationUser> Suggestions { get; set; } = new List<ApplicationUser>();
+    /// <summary>Complete list of users to suggest from.</summary>
+    [Parameter] public IEnumerable<ApplicationUser> Suggestions { get; set; } = Enumerable.Empty<ApplicationUser>();
+
+    /// <summary>Current filter text after '@' (case-insensitive).</summary>
+    [Parameter] public string? Filter { get; set; } = string.Empty;
+
+    /// <summary>Raised when a user is picked.</summary>
     [Parameter] public EventCallback<ApplicationUser> OnUserSelected { get; set; }
 
+    /// <summary>Max items to show.</summary>
+    [Parameter] public int MaxResults { get; set; } = 8;
+
     private bool _isOpen;
+
+    private IEnumerable<ApplicationUser> Filtered =>
+        Suggestions
+            .Where(MatchesFilter)
+            .Take(MaxResults);
 
     public void Open()
     {
@@ -35,5 +71,41 @@
     {
         await OnUserSelected.InvokeAsync(user);
         Close();
+    }
+
+    private bool MatchesFilter(ApplicationUser u)
+    {
+        var f = (Filter ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(f)) return true;
+
+        // fields to match against
+        var name = u.UserName ?? "";
+        var first = u.FirstName ?? "";
+        var last = u.LastName ?? "";
+        var full = $"{first} {last}".Trim();
+        var email = u.Email ?? "";
+
+        return ContainsInvariant(name, f)
+            || ContainsInvariant(full, f)
+            || ContainsInvariant(first, f)
+            || ContainsInvariant(last, f)
+            || ContainsInvariant(email, f);
+    }
+
+    private static bool ContainsInvariant(string haystack, string needle) =>
+        haystack?.IndexOf(needle ?? "", StringComparison.OrdinalIgnoreCase) >= 0;
+
+    private static string DisplayName(ApplicationUser u)
+    {
+        var full = $"{u.FirstName} {u.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(full) ? (u.UserName ?? u.Email ?? "Unknown") : full;
+    }
+
+    private static string Initials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0].Substring(0, 1).ToUpperInvariant();
+        return $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
     }
 }

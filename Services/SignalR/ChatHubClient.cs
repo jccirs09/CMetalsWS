@@ -95,6 +95,7 @@ namespace CMetalsWS.Services.SignalR
             _hubConnection.On("ThreadsUpdated", () => ThreadsUpdated?.Invoke() ?? Task.CompletedTask);
             _hubConnection.On<MessageDto>("MessagePinned", m => MessagePinned?.Invoke(m) ?? Task.CompletedTask);
             _hubConnection.On<int>("MessageDeleted", id => MessageDeleted?.Invoke(id) ?? Task.CompletedTask);
+            _hubConnection.On<MessageDto>("InboxNewMessage", m => InboxNewMessage?.Invoke(m) ?? Task.CompletedTask);
         }
 
         private async Task InvokeApi(Func<HubConnection, Task> action, string methodName)
@@ -117,6 +118,7 @@ namespace CMetalsWS.Services.SignalR
                 Console.WriteLine($"Ignoring error during {methodName}: {ex.Message}");
             }
         }
+        public event Func<MessageDto, Task>? InboxNewMessage;
 
         public Task SendMessageAsync(string threadId, string content) => InvokeApi(hub => hub.InvokeAsync("SendMessage", threadId, content), nameof(SendMessageAsync));
         public Task AddReactionAsync(int messageId, string emoji) => InvokeApi(hub => hub.InvokeAsync("AddReaction", messageId, emoji), nameof(AddReactionAsync));
