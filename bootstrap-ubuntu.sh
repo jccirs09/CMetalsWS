@@ -149,8 +149,8 @@ export SA_PASSWORD
 
 echo "==> Building and starting SQL Server"
 # The .env file is now available for compose variable substitution
-sudo docker compose -f docker-compose.sql.yml build --pull
-sudo docker compose -f docker-compose.sql.yml up -d
+sudo --preserve-env=SA_PASSWORD docker compose -f docker-compose.sql.yml build --pull
+sudo --preserve-env=SA_PASSWORD docker compose -f docker-compose.sql.yml up -d
 
 echo "==> Waiting for cmetalsws-sql to be healthy…"
 for i in {1..30}; do
