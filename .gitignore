@@ -11,3 +11,4 @@ out/
 appsettings.Development.json
 
 .dotnet/
+.env
