@@ -22,7 +22,8 @@ namespace CMetalsWS.Services
                 .Include(l => l.Truck)
                 .Include(l => l.Items)
                     .ThenInclude(i => i.PickingList)
-                        .ThenInclude(p => p!.Customer);
+                        .ThenInclude(p => p!.Customer)
+                            .ThenInclude(c => c!.DestinationGroup);
 
             if (branchId.HasValue)
                 query = query.Where(l => l.OriginBranchId == branchId.Value);
@@ -46,6 +47,7 @@ namespace CMetalsWS.Services
                 .Include(l => l.Items)
                     .ThenInclude(i => i.PickingList)
                         .ThenInclude(p => p!.Customer)
+                            .ThenInclude(c => c!.DestinationGroup)
                 .FirstOrDefaultAsync(l => l.Id == id);
         }
 
@@ -106,8 +108,8 @@ namespace CMetalsWS.Services
         public static string GetLoadRegionCode(Load load)
         {
             var codes = load.Items
-                .Where(i => i.PickingList?.Customer != null)
-                .Select(i => i.PickingList!.Customer!.DestinationGroupCategory)
+                .Where(i => i.PickingList?.Customer?.DestinationGroup != null)
+                .Select(i => i.PickingList!.Customer!.DestinationGroup!.Name)
                 .Where(c => !string.IsNullOrWhiteSpace(c))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();

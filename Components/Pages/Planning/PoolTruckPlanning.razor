@@ -135,8 +135,8 @@
         var allPickingLists = await PickingListService.GetAvailableForLoadingAsync();
         _groupedPickingLists = allPickingLists
             .Where(p => p.Customer != null &&
-                        (p.Customer.DestinationRegionCategory == DestinationRegionCategory.ISLAND ||
-                         p.Customer.DestinationRegionCategory == DestinationRegionCategory.OKANAGAN))
+                        p.Customer.DestinationRegion != null &&
+                        (p.Customer.DestinationRegion.Name == "ISLAND" || p.Customer.DestinationRegion.Name == "OKANAGAN"))
             .GroupBy(p => p.SalesOrderNumber)
             .ToList();
         _trucks = await TruckService.GetTrucksAsync();

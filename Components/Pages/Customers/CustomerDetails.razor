@@ -1,0 +1,115 @@
+@page "/customers/{Id:int}"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using MudBlazor
+@attribute [Authorize(Policy = Permissions.Customers.View)]
+
+@inject CustomerService CustomerService
+@inject NavigationManager NavigationManager
+
+@if (_customer == null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudPaper Class="p-4">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.h5">@_customer.CustomerName</MudText>
+            <MudButton Variant="Variant.Outlined" OnClick="@(() => NavigationManager.NavigateTo("/customers"))">Back to List</MudButton>
+        </MudStack>
+
+        <MudGrid Class="mt-4">
+            <MudItem xs="12" sm="6">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Basic Information</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText><strong>Code:</strong> @_customer.CustomerCode</MudText>
+                        <MudText><strong>Name:</strong> @_customer.CustomerName</MudText>
+                        <MudText><strong>Status:</strong> <MudChip T="string" Color="@(_customer.Active ? Color.Success : Color.Error)" Size="Size.Small">@(_customer.Active ? "Active" : "Inactive")</MudChip></MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Address</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText><strong>Street 1:</strong> @_customer.Street1</MudText>
+                        <MudText><strong>Street 2:</strong> @_customer.Street2</MudText>
+                        <MudText><strong>City:</strong> @_customer.City</MudText>
+                        <MudText><strong>Province:</strong> @_customer.Province</MudText>
+                        <MudText><strong>Postal Code:</strong> @_customer.PostalCode</MudText>
+                        <MudText><strong>Country:</strong> @_customer.Country</MudText>
+                        <MudText><strong>Full Address:</strong> @_customer.FullAddress</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Contact Information</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText><strong>Contact Name:</strong> @_customer.ContactName</MudText>
+                        <MudText><strong>Contact Number:</strong> @_customer.ContactNumber</MudText>
+                        <MudText><strong>Contact Email:</strong> @_customer.ContactEmail</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Operational Details</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText><strong>Receiving Hours:</strong> @_customer.ReceivingHourStart?.ToString("hh\\:mm") - @_customer.ReceivingHourEnd?.ToString("hh\\:mm")</MudText>
+                        <MudText><strong>Business Hours:</strong> @_customer.BusinessHours</MudText>
+                        <MudText><strong>Service Time:</strong> @_customer.ServiceTimeMinutes minutes</MudText>
+                        <MudText><strong>Appointment Required:</strong> @_customer.AppointmentRequired</MudText>
+                        <MudText><strong>Preferred Truck Type:</strong> @_customer.PreferredTruckType</MudText>
+                        <MudText><strong>Priority:</strong> @_customer.Priority</MudText>
+                        <MudText><strong>Delivery Notes:</strong> @_customer.DeliveryNotes</MudText>
+                        <MudText><strong>Access Restrictions:</strong> @_customer.AccessRestrictions</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Categorization</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText><strong>Destination Group:</strong> @_customer.DestinationGroup?.Name</MudText>
+                        <MudText><strong>Destination Region:</strong> @_customer.DestinationRegion?.Name</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Customer? _customer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _customer = await CustomerService.GetByIdAsync(Id);
+    }
+}

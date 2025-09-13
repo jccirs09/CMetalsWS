@@ -45,10 +45,11 @@ namespace CMetalsWS.Data
         public string? Country { get; set; }
 
         // --- Categorization ---
-        public DestinationRegionCategory DestinationRegionCategory { get; set; }
+        public int? DestinationRegionId { get; set; }
+        public DestinationRegion? DestinationRegion { get; set; }
 
-        [MaxLength(64)]
-        public string? DestinationGroupCategory { get; set; }
+        public int? DestinationGroupId { get; set; }
+        public DestinationGroup? DestinationGroup { get; set; }
 
 
         // --- Operational Details ---

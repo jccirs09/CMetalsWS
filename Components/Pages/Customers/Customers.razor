@@ -9,6 +9,7 @@
 @inject CustomerService CustomerService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
 
 <MudPaper Class="p-4">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -39,12 +40,7 @@
             <MudTextField T="string" ValueChanged="@(s => OnSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
                           AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
             <MudSpacer />
-            <MudSelect T="string" Label="Region" ValueChanged="@(s => OnRegionFilterChanged(s))" Clearable="true">
-                @foreach (var region in Enum.GetValues<DestinationRegionCategory>())
-                {
-                    <MudSelectItem Value="@region.ToString()">@region.ToString()</MudSelectItem>
-                }
-            </MudSelect>
+            <MudTextField T="string" Label="Region" ValueChanged="@(s => OnRegionFilterChanged(s))" Clearable="true" />
             <MudSelect T="bool?" Label="Status" ValueChanged="@(s => OnActiveFilterChanged(s))" Clearable="true">
                 <MudSelectItem T="bool?" Value="true">Active</MudSelectItem>
                 <MudSelectItem T="bool?" Value="false">Inactive</MudSelectItem>
@@ -54,28 +50,28 @@
         <HeaderContent>
             <MudTh><MudTableSortLabel SortLabel="CustomerCode" T="Customer">Code</MudTableSortLabel></MudTh>
             <MudTh><MudTableSortLabel SortLabel="CustomerName" T="Customer">Name</MudTableSortLabel></MudTh>
+            <MudTh>Receiving Hours</MudTh>
+            <MudTh><MudTableSortLabel SortLabel="ContactNumber" T="Customer">Contact Number</MudTableSortLabel></MudTh>
+            <MudTh>Street</MudTh>
             <MudTh><MudTableSortLabel SortLabel="City" T="Customer">City</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortLabel="Province" T="Customer">Prov</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortLabel="DestinationRegionCategory" T="Customer">Region</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortLabel="DestinationGroupCategory" T="Customer">Group</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortLabel="ContactNumber" T="Customer">Phone</MudTableSortLabel></MudTh>
-            <MudTh>Constraints</MudTh>
+            <MudTh><MudTableSortLabel SortLabel="Province" T="Customer">Province</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="DestinationGroup.Name" T="Customer">Group</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="DestinationRegion.Name" T="Customer">Region</MudTableSortLabel></MudTh>
             <MudTh><MudTableSortLabel SortLabel="Active" T="Customer">Status</MudTableSortLabel></MudTh>
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Code">@context.CustomerCode</MudTd>
-            <MudTd DataLabel="Name">@context.CustomerName</MudTd>
+            <MudTd DataLabel="Name">
+                <MudLink Href="@($"/customers/{context.Id}")">@context.CustomerName</MudLink>
+            </MudTd>
+            <MudTd DataLabel="Receiving Hours">@context.ReceivingHourStart?.ToString("hh\\:mm") - @context.ReceivingHourEnd?.ToString("hh\\:mm")</MudTd>
+            <MudTd DataLabel="Contact Number">@context.ContactNumber</MudTd>
+            <MudTd DataLabel="Street">@context.Street1</MudTd>
             <MudTd DataLabel="City">@context.City</MudTd>
             <MudTd DataLabel="Province">@context.Province</MudTd>
-            <MudTd DataLabel="Region">
-                <MudChip T="string" Color="@GetRegionColor(context.DestinationRegionCategory)" Size="Size.Small">@context.DestinationRegionCategory</MudChip>
-            </MudTd>
-            <MudTd DataLabel="Group">@context.DestinationGroupCategory</MudTd>
-            <MudTd DataLabel="Phone">@context.ContactNumber</MudTd>
-            <MudTd DataLabel="Constraints">
-                @if (context.AppointmentRequired) { <MudChip T="string" Color="Color.Warning" Size="Size.Small">Appt</MudChip> }
-            </MudTd>
+            <MudTd DataLabel="Group">@context.DestinationGroup?.Name</MudTd>
+            <MudTd DataLabel="Region">@context.DestinationRegion?.Name</MudTd>
             <MudTd DataLabel="Status">
                 <MudChip T="string" Color="@(context.Active ? Color.Success : Color.Error)" Size="Size.Small">@(context.Active ? "Active" : "Inactive")</MudChip>
             </MudTd>
@@ -134,15 +130,6 @@
         _groupFilter = value;
         _table.ReloadServerData();
     }
-
-    private Color GetRegionColor(DestinationRegionCategory region) => region switch
-    {
-        DestinationRegionCategory.LOCAL => Color.Success,
-        DestinationRegionCategory.ISLAND => Color.Info,
-        DestinationRegionCategory.OKANAGAN => Color.Warning,
-        DestinationRegionCategory.OUT_OF_TOWN => Color.Error,
-        _ => Color.Default
-    };
 
     private async Task OpenEditDialog(int customerId)
     {

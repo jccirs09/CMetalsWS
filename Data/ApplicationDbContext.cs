@@ -27,6 +27,8 @@ namespace CMetalsWS.Data
         public DbSet<Customer> Customers => Set<Customer>();
         public DbSet<CityCentroid> CityCentroids => Set<CityCentroid>();
         public DbSet<TruckRouteStop> TruckRouteStops => Set<TruckRouteStop>();
+        public DbSet<DestinationGroup> DestinationGroups => Set<DestinationGroup>();
+        public DbSet<DestinationRegion> DestinationRegions => Set<DestinationRegion>();
         public DbSet<TaskAuditEvent> TaskAuditEvents => Set<TaskAuditEvent>();
         public DbSet<TransferItem> TransferItems => Set<TransferItem>();
 
@@ -68,7 +70,6 @@ namespace CMetalsWS.Data
             {
                 entity.ToTable("Customer");
                 entity.HasIndex(c => c.CustomerCode).IsUnique();
-                entity.Property(c => c.DestinationRegionCategory).HasConversion<string>().HasMaxLength(32);
                 entity.Property(c => c.PreferredTruckType).HasConversion<string>().HasMaxLength(32);
                 entity.Property(c => c.Priority).HasConversion<string>().HasMaxLength(32);
 
@@ -76,9 +77,19 @@ namespace CMetalsWS.Data
                 entity.HasIndex(c => c.City);
                 entity.HasIndex(c => c.Province);
                 entity.HasIndex(c => c.PostalCode);
-                entity.HasIndex(c => c.DestinationRegionCategory);
-                entity.HasIndex(c => c.DestinationGroupCategory);
+                entity.HasIndex(c => c.DestinationRegionId);
+                entity.HasIndex(c => c.DestinationGroupId);
                 entity.HasIndex(c => c.Active);
+
+                entity.HasOne(c => c.DestinationRegion)
+                    .WithMany()
+                    .HasForeignKey(c => c.DestinationRegionId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(c => c.DestinationGroup)
+                    .WithMany()
+                    .HasForeignKey(c => c.DestinationGroupId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
             modelBuilder.Entity<ApplicationUser>().HasIndex(u => u.FirstName);
             modelBuilder.Entity<ApplicationUser>().HasIndex(u => u.LastName);

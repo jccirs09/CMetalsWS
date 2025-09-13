@@ -1,0 +1,113 @@
+@page "/admin/destination-regions"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using MudBlazor
+@attribute [Authorize(Policy = Permissions.Customers.Manage)]
+
+@inject DestinationRegionService DestinationRegionService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudPaper Class="p-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h5">Destination Regions</MudText>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="(() => { _selectedRegion = new DestinationRegion(); _dialogOpen = true; })">
+            New Region
+        </MudButton>
+    </MudStack>
+
+    <MudTable Items="_regions" Dense="true" Hover="true" Striped="true" Class="mt-4">
+        <HeaderContent>
+            <MudTh>Id</MudTh>
+            <MudTh>Name</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Id">@context.Id</MudTd>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="(() => { _selectedRegion = context; _dialogOpen = true; })" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="(() => OnDelete(context.Id))" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+<MudDialog @bind-IsVisible="_dialogOpen" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_selectedRegion.Id == 0 ? "New Region" : "Edit Region")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_selectedRegion.Name" Label="Name" Required="true" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _dialogOpen = false">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="SaveRegion">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<DestinationRegion> _regions = new();
+    private bool _dialogOpen;
+    private DestinationRegion _selectedRegion = new();
+    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRegions();
+    }
+
+    private async Task LoadRegions()
+    {
+        _regions = await DestinationRegionService.GetDestinationRegionsAsync();
+        StateHasChanged();
+    }
+
+    private async Task SaveRegion()
+    {
+        if (string.IsNullOrWhiteSpace(_selectedRegion.Name))
+        {
+            Snackbar.Add("Name is required.", Severity.Warning);
+            return;
+        }
+
+        if (_selectedRegion.Id == 0)
+        {
+            await DestinationRegionService.CreateAsync(_selectedRegion);
+            Snackbar.Add("Region created successfully.", Severity.Success);
+        }
+        else
+        {
+            await DestinationRegionService.UpdateAsync(_selectedRegion);
+            Snackbar.Add("Region updated successfully.", Severity.Success);
+        }
+        _dialogOpen = false;
+        await LoadRegions();
+    }
+
+    private async Task OnDelete(int id)
+    {
+        var region = _regions.FirstOrDefault(r => r.Id == id);
+        if (region == null)
+        {
+            Snackbar.Add("Region not found.", Severity.Error);
+            return;
+        }
+        var result = await DialogService.ShowMessageBox(
+            "Delete Confirmation",
+            $"Are you sure you want to delete '{region.Name}'?",
+            yesText: "Delete",
+            cancelText: "Cancel"
+        );
+
+        if (result == true)
+        {
+            await DestinationRegionService.DeleteAsync(id);
+            Snackbar.Add("Region deleted successfully.", Severity.Success);
+            await LoadRegions();
+        }
+    }
+}
