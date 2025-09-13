@@ -142,51 +142,68 @@ done
 echo "==> Recent logs"
 docker logs --tail 60 cmetalsws-sql || true
 
-# --- Connection strings ---
-echo
-echo "======== Connection Strings ========"
-echo "Host → Container:"
-echo "Server=localhost,1433;Database=CMetalsWS;User Id=sa;Password=${SA_PASSWORD:-YourStrong!Passw0rd};Encrypt=True;TrustServerCertificate=True"
-echo
-echo "Container → Container (compose):"
-echo "Server=sql-server-db,1433;Database=CMetalsWS;User Id=sa;Password=${SA_PASSWORD:-YourStrong!Passw0rd};Encrypt=True;TrustServerCertificate=True"
-echo "===================================="
-echo
+# --- Secrets Management & DB Connection ---
+echo "==> Managing secrets and database connection"
 
-# --- Optional: install sqlcmd on host for manual queries ---
-if ! command -v sqlcmd >/dev/null 2>&1; then
-  echo "==> Installing mssql-tools18 on host (optional)"
-  sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev || true
-  if ! grep -q '/opt/mssql-tools18/bin' "$HOME/.bashrc"; then
-    echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> "$HOME/.bashrc"
-  fi
-  export PATH="$PATH:/opt/mssql-tools18/bin"
+# Load .env file if it exists
+if [ -f ".env" ]; then
+  echo "Found .env file, loading variables."
+  export $(grep -v '^#' .env | xargs)
 fi
-# Quick test (non-fatal)
-sqlcmd -S 127.0.0.1,1433 -U sa -P "${SA_PASSWORD:-YourStrong!Passw0rd}" -Q "SELECT @@VERSION" >/dev/null 2>&1 || true
 
-# --- Final report & next steps ---
+# Set password if not already set
+if [ -z "${SA_PASSWORD:-}" ]; then
+  echo "SA_PASSWORD not found in environment or .env file. Generating a new random password."
+  # Simple random password generation
+  SA_PASSWORD=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20)
+  echo "SA_PASSWORD=$SA_PASSWORD" > .env
+  echo "Wrote new password to .env file. YOU MUST BACK THIS FILE UP SECURELY."
+fi
+# Re-export to be sure it's set for the rest of the script
+export SA_PASSWORD
+
+# Update appsettings.Development.json (which is gitignored)
+echo "Updating appsettings.Development.json with the connection string..."
+cat > appsettings.Development.json <<JSON
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost,1433;Database=CMetalsWS;User Id=sa;Password=${SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+JSON
+
+# --- Database Migration ---
+echo "==> Applying Entity Framework database migrations"
+dotnet restore
+
+# Determine correct EF command
+if [ "$EF_MODE" = "local" ]; then
+  EF_CMD="dotnet tool run dotnet-ef"
+else
+  EF_CMD="dotnet-ef"
+fi
+
+$EF_CMD database update
+
+# --- Final Report ---
 echo
-echo "== Final Report =="
+echo "== Bootstrap Complete! =="
 echo "dotnet: $(dotnet --version)"
 echo "SDKs:"; dotnet --list-sdks | sed 's/^/  /'
 echo "EF Core CLI mode: ${EF_MODE}"
-if [ "$EF_MODE" = "local" ]; then
-  echo "  (use: dotnet tool run dotnet-ef …)"
-else
-  echo "  (use: dotnet-ef …)"
-fi
 echo "docker: $(docker --version | cut -d',' -f1)"
 echo "compose: $(docker compose version | head -n1)"
 echo "DB container: $(docker inspect -f '{{.State.Status}} (health={{.State.Health.Status}})' cmetalsws-sql || echo 'not found')"
-echo "===================================="
 echo
-echo "Next steps:"
-echo "1) Update appsettings.json with the Host → Container connection string above."
-echo "2) dotnet restore"
-if [ "$EF_MODE" = "local" ]; then
-  echo "3) dotnet tool run dotnet-ef database update   # from the project with your DbContext/Migrations"
-else
-  echo "3) dotnet-ef database update                   # from the project with your DbContext/Migrations"
-fi
-echo "4) dotnet run  (or your IDE)"
+echo "Host → Container Connection String (from .env):"
+echo "Server=localhost,1433;Database=CMetalsWS;User Id=sa;Password=...your-secret-password...;Encrypt=True;TrustServerCertificate=True"
+echo
+echo "Environment is ready. You can now run the application:"
+echo "  dotnet run"
+echo "========================="
