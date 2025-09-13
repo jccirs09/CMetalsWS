@@ -23,5 +23,6 @@ namespace CMetalsWS.Data
         public ICollection<Truck> Trucks { get; set; } = new List<Truck>();
         public ICollection<WorkOrder> WorkOrders { get; set; } = new List<WorkOrder>();
         public ICollection<PickingList> PickingLists { get; set; } = new List<PickingList>();
+        public ICollection<DestinationRegion> DestinationRegions { get; set; } = new List<DestinationRegion>();
     }
 }

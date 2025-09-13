@@ -1,11 +1,14 @@
-﻿@implements IDisposable
+@implements IDisposable
+@using CMetalsWS.Data
 @using CMetalsWS.Security
+@using CMetalsWS.Services
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Routing
 
 @inject NavigationManager NavigationManager
 @inject IAuthorizationService AuthorizationService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject DestinationRegionService DestinationRegionService
 
 <MudNavMenu>
     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
@@ -87,9 +90,10 @@
     @if (canPickingLists)
     {
         <MudNavGroup text="Load Planning" Icon="@Icons.Material.Filled.LocalShipping" Title="Load Planning">
-            <MudNavLink Href="/planning/local" Icon="@Icons.Material.Filled.LocationOn">Local Delivery</MudNavLink>
-            <MudNavLink Href="/planning/pool" Icon="@Icons.Material.Filled.Pool">Pool Truck</MudNavLink>
-            <MudNavLink Href="/planning/out-of-town" Icon="@Icons.Material.Filled.Commute">Out of Town</MudNavLink>
+            @foreach (var region in _destinationRegions)
+            {
+                <MudNavLink Href="@($"/planning/load/{region.Id}")" Icon="@Icons.Material.Filled.LocationOn">@region.Name</MudNavLink>
+            }
         </MudNavGroup>
     }
 
@@ -123,6 +127,7 @@
 
 @code {
     private string? currentUrl;
+    private List<DestinationRegion> _destinationRegions = new();
 
     // permission flags
     private bool canUsers;
@@ -143,6 +148,7 @@
         currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
         NavigationManager.LocationChanged += OnLocationChanged;
         await ComputePermissionsAsync();
+        await LoadDestinationRegionsAsync();
     }
 
     private async Task ComputePermissionsAsync()
@@ -163,10 +169,16 @@
         isSupervisor = user.IsInRole("Supervisor");
     }
 
+    private async Task LoadDestinationRegionsAsync()
+    {
+        _destinationRegions = await DestinationRegionService.GetDestinationRegionsAsync();
+    }
+
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
         await ComputePermissionsAsync();
+        await LoadDestinationRegionsAsync();
         StateHasChanged();
     }
 
