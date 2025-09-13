@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace CMetalsWS.Services
@@ -13,12 +14,10 @@ namespace CMetalsWS.Services
     public class CustomerService
     {
         private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
-        private readonly ICustomerEnrichmentService _customerEnrichmentService;
 
-        public CustomerService(IDbContextFactory<ApplicationDbContext> dbContextFactory, ICustomerEnrichmentService customerEnrichmentService)
+        public CustomerService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
         {
             _dbContextFactory = dbContextFactory;
-            _customerEnrichmentService = customerEnrichmentService;
         }
 
         public async Task<Customer?> GetByIdAsync(int id)
@@ -106,6 +105,7 @@ namespace CMetalsWS.Services
         public async Task UpdateCustomerAsync(Customer customer)
         {
             using var db = _dbContextFactory.CreateDbContext();
+            ParseFullAddress(customer);
             customer.ModifiedUtc = DateTime.UtcNow;
             db.Customers.Update(customer);
             await db.SaveChangesAsync();
@@ -114,44 +114,12 @@ namespace CMetalsWS.Services
         public async Task CreateCustomerAsync(Customer customer)
         {
             using var db = _dbContextFactory.CreateDbContext();
+            ParseFullAddress(customer);
             customer.CreatedUtc = DateTime.UtcNow;
             db.Customers.Add(customer);
             await db.SaveChangesAsync();
         }
 
-        public async Task<CustomerEnrichmentResult> RecomputeCustomerRegionAsync(int customerId)
-        {
-            using var db = _dbContextFactory.CreateDbContext();
-            var customer = await db.Customers.FindAsync(customerId);
-            if (customer == null || string.IsNullOrWhiteSpace(customer.FullAddress))
-            {
-                return new CustomerEnrichmentResult { EnrichedCustomer = customer };
-            }
-
-            var result = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, customer.FullAddress);
-            if (result.EnrichedCustomer != null)
-            {
-                await UpdateCustomerAsync(result.EnrichedCustomer);
-            }
-            return result;
-        }
-
-        public async Task<CustomerEnrichmentResult> GeocodeCustomerAsync(int customerId, string address)
-        {
-            using var db = _dbContextFactory.CreateDbContext();
-            var customer = await db.Customers.FindAsync(customerId);
-            if (customer == null)
-            {
-                return new CustomerEnrichmentResult();
-            }
-
-            var result = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, address);
-            if (result.EnrichedCustomer != null)
-            {
-                await UpdateCustomerAsync(result.EnrichedCustomer);
-            }
-            return result;
-        }
 
         public async Task<List<CustomerImportRow>> PreviewImportAsync(Stream stream)
         {
@@ -170,22 +138,10 @@ namespace CMetalsWS.Services
         private async Task<CustomerImportRow> ProcessImportRow(CustomerImportDto row)
         {
             var importRow = new CustomerImportRow { Dto = row };
-            try
-            {
-                var customer = new Customer { CustomerCode = row.CustomerCode, CustomerName = row.CustomerName };
-                var enrichmentResult = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, row.Address);
-                importRow.Candidates = enrichmentResult.Candidates;
-                if (enrichmentResult.EnrichedCustomer != null)
-                {
-                    importRow.SelectedPlaceId = enrichmentResult.EnrichedCustomer.PlaceId;
-                }
-            }
-            catch (Exception ex)
-            {
-                // It's better to log the exception here if a logger is available
-                importRow.Error = ex.Message;
-            }
-            return importRow;
+            // Since we removed the enrichment service, we no longer have candidates.
+            // We will just return the row with the DTO.
+            // The user will have to manually edit the customer later if the address is not correct.
+            return await Task.FromResult(importRow);
         }
 
         public async Task<CustomerImportReport> CommitImportAsync(List<CustomerImportRow> importRows)
@@ -218,26 +174,9 @@ namespace CMetalsWS.Services
                     customer.BusinessHours = row.Dto.BusinessHours;
                     customer.ContactNumber = row.Dto.ContactNumber;
 
-                    // Only update address info if a candidate was selected
-                    if (!string.IsNullOrWhiteSpace(row.SelectedPlaceId))
-                    {
-                        var selectedCandidate = row.Candidates.FirstOrDefault(c => c.PlaceId == row.SelectedPlaceId);
-                        if (selectedCandidate != null)
-                        {
-                            customer.PlaceId = selectedCandidate.PlaceId;
-                            customer.Latitude = selectedCandidate.Latitude;
-                            customer.Longitude = selectedCandidate.Longitude;
-                            customer.Street1 = selectedCandidate.Street1;
-                            customer.Street2 = selectedCandidate.Street2;
-                            customer.City = selectedCandidate.City;
-                            customer.Province = selectedCandidate.Province;
-                            customer.PostalCode = selectedCandidate.PostalCode;
-                            customer.Country = selectedCandidate.Country;
-                            customer.FullAddress = selectedCandidate.FullAddress;
-                            customer.DestinationRegionCategory = selectedCandidate.DestinationRegionCategory;
-                            customer.DestinationGroupCategory = selectedCandidate.DestinationGroupCategory;
-                        }
-                    }
+                    // Update address info from the spreadsheet
+                    customer.FullAddress = row.Dto.Address;
+                    ParseFullAddress(customer);
 
                     customer.ModifiedUtc = DateTime.UtcNow;
                     await db.SaveChangesAsync(); // Commit each record individually for robustness
@@ -251,6 +190,61 @@ namespace CMetalsWS.Services
             }
 
             return report;
+        }
+        private void ParseFullAddress(Customer customer)
+        {
+            if (string.IsNullOrWhiteSpace(customer.FullAddress)) return;
+
+            var addressParts = customer.FullAddress.Split(',').Select(p => p.Trim()).ToList();
+
+            // Reset fields
+            customer.Street1 = null;
+            customer.Street2 = null;
+            customer.City = null;
+            customer.Province = null;
+            customer.PostalCode = null;
+            customer.Country = null;
+
+            if (addressParts.Count > 0)
+            {
+                customer.Street1 = addressParts[0];
+                addressParts.RemoveAt(0);
+            }
+
+            if (addressParts.Count > 0)
+            {
+                customer.City = addressParts[0];
+                addressParts.RemoveAt(0);
+            }
+
+            foreach(var part in addressParts)
+            {
+                // Canadian postal code
+                var postalCodeRegex = new Regex(@"\b[A-Z]\d[A-Z] ?\d[A-Z]\d\b", RegexOptions.IgnoreCase);
+                var match = postalCodeRegex.Match(part);
+                if (match.Success)
+                {
+                    customer.PostalCode = match.Value;
+                    var province = part.Replace(match.Value, "").Trim();
+                    if(!string.IsNullOrWhiteSpace(province))
+                    {
+                        customer.Province = province;
+                    }
+                    continue;
+                }
+
+                if (part.Equals("Canada", StringComparison.OrdinalIgnoreCase) || part.Equals("USA", StringComparison.OrdinalIgnoreCase))
+                {
+                    customer.Country = part;
+                    continue;
+                }
+
+                // If not postal code or country, it must be province.
+                if(string.IsNullOrWhiteSpace(customer.Province))
+                {
+                    customer.Province = part;
+                }
+            }
         }
     }
 

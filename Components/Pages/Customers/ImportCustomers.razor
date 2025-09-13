@@ -61,31 +61,15 @@
             <HeaderContent>
                 <MudTh>Customer</MudTh>
                 <MudTh>Address</MudTh>
-                <MudTh>Candidates</MudTh>
                 <MudTh>Status</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Customer">@context.Dto.CustomerName (@context.Dto.CustomerCode)</MudTd>
                 <MudTd DataLabel="Address">@context.Dto.Address</MudTd>
-                <MudTd DataLabel="Candidates">
-                    @if (context.RequiresManualSelection)
-                    {
-                        <MudRadioGroup T="string" @bind-SelectedValue="context.SelectedPlaceId">
-                            @foreach (var candidate in context.Candidates)
-                            {
-                                <MudRadio Value="@candidate.PlaceId">@candidate.FullAddress</MudRadio>
-                            }
-                        </MudRadioGroup>
-                    }
-                </MudTd>
                 <MudTd DataLabel="Status">
                     @if (!string.IsNullOrWhiteSpace(context.Error))
                     {
                         <MudChip T="string" Color="Color.Error">@context.Error</MudChip>
-                    }
-                    else if (context.RequiresManualSelection)
-                    {
-                        <MudChip T="string" Color="Color.Warning">Requires Selection</MudChip>
                     }
                     else
                     {

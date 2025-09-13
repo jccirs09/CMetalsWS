@@ -74,18 +74,13 @@
             <MudTd DataLabel="Group">@context.DestinationGroupCategory</MudTd>
             <MudTd DataLabel="Phone">@context.ContactNumber</MudTd>
             <MudTd DataLabel="Constraints">
-                @if (context.LiftgateRequired) { <MudChip T="string" Color="Color.Warning" Size="Size.Small">Liftgate</MudChip> }
                 @if (context.AppointmentRequired) { <MudChip T="string" Color="Color.Warning" Size="Size.Small">Appt</MudChip> }
-                @if (context.FerryRequired) { <MudChip T="string" Color="Color.Info" Size="Size.Small">Ferry</MudChip> }
             </MudTd>
             <MudTd DataLabel="Status">
                 <MudChip T="string" Color="@(context.Active ? Color.Success : Color.Error)" Size="Size.Small">@(context.Active ? "Active" : "Inactive")</MudChip>
             </MudTd>
             <MudTd DataLabel="Actions">
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="(() => OpenEditDialog(context.Id))" />
-                <AuthorizeView Policy="@Permissions.Customers.Edit" Context="authContext">
-                    <MudIconButton Icon="@Icons.Material.Filled.TravelExplore" Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" OnClick="(() => ReGeocode(context.Id))" />
-                </AuthorizeView>
             </MudTd>
         </RowTemplate>
         <PagerContent>
@@ -186,29 +181,4 @@
         }
     }
 
-    private async Task ReGeocode(int customerId)
-    {
-        try
-        {
-            var result = await CustomerService.RecomputeCustomerRegionAsync(customerId);
-            if (result.EnrichedCustomer != null && !string.IsNullOrWhiteSpace(result.EnrichedCustomer.FullAddress))
-            {
-                Snackbar.Add($"Successfully re-geocoded '{result.EnrichedCustomer.CustomerName}'. New Region: {result.EnrichedCustomer.DestinationRegionCategory}", Severity.Success);
-            }
-            else
-            {
-                var customer = await CustomerService.GetByIdAsync(customerId);
-                var customerName = customer?.CustomerName ?? $"Customer ID {customerId}";
-                Snackbar.Add($"Could not re-geocode '{customerName}'. Address may be missing or invalid.", Severity.Warning);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"An error occurred during re-geocoding: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            await _table.ReloadServerData();
-        }
-    }
 }

@@ -1,6 +1,5 @@
-﻿using System;
+using System;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CMetalsWS.Data
 {
@@ -16,7 +15,7 @@ namespace CMetalsWS.Data
         public string CustomerName { get; set; } = default!;
 
         [MaxLength(256)]
-        public string? FullAddress { get; set; }        // auto-generated from address parts
+        public string? FullAddress { get; set; }
 
         [MaxLength(100)]
         public string? BusinessHours { get; set; }
@@ -26,16 +25,6 @@ namespace CMetalsWS.Data
 
         public bool Active { get; set; } = true;
 
-
-        // --- Routing & Geocoding ---
-        [MaxLength(256)]
-        public string? PlaceId { get; set; } // Google Places API ID
-
-        [Column(TypeName = "decimal(9, 6)")]
-        public decimal? Latitude { get; set; }
-
-        [Column(TypeName = "decimal(9, 6)")]
-        public decimal? Longitude { get; set; }
 
         [MaxLength(128)]
         public string? Street1 { get; set; }
@@ -63,9 +52,10 @@ namespace CMetalsWS.Data
 
 
         // --- Operational Details ---
-        public TimeSpan? TimeWindowStart { get; set; }
-        public TimeSpan? TimeWindowEnd { get; set; }
-        public int ServiceTimeMinutes { get; set; } = 30; // Default service time
+        public TimeSpan? ReceivingHourStart { get; set; }
+        public TimeSpan? ReceivingHourEnd { get; set; }
+
+        public int ServiceTimeMinutes { get; set; } = 15; // Default service time
 
         [MaxLength(100)]
         public string? ContactName { get; set; }
@@ -79,20 +69,10 @@ namespace CMetalsWS.Data
         [MaxLength(500)]
         public string? AccessRestrictions { get; set; }
 
-        public DockType DockType { get; set; } = DockType.NONE;
-        public bool LiftgateRequired { get; set; }
         public bool AppointmentRequired { get; set; }
-        public PreferredTruckType PreferredTruckType { get; set; } = PreferredTruckType.VAN_5TON;
-        public bool FerryRequired { get; set; }
-        public bool TollRoutesAllowed { get; set; } = true;
+        public PreferredTruckType PreferredTruckType { get; set; } = PreferredTruckType.FLATBED;
+
         public Priority Priority { get; set; } = Priority.NORMAL;
-
-        [MaxLength(64)]
-        public string Timezone { get; set; } = "America/Vancouver";
-
-        [MaxLength(256)]
-        public string? CustomTags { get; set; } // e.g., "tag1,tag2,tag3"
-
 
         // --- Timestamps ---
         public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
