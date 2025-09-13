@@ -131,14 +131,22 @@
     private Load? _load;
     private List<LoadItem> _itemsInLoad = new();
     private List<Truck> _trucks = new();
+    private int _previousDestinationRegionId;
 
     protected override async Task OnParametersSetAsync()
     {
-        await LoadData();
+        if (_previousDestinationRegionId != DestinationRegionId)
+        {
+            await LoadData();
+            _previousDestinationRegionId = DestinationRegionId;
+        }
     }
 
     private async Task LoadData()
     {
+        ClearLoad();
+        _groupedPickingLists.Clear();
+
         _region = await DestinationRegionService.GetByIdAsync(DestinationRegionId);
         if (_region == null)
         {
