@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace CMetalsWS.Services
@@ -194,8 +195,9 @@ namespace CMetalsWS.Services
         {
             if (string.IsNullOrWhiteSpace(customer.FullAddress)) return;
 
-            var addressParts = customer.FullAddress.Split(',').Select(p => p.Trim()).ToArray();
+            var addressParts = customer.FullAddress.Split(',').Select(p => p.Trim()).ToList();
 
+            // Reset fields
             customer.Street1 = null;
             customer.Street2 = null;
             customer.City = null;
@@ -203,11 +205,46 @@ namespace CMetalsWS.Services
             customer.PostalCode = null;
             customer.Country = null;
 
-            if (addressParts.Length > 0) customer.Street1 = addressParts[0];
-            if (addressParts.Length > 1) customer.City = addressParts[1];
-            if (addressParts.Length > 2) customer.Province = addressParts[2];
-            if (addressParts.Length > 3) customer.PostalCode = addressParts[3];
-            if (addressParts.Length > 4) customer.Country = addressParts[4];
+            if (addressParts.Count > 0)
+            {
+                customer.Street1 = addressParts[0];
+                addressParts.RemoveAt(0);
+            }
+
+            if (addressParts.Count > 0)
+            {
+                customer.City = addressParts[0];
+                addressParts.RemoveAt(0);
+            }
+
+            foreach(var part in addressParts)
+            {
+                // Canadian postal code
+                var postalCodeRegex = new Regex(@"\b[A-Z]\d[A-Z] ?\d[A-Z]\d\b", RegexOptions.IgnoreCase);
+                var match = postalCodeRegex.Match(part);
+                if (match.Success)
+                {
+                    customer.PostalCode = match.Value;
+                    var province = part.Replace(match.Value, "").Trim();
+                    if(!string.IsNullOrWhiteSpace(province))
+                    {
+                        customer.Province = province;
+                    }
+                    continue;
+                }
+
+                if (part.Equals("Canada", StringComparison.OrdinalIgnoreCase) || part.Equals("USA", StringComparison.OrdinalIgnoreCase))
+                {
+                    customer.Country = part;
+                    continue;
+                }
+
+                // If not postal code or country, it must be province.
+                if(string.IsNullOrWhiteSpace(customer.Province))
+                {
+                    customer.Province = part;
+                }
+            }
         }
     }
 
