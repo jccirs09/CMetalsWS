@@ -69,7 +69,6 @@ namespace CMetalsWS.Data
                 entity.ToTable("Customer");
                 entity.HasIndex(c => c.CustomerCode).IsUnique();
                 entity.Property(c => c.DestinationRegionCategory).HasConversion<string>().HasMaxLength(32);
-                entity.Property(c => c.DockType).HasConversion<string>().HasMaxLength(32);
                 entity.Property(c => c.PreferredTruckType).HasConversion<string>().HasMaxLength(32);
                 entity.Property(c => c.Priority).HasConversion<string>().HasMaxLength(32);
 

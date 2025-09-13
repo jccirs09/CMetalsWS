@@ -13,12 +13,10 @@ namespace CMetalsWS.Services
     public class CustomerService
     {
         private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
-        private readonly ICustomerEnrichmentService _customerEnrichmentService;
 
-        public CustomerService(IDbContextFactory<ApplicationDbContext> dbContextFactory, ICustomerEnrichmentService customerEnrichmentService)
+        public CustomerService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
         {
             _dbContextFactory = dbContextFactory;
-            _customerEnrichmentService = customerEnrichmentService;
         }
 
         public async Task<Customer?> GetByIdAsync(int id)
@@ -119,39 +117,6 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
         }
 
-        public async Task<CustomerEnrichmentResult> RecomputeCustomerRegionAsync(int customerId)
-        {
-            using var db = _dbContextFactory.CreateDbContext();
-            var customer = await db.Customers.FindAsync(customerId);
-            if (customer == null || string.IsNullOrWhiteSpace(customer.FullAddress))
-            {
-                return new CustomerEnrichmentResult { EnrichedCustomer = customer };
-            }
-
-            var result = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, customer.FullAddress);
-            if (result.EnrichedCustomer != null)
-            {
-                await UpdateCustomerAsync(result.EnrichedCustomer);
-            }
-            return result;
-        }
-
-        public async Task<CustomerEnrichmentResult> GeocodeCustomerAsync(int customerId, string address)
-        {
-            using var db = _dbContextFactory.CreateDbContext();
-            var customer = await db.Customers.FindAsync(customerId);
-            if (customer == null)
-            {
-                return new CustomerEnrichmentResult();
-            }
-
-            var result = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, address);
-            if (result.EnrichedCustomer != null)
-            {
-                await UpdateCustomerAsync(result.EnrichedCustomer);
-            }
-            return result;
-        }
 
         public async Task<List<CustomerImportRow>> PreviewImportAsync(Stream stream)
         {
@@ -170,22 +135,10 @@ namespace CMetalsWS.Services
         private async Task<CustomerImportRow> ProcessImportRow(CustomerImportDto row)
         {
             var importRow = new CustomerImportRow { Dto = row };
-            try
-            {
-                var customer = new Customer { CustomerCode = row.CustomerCode, CustomerName = row.CustomerName };
-                var enrichmentResult = await _customerEnrichmentService.EnrichAndCategorizeCustomerAsync(customer, row.Address);
-                importRow.Candidates = enrichmentResult.Candidates;
-                if (enrichmentResult.EnrichedCustomer != null)
-                {
-                    importRow.SelectedPlaceId = enrichmentResult.EnrichedCustomer.PlaceId;
-                }
-            }
-            catch (Exception ex)
-            {
-                // It's better to log the exception here if a logger is available
-                importRow.Error = ex.Message;
-            }
-            return importRow;
+            // Since we removed the enrichment service, we no longer have candidates.
+            // We will just return the row with the DTO.
+            // The user will have to manually edit the customer later if the address is not correct.
+            return await Task.FromResult(importRow);
         }
 
         public async Task<CustomerImportReport> CommitImportAsync(List<CustomerImportRow> importRows)
@@ -218,26 +171,14 @@ namespace CMetalsWS.Services
                     customer.BusinessHours = row.Dto.BusinessHours;
                     customer.ContactNumber = row.Dto.ContactNumber;
 
-                    // Only update address info if a candidate was selected
-                    if (!string.IsNullOrWhiteSpace(row.SelectedPlaceId))
-                    {
-                        var selectedCandidate = row.Candidates.FirstOrDefault(c => c.PlaceId == row.SelectedPlaceId);
-                        if (selectedCandidate != null)
-                        {
-                            customer.PlaceId = selectedCandidate.PlaceId;
-                            customer.Latitude = selectedCandidate.Latitude;
-                            customer.Longitude = selectedCandidate.Longitude;
-                            customer.Street1 = selectedCandidate.Street1;
-                            customer.Street2 = selectedCandidate.Street2;
-                            customer.City = selectedCandidate.City;
-                            customer.Province = selectedCandidate.Province;
-                            customer.PostalCode = selectedCandidate.PostalCode;
-                            customer.Country = selectedCandidate.Country;
-                            customer.FullAddress = selectedCandidate.FullAddress;
-                            customer.DestinationRegionCategory = selectedCandidate.DestinationRegionCategory;
-                            customer.DestinationGroupCategory = selectedCandidate.DestinationGroupCategory;
-                        }
-                    }
+                    // Update address info from the spreadsheet
+                    customer.FullAddress = row.Dto.Address;
+                    var addressParts = row.Dto.Address.Split(',').Select(p => p.Trim()).ToArray();
+                    if (addressParts.Length > 0) customer.Street1 = addressParts[0];
+                    if (addressParts.Length > 1) customer.City = addressParts[1];
+                    if (addressParts.Length > 2) customer.Province = addressParts[2];
+                    if (addressParts.Length > 3) customer.PostalCode = addressParts[3];
+                    if (addressParts.Length > 4) customer.Country = addressParts[4];
 
                     customer.ModifiedUtc = DateTime.UtcNow;
                     await db.SaveChangesAsync(); // Commit each record individually for robustness

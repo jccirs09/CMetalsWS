@@ -38,14 +38,6 @@
                 </MudItem>
 
                 <MudItem xs="12" sm="4">
-                    <MudSelect @bind-Value="Customer.DockType" Label="Dock Type">
-                        @foreach (var dt in Enum.GetValues<DockType>())
-                        {
-                            <MudSelectItem Value="@dt">@dt.ToString()</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" sm="4">
                      <MudSelect @bind-Value="Customer.PreferredTruckType" Label="Preferred Truck">
                         @foreach (var tt in Enum.GetValues<PreferredTruckType>())
                         {
@@ -71,10 +63,7 @@
 
                 <MudItem xs="12">
                     <MudStack Row="true">
-                        <MudCheckBox T="bool" @bind-Checked="Customer.LiftgateRequired" Label="Liftgate Required" />
                         <MudCheckBox T="bool" @bind-Checked="Customer.AppointmentRequired" Label="Appointment Required" />
-                        <MudCheckBox T="bool" @bind-Checked="Customer.FerryRequired" Label="Ferry Required" />
-                        <MudCheckBox T="bool" @bind-Checked="Customer.TollRoutesAllowed" Label="Toll Routes Allowed" />
                     </MudStack>
                 </MudItem>
             </MudGrid>

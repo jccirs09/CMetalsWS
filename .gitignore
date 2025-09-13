@@ -9,3 +9,5 @@ out/
 
 # User-specific settings
 appsettings.Development.json
+
+.dotnet/
