@@ -80,8 +80,8 @@ if ! command -v docker >/dev/null 2>&1; then
   sudo systemctl enable --now docker
   sudo usermod -aG docker "$USER" || true
 fi
-echo "docker: $(docker --version | cut -d',' -f1)"
-docker compose version || true
+echo "docker: $(sudo docker --version | cut -d',' -f1)"
+sudo docker compose version || true
 
 # --- Hardened SQL Server container with sqlcmd healthcheck ---
 echo "==> Writing db/Dockerfile (includes mssql-tools18 for real healthcheck)"
@@ -127,21 +127,6 @@ volumes:
   mssql:
 YML
 
-echo "==> Building and starting SQL Server"
-docker compose -f docker-compose.sql.yml build --pull
-docker compose -f docker-compose.sql.yml up -d
-
-echo "==> Waiting for cmetalsws-sql to be healthy…"
-for i in {1..30}; do
-  state="$(docker inspect -f '{{.State.Health.Status}}' cmetalsws-sql 2>/dev/null || echo "starting")"
-  echo "Health: $state"
-  [ "$state" = "healthy" ] && break
-  sleep 3
-done
-
-echo "==> Recent logs"
-docker logs --tail 60 cmetalsws-sql || true
-
 # --- Secrets Management & DB Connection ---
 echo "==> Managing secrets and database connection"
 
@@ -161,6 +146,22 @@ if [ -z "${SA_PASSWORD:-}" ]; then
 fi
 # Re-export to be sure it's set for the rest of the script
 export SA_PASSWORD
+
+echo "==> Building and starting SQL Server"
+# The .env file is now available for compose variable substitution
+sudo --preserve-env=SA_PASSWORD docker compose -f docker-compose.sql.yml build --pull
+sudo --preserve-env=SA_PASSWORD docker compose -f docker-compose.sql.yml up -d
+
+echo "==> Waiting for cmetalsws-sql to be healthy…"
+for i in {1..30}; do
+  state="$(sudo docker inspect -f '{{.State.Health.Status}}' cmetalsws-sql 2>/dev/null || echo "starting")"
+  echo "Health: $state"
+  [ "$state" = "healthy" ] && break
+  sleep 3
+done
+
+echo "==> Recent logs"
+sudo docker logs --tail 60 cmetalsws-sql || true
 
 # Update appsettings.Development.json (which is gitignored)
 echo "Updating appsettings.Development.json with the connection string..."
@@ -197,9 +198,9 @@ echo "== Bootstrap Complete! =="
 echo "dotnet: $(dotnet --version)"
 echo "SDKs:"; dotnet --list-sdks | sed 's/^/  /'
 echo "EF Core CLI mode: ${EF_MODE}"
-echo "docker: $(docker --version | cut -d',' -f1)"
-echo "compose: $(docker compose version | head -n1)"
-echo "DB container: $(docker inspect -f '{{.State.Status}} (health={{.State.Health.Status}})' cmetalsws-sql || echo 'not found')"
+echo "docker: $(sudo docker --version | cut -d',' -f1)"
+echo "compose: $(sudo docker compose version | head -n1)"
+echo "DB container: $(sudo docker inspect -f '{{.State.Status}} (health={{.State.Health.Status}})' cmetalsws-sql || echo 'not found')"
 echo
 echo "Host → Container Connection String (from .env):"
 echo "Server=localhost,1433;Database=CMetalsWS;User Id=sa;Password=...your-secret-password...;Encrypt=True;TrustServerCertificate=True"
