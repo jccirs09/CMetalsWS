@@ -2,6 +2,8 @@
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using MudBlazor
+@using System.Collections.Generic
+@using System.Linq
 @attribute [Authorize(Policy = Permissions.Customers.Manage)]
 
 @inject DestinationRegionService DestinationRegionService
@@ -41,32 +43,9 @@
     </MudTable>
 </MudPaper>
 
-<MudDialog @bind-IsVisible="_dialogOpen" Options="_dialogOptions">
-    <TitleContent>
-        <MudText Typo="Typo.h6">@(_selectedRegion.Id == 0 ? "New Region" : "Edit Region")</MudText>
-    </TitleContent>
-    <DialogContent>
-        <MudTextField @bind-Value="_selectedRegion.Name" Label="Name" Required="true" />
-        <MudSelect T="int" Label="Branches" MultiSelection="true" @bind-SelectedValues="_selectedBranchIds">
-            @foreach (var branch in _branches)
-            {
-                <MudSelectItem T="int" Value="@branch.Id">@branch.Name</MudSelectItem>
-            }
-        </MudSelect>
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="() => _dialogOpen = false">Cancel</MudButton>
-        <MudButton Color="Color.Primary" OnClick="SaveRegion">Save</MudButton>
-    </DialogActions>
-</MudDialog>
-
 @code {
     private List<DestinationRegion> _regions = new();
     private List<Branch> _branches = new();
-    private bool _dialogOpen;
-    private DestinationRegion _selectedRegion = new();
-    private IEnumerable<int> _selectedBranchIds = new List<int>();
-    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
 
     protected override async Task OnInitializedAsync()
     {
@@ -80,40 +59,63 @@
         StateHasChanged();
     }
 
-    private void OpenCreateDialog()
+    private async Task OpenCreateDialog()
     {
-        _selectedRegion = new DestinationRegion();
-        _selectedBranchIds = new List<int>();
-        _dialogOpen = true;
-    }
-
-    private void OpenEditDialog(DestinationRegion region)
-    {
-        _selectedRegion = region;
-        _selectedBranchIds = region.Branches.Select(b => b.Id).ToList();
-        _dialogOpen = true;
-    }
-
-    private async Task SaveRegion()
-    {
-        if (string.IsNullOrWhiteSpace(_selectedRegion.Name))
+        var parameters = new DialogParameters { ["Branches"] = _branches };
+        var dialog = await DialogService.ShowAsync<DestinationRegionDialog>("New Region", parameters);
+        var result = await dialog.Result;
+        if (!result.Canceled)
         {
-            Snackbar.Add("Name is required.", Severity.Warning);
-            return;
-        }
+            var tuple = (Tuple<DestinationRegion, IEnumerable<int>>)result.Data;
+            var newRegion = tuple.Item1;
+            var selectedBranchIds = tuple.Item2;
 
-        if (_selectedRegion.Id == 0)
-        {
-            await DestinationRegionService.CreateAsync(_selectedRegion, _selectedBranchIds);
+            if (string.IsNullOrWhiteSpace(newRegion.Name))
+            {
+                Snackbar.Add("Name is required.", Severity.Warning);
+                return;
+            }
+
+            await DestinationRegionService.CreateAsync(newRegion, selectedBranchIds);
             Snackbar.Add("Region created successfully.", Severity.Success);
+            await LoadData();
         }
-        else
+    }
+
+    private async Task OpenEditDialog(DestinationRegion region)
+    {
+        // Clone the region to avoid modifying the original object in the table before saving
+        var regionClone = new DestinationRegion
         {
-            await DestinationRegionService.UpdateAsync(_selectedRegion, _selectedBranchIds);
+            Id = region.Id,
+            Name = region.Name,
+            Branches = new List<Branch>(region.Branches)
+        };
+
+        var parameters = new DialogParameters
+        {
+            ["Model"] = regionClone,
+            ["IsEdit"] = true,
+            ["Branches"] = _branches
+        };
+        var dialog = await DialogService.ShowAsync<DestinationRegionDialog>("Edit Region", parameters);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            var tuple = (Tuple<DestinationRegion, IEnumerable<int>>)result.Data;
+            var updatedRegion = tuple.Item1;
+            var selectedBranchIds = tuple.Item2;
+
+            if (string.IsNullOrWhiteSpace(updatedRegion.Name))
+            {
+                Snackbar.Add("Name is required.", Severity.Warning);
+                return;
+            }
+
+            await DestinationRegionService.UpdateAsync(updatedRegion, selectedBranchIds);
             Snackbar.Add("Region updated successfully.", Severity.Success);
+            await LoadData();
         }
-        _dialogOpen = false;
-        await LoadData();
     }
 
     private async Task OnDelete(int id)
