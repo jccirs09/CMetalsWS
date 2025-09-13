@@ -114,6 +114,17 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
         }
 
+        public async Task DeleteCustomerAsync(int customerId)
+        {
+            using var db = _dbContextFactory.CreateDbContext();
+            var customer = await db.Customers.FindAsync(customerId);
+            if (customer != null)
+            {
+                db.Customers.Remove(customer);
+                await db.SaveChangesAsync();
+            }
+        }
+
         public async Task CreateCustomerAsync(Customer customer)
         {
             using var db = _dbContextFactory.CreateDbContext();

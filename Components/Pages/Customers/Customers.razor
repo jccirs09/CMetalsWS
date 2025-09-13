@@ -1,9 +1,10 @@
-﻿@page "/customers"
+@page "/customers"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using CMetalsWS.Models
 @using MudBlazor
 @using CMetalsWS.Components.Pages.Customers
+@using CMetalsWS.Security
 @attribute [Authorize(Policy = Permissions.Customers.View)]
 
 @inject CustomerService CustomerService
@@ -76,7 +77,12 @@
                 <MudChip T="string" Color="@(context.Active ? Color.Success : Color.Error)" Size="Size.Small">@(context.Active ? "Active" : "Inactive")</MudChip>
             </MudTd>
             <MudTd DataLabel="Actions">
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="(() => OpenEditDialog(context.Id))" />
+                <AuthorizeView Policy="@Permissions.Customers.Edit" Context="authContext">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditDialog(context.Id)" />
+                </AuthorizeView>
+                <AuthorizeView Policy="@Permissions.Customers.Delete" Context="authContext">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="() => OnDelete(context.Id)" />
+                </AuthorizeView>
             </MudTd>
         </RowTemplate>
         <PagerContent>
@@ -168,4 +174,27 @@
         }
     }
 
+    private async Task OnDelete(int customerId)
+    {
+        var customer = await CustomerService.GetByIdAsync(customerId);
+        if (customer == null)
+        {
+            Snackbar.Add("Customer not found.", Severity.Error);
+            return;
+        }
+
+        var result = await DialogService.ShowMessageBox(
+            "Delete Confirmation",
+            $"Are you sure you want to delete customer '{customer.CustomerName}'?",
+            yesText: "Delete",
+            cancelText: "Cancel"
+        );
+
+        if (result == true)
+        {
+            await CustomerService.DeleteCustomerAsync(customerId);
+            Snackbar.Add("Customer deleted successfully.", Severity.Success);
+            await _table.ReloadServerData();
+        }
+    }
 }

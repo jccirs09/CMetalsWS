@@ -16,54 +16,31 @@
     <MudNavLink Href="/dashboard" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
     <MudNavLink Href="/messages" Icon="@Icons.Material.Filled.Chat">Messages</MudNavLink>
 
-    @if (canUsers || canBranches || canRoles || canMachines || canTrucks)
-    {
-        <MudNavGroup text="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Title="System Panel">
-            @if (canUsers)
-            {
-                <MudNavLink Href="/users" Icon="@Icons.Material.Filled.Person">Users</MudNavLink>
-            }
-            @if (canBranches)
-            {
-                <MudNavLink Href="/branches" Icon="@Icons.Material.Filled.LocationCity">Branches</MudNavLink>
-            }
-            @if (canRoles)
-            {
-                <MudNavLink Href="/roles" Icon="@Icons.Material.Filled.Security">Roles</MudNavLink>
-            }
-            @if (canMachines)
-            {
-                <MudNavLink Href="/machines" Icon="@Icons.Material.Filled.Build">Machines</MudNavLink>
-            }
-            @if (canTrucks)
-            {
-                <MudNavLink Href="/trucks" Icon="@Icons.Material.Filled.LocalShipping">Trucks</MudNavLink>
-            }
-            <MudNavLink Href="/admin/chatgroups" Icon="@Icons.Material.Filled.Chat">Chat Groups</MudNavLink>
-        </MudNavGroup>
-    }
-
-    @if (isManager)
-    {
-        <MudNavGroup text="Manager" Icon="@Icons.Material.Filled.SupervisorAccount" Title="Manager Panel">
-            <MudNavLink Href="/manager/chatgroups" Icon="@Icons.Material.Filled.Chat">Chat Groups</MudNavLink>
-        </MudNavGroup>
-    }
-
-    @if (isManager || isSupervisor)
-    {
-        <MudNavGroup text="System Panel" Icon="@Icons.Material.Filled.Settings" Title="System Panel">
-            @if (canViewCustomers)
-            {
-                <MudNavLink Href="/customers" Icon="@Icons.Material.Filled.People">Customers</MudNavLink>
-            }
-            @if (canManageCustomers)
-            {
-                <MudNavLink Href="/admin/destination-groups" Icon="@Icons.Material.Filled.GroupWork">Destination Groups</MudNavLink>
-                <MudNavLink Href="/admin/destination-regions" Icon="@Icons.Material.Filled.Public">Destination Regions</MudNavLink>
-            }
-        </MudNavGroup>
-    }
+    <MudNavGroup text="System Panel" Icon="@Icons.Material.Filled.Settings" Title="System Panel" Expanded="true">
+        <AuthorizeView Policy="@Permissions.Users.View">
+            <MudNavLink Href="/users" Icon="@Icons.Material.Filled.Person">Users</MudNavLink>
+        </AuthorizeView>
+        <AuthorizeView Policy="@Permissions.Roles.View">
+            <MudNavLink Href="/roles" Icon="@Icons.Material.Filled.Security">Roles</MudNavLink>
+        </AuthorizeView>
+        <AuthorizeView Policy="@Permissions.Branches.View">
+            <MudNavLink Href="/branches" Icon="@Icons.Material.Filled.LocationCity">Branches</MudNavLink>
+        </AuthorizeView>
+        <AuthorizeView Policy="@Permissions.Machines.View">
+            <MudNavLink Href="/machines" Icon="@Icons.Material.Filled.Build">Machines</MudNavLink>
+        </AuthorizeView>
+        <AuthorizeView Policy="@Permissions.Trucks.View">
+            <MudNavLink Href="/trucks" Icon="@Icons.Material.Filled.LocalShipping">Trucks</MudNavLink>
+        </AuthorizeView>
+        <AuthorizeView Policy="@Permissions.Customers.View">
+            <MudNavLink Href="/customers" Icon="@Icons.Material.Filled.People">Customer Manager</MudNavLink>
+        </AuthorizeView>
+        <AuthorizeView Policy="@Permissions.Customers.Manage">
+            <MudNavLink Href="/admin/destination-groups" Icon="@Icons.Material.Filled.GroupWork">Destination Groups</MudNavLink>
+            <MudNavLink Href="/admin/destination-regions" Icon="@Icons.Material.Filled.Public">Destination Regions</MudNavLink>
+        </AuthorizeView>
+        <MudNavLink Href="/admin/chatgroups" Icon="@Icons.Material.Filled.Chat">Chat Groups</MudNavLink>
+    </MudNavGroup>
 
     @if (canWorkOrders || canPickingLists)
     {
@@ -130,18 +107,9 @@
     private List<DestinationRegion> _destinationRegions = new();
 
     // permission flags
-    private bool canUsers;
-    private bool canBranches;
-    private bool canRoles;
-    private bool canMachines;
-    private bool canTrucks;
     private bool canWorkOrders;
     private bool canPickingLists;
     private bool canAssignPickingLists;
-    private bool isManager;
-    private bool isSupervisor;
-    private bool canViewCustomers;
-    private bool canManageCustomers;
 
     protected override async Task OnInitializedAsync()
     {
@@ -155,18 +123,9 @@
     {
         var user = (await AuthStateProvider.GetAuthenticationStateAsync()).User;
 
-        canViewCustomers = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Customers.View)).Succeeded;
-        canManageCustomers = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Customers.Manage)).Succeeded;
-        canUsers = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Users.View)).Succeeded;
-        canBranches = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Branches.View)).Succeeded;
-        canRoles = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Roles.View)).Succeeded;
-        canMachines = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Machines.View)).Succeeded;
-        canTrucks = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Trucks.View)).Succeeded;
         canWorkOrders = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.WorkOrders.View)).Succeeded;
         canPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.View)).Succeeded;
         canAssignPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.Assign)).Succeeded;
-        isManager = user.IsInRole("Manager");
-        isSupervisor = user.IsInRole("Supervisor");
     }
 
     private async Task LoadDestinationRegionsAsync()
