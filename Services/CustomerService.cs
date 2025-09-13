@@ -104,6 +104,7 @@ namespace CMetalsWS.Services
         public async Task UpdateCustomerAsync(Customer customer)
         {
             using var db = _dbContextFactory.CreateDbContext();
+            ParseFullAddress(customer);
             customer.ModifiedUtc = DateTime.UtcNow;
             db.Customers.Update(customer);
             await db.SaveChangesAsync();
@@ -112,6 +113,7 @@ namespace CMetalsWS.Services
         public async Task CreateCustomerAsync(Customer customer)
         {
             using var db = _dbContextFactory.CreateDbContext();
+            ParseFullAddress(customer);
             customer.CreatedUtc = DateTime.UtcNow;
             db.Customers.Add(customer);
             await db.SaveChangesAsync();
@@ -173,12 +175,7 @@ namespace CMetalsWS.Services
 
                     // Update address info from the spreadsheet
                     customer.FullAddress = row.Dto.Address;
-                    var addressParts = row.Dto.Address.Split(',').Select(p => p.Trim()).ToArray();
-                    if (addressParts.Length > 0) customer.Street1 = addressParts[0];
-                    if (addressParts.Length > 1) customer.City = addressParts[1];
-                    if (addressParts.Length > 2) customer.Province = addressParts[2];
-                    if (addressParts.Length > 3) customer.PostalCode = addressParts[3];
-                    if (addressParts.Length > 4) customer.Country = addressParts[4];
+                    ParseFullAddress(customer);
 
                     customer.ModifiedUtc = DateTime.UtcNow;
                     await db.SaveChangesAsync(); // Commit each record individually for robustness
@@ -192,6 +189,25 @@ namespace CMetalsWS.Services
             }
 
             return report;
+        }
+        private void ParseFullAddress(Customer customer)
+        {
+            if (string.IsNullOrWhiteSpace(customer.FullAddress)) return;
+
+            var addressParts = customer.FullAddress.Split(',').Select(p => p.Trim()).ToArray();
+
+            customer.Street1 = null;
+            customer.Street2 = null;
+            customer.City = null;
+            customer.Province = null;
+            customer.PostalCode = null;
+            customer.Country = null;
+
+            if (addressParts.Length > 0) customer.Street1 = addressParts[0];
+            if (addressParts.Length > 1) customer.City = addressParts[1];
+            if (addressParts.Length > 2) customer.Province = addressParts[2];
+            if (addressParts.Length > 3) customer.PostalCode = addressParts[3];
+            if (addressParts.Length > 4) customer.Country = addressParts[4];
         }
     }
 
