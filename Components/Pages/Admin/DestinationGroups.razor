@@ -14,7 +14,7 @@
         <MudButton Color="Color.Primary"
                    Variant="Variant.Filled"
                    StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="(() => { _selectedGroup = new DestinationGroup(); _dialogOpen = true; })">
+                   OnClick="OpenCreateDialog">
             New Group
         </MudButton>
     </MudStack>
@@ -29,31 +29,15 @@
             <MudTd DataLabel="Id">@context.Id</MudTd>
             <MudTd DataLabel="Name">@context.Name</MudTd>
             <MudTd DataLabel="Actions">
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="(() => { _selectedGroup = context; _dialogOpen = true; })" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="(() => OnDelete(context.Id))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditDialog(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="() => OnDelete(context.Id)" />
             </MudTd>
         </RowTemplate>
     </MudTable>
 </MudPaper>
 
-<MudDialog @bind-IsVisible="_dialogOpen" Options="_dialogOptions">
-    <TitleContent>
-        <MudText Typo="Typo.h6">@(_selectedGroup.Id == 0 ? "New Group" : "Edit Group")</MudText>
-    </TitleContent>
-    <DialogContent>
-        <MudTextField @bind-Value="_selectedGroup.Name" Label="Name" Required="true" />
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="() => _dialogOpen = false">Cancel</MudButton>
-        <MudButton Color="Color.Primary" OnClick="SaveGroup">Save</MudButton>
-    </DialogActions>
-</MudDialog>
-
 @code {
     private List<DestinationGroup> _groups = new();
-    private bool _dialogOpen;
-    private DestinationGroup _selectedGroup = new();
-    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
 
     protected override async Task OnInitializedAsync()
     {
@@ -66,26 +50,41 @@
         StateHasChanged();
     }
 
-    private async Task SaveGroup()
+    private async Task OpenCreateDialog()
     {
-        if (string.IsNullOrWhiteSpace(_selectedGroup.Name))
+        var dialog = await DialogService.ShowAsync<DestinationGroupDialog>("New Group");
+        var result = await dialog.Result;
+        if (!result.Canceled)
         {
-            Snackbar.Add("Name is required.", Severity.Warning);
-            return;
-        }
-
-        if (_selectedGroup.Id == 0)
-        {
-            await DestinationGroupService.CreateAsync(_selectedGroup);
+            var newGroup = (DestinationGroup)result.Data;
+            if (string.IsNullOrWhiteSpace(newGroup.Name))
+            {
+                Snackbar.Add("Name is required.", Severity.Warning);
+                return;
+            }
+            await DestinationGroupService.CreateAsync(newGroup);
             Snackbar.Add("Group created successfully.", Severity.Success);
+            await LoadGroups();
         }
-        else
+    }
+
+    private async Task OpenEditDialog(DestinationGroup group)
+    {
+        var parameters = new DialogParameters { ["Model"] = group, ["IsEdit"] = true };
+        var dialog = await DialogService.ShowAsync<DestinationGroupDialog>("Edit Group", parameters);
+        var result = await dialog.Result;
+        if (!result.Canceled)
         {
-            await DestinationGroupService.UpdateAsync(_selectedGroup);
+            var updatedGroup = (DestinationGroup)result.Data;
+            if (string.IsNullOrWhiteSpace(updatedGroup.Name))
+            {
+                Snackbar.Add("Name is required.", Severity.Warning);
+                return;
+            }
+            await DestinationGroupService.UpdateAsync(updatedGroup);
             Snackbar.Add("Group updated successfully.", Severity.Success);
+            await LoadGroups();
         }
-        _dialogOpen = false;
-        await LoadGroups();
     }
 
     private async Task OnDelete(int id)
