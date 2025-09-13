@@ -5,18 +5,11 @@ services:
     container_name: cmetalsws-sql-server
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_PID=Developer
-      - SA_PASSWORD="yourStrong(!)Password"
+      - SA_PASSWORD=yourStrong(!)Password
     ports:
       - "1433:1433"
     volumes:
       - cmetalsws-sql-data:/var/opt/mssql
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"yourStrong(!)Password\" -Q \"SELECT 1\" || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 30
 
 volumes:
   cmetalsws-sql-data:
