@@ -23,7 +23,11 @@ namespace CMetalsWS.Services
         public async Task<Customer?> GetByIdAsync(int id)
         {
             using var db = _dbContextFactory.CreateDbContext();
-            return await db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
+            return await db.Customers
+                .AsNoTracking()
+                .Include(c => c.DestinationGroup)
+                .Include(c => c.DestinationRegion)
+                .FirstOrDefaultAsync(c => c.Id == id);
         }
 
         public async Task<List<Customer>> SearchAsync(string term)
@@ -50,7 +54,9 @@ namespace CMetalsWS.Services
             bool descending)
         {
             using var db = _dbContextFactory.CreateDbContext();
-            var query = db.Customers.AsNoTracking();
+            IQueryable<Customer> query = db.Customers.AsNoTracking()
+                .Include(c => c.DestinationRegion)
+                .Include(c => c.DestinationGroup);
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
@@ -64,15 +70,12 @@ namespace CMetalsWS.Services
 
             if (!string.IsNullOrWhiteSpace(regionFilter))
             {
-                if (Enum.TryParse<DestinationRegionCategory>(regionFilter, true, out var region))
-                {
-                    query = query.Where(c => c.DestinationRegionCategory == region);
-                }
+                query = query.Where(c => c.DestinationRegion != null && c.DestinationRegion.Name.ToLower().Contains(regionFilter.ToLower()));
             }
 
             if (!string.IsNullOrWhiteSpace(groupFilter))
             {
-                query = query.Where(c => c.DestinationGroupCategory != null && c.DestinationGroupCategory.ToLower().Contains(groupFilter.ToLower()));
+                query = query.Where(c => c.DestinationGroup != null && c.DestinationGroup.Name.ToLower().Contains(groupFilter.ToLower()));
             }
 
             if (activeFilter.HasValue)

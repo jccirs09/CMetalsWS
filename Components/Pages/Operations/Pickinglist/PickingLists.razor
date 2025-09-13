@@ -76,7 +76,7 @@
                 </MudButton>
             </MudTd>
             <MudTd DataLabel="Customer">@pickingList.Customer?.CustomerName</MudTd>
-            <MudTd DataLabel="Loc">@pickingList.Customer?.DestinationGroupCategory</MudTd>
+            <MudTd DataLabel="Loc">@pickingList.Customer?.DestinationGroup?.Name</MudTd>
             <MudTd DataLabel="Status">
                 @if (_canEditInline)
                 {

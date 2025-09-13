@@ -47,13 +47,24 @@
         </MudNavGroup>
     }
 
-    @if (canWorkOrders || canPickingLists)
+    @if (isManager || isSupervisor)
     {
-        <MudNavGroup text="Operations" Icon="@Icons.Material.Filled.DashboardCustomize" Title="Operations">
+        <MudNavGroup text="System Panel" Icon="@Icons.Material.Filled.Settings" Title="System Panel">
             @if (canViewCustomers)
             {
                 <MudNavLink Href="/customers" Icon="@Icons.Material.Filled.People">Customers</MudNavLink>
             }
+            @if (canManageCustomers)
+            {
+                <MudNavLink Href="/admin/destination-groups" Icon="@Icons.Material.Filled.GroupWork">Destination Groups</MudNavLink>
+                <MudNavLink Href="/admin/destination-regions" Icon="@Icons.Material.Filled.Public">Destination Regions</MudNavLink>
+            }
+        </MudNavGroup>
+    }
+
+    @if (canWorkOrders || canPickingLists)
+    {
+        <MudNavGroup text="Operations" Icon="@Icons.Material.Filled.DashboardCustomize" Title="Operations">
             @if (canWorkOrders)
             {
                 <MudNavLink Href="/operations/workorders" Icon="@Icons.Material.Filled.Assignment">Work Orders</MudNavLink>
@@ -123,7 +134,9 @@
     private bool canPickingLists;
     private bool canAssignPickingLists;
     private bool isManager;
+    private bool isSupervisor;
     private bool canViewCustomers;
+    private bool canManageCustomers;
 
     protected override async Task OnInitializedAsync()
     {
@@ -137,6 +150,7 @@
         var user = (await AuthStateProvider.GetAuthenticationStateAsync()).User;
 
         canViewCustomers = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Customers.View)).Succeeded;
+        canManageCustomers = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Customers.Manage)).Succeeded;
         canUsers = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Users.View)).Succeeded;
         canBranches = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Branches.View)).Succeeded;
         canRoles = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Roles.View)).Succeeded;
@@ -146,6 +160,7 @@
         canPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.View)).Succeeded;
         canAssignPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.Assign)).Succeeded;
         isManager = user.IsInRole("Manager");
+        isSupervisor = user.IsInRole("Supervisor");
     }
 
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)

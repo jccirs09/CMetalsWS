@@ -1,0 +1,113 @@
+@page "/admin/destination-groups"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using MudBlazor
+@attribute [Authorize(Policy = Permissions.Customers.Manage)]
+
+@inject DestinationGroupService DestinationGroupService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudPaper Class="p-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h5">Destination Groups</MudText>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="(() => { _selectedGroup = new DestinationGroup(); _dialogOpen = true; })">
+            New Group
+        </MudButton>
+    </MudStack>
+
+    <MudTable Items="_groups" Dense="true" Hover="true" Striped="true" Class="mt-4">
+        <HeaderContent>
+            <MudTh>Id</MudTh>
+            <MudTh>Name</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Id">@context.Id</MudTd>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="(() => { _selectedGroup = context; _dialogOpen = true; })" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="(() => OnDelete(context.Id))" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+<MudDialog @bind-IsVisible="_dialogOpen" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_selectedGroup.Id == 0 ? "New Group" : "Edit Group")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_selectedGroup.Name" Label="Name" Required="true" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _dialogOpen = false">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="SaveGroup">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<DestinationGroup> _groups = new();
+    private bool _dialogOpen;
+    private DestinationGroup _selectedGroup = new();
+    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGroups();
+    }
+
+    private async Task LoadGroups()
+    {
+        _groups = await DestinationGroupService.GetDestinationGroupsAsync();
+        StateHasChanged();
+    }
+
+    private async Task SaveGroup()
+    {
+        if (string.IsNullOrWhiteSpace(_selectedGroup.Name))
+        {
+            Snackbar.Add("Name is required.", Severity.Warning);
+            return;
+        }
+
+        if (_selectedGroup.Id == 0)
+        {
+            await DestinationGroupService.CreateAsync(_selectedGroup);
+            Snackbar.Add("Group created successfully.", Severity.Success);
+        }
+        else
+        {
+            await DestinationGroupService.UpdateAsync(_selectedGroup);
+            Snackbar.Add("Group updated successfully.", Severity.Success);
+        }
+        _dialogOpen = false;
+        await LoadGroups();
+    }
+
+    private async Task OnDelete(int id)
+    {
+        var group = _groups.FirstOrDefault(g => g.Id == id);
+        if (group == null)
+        {
+            Snackbar.Add("Group not found.", Severity.Error);
+            return;
+        }
+        var result = await DialogService.ShowMessageBox(
+            "Delete Confirmation",
+            $"Are you sure you want to delete '{group.Name}'?",
+            yesText: "Delete",
+            cancelText: "Cancel"
+        );
+
+        if (result == true)
+        {
+            await DestinationGroupService.DeleteAsync(id);
+            Snackbar.Add("Group deleted successfully.", Severity.Success);
+            await LoadGroups();
+        }
+    }
+}
