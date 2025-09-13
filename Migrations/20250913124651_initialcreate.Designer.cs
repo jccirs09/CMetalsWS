@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250913074722_AddDestinationGroupAndRegion")]
-    partial class AddDestinationGroupAndRegion
+    [Migration("20250913124651_initialcreate")]
+    partial class initialcreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
