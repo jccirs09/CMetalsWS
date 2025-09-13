@@ -14,26 +14,31 @@
 else
 {
     <MudPaper Class="p-4">
-        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
             <MudText Typo="Typo.h5">@_customer.CustomerName</MudText>
             <MudButton Variant="Variant.Outlined" OnClick="@(() => NavigationManager.NavigateTo("/customers"))">Back to List</MudButton>
         </MudStack>
 
-        <MudGrid Class="mt-4">
+        <MudGrid Spacing="3">
             <MudItem xs="12" sm="6">
                 <MudCard>
                     <MudCardHeader>
                         <CardHeaderContent>
-                            <MudText Typo="Typo.h6">Basic Information</MudText>
+                            <MudText Typo="Typo.h6">Customer Details</MudText>
                         </CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
                         <MudText><strong>Code:</strong> @_customer.CustomerCode</MudText>
                         <MudText><strong>Name:</strong> @_customer.CustomerName</MudText>
                         <MudText><strong>Status:</strong> <MudChip T="string" Color="@(_customer.Active ? Color.Success : Color.Error)" Size="Size.Small">@(_customer.Active ? "Active" : "Inactive")</MudChip></MudText>
+                        <MudDivider Class="my-2" />
+                        <MudText><strong>Contact Name:</strong> @_customer.ContactName</MudText>
+                        <MudText><strong>Contact Number:</strong> @_customer.ContactNumber</MudText>
+                        <MudText><strong>Contact Email:</strong> @_customer.ContactEmail</MudText>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
+
             <MudItem xs="12" sm="6">
                 <MudCard>
                     <MudCardHeader>
@@ -52,39 +57,38 @@ else
                     </MudCardContent>
                 </MudCard>
             </MudItem>
+
             <MudItem xs="12" sm="6">
                 <MudCard>
                     <MudCardHeader>
                         <CardHeaderContent>
-                            <MudText Typo="Typo.h6">Contact Information</MudText>
-                        </CardHeaderContent>
-                    </MudCardHeader>
-                    <MudCardContent>
-                        <MudText><strong>Contact Name:</strong> @_customer.ContactName</MudText>
-                        <MudText><strong>Contact Number:</strong> @_customer.ContactNumber</MudText>
-                        <MudText><strong>Contact Email:</strong> @_customer.ContactEmail</MudText>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-            <MudItem xs="12" sm="6">
-                <MudCard>
-                    <MudCardHeader>
-                        <CardHeaderContent>
-                            <MudText Typo="Typo.h6">Operational Details</MudText>
+                            <MudText Typo="Typo.h6">Hours & Appointments</MudText>
                         </CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
                         <MudText><strong>Receiving Hours:</strong> @_customer.ReceivingHourStart?.ToString("hh\\:mm") - @_customer.ReceivingHourEnd?.ToString("hh\\:mm")</MudText>
                         <MudText><strong>Business Hours:</strong> @_customer.BusinessHours</MudText>
-                        <MudText><strong>Service Time:</strong> @_customer.ServiceTimeMinutes minutes</MudText>
                         <MudText><strong>Appointment Required:</strong> @_customer.AppointmentRequired</MudText>
-                        <MudText><strong>Preferred Truck Type:</strong> @_customer.PreferredTruckType</MudText>
-                        <MudText><strong>Priority:</strong> @_customer.Priority</MudText>
-                        <MudText><strong>Delivery Notes:</strong> @_customer.DeliveryNotes</MudText>
-                        <MudText><strong>Access Restrictions:</strong> @_customer.AccessRestrictions</MudText>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
+
+            <MudItem xs="12" sm="6">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Delivery Requirements</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText><strong>Service Time:</strong> @_customer.ServiceTimeMinutes minutes</MudText>
+                        <MudText><strong>Preferred Truck Type:</strong> @_customer.PreferredTruckType</MudText>
+                        <MudText><strong>Access Restrictions:</strong> @_customer.AccessRestrictions</MudText>
+                        <MudText><strong>Delivery Notes:</strong> @_customer.DeliveryNotes</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
             <MudItem xs="12" sm="6">
                 <MudCard>
                     <MudCardHeader>
@@ -95,6 +99,7 @@ else
                     <MudCardContent>
                         <MudText><strong>Destination Group:</strong> @_customer.DestinationGroup?.Name</MudText>
                         <MudText><strong>Destination Region:</strong> @_customer.DestinationRegion?.Name</MudText>
+                        <MudText><strong>Priority:</strong> @_customer.Priority</MudText>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
