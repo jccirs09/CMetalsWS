@@ -1,5 +1,9 @@
 @using CMetalsWS.Data
+@using CMetalsWS.Services
 @using MudBlazor
+
+@inject DestinationRegionService DestinationRegionService
+@inject DestinationGroupService DestinationGroupService
 
 <MudDialog>
     <TitleContent>
@@ -20,12 +24,15 @@
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="Customer.BusinessHours" Label="Business Hours" />
+                    <MudTimePicker Label="Receiving Hours Start" @bind-Time="Customer.ReceivingHourStart" />
                 </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTimePicker Label="Receiving Hours End" @bind-Time="Customer.ReceivingHourEnd" />
+                </MudItem>
+
                 <MudItem xs="12" sm="6">
                     <MudTextField @bind-Value="Customer.ContactNumber" Label="Contact Number" />
                 </MudItem>
-
                 <MudItem xs="12" sm="6">
                     <MudTextField @bind-Value="Customer.ContactName" Label="Contact Name" />
                 </MudItem>
@@ -35,6 +42,23 @@
 
                 <MudItem xs="12">
                     <MudDivider />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" @bind-Value="Customer.DestinationRegionId" Label="Destination Region">
+                        @foreach (var region in _regions)
+                        {
+                            <MudSelectItem T="int?" Value="@region.Id">@region.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" @bind-Value="Customer.DestinationGroupId" Label="Destination Group">
+                        @foreach (var group in _groups)
+                        {
+                            <MudSelectItem T="int?" Value="@group.Id">@group.Name</MudSelectItem>
+                        }
+                    </MudSelect>
                 </MudItem>
 
                 <MudItem xs="12" sm="4">
@@ -81,6 +105,19 @@
     [Parameter] public bool IsNew { get; set; }
 
     private MudForm _form = default!;
+    private List<DestinationRegion> _regions = new();
+    private List<DestinationGroup> _groups = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _regions = await DestinationRegionService.GetDestinationRegionsAsync();
+        _groups = await DestinationGroupService.GetDestinationGroupsAsync();
+    }
 
     private void Cancel() => MudDialog.Cancel();
 

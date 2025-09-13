@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CMetalsWS.Migrations
 {
     /// <inheritdoc />
-    public partial class initialcreate : Migration
+    public partial class RefactorCustomerAndAddDynamicRegions : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -292,6 +292,30 @@ namespace CMetalsWS.Migrations
                         principalTable: "DestinationRegions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DestinationRegionBranch",
+                columns: table => new
+                {
+                    BranchesId = table.Column<int>(type: "int", nullable: false),
+                    DestinationRegionsId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DestinationRegionBranch", x => new { x.BranchesId, x.DestinationRegionsId });
+                    table.ForeignKey(
+                        name: "FK_DestinationRegionBranch_Branches_BranchesId",
+                        column: x => x.BranchesId,
+                        principalTable: "Branches",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_DestinationRegionBranch_DestinationRegions_DestinationRegionsId",
+                        column: x => x.DestinationRegionsId,
+                        principalTable: "DestinationRegions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -1038,6 +1062,11 @@ namespace CMetalsWS.Migrations
                 column: "Province");
 
             migrationBuilder.CreateIndex(
+                name: "IX_DestinationRegionBranch_DestinationRegionsId",
+                table: "DestinationRegionBranch",
+                column: "DestinationRegionsId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_InventoryItems_BranchId",
                 table: "InventoryItems",
                 column: "BranchId");
@@ -1244,6 +1273,9 @@ namespace CMetalsWS.Migrations
 
             migrationBuilder.DropTable(
                 name: "CityCentroid");
+
+            migrationBuilder.DropTable(
+                name: "DestinationRegionBranch");
 
             migrationBuilder.DropTable(
                 name: "InventoryItems");

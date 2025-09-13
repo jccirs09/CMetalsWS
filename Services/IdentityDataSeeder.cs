@@ -58,12 +58,12 @@ namespace CMetalsWS.Services
             var supervisorPermissions = plannerPermissions.Concat(new[]
             {
                 Permissions.WorkOrders.Approve,
-                Permissions.PickingLists.Dispatch
+                Permissions.PickingLists.Dispatch,
+                Permissions.Customers.Add
             }).Distinct().ToArray();
 
             var managerPermissions = supervisorPermissions.Concat(new[]
             {
-                Permissions.Customers.Add, Permissions.Customers.Delete, Permissions.Customers.Import,
                 Permissions.Users.View,
                 Permissions.Roles.View,
                 Permissions.Branches.Edit,

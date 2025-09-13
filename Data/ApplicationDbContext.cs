@@ -46,6 +46,11 @@ namespace CMetalsWS.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // DestinationRegion <-> Branch (Many-to-Many)
+            modelBuilder.Entity<DestinationRegion>()
+                .HasMany(dr => dr.Branches)
+                .WithMany(b => b.DestinationRegions)
+                .UsingEntity(j => j.ToTable("DestinationRegionBranch"));
 
             // Machine -> Branch
             modelBuilder.Entity<Machine>()

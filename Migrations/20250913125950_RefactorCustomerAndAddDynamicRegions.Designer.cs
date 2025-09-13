@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250913124651_initialcreate")]
-    partial class initialcreate
+    [Migration("20250913125950_RefactorCustomerAndAddDynamicRegions")]
+    partial class RefactorCustomerAndAddDynamicRegions
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,21 @@ namespace CMetalsWS.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("BranchDestinationRegion", b =>
+                {
+                    b.Property<int>("BranchesId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DestinationRegionsId")
+                        .HasColumnType("int");
+
+                    b.HasKey("BranchesId", "DestinationRegionsId");
+
+                    b.HasIndex("DestinationRegionsId");
+
+                    b.ToTable("DestinationRegionBranch", (string)null);
+                });
 
             modelBuilder.Entity("CMetalsWS.Data.ApplicationRole", b =>
                 {
@@ -1439,6 +1454,21 @@ namespace CMetalsWS.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("BranchDestinationRegion", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMetalsWS.Data.DestinationRegion", null)
+                        .WithMany()
+                        .HasForeignKey("DestinationRegionsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.ApplicationUser", b =>

@@ -5,6 +5,7 @@
 @attribute [Authorize(Policy = Permissions.Customers.Manage)]
 
 @inject DestinationRegionService DestinationRegionService
+@inject BranchService BranchService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
@@ -14,7 +15,7 @@
         <MudButton Color="Color.Primary"
                    Variant="Variant.Filled"
                    StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="(() => { _selectedRegion = new DestinationRegion(); _dialogOpen = true; })">
+                   OnClick="OpenCreateDialog">
             New Region
         </MudButton>
     </MudStack>
@@ -23,14 +24,18 @@
         <HeaderContent>
             <MudTh>Id</MudTh>
             <MudTh>Name</MudTh>
+            <MudTh>Branches</MudTh>
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Id">@context.Id</MudTd>
             <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Branches">
+                @string.Join(", ", context.Branches.Select(b => b.Name))
+            </MudTd>
             <MudTd DataLabel="Actions">
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="(() => { _selectedRegion = context; _dialogOpen = true; })" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="(() => OnDelete(context.Id))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditDialog(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="() => OnDelete(context.Id)" />
             </MudTd>
         </RowTemplate>
     </MudTable>
@@ -42,6 +47,12 @@
     </TitleContent>
     <DialogContent>
         <MudTextField @bind-Value="_selectedRegion.Name" Label="Name" Required="true" />
+        <MudSelect T="int" Label="Branches" MultiSelection="true" @bind-SelectedValues="_selectedBranchIds">
+            @foreach (var branch in _branches)
+            {
+                <MudSelectItem T="int" Value="@branch.Id">@branch.Name</MudSelectItem>
+            }
+        </MudSelect>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _dialogOpen = false">Cancel</MudButton>
@@ -51,19 +62,36 @@
 
 @code {
     private List<DestinationRegion> _regions = new();
+    private List<Branch> _branches = new();
     private bool _dialogOpen;
     private DestinationRegion _selectedRegion = new();
+    private IEnumerable<int> _selectedBranchIds = new List<int>();
     private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadRegions();
+        await LoadData();
     }
 
-    private async Task LoadRegions()
+    private async Task LoadData()
     {
         _regions = await DestinationRegionService.GetDestinationRegionsAsync();
+        _branches = await BranchService.GetBranchesAsync();
         StateHasChanged();
+    }
+
+    private void OpenCreateDialog()
+    {
+        _selectedRegion = new DestinationRegion();
+        _selectedBranchIds = new List<int>();
+        _dialogOpen = true;
+    }
+
+    private void OpenEditDialog(DestinationRegion region)
+    {
+        _selectedRegion = region;
+        _selectedBranchIds = region.Branches.Select(b => b.Id).ToList();
+        _dialogOpen = true;
     }
 
     private async Task SaveRegion()
@@ -76,16 +104,16 @@
 
         if (_selectedRegion.Id == 0)
         {
-            await DestinationRegionService.CreateAsync(_selectedRegion);
+            await DestinationRegionService.CreateAsync(_selectedRegion, _selectedBranchIds);
             Snackbar.Add("Region created successfully.", Severity.Success);
         }
         else
         {
-            await DestinationRegionService.UpdateAsync(_selectedRegion);
+            await DestinationRegionService.UpdateAsync(_selectedRegion, _selectedBranchIds);
             Snackbar.Add("Region updated successfully.", Severity.Success);
         }
         _dialogOpen = false;
-        await LoadRegions();
+        await LoadData();
     }
 
     private async Task OnDelete(int id)
@@ -107,7 +135,7 @@
         {
             await DestinationRegionService.DeleteAsync(id);
             Snackbar.Add("Region deleted successfully.", Severity.Success);
-            await LoadRegions();
+            await LoadData();
         }
     }
 }
