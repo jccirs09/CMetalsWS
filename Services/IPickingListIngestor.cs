@@ -5,6 +5,6 @@ namespace CMetalsWS.Services
 {
     public interface IPickingListIngestor
     {
-        Task<int> UploadAsync(Stream pdf, string fileName, int branchId, string uploadedBy);
+        Task<CMetalsWS.Models.IngestResult> UploadAsync(Stream pdf, string fileName, int branchId, string uploadedBy);
     }
 }

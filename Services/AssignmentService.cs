@@ -69,6 +69,8 @@ namespace CMetalsWS.Services
 
             item.MachineId = machineId;
             item.BuildingCategory = BuildingCategory.None;
+            item.AssignedBy = userId;
+            item.AssignedAt = DateTime.UtcNow;
 
             await _taskAuditEventService.CreateAuditEventAsync(
                 item.Id, TaskType.Pulling, AuditEventType.Start, userId, $"Assigned to machine {machine.Name}");
@@ -93,6 +95,8 @@ namespace CMetalsWS.Services
 
             item.MachineId = null;
             item.BuildingCategory = category;
+            item.AssignedBy = userId;
+            item.AssignedAt = DateTime.UtcNow;
 
             await _taskAuditEventService.CreateAuditEventAsync(
                 item.Id, TaskType.Pulling, AuditEventType.Start, userId, $"Sent to pulling: {category}");
@@ -108,6 +112,8 @@ namespace CMetalsWS.Services
 
             item.MachineId = null;
             item.BuildingCategory = BuildingCategory.None;
+            item.AssignedBy = null;
+            item.AssignedAt = null;
 
             await _taskAuditEventService.CreateAuditEventAsync(
                 item.Id, TaskType.Pulling, AuditEventType.Start, userId, "Assignment cleared");

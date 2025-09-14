@@ -56,7 +56,7 @@
 
         @if (!string.IsNullOrEmpty(_statusMessage))
         {
-            <MudAlert Severity="@_statusSeverity" Class="mt-4">@_statusMessage</MudAlert>
+            <MudAlert Severity="@_statusSeverity" Class="mt-4">@((MarkupString)_statusMessage)</MudAlert>
         }
     </MudCardContent>
 </MudCard>
@@ -123,19 +123,18 @@
             using var memoryStream = new MemoryStream();
             await sourceStream.CopyToAsync(memoryStream);
             memoryStream.Position = 0;
-            var pickingListId = await Ingestor.UploadAsync(memoryStream, _model.File.Name, _model.BranchId.Value, _user.Id);
+            var result = await Ingestor.UploadAsync(memoryStream, _model.File.Name, _model.BranchId.Value, _user.Id);
 
-            if (pickingListId <= 0)
+            if (result.IsDuplicate)
             {
-                var existingId = Math.Abs(pickingListId);
-                _statusMessage = $"This picking list has already been uploaded. <a href='/pickinglists/{existingId}'>Click here to view it.</a>";
+                _statusMessage = $"This picking list has already been uploaded. <a href='/pickinglists/{result.PickingListId}'>Click here to view it.</a>";
                 _statusSeverity = Severity.Warning;
             }
             else
             {
                 _statusMessage = "Processing complete. Redirecting...";
                 StateHasChanged();
-                NavManager.NavigateTo($"/pickinglists/{pickingListId}");
+                NavManager.NavigateTo($"/pickinglists/{result.PickingListId}");
             }
         }
         catch (Exception ex)

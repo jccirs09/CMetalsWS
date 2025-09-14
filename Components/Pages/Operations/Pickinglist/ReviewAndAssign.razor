@@ -77,6 +77,9 @@ else
             <MudTh>Length</MudTh>
             <MudTh>Weight</MudTh>
             <MudTh>Assignment</MudTh>
+            <MudTh>Needs Attention</MudTh>
+            <MudTh>Has Tag Lots</MudTh>
+            <MudTh>Sales Note</MudTh>
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
@@ -102,6 +105,19 @@ else
                     <MudChip T="string">Unassigned</MudChip>
                 }
             </MudTd>
+            <MudTd DataLabel="Needs Attention">
+                @if (context.NeedsAttention)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" />
+                }
+            </MudTd>
+            <MudTd DataLabel="Has Tag Lots">
+                @if (context.HasTagLots)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Check" Color="Color.Success" />
+                }
+            </MudTd>
+            <MudTd DataLabel="Sales Note">@context.SalesNote</MudTd>
             <MudTd>
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => OpenAssignmentDialog(context)" />
             </MudTd>

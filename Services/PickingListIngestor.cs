@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CMetalsWS.Data;
+using CMetalsWS.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -24,7 +25,7 @@ namespace CMetalsWS.Services
             _logger = logger;
         }
 
-        public async Task<int> UploadAsync(Stream pdf, string fileName, int branchId, string uploadedBy)
+        public async Task<IngestResult> UploadAsync(Stream pdf, string fileName, int branchId, string uploadedBy)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
 
@@ -37,23 +38,22 @@ namespace CMetalsWS.Services
             if (existingList != null)
             {
                 _logger.LogInformation("Duplicate picking list detected. BranchId: {BranchId}, Hash: {Hash}", branchId, parsedList.RawTextHash);
-                return -existingList.Id;
+                return new IngestResult { PickingListId = existingList.Id, IsDuplicate = true };
             }
 
             parsedList.BranchId = branchId;
+            parsedList.UploadedBy = uploadedBy;
+            parsedList.UploadedAt = DateTime.UtcNow;
 
-            await using var transaction = await db.Database.BeginTransactionAsync();
             try
             {
                 db.PickingLists.Add(parsedList);
                 await db.SaveChangesAsync();
-                await transaction.CommitAsync();
                 _logger.LogInformation("Successfully ingested new picking list {SalesOrderNumber}", parsedList.SalesOrderNumber);
-                return parsedList.Id;
+                return new IngestResult { PickingListId = parsedList.Id, IsDuplicate = false };
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 _logger.LogError(ex, "Failed to ingest picking list {SalesOrderNumber}", parsedList.SalesOrderNumber);
                 throw;
             }

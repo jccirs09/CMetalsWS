@@ -872,61 +872,6 @@ namespace CMetalsWS.Migrations
                     b.ToTable("PickingLists");
                 });
 
-            modelBuilder.Entity("CMetalsWS.Data.PickingListImport", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("BranchId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("CompletedUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Error")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ImagesPath")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ModelUsed")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("PickingListId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("RawJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SalesOrderNumber")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SourcePdfPath")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("StartedUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BranchId");
-
-                    b.HasIndex("PickingListId");
-
-                    b.ToTable("PickingListImports");
-                });
-
             modelBuilder.Entity("CMetalsWS.Data.PickingListItem", b =>
                 {
                     b.Property<int>("Id")
@@ -1016,31 +961,6 @@ namespace CMetalsWS.Migrations
                     b.HasIndex("PickingListId");
 
                     b.ToTable("PickingListItems");
-                });
-
-            modelBuilder.Entity("CMetalsWS.Data.PickingListPageImage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ImagePath")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("PageNumber")
-                        .HasColumnType("int");
-
-                    b.Property<int>("PickingListImportId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PickingListImportId");
-
-                    b.ToTable("PickingListPageImages");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.TaskAuditEvent", b =>
@@ -1714,24 +1634,6 @@ namespace CMetalsWS.Migrations
                     b.Navigation("Customer");
                 });
 
-            modelBuilder.Entity("CMetalsWS.Data.PickingListImport", b =>
-                {
-                    b.HasOne("CMetalsWS.Data.Branch", "Branch")
-                        .WithMany()
-                        .HasForeignKey("BranchId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CMetalsWS.Data.PickingList", "PickingList")
-                        .WithMany()
-                        .HasForeignKey("PickingListId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Branch");
-
-                    b.Navigation("PickingList");
-                });
-
             modelBuilder.Entity("CMetalsWS.Data.PickingListItem", b =>
                 {
                     b.HasOne("CMetalsWS.Data.Machine", "Machine")
@@ -1748,17 +1650,6 @@ namespace CMetalsWS.Migrations
                     b.Navigation("Machine");
 
                     b.Navigation("PickingList");
-                });
-
-            modelBuilder.Entity("CMetalsWS.Data.PickingListPageImage", b =>
-                {
-                    b.HasOne("CMetalsWS.Data.PickingListImport", "Import")
-                        .WithMany("PageImages")
-                        .HasForeignKey("PickingListImportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Import");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.TaskAuditEvent", b =>
@@ -1939,11 +1830,6 @@ namespace CMetalsWS.Migrations
             modelBuilder.Entity("CMetalsWS.Data.PickingList", b =>
                 {
                     b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("CMetalsWS.Data.PickingListImport", b =>
-                {
-                    b.Navigation("PageImages");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.TruckRoute", b =>
