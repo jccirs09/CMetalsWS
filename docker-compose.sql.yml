@@ -1,0 +1,22 @@
+version: "3.9"
+services:
+  sql-server-db:
+    build:
+      context: ./db
+    image: cmetalsws-sql:secure
+    container_name: cmetalsws-sql
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${SA_PASSWORD:-YourStrong!Passw0rd}
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "sqlcmd -S localhost -U sa -P $SA_PASSWORD -Q 'SELECT 1' >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+volumes:
+  mssql:

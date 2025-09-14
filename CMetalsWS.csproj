@@ -25,4 +25,10 @@
     <PackageReference Include="PDFtoImage" Version="5.1.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="CMetalsWS.Tests\**" />
+    <EmbeddedResource Remove="CMetalsWS.Tests\**" />
+    <None Remove="CMetalsWS.Tests\**" />
+  </ItemGroup>
+
 </Project>

@@ -158,36 +158,46 @@ namespace CMetalsWS.Services
             }
         }
 
-        public async Task UpdatePickingListStatusAsync(int id)
+        public async Task UpdatePickingListStatusAsync(int id, PickingListStatus status, CancellationToken ct = default)
         {
-            using var db = _dbContextFactory.CreateDbContext();
-            var list = await db.PickingLists
-                .Include(p => p.Items)
-                .FirstOrDefaultAsync(p => p.Id == id);
+            using var db = await _dbContextFactory.CreateDbContextAsync(ct);
+            var list = await db.PickingLists.FindAsync(new object[] { id }, cancellationToken: ct);
             if (list is null) return;
 
-            if (list.Items.All(i => i.Status == PickingLineStatus.AssignedProduction))
-                list.Status = PickingListStatus.Awaiting;
-            else if (list.Items.All(i => i.Status == PickingLineStatus.AssignedPulling))
-                list.Status = PickingListStatus.Awaiting;
-            else if (list.Items.All(i => i.Status == PickingLineStatus.Completed))
-                list.Status = PickingListStatus.Completed;
-            else if (list.Items.Any(i => i.Status == PickingLineStatus.InProgress))
-                list.Status = PickingListStatus.InProgress;
-            else
-                list.Status = PickingListStatus.Pending;
+            list.Status = status;
 
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
+        }
+
+        private PickingListStatus CalculateStatus(ICollection<PickingListItem> items)
+        {
+            if (items.All(i => i.Status == PickingLineStatus.AssignedProduction))
+                return PickingListStatus.Awaiting;
+            if (items.All(i => i.Status == PickingLineStatus.AssignedPulling))
+                return PickingListStatus.Awaiting;
+            if (items.All(i => i.Status == PickingLineStatus.Completed))
+                return PickingListStatus.Completed;
+            if (items.Any(i => i.Status == PickingLineStatus.InProgress))
+                return PickingListStatus.InProgress;
+
+            return PickingListStatus.Pending;
         }
 
         public async Task SetLineStatusAsync(int itemId, PickingLineStatus status)
         {
             using var db = _dbContextFactory.CreateDbContext();
-            var item = await db.PickingListItems.FindAsync(itemId);
+            var item = await db.PickingListItems.Include(i => i.PickingList).ThenInclude(pl => pl.Items).FirstOrDefaultAsync(i => i.Id == itemId);
             if (item == null) return;
+
             item.Status = status;
+
+            if (item.PickingList != null)
+            {
+                var newStatus = CalculateStatus(item.PickingList.Items);
+                item.PickingList.Status = newStatus;
+            }
+
             await db.SaveChangesAsync();
-            await UpdatePickingListStatusAsync(item.PickingListId);
         }
         //TODO: Refactor this method to work with the new data model
         //public async Task ScheduleListAsync(int pickingListId, DateTime shipStart)

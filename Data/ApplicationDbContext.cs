@@ -20,6 +20,7 @@ namespace CMetalsWS.Data
         public DbSet<PickingListItem> PickingListItems => Set<PickingListItem>();
         public DbSet<WorkOrder> WorkOrders => Set<WorkOrder>();
         public DbSet<WorkOrderItem> WorkOrderItems => Set<WorkOrderItem>();
+        public DbSet<WorkOrderCoilUsage> WorkOrderCoilUsages => Set<WorkOrderCoilUsage>();
         public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
         public DbSet<ItemRelationship> ItemRelationships => Set<ItemRelationship>();
         public DbSet<LoadItem> LoadItems => Set<LoadItem>();
@@ -230,6 +231,19 @@ namespace CMetalsWS.Data
             modelBuilder.Entity<WorkOrderItem>().Property(w => w.ProducedQuantity).HasPrecision(18, 3);
             modelBuilder.Entity<WorkOrderItem>().Property(w => w.ProducedWeight).HasPrecision(18, 3);
             modelBuilder.Entity<WorkOrderItem>().Property(w => w.Width).HasPrecision(18, 3);
+
+            // WorkOrder / CoilUsage relationships
+            modelBuilder.Entity<WorkOrder>()
+                .HasMany(wo => wo.CoilUsages)
+                .WithOne(cu => cu.WorkOrder)
+                .HasForeignKey(cu => cu.WorkOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<WorkOrder>()
+                .HasOne(wo => wo.ActiveCoilUsage)
+                .WithMany()
+                .HasForeignKey(wo => wo.ActiveCoilUsageId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             // TaskAuditEvent
             modelBuilder.Entity<TaskAuditEvent>()

@@ -104,6 +104,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 // App services
+builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 builder.Services.AddScoped<BranchService>();
 builder.Services.AddScoped<RoleService>();
@@ -111,12 +112,13 @@ builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<MachineService>();
 builder.Services.AddScoped<TruckService>();
 builder.Services.AddScoped<PickingListService>();
+builder.Services.AddScoped<IPickingListStatusUpdater, PickingListStatusUpdaterAdapter>();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<ItemRelationshipService>();
 builder.Services.AddTransient<IdentityDataSeeder>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<LoadService>();
-builder.Services.AddScoped<WorkOrderService>();
+builder.Services.AddScoped<IWorkOrderService, WorkOrderService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<ITaskAuditEventService, TaskAuditEventService>();
 builder.Services.AddScoped<DestinationGroupService>();

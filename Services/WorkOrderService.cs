@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using CMetalsWS.Data;
+using CMetalsWS.Domain;
 using CMetalsWS.Hubs;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
@@ -10,19 +11,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CMetalsWS.Services
 {
-    public class WorkOrderService
+    public class WorkOrderService : IWorkOrderService
     {
         private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHubContext<ScheduleHub> _hubContext;
-        private readonly PickingListService _pickingListService;
+        private readonly IPickingListStatusUpdater _pickingListUpdater;
+        private readonly IClock _clock;
 
-        public WorkOrderService(IDbContextFactory<ApplicationDbContext> dbContextFactory, UserManager<ApplicationUser> userManager, IHubContext<ScheduleHub> hubContext, PickingListService pickingListService)
+        public WorkOrderService(IDbContextFactory<ApplicationDbContext> dbContextFactory, UserManager<ApplicationUser> userManager, IHubContext<ScheduleHub> hubContext, IPickingListStatusUpdater pickingListUpdater, IClock clock)
         {
             _dbContextFactory = dbContextFactory;
             _userManager = userManager;
             _hubContext = hubContext;
-            _pickingListService = pickingListService;
+            _pickingListUpdater = pickingListUpdater;
+            _clock = clock;
         }
 
         public async Task<List<WorkOrder>> GetAsync(int? branchId = null)
@@ -79,9 +82,16 @@ namespace CMetalsWS.Services
             workOrder.BranchId = user.BranchId.Value;
             workOrder.WorkOrderNumber = await GenerateWorkOrderNumber(workOrder.BranchId);
 
+            if (workOrder.CoilInventoryId.HasValue)
+            {
+                var coil = await db.InventoryItems.FindAsync(workOrder.CoilInventoryId.Value)
+                    ?? throw new InvalidOperationException("Coil inventory item not found on WO creation.");
+                WorkOrderRules.ApplyCoilSnapshot(workOrder, coil, _clock);
+            }
+
             var createdBy = user.UserName ?? user.Email ?? user.Id;
             workOrder.CreatedBy = createdBy;
-            workOrder.CreatedDate = DateTime.UtcNow;
+            workOrder.CreatedDate = _clock.UtcNow;
             workOrder.LastUpdatedBy = createdBy;
             workOrder.LastUpdatedDate = workOrder.CreatedDate;
 
@@ -217,10 +227,10 @@ namespace CMetalsWS.Services
             foreach (var li in plis)
                 li.Status = PickingLineStatus.WorkOrder;
 
-            foreach (var grpId in plis.Select(p => p.PickingListId).Distinct())
-                await _pickingListService.UpdatePickingListStatusAsync(grpId);
-
             await db.SaveChangesAsync();
+
+            foreach (var grpId in plis.Select(p => p.PickingListId).Distinct())
+                await _pickingListUpdater.UpdatePickingListStatusAsync(grpId, PickingListStatus.Awaiting);
             await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
         }
 
@@ -297,9 +307,123 @@ namespace CMetalsWS.Services
                     }
                 }
 
+                // Determine the new aggregate status for the picking list
+                var newPickingListStatus = status switch
+                {
+                    WorkOrderStatus.InProgress => PickingListStatus.InProgress,
+                    WorkOrderStatus.Completed => PickingListStatus.Completed,
+                    WorkOrderStatus.Canceled => PickingListStatus.Pending, // Revert to pending
+                    _ => PickingListStatus.Pending // Default case
+                };
+
+                await db.SaveChangesAsync();
+
                 foreach (var grpId in plis.Select(p => p.PickingListId).Distinct())
-                    await _pickingListService.UpdatePickingListStatusAsync(grpId);
+                    await _pickingListUpdater.UpdatePickingListStatusAsync(grpId, newPickingListStatus);
             }
+            else
+            {
+                await db.SaveChangesAsync();
+            }
+            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+        }
+
+        public async Task StartWorkOrderAsync(int workOrderId, string userId)
+        {
+            var db = await _dbContextFactory.CreateDbContextAsync();
+            var workOrder = await db.WorkOrders
+                .Include(wo => wo.CoilUsages)
+                .FirstOrDefaultAsync(wo => wo.Id == workOrderId)
+                ?? throw new KeyNotFoundException("Work order not found.");
+
+            WorkOrderRules.ValidateCanStart(workOrder);
+
+            var user = await _userManager.FindByIdAsync(userId)
+                ?? throw new KeyNotFoundException("User not found.");
+
+            InventoryItem? coil = null;
+            if (workOrder.CoilInventoryId.HasValue)
+            {
+                coil = await db.InventoryItems.FindAsync(workOrder.CoilInventoryId.Value);
+            }
+
+            WorkOrderRules.ApplyStart(workOrder, user, coil, _clock);
+
+            await db.SaveChangesAsync();
+            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+        }
+
+        public async Task PauseWorkOrderAsync(int workOrderId, string userId)
+        {
+            var db = await _dbContextFactory.CreateDbContextAsync();
+            var workOrder = await db.WorkOrders.FindAsync(workOrderId)
+                ?? throw new KeyNotFoundException("Work order not found.");
+
+            WorkOrderRules.ValidateCanPause(workOrder);
+
+            var user = await _userManager.FindByIdAsync(userId)
+                ?? throw new KeyNotFoundException("User not found.");
+
+            WorkOrderRules.ApplyPause(workOrder, user, _clock);
+
+            await db.SaveChangesAsync();
+            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+        }
+
+        public async Task ResumeWorkOrderAsync(int workOrderId, string userId)
+        {
+            var db = await _dbContextFactory.CreateDbContextAsync();
+            var workOrder = await db.WorkOrders.FindAsync(workOrderId)
+                ?? throw new KeyNotFoundException("Work order not found.");
+
+            WorkOrderRules.ValidateCanResume(workOrder);
+
+            var user = await _userManager.FindByIdAsync(userId)
+                ?? throw new KeyNotFoundException("User not found.");
+
+            WorkOrderRules.ApplyResume(workOrder, user, _clock);
+
+            await db.SaveChangesAsync();
+            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+        }
+
+        public async Task CompleteWorkOrderAsync(int workOrderId, string userId)
+        {
+            var db = await _dbContextFactory.CreateDbContextAsync();
+            var workOrder = await db.WorkOrders
+                .Include(wo => wo.ActiveCoilUsage)
+                .FirstOrDefaultAsync(wo => wo.Id == workOrderId)
+                ?? throw new KeyNotFoundException("Work order not found.");
+
+            WorkOrderRules.ValidateCanComplete(workOrder);
+
+            var user = await _userManager.FindByIdAsync(userId)
+                ?? throw new KeyNotFoundException("User not found.");
+
+            WorkOrderRules.ApplyComplete(workOrder, user, _clock);
+
+            await db.SaveChangesAsync();
+            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+        }
+
+        public async Task SwapCoilAsync(int workOrderId, int newCoilInventoryId, CoilSwapReason reason, string? notes, string userId)
+        {
+            var db = await _dbContextFactory.CreateDbContextAsync();
+            var workOrder = await db.WorkOrders
+                .Include(wo => wo.CoilUsages)
+                .Include(wo => wo.ActiveCoilUsage)
+                .FirstOrDefaultAsync(wo => wo.Id == workOrderId)
+                ?? throw new KeyNotFoundException("Work order not found.");
+
+            WorkOrderRules.ValidateCanSwapCoil(workOrder);
+
+            var user = await _userManager.FindByIdAsync(userId)
+                ?? throw new KeyNotFoundException("User not found.");
+
+            var newCoil = await db.InventoryItems.FindAsync(newCoilInventoryId)
+                ?? throw new KeyNotFoundException("New coil inventory item not found.");
+
+            WorkOrderRules.ApplySwapCoil(workOrder, user, newCoil, reason, notes, _clock);
 
             await db.SaveChangesAsync();
             await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);

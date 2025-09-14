@@ -46,7 +46,7 @@ namespace CMetalsWS.Services
 
             // Recalculate overall PickingListStatus to Awaiting
             if (item.PickingListId != 0)
-                await _pickingListService.UpdatePickingListStatusAsync(item.PickingListId);
+                await _pickingListService.UpdatePickingListStatusAsync(item.PickingListId, PickingListStatus.Awaiting);
         }
 
         public async Task AssignToPullingAsync(int pickingListItemId)
@@ -58,7 +58,7 @@ namespace CMetalsWS.Services
             await _db.SaveChangesAsync();
 
             if (item.PickingListId != 0)
-                await _pickingListService.UpdatePickingListStatusAsync(item.PickingListId);
+                await _pickingListService.UpdatePickingListStatusAsync(item.PickingListId, PickingListStatus.Awaiting);
         }
     }
 }
