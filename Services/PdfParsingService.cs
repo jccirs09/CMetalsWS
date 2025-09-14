@@ -22,6 +22,19 @@ namespace CMetalsWS.Services
             _logger = logger;
         }
 
+        private static readonly string[] NewlineSplit = new[] { "\r\n", "\n" };
+        private static readonly Regex RowRx = new(
+            @"^\s*(?<LineNumber>\d{1,3})\s+" +
+            @"(?<Quantity>[\d,]+(?:\.\d+)?)\s+" +
+            @"(?<Unit>[A-Za-z]+)\s+" +
+            @"(?:QTY\s+STAGED\s+[_\s]+)?" +
+            @"(?<ItemId>\S+)\s+" +
+            @"(?<ItemDescription>.+?)\s+" +
+            @"(?<Width>\d+(?:\.\d+)?)[\""]?\s+" +
+            @"(?<Length>\d*(?:\.\d+)?)[\""]?\s+" +
+            @"(?<Weight>[\d,]+(?:\.\d+)?)\s*$",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         public async Task<PickingList> ParseAsync(Stream pdfStream, string sourceFileName)
         {
             var text = new StringBuilder();
@@ -37,15 +50,14 @@ namespace CMetalsWS.Services
 
             var fullText = text.ToString();
 
-            var salesOrderNumber = ExtractValue(fullText, @"PICKING\s*LIST\s*No\.?\s*(\d+)") ?? ExtractValue(fullText, @"\b\d{7,}\b");
-            if(salesOrderNumber == null)
-            {
-                throw new InvalidOperationException("Could not parse Sales Order Number.");
-            }
+            var salesOrderNumber = ExtractFirst(fullText, @"PICKING\s*LIST\s*No\.?\s*(\d+)")
+                ?? ExtractFirst(fullText, @"\b\d{7,}\b")
+                ?? throw new InvalidOperationException("Could not parse Sales Order Number.");
 
             var pickingList = new PickingList
             {
                 SalesOrderNumber = salesOrderNumber,
+                SourceFileName = sourceFileName,
                 PageCount = pageCount,
                 Status = PickingListStatus.Pending,
                 Items = new List<PickingListItem>()
@@ -58,51 +70,55 @@ namespace CMetalsWS.Services
             }
 
             // Header parsing
-            pickingList.PrintDateTime = ParseDate(ExtractValue(fullText, @"PRINT\s*DATE/TIME:\s*(\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)"));
-            pickingList.ShipDate = ParseDate(ExtractValue(fullText, @"SHIP\s*DATE[:\s]\s*(\d{1,2}/\d{1,2}/\d{4})"));
-            pickingList.OrderDate = ParseDate(ExtractValue(fullText, @"ORDER\s*DATE[:\s]?\s*(\d{1,2}/\d{1,2}/\d{4})"));
-            pickingList.Buyer = ExtractValue(fullText, @"BUYER:\s*(.*)");
-            pickingList.SalesRep = ExtractValue(fullText, @"SALES\s*REP:\s*(.*)");
-            pickingList.ShippingVia = ExtractValue(fullText, @"SHIP\s*VIA:\s*(.*)");
-            pickingList.FOB = ExtractValue(fullText, @"FOB\s*POINT:\s*(.*)");
-            pickingList.SoldTo = ExtractBlock(fullText, "SOLD TO:", "SHIP TO:");
-            pickingList.ShipTo = ExtractBlock(fullText, "SHIP TO:", "Line");
-            pickingList.ParseNotes = ExtractNotes(fullText);
+            pickingList.PrintDateTime = ParseDateFlexible(
+                ExtractFirst(fullText, @"(?im)PRINT\s*DATE/TIME:\s*(.+)$")
+                ?? ExtractFirst(fullText, @"(?im)PRINT\s*DATE\/TIME\s*:\s*(.+)$"));
+
+            pickingList.ShipDate  = ParseDateFlexible(ExtractFirst(fullText, @"(?im)SHIP\s*DATE[:\s]\s*(\d{1,2}/\d{1,2}/\d{4})")
+                                ?? ExtractLabelInlineOrNextLine(fullText, "SHIP DATE"));
+
+            pickingList.OrderDate = ParseDateFlexible(ExtractFirst(fullText, @"(?im)ORDER\s*DATE[:\s]?\s*(\d{1,2}/\d{1,2}/\d{4})")
+                                ?? ExtractLabelInlineOrNextLine(fullText, "ORDER DATE"));
+
+            pickingList.Buyer       = ExtractLabelInlineOrNextLine(fullText, "BUYER");
+            pickingList.SalesRep    = ExtractLabelInlineOrNextLine(fullText, "SALES REP");
+            pickingList.ShippingVia = ExtractLabelInlineOrNextLine(fullText, "SHIP VIA");
+            pickingList.FOB         = ExtractLabelInlineOrNextLine(fullText, "FOB POINT");
+
+            pickingList.SoldTo = ExtractBlockBetweenLabels(fullText, "SOLD TO", "SHIP TO|SHIP VIA|FOB POINT|TERMS|LINE");
+            pickingList.ShipTo = ExtractBlockBetweenLabels(fullText, "SHIP TO", "SHIP VIA|FOB POINT|TERMS|LINE");
+
+            pickingList.ParseNotes = string.Join("\n",
+                fullText.Split(NewlineSplit, StringSplitOptions.None)
+                        .Select(s => s.Trim())
+                        .Where(s => s.StartsWith("MAX SKID WEIGHT", StringComparison.OrdinalIgnoreCase)
+                                    || s.StartsWith("RECEIVING HOURS", StringComparison.OrdinalIgnoreCase)));
 
             // Line item parsing
-            var lines = fullText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            var lineItemRegex = new Regex(@"^\s*(\d{1,3})\s+.*$");
-
+            var lines = fullText.Split(NewlineSplit, StringSplitOptions.RemoveEmptyEntries);
             for (int i = 0; i < lines.Length; i++)
             {
-                var line = lines[i];
-                if (lineItemRegex.IsMatch(line))
+                var item = ParseLineItem(lines[i]);
+                if (item == null) continue;
+
+                var notes = new List<string>();
+                for (int j = i + 1; j < lines.Length; j++)
                 {
-                    var item = ParseLineItem(line);
-                    if (item != null)
+                    var next = lines[j].Trim();
+                    if (RowRx.IsMatch(next)
+                        || next.StartsWith("SOURCE:", StringComparison.OrdinalIgnoreCase)
+                        || next.StartsWith("TAG #", StringComparison.OrdinalIgnoreCase)
+                        || next.StartsWith("Other Reservations:", StringComparison.OrdinalIgnoreCase)
+                        || next.StartsWith("PULLED BY", StringComparison.OrdinalIgnoreCase))
                     {
-                        var notes = new List<string>();
-                        for (int j = i + 1; j < lines.Length; j++)
-                        {
-                            var nextLine = lines[j].Trim();
-                            if (lineItemRegex.IsMatch(nextLine) ||
-                                nextLine.StartsWith("SOURCE:", StringComparison.OrdinalIgnoreCase) ||
-                                nextLine.StartsWith("TAG #", StringComparison.OrdinalIgnoreCase) ||
-                                nextLine.StartsWith("Other Reservations:", StringComparison.OrdinalIgnoreCase) ||
-                                nextLine.StartsWith("PULLED BY", StringComparison.OrdinalIgnoreCase))
-                            {
-                                if (nextLine.Contains("TAG #") && nextLine.Contains("HEAT #") && nextLine.Contains("MILL REF #"))
-                                {
-                                    item.HasTagLots = true;
-                                }
-                                break;
-                            }
-                            notes.Add(nextLine);
-                        }
-                        item.SalesNote = string.Join("\n", notes);
-                        pickingList.Items.Add(item);
+                        if (next.Contains("TAG #") && next.Contains("HEAT #") && next.Contains("MILL REF #"))
+                            item.HasTagLots = true;
+                        break;
                     }
+                    notes.Add(next);
                 }
+                item.SalesNote = string.Join("\n", notes);
+                pickingList.Items.Add(item);
             }
 
             pickingList.HasParseIssues = pickingList.Items.Any(i => i.NeedsAttention);
@@ -112,100 +128,103 @@ namespace CMetalsWS.Services
 
         private PickingListItem? ParseLineItem(string line)
         {
-            try
+            var m = RowRx.Match(line);
+            if (!m.Success) return null;
+
+            var item = new PickingListItem
             {
-                var lineItemRegex = new Regex(
-                    @"^\s*(?<LineNumber>\d{1,3})\s+" +
-                    @"(?<Quantity>[\d,]+\.?\d*)\s+" +
-                    @"(?<Unit>[A-Za-z]+)\s+" +
-                    @"(?:QTY\s+STAGED\s+_{5,}\s+)?" +
-                    @"(?<ItemId>[^\s]+)\s+" +
-                    @"(?<ItemDescription>.*?)\s+" +
-                    @"(?<Width>[\d\.,\""]+)\s+" +
-                    @"(?<Length>[\d\.,\""]*)\s+" +
-                    @"(?<Weight>[\d\.,\""]+)\s*$",
-                    RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                LineNumber = int.Parse(m.Groups["LineNumber"].Value, CultureInfo.InvariantCulture),
+                Quantity   = ParseDec(m.Groups["Quantity"].Value) ?? 0,
+                Unit       = m.Groups["Unit"].Value.ToUpperInvariant(),
+                ItemId     = m.Groups["ItemId"].Value,
+                ItemDescription = m.Groups["ItemDescription"].Value.Trim(),
+                Width      = ParseDec(m.Groups["Width"].Value),
+                Length     = string.IsNullOrWhiteSpace(m.Groups["Length"].Value) ? null : ParseDec(m.Groups["Length"].Value),
+                Weight     = ParseDec(m.Groups["Weight"].Value),
+            };
 
-                var match = lineItemRegex.Match(line);
-                if (!match.Success) return null;
+            item.NeedsAttention = (item.Quantity <= 0) || (item.Width is null or <= 0) || (item.Weight is null or <= 0);
+            return item;
 
-                var item = new PickingListItem
+            static decimal? ParseDec(string s)
+            {
+                var cleaned = s.Replace("\"", "").Replace(",", "").Trim();
+                return decimal.TryParse(cleaned, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)
+                    ? Math.Round(d, 3)
+                    : (decimal?)null;
+            }
+        }
+
+        private string? ExtractFirst(string text, string pattern)
+        {
+            var m = Regex.Match(text, pattern, RegexOptions.IgnoreCase | RegexOptions.Multiline);
+            return m.Success ? m.Groups[1].Value.Trim() : null;
+        }
+
+        private string? ExtractLabelInlineOrNextLine(string text, string label)
+        {
+            var rxInline = new Regex($@"(?im)^\s*{Regex.Escape(label)}\s*:?\s*(?<v>.+?)\s*$");
+            var m = rxInline.Match(text);
+            if (m.Success) return m.Groups["v"].Value.Trim();
+
+            var lines = text.Split(NewlineSplit, StringSplitOptions.None);
+            for (int i = 0; i < lines.Length - 1; i++)
+            {
+                var hdr = lines[i];
+                if (!Regex.IsMatch(hdr, $@"(?i)\b{Regex.Escape(label)}\b")) continue;
+
+                var next = lines[i + 1];
+                var hdrCols = Regex.Split(hdr.Trim(), @"\s{2,}");
+                var valCols = Regex.Split(next.Trim(), @"\s{2,}");
+
+                for (int c = 0; c < hdrCols.Length; c++)
                 {
-                    LineNumber = int.Parse(match.Groups["LineNumber"].Value),
-                    Quantity = ParseDecimal(match.Groups["Quantity"].Value) ?? 0,
-                    Unit = match.Groups["Unit"].Value.ToUpperInvariant(),
-                    ItemId = match.Groups["ItemId"].Value,
-                    ItemDescription = match.Groups["ItemDescription"].Value.Trim(),
-                    Width = ParseDecimal(match.Groups["Width"].Value),
-                    Length = ParseDecimal(match.Groups["Length"].Value),
-                    Weight = ParseDecimal(match.Groups["Weight"].Value)
-                };
-
-                if (item.Quantity == 0 || item.Width == 0 || item.Weight == 0)
-                {
-                    item.NeedsAttention = true;
+                    if (Regex.IsMatch(hdrCols[c], $@"(?i)^{Regex.Escape(label)}$"))
+                    {
+                        if (c < valCols.Length)
+                            return valCols[c].Trim();
+                    }
                 }
-
-                return item;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to parse line item: {Line}", line);
-                return null;
-            }
-        }
-
-        private string? ExtractValue(string text, string pattern)
-        {
-            var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
-            return match.Success ? match.Groups[1].Value.Trim() : null;
-        }
-
-        private string ExtractBlock(string text, string startToken, string endToken)
-        {
-            var startMatch = Regex.Match(text, Regex.Escape(startToken), RegexOptions.IgnoreCase);
-            if (!startMatch.Success) return "";
-            var startIndex = startMatch.Index + startMatch.Length;
-
-            var endMatch = Regex.Match(text, Regex.Escape(endToken), RegexOptions.IgnoreCase);
-            var endIndex = endMatch.Success ? endMatch.Index : text.Length;
-
-            return text.Substring(startIndex, endIndex - startIndex).Trim();
-        }
-
-        private string ExtractNotes(string text)
-        {
-            var notes = new List<string>();
-            var lines = text.Split('\n');
-            foreach(var line in lines)
-            {
-                if (line.Trim().StartsWith("MAX SKID WEIGHT", StringComparison.OrdinalIgnoreCase) || line.Trim().StartsWith("RECEIVING HOURS", StringComparison.OrdinalIgnoreCase))
-                {
-                    notes.Add(line.Trim());
-                }
-            }
-            return string.Join("\n", notes);
-        }
-
-        private DateTime? ParseDate(string? dateStr)
-        {
-            if (string.IsNullOrEmpty(dateStr)) return null;
-            if (DateTime.TryParse(dateStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
-            {
-                return date;
             }
             return null;
         }
 
-        private decimal? ParseDecimal(string? decStr)
+        private string ExtractBlockBetweenLabels(string text, string startLabel, string endLabelPattern)
         {
-            if (string.IsNullOrWhiteSpace(decStr)) return null;
-            var cleaned = decStr.Replace("\"", "").Replace(",", "").Trim();
-            if (decimal.TryParse(cleaned, NumberStyles.Any, CultureInfo.InvariantCulture, out var result))
+            var rxStart = new Regex($@"(?im)^\s*{Regex.Escape(startLabel)}\s*:?\s*$");
+            var mStart = rxStart.Match(text);
+            if (!mStart.Success) return "";
+
+            var startIdx = mStart.Index + mStart.Length;
+            var tail = text.Substring(startIdx);
+
+            var rxEnd = new Regex($@"(?im)^\s*(?:{endLabelPattern})\s*:?\s*$");
+            var mEnd = rxEnd.Match(tail);
+            var segment = mEnd.Success ? tail.Substring(0, mEnd.Index) : tail;
+
+            var lines = segment.Split(NewlineSplit, StringSplitOptions.None)
+                               .Select(s => s.Trim())
+                               .Where(s => !string.IsNullOrWhiteSpace(s))
+                               .Take(3);
+            return string.Join("\n", lines);
+        }
+
+        private DateTime? ParseDateFlexible(string? s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            var formats = new[]
             {
-                return Math.Round(result, 3);
-            }
-            return null;
+                "M/d/yyyy", "MM/dd/yyyy",
+                "M/d/yyyy H:mm", "M/d/yyyy HH:mm",
+                "M/d/yyyy H:mm:ss", "M/d/yyyy HH:mm:ss",
+                "M/d/yyyy h:mm tt", "M/d/yyyy hh:mm tt",
+                "M/d/yyyy h:mm:ss tt", "M/d/yyyy hh:mm:ss tt"
+            };
+            if (DateTime.TryParseExact(s.Trim(), formats, CultureInfo.InvariantCulture,
+                                       DateTimeStyles.None, out var dt))
+                return dt;
+
+            return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out dt) ? dt : null;
         }
     }
 }
