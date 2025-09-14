@@ -1,9 +1,178 @@
-﻿@page "/dashboard"
+@page "/dashboard"
+@using CMetalsWS.Configuration
+@using CMetalsWS.Data
+@using CMetalsWS.Models
+@using CMetalsWS.Services
 @using CMetalsWS.Security
+@using CMetalsWS.Components.Pages.Dashboard.Shared
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.Extensions.Options
 @attribute [Authorize(Policy = Permissions.Dashboards.View)]
+@inject IDashboardFeed DashboardFeed
+@inject IOptions<DashboardSettings> DashboardSettings
+@inject NavigationManager Navigation
 
-<h3>Dashboard</h3>
+<PageTitle>Operations Dashboard</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4">Operations Dashboard</MudText>
+    <MudText Typo="Typo.subtitle1" Class="mb-4">Real-time overview of your fulfillment operations</MudText>
+
+    @if (_summary is not null)
+    {
+        <MudGrid Spacing="3">
+            <MudItem xs="12" sm="6" md="3">
+                <KpiCard Icon="@Icons.Material.Filled.LocalShipping"
+                         Title="lbs/Hour CTL"
+                         Value="@_summary.CtlLbsPerHour.ToString("N0")"
+                         ChipText="@(_summary.IsCtlRunning ? "Currently Running" : null)"
+                         ChipColor="Color.Success" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <KpiCard Icon="@Icons.Material.Filled.Sync"
+                         Title="lbs/Hour Slitter"
+                         Value="@_summary.SlitterLbsPerHour.ToString("N0")"
+                         ChipText="@(_summary.IsSlitterInSetup ? "Setup in Progress" : null)"
+                         ChipColor="Color.Warning" />
+            </MudItem>
+            @if (DashboardSettings.Value.PullingEnabled && _summary.PullingLbsPerHour.HasValue)
+            {
+                <MudItem xs="12" sm="6" md="3">
+                    <KpiCard Icon="@Icons.Material.Filled.Person"
+                             Title="lbs/Hour Pulling"
+                             Value="@_summary.PullingLbsPerHour.Value.ToString("N0")"
+                             SubText="@($"{_summary.ActivePullingSessions} Active Sessions")" />
+                </MudItem>
+            }
+            @if (DashboardSettings.Value.LogisticsEnabled && _summary.LoadsToday.HasValue)
+            {
+                <MudItem xs="12" sm="6" md="3">
+                    <KpiCard Icon="@Icons.Material.Filled.RvHookup"
+                             Title="Loads Today"
+                             Value="@_summary.LoadsToday.Value.ToString()"
+                             SubText="@($"{_summary.LoadsInTransit} In Transit")" />
+                </MudItem>
+            }
+        </MudGrid>
+    }
+    else
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+
+    <MudGrid Class="mt-4" Spacing="3">
+        <MudItem xs="12" lg="6">
+            <MudPaper Class="pa-4" Elevation="2">
+                <div class="d-flex align-center">
+                    <MudText Typo="Typo.h6" GutterBottom="true">Now Playing - Machines</MudText>
+                    @if (_isHubConnected)
+                    {
+                        <MudChip T="object" Text="Live" Icon="@Icons.Material.Filled.Circle" IconColor="Color.Success" Size="Size.Small" Class="ml-2" />
+                    }
+                </div>
+                <MudStack Spacing="3">
+                    @if (_nowPlaying?.Any() == true)
+                    {
+                        foreach (var machine in _nowPlaying)
+                        {
+                            <NowPlayingCard Machine="machine" />
+                        }
+                    }
+                    else
+                    {
+                        <MudText>No active machines.</MudText>
+                    }
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+        @if (DashboardSettings.Value.PullingEnabled)
+        {
+            <MudItem xs="12" lg="6">
+                <MudPaper Class="pa-4" Elevation="2">
+                    <MudText Typo="Typo.h6" GutterBottom="true">Active Pulling Sessions</MudText>
+                    <MudStack Spacing="2">
+                        @if (_pullingSessions?.Any() == true)
+                        {
+                            foreach (var session in _pullingSessions)
+                            {
+                                <PullingSessionCard Session="session" />
+                            }
+                        }
+                        else
+                        {
+                            <MudText>No active pulling sessions.</MudText>
+                        }
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
+
+@implements IAsyncDisposable
 
 @code {
+    private DashboardSummaryDto? _summary;
+    private List<NowPlayingDto>? _nowPlaying;
+    private List<ActivePullingSessionDto>? _pullingSessions;
+    private HubConnection? _hubConnection;
+    private bool _isHubConnected;
 
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+
+        var hubUrl = Navigation.ToAbsoluteUri("/hubs/dashboard");
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrl)
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On("RefreshDashboard", async () =>
+        {
+            await LoadDataAsync();
+        });
+
+        _hubConnection.Closed += (e) => {
+            _isHubConnected = false;
+            StateHasChanged();
+            return Task.CompletedTask;
+        };
+
+        _hubConnection.Reconnected += (e) => {
+            _isHubConnected = true;
+            StateHasChanged();
+            return Task.CompletedTask;
+        };
+
+        try
+        {
+            await _hubConnection.StartAsync();
+            _isHubConnected = true;
+        }
+        catch (Exception ex)
+        {
+            // Handle connection error
+            _isHubConnected = false;
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _summary = await DashboardFeed.GetSummaryAsync();
+        _nowPlaying = await DashboardFeed.GetNowPlayingAsync();
+        if (DashboardSettings.Value.PullingEnabled)
+        {
+            _pullingSessions = await DashboardFeed.GetActivePullingAsync();
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
 }

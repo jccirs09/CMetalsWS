@@ -23,6 +23,7 @@ namespace CMetalsWS.Data
         public virtual Branch OriginBranch { get; set; } = null!;
         public virtual Branch? DestinationBranch { get; set; }
         public virtual ICollection<LoadItem> Items { get; set; } = new List<LoadItem>();
+        public virtual ICollection<LoadStopEvent> StopEvents { get; set; } = new List<LoadStopEvent>();
     }
 
     public class LoadItem

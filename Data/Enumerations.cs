@@ -1,5 +1,8 @@
 ﻿namespace CMetalsWS.Data
 {
+    // --- Enums for Machines ---
+    public enum RateUnit { WeightPerHour, SheetsPerHour }
+
     // --- Enums for Customer & Routing ---
     public enum DestinationRegionCategory { LOCAL, ISLAND, OKANAGAN, OUT_OF_TOWN }
     public enum DockType { NONE, DOCK, GRADE, RAMP }

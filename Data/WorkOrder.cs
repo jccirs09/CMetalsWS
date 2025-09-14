@@ -9,6 +9,7 @@ namespace CMetalsWS.Data
         Draft,
         Pending,
         InProgress,
+        Paused,
         Completed,
         Canceled,
         Awaiting
@@ -47,6 +48,9 @@ namespace CMetalsWS.Data
 
         public DateTime ScheduledStartDate { get; set; }
         public DateTime ScheduledEndDate { get; set; }
+        public int EstimatedMinutes { get; set; }
+        public DateTime? ActualStartDate { get; set; }
+        public DateTime? ActualEndDate { get; set; }
 
         public WorkOrderStatus Status { get; set; } = WorkOrderStatus.Draft;
 
@@ -54,6 +58,7 @@ namespace CMetalsWS.Data
         public string? Shift { get; set; }
 
         public ICollection<WorkOrderItem> Items { get; set; } = new List<WorkOrderItem>();
+        public virtual ICollection<WorkOrderCoilUsage> CoilUsages { get; set; } = new List<WorkOrderCoilUsage>();
     }
 
     public class WorkOrderItem

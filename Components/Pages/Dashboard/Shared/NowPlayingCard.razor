@@ -1,0 +1,37 @@
+@using CMetalsWS.Data
+@using CMetalsWS.Models
+
+<MudCard Outlined="true">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">@Machine.MachineName</MudText>
+            <MudText Typo="Typo.body2">SO#@Machine.WorkOrderId - @Machine.CustomerName</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            @if(Machine.Status == WorkOrderStatus.InProgress)
+            {
+                <MudChip T="object" Text="Running" Color="Color.Success" Size="Size.Small" />
+            }
+            else if (Machine.Status == WorkOrderStatus.Pending)
+            {
+                <MudChip T="object" Text="Setup" Color="Color.Warning" Size="Size.Small" />
+            }
+            else if (Machine.Status == WorkOrderStatus.Paused)
+            {
+                <MudChip T="object" Text="Paused" Color="Color.Default" Size="Size.Small" />
+            }
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudProgressLinear Color="Color.Primary" Value="@(Machine.Progress * 100)" Class="my-2" />
+        <div class="d-flex justify-space-between mt-2">
+            <MudText Typo="Typo.body2">Progress: @Machine.Progress.ToString("P0")</MudText>
+            <MudText Typo="Typo.body2">Runtime: @Machine.Runtime</MudText>
+            <MudText Typo="Typo.body2">Est. Complete: @Machine.Eta.ToString("h:mm tt")</MudText>
+        </div>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired] public NowPlayingDto Machine { get; set; } = default!;
+}

@@ -1,0 +1,27 @@
+@using CMetalsWS.Models
+
+<MudCard Outlined="true">
+    <MudCardHeader>
+        <CardHeaderAvatar>
+            <MudAvatar Color="Color.Secondary">@Session.OperatorInitials</MudAvatar>
+        </CardHeaderAvatar>
+        <CardHeaderContent>
+            <MudText>@Session.OperatorName</MudText>
+            <MudText Typo="Typo.body2">@Session.StationInfo</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudChip T="object" Text="@Session.Status" Color="@(Session.Status == "Active" ? Color.Success : Color.Warning)" Size="Size.Small" />
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        <div class="d-flex justify-space-between mt-2">
+            <MudText Typo="Typo.body2">Orders: @Session.CompletedOrders / @Session.TotalOrders</MudText>
+            <MudText Typo="Typo.body2">Weight: @Session.WeightLbs.ToString("N0") lbs</MudText>
+            <MudText Typo="Typo.body2">Time: @Session.SessionTime</MudText>
+        </div>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired] public ActivePullingSessionDto Session { get; set; } = default!;
+}

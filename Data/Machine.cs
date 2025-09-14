@@ -1,4 +1,5 @@
 ﻿using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 
 namespace CMetalsWS.Data
@@ -16,5 +17,10 @@ namespace CMetalsWS.Data
 
         [MaxLength(64)]
         public MachineCategory Category { get; set; }
+
+        public RateUnit RateUnits { get; set; }
+        [Precision(18, 4)]
+        public decimal RateValue { get; set; }
+        public int DefaultSetupMins { get; set; }
     }
 }

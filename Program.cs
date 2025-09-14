@@ -1,3 +1,4 @@
+using CMetalsWS.Configuration;
 using CMetalsWS.Components;
 using CMetalsWS.Components.Account;
 using CMetalsWS.Data;
@@ -27,6 +28,9 @@ builder.Services.AddHttpClient("OpenAI", c =>
 
 // MudBlazor
 builder.Services.AddMudServices();
+
+// App Configuration
+builder.Services.Configure<DashboardSettings>(builder.Configuration.GetSection(DashboardSettings.SectionName));
 
 // Razor Components (Blazor Server)
 builder.Services.AddRazorComponents()
@@ -104,6 +108,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 // App services
+builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 builder.Services.AddScoped<BranchService>();
 builder.Services.AddScoped<RoleService>();
@@ -113,7 +118,7 @@ builder.Services.AddScoped<TruckService>();
 builder.Services.AddScoped<PickingListService>();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<ItemRelationshipService>();
-builder.Services.AddTransient<IdentityDataSeeder>();
+builder.Services.AddTransient<DashboardDemoSeeder>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<LoadService>();
 builder.Services.AddScoped<WorkOrderService>();
@@ -121,6 +126,12 @@ builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<ITaskAuditEventService, TaskAuditEventService>();
 builder.Services.AddScoped<DestinationGroupService>();
 builder.Services.AddScoped<DestinationRegionService>();
+
+// Dashboard Business Logic Services
+builder.Services.AddSingleton<IGaugeWeightResolver, ConfigGaugeWeightResolver>();
+builder.Services.AddScoped<ThroughputCalculator>();
+builder.Services.AddScoped<NowPlayingProjector>();
+builder.Services.AddScoped<IDashboardFeed, DashboardFeed>();
 
 // Picking List PDF Parser
 builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();
@@ -142,11 +153,11 @@ builder.Services.AddSignalR(options =>
 
 var app = builder.Build();
 
-// Seed roles, permission claims, and admin user
+// Seed demo data for the dashboard
 using (var scope = app.Services.CreateScope())
 {
-    var seeder = scope.ServiceProvider.GetRequiredService<IdentityDataSeeder>();
-    await seeder.SeedAsync();
+    var dashboardSeeder = scope.ServiceProvider.GetRequiredService<DashboardDemoSeeder>();
+    await dashboardSeeder.SeedAsync();
 }
 
 // Pipeline
@@ -179,6 +190,7 @@ app.MapAdditionalIdentityEndpoints();
 
 app.MapHub<ScheduleHub>("/hubs/schedule");
 app.MapHub<ChatHub>("/chathub");
+app.MapHub<DashboardHub>("/hubs/dashboard");
 
 
 

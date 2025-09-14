@@ -14,14 +14,21 @@ namespace CMetalsWS.Services
     {
         private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly IHubContext<ScheduleHub> _hubContext;
+        private readonly IHubContext<ScheduleHub> _scheduleHubContext;
+        private readonly IHubContext<DashboardHub, IDashboardClient> _dashboardHubContext;
         private readonly PickingListService _pickingListService;
 
-        public WorkOrderService(IDbContextFactory<ApplicationDbContext> dbContextFactory, UserManager<ApplicationUser> userManager, IHubContext<ScheduleHub> hubContext, PickingListService pickingListService)
+        public WorkOrderService(
+            IDbContextFactory<ApplicationDbContext> dbContextFactory,
+            UserManager<ApplicationUser> userManager,
+            IHubContext<ScheduleHub> scheduleHubContext,
+            IHubContext<DashboardHub, IDashboardClient> dashboardHubContext,
+            PickingListService pickingListService)
         {
             _dbContextFactory = dbContextFactory;
             _userManager = userManager;
-            _hubContext = hubContext;
+            _scheduleHubContext = scheduleHubContext;
+            _dashboardHubContext = dashboardHubContext;
             _pickingListService = pickingListService;
         }
 
@@ -93,7 +100,8 @@ namespace CMetalsWS.Services
 
             db.WorkOrders.Add(workOrder);
             await db.SaveChangesAsync();
-            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+            await _scheduleHubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+            await _dashboardHubContext.Clients.All.RefreshDashboard();
         }
 
         private (TimeOnly Start, TimeOnly End) GetBranchWorkingHours(ApplicationDbContext db, int branchId)
@@ -187,7 +195,8 @@ namespace CMetalsWS.Services
             }
 
             await db.SaveChangesAsync();
-            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+            await _scheduleHubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+            await _dashboardHubContext.Clients.All.RefreshDashboard();
         }
 
         public async Task ScheduleAsync(int id, DateTime start, DateTime? end)
@@ -221,7 +230,8 @@ namespace CMetalsWS.Services
                 await _pickingListService.UpdatePickingListStatusAsync(grpId);
 
             await db.SaveChangesAsync();
-            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+            await _scheduleHubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+            await _dashboardHubContext.Clients.All.RefreshDashboard();
         }
 
         private async Task<string> GenerateWorkOrderNumber(int branchId)
@@ -302,7 +312,8 @@ namespace CMetalsWS.Services
             }
 
             await db.SaveChangesAsync();
-            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+            await _scheduleHubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+            await _dashboardHubContext.Clients.All.RefreshDashboard();
         }
     }
 }
