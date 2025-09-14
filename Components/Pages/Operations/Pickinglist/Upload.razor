@@ -1,18 +1,14 @@
 @page "/picking-lists/upload"
 @using System.ComponentModel.DataAnnotations
-@using Microsoft.Extensions.Configuration
-@using CMetalsWS.Data
 @using CMetalsWS.Services
-@using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.Components.Forms
 @using MudBlazor
 @using CMetalsWS.Security
 @attribute [Authorize(Policy = Permissions.PickingLists.Add)]
-@inject IPickingListIngestor Ingestor
+@inject IPickingListDraftStore DraftStore
+@inject NavigationManager Nav
+@inject BranchService BranchService
 @inject ISnackbar Snackbar
-@inject NavigationManager NavManager
-@inject ILogger<Upload> _logger
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager
 
@@ -36,13 +32,13 @@
                 </div>
             </MudItem>
             <MudItem xs="12" Class="d-flex justify-center">
-                @if (_model.File != null)
+                @if (_file != null)
                 {
-                    <MudText Typo="Typo.h6" Class="mt-4">Selected: <MudChip T="string">@_model.File.Name</MudChip></MudText>
+                    <MudText Typo="Typo.h6" Class="mt-4">Selected: <MudChip T="string">@_file.Name</MudChip></MudText>
                 }
             </MudItem>
         </MudGrid>
-        <MudButton OnClick="OnSubmit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="@(_isProcessing || _model.File == null)">
+        <MudButton OnClick="OnSubmit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="@(_isProcessing || _file == null)">
             @if (_isProcessing)
             {
                 <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
@@ -53,26 +49,13 @@
                 <MudText>Upload and Parse</MudText>
             }
         </MudButton>
-
-        @if (!string.IsNullOrEmpty(_statusMessage))
-        {
-            <MudAlert Severity="@_statusSeverity" Class="mt-4">@((MarkupString)_statusMessage)</MudAlert>
-        }
     </MudCardContent>
 </MudCard>
 
 @code {
-    private class UploadModel
-    {
-        [Required]
-        public int? BranchId { get; set; }
-        public IBrowserFile? File { get; set; }
-    }
-
-    private UploadModel _model = new();
+    private IBrowserFile? _file;
     private bool _isProcessing;
-    private string? _statusMessage;
-    private Severity _statusSeverity;
+    private int _selectedBranchId;
     private ApplicationUser? _user;
 
     protected override async Task OnInitializedAsync()
@@ -81,7 +64,7 @@
         _user = await UserManager.GetUserAsync(authState.User);
         if (_user?.BranchId != null)
         {
-            _model.BranchId = _user.BranchId;
+            _selectedBranchId = _user.BranchId.Value;
         }
         else
         {
@@ -91,63 +74,18 @@
 
     private void OnFileChanged(InputFileChangeEventArgs e)
     {
-        var file = e.File;
-        if (file != null && (file.ContentType.Contains("pdf", StringComparison.OrdinalIgnoreCase)
-                             || Path.GetExtension(file.Name).Equals(".pdf", StringComparison.OrdinalIgnoreCase)))
-        {
-            _model.File = file;
-        }
-        else
-        {
-            _model.File = null;
-            Snackbar.Add("Please select or drop a single PDF file.", Severity.Warning);
-        }
+        _file = e.File;
     }
 
     private async Task OnSubmit()
     {
-        if (_model.BranchId == null || _model.File == null || _user == null)
-        {
-            Snackbar.Add("Branch and a PDF file are required.", Severity.Warning);
-            return;
-        }
-
+        if (_file == null) return;
         _isProcessing = true;
-        _statusMessage = "Starting upload...";
-        _statusSeverity = Severity.Info;
-        StateHasChanged();
+        using var ms = new MemoryStream();
+        await _file.OpenReadStream(long.MaxValue).CopyToAsync(ms);
+        ms.Position = 0;
 
-        try
-        {
-            await using var sourceStream = _model.File.OpenReadStream(50 * 1024 * 1024);
-            using var memoryStream = new MemoryStream();
-            await sourceStream.CopyToAsync(memoryStream);
-            memoryStream.Position = 0;
-            var result = await Ingestor.UploadAsync(memoryStream, _model.File.Name, _model.BranchId.Value, _user.Id);
-
-            if (result.IsDuplicate)
-            {
-                _statusMessage = $"This picking list has already been uploaded. <a href='/pickinglists/{result.PickingListId}'>Click here to view it.</a>";
-                _statusSeverity = Severity.Warning;
-            }
-            else
-            {
-                _statusMessage = "Processing complete. Redirecting...";
-                StateHasChanged();
-                NavManager.NavigateTo($"/pickinglists/{result.PickingListId}");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to process uploaded picking list.");
-            _statusMessage = $"An error occurred: {ex.Message}";
-            _statusSeverity = Severity.Error;
-            Snackbar.Add("Failed to process picking list.", Severity.Error);
-        }
-        finally
-        {
-            _isProcessing = false;
-            StateHasChanged();
-        }
+        var draftId = await DraftStore.CreateAsync(ms, _file.Name, _selectedBranchId);
+        Nav.NavigateTo($"/pickinglists/review/{draftId}");
     }
 }

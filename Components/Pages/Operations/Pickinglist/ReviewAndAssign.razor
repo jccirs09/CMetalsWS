@@ -1,18 +1,17 @@
 @page "/pickinglists/{id:int}"
+@page "/pickinglists/review/{draftId:guid}"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
-@using CMetalsWS.Models
 @using CMetalsWS.Security
 @using MudBlazor
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
+
 @inject PickingListService PickingListService
-@inject IAssignmentService AssignmentService
 @inject MachineService MachineService
-@inject IDialogService DialogService
+@inject IPickingListDraftStore DraftStore
 @inject ISnackbar Snackbar
-@inject AuthenticationStateProvider AuthStateProvider
-@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager Nav
 
 @attribute [Authorize(Policy = Permissions.PickingLists.Edit)]
 
@@ -22,16 +21,16 @@
 }
 else
 {
-    <MudText Typo="Typo.h5">Review & Assign: @_list.SalesOrderNumber</MudText>
+    <MudText Typo="Typo.h5">Review & Assign: @_list.SalesOrderNumber @if(IsDraft){<text>(Draft)</text>}</MudText>
 
     <MudPaper Class="pa-4 my-4">
         <MudGrid>
-            <MudItem xs="12" sm="6" md="3"><b>Sold To:</b> <br /> @((MarkupString)_list.SoldTo?.Replace("\n", "<br/>"))</MudItem>
-            <MudItem xs="12" sm="6" md="3"><b>Ship To:</b> <br /> @((MarkupString)_list.ShipTo?.Replace("\n", "<br/>"))</MudItem>
+            <MudItem xs="12" sm="6" md="3"><b>Sold To:</b><br/> @((MarkupString)(_list.SoldTo ?? "").Replace("\n","<br/>"))</MudItem>
+            <MudItem xs="12" sm="6" md="3"><b>Ship To:</b><br/> @((MarkupString)(_list.ShipTo ?? "").Replace("\n","<br/>"))</MudItem>
             <MudItem xs="12" sm="6" md="3">
                 <b>Sales Order #:</b> @_list.SalesOrderNumber <br />
                 <b>Order Date:</b> @_list.OrderDate?.ToShortDateString() <br />
-                <b>Ship Date:</b> @_list.ShipDate?.ToShortDateString() <br />
+                <b>Ship Date:</b> @_list.ShipDate?.ToShortDateString()
             </MudItem>
             <MudItem xs="12" sm="6" md="3">
                 <b>Sales Rep:</b> @_list.SalesRep <br />
@@ -41,165 +40,146 @@ else
         </MudGrid>
     </MudPaper>
 
-    <MudTable Items="@FilteredItems" Dense="true" Hover="true">
-        <ToolBarContent>
-            <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-            <MudSelect T="string" @bind-Value="_assignmentFilter" Label="Assignment" Clearable="true">
-                <MudSelectItem Value="@("All")">All</MudSelectItem>
-                <MudSelectItem Value="@("Unassigned")">Unassigned</MudSelectItem>
-                <MudSelectItem Value="@("Machine")">Machine</MudSelectItem>
-                <MudSelectItem Value="@("Pulling")">Pulling</MudSelectItem>
-            </MudSelect>
-            @if (_assignmentFilter == "Machine")
+    <MudPaper Class="pa-2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+            <MudTextField @bind-Value="_searchString" Placeholder="Search item id or description" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="mt-0" />
+            <MudSpacer />
+            @if (IsDraft)
             {
-                <MudSelect T="int?" @bind-Value="_machineFilter" Label="Machine" Clearable="true">
-                    @foreach (var machine in _machines)
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveDraftAsync" StartIcon="@Icons.Material.Filled.Save">Save</MudButton>
+            }
+            else
+            {
+                <MudButton Disabled="true" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Info">Already Saved</MudButton>
+            }
+        </MudStack>
+
+        <MudTable Items="@FilteredItems" Dense="true" Hover="true">
+            <HeaderContent>
+                <MudTh>Line</MudTh>
+                <MudTh>Qty</MudTh>
+                <MudTh>Unit</MudTh>
+                <MudTh>Item ID</MudTh>
+                <MudTh>Description</MudTh>
+                <MudTh>Width</MudTh>
+                <MudTh>Length</MudTh>
+                <MudTh>Weight</MudTh>
+                <MudTh>Machine</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Line">@context.LineNumber</MudTd>
+                <MudTd DataLabel="Qty">@context.Quantity</MudTd>
+                <MudTd DataLabel="Unit">@context.Unit</MudTd>
+                <MudTd DataLabel="Item ID">@context.ItemId</MudTd>
+                <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
+                <MudTd DataLabel="Width">@context.Width</MudTd>
+                <MudTd DataLabel="Length">@context.Length</MudTd>
+                <MudTd DataLabel="Weight">@context.Weight</MudTd>
+                <MudTd DataLabel="Machine">
+                    @if (IsDraft)
                     {
-                        <MudSelectItem Value="@((int?)machine.Id)">@machine.Name</MudSelectItem>
+                        <MudSelect T="int?" @bind-Value="context.MachineId" Dense="true" Class="w-48">
+                            @foreach (var m in CandidatesFor(context))
+                            {
+                                <MudSelectItem Value="@((int?)m.Id)">@m.Name</MudSelectItem>
+                            }
+                        </MudSelect>
                     }
-                </MudSelect>
-            }
-            @if (_assignmentFilter == "Pulling")
-            {
-                <MudSelect T="BuildingCategory?" @bind-Value="_pullingFilter" Label="Pulling" Clearable="true">
-                    <MudSelectItem Value="@((BuildingCategory?)BuildingCategory.Sheet)">Sheet</MudSelectItem>
-                    <MudSelectItem Value="@((BuildingCategory?)BuildingCategory.Coil)">Coil</MudSelectItem>
-                </MudSelect>
-            }
-        </ToolBarContent>
-        <HeaderContent>
-            <MudTh>Line</MudTh>
-            <MudTh>Qty</MudTh>
-            <MudTh>Unit</MudTh>
-            <MudTh>Item ID</MudTh>
-            <MudTh>Description</MudTh>
-            <MudTh>Width</MudTh>
-            <MudTh>Length</MudTh>
-            <MudTh>Weight</MudTh>
-            <MudTh>Assignment</MudTh>
-            <MudTh>Needs Attention</MudTh>
-            <MudTh>Has Tag Lots</MudTh>
-            <MudTh>Sales Note</MudTh>
-            <MudTh>Actions</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Line">@context.LineNumber</MudTd>
-            <MudTd DataLabel="Qty">@context.Quantity</MudTd>
-            <MudTd DataLabel="Unit">@context.Unit</MudTd>
-            <MudTd DataLabel="Item ID">@context.ItemId</MudTd>
-            <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
-            <MudTd DataLabel="Width">@context.Width</MudTd>
-            <MudTd DataLabel="Length">@context.Length</MudTd>
-            <MudTd DataLabel="Weight">@context.Weight</MudTd>
-            <MudTd DataLabel="Assignment">
-                @if (context.MachineId.HasValue)
-                {
-                    <MudChip T="string" Color="Color.Primary">@context.Machine?.Name</MudChip>
-                }
-                else if (context.BuildingCategory != BuildingCategory.None)
-                {
-                    <MudChip T="string" Color="Color.Secondary">@context.BuildingCategory.ToString()</MudChip>
-                }
-                else
-                {
-                    <MudChip T="string">Unassigned</MudChip>
-                }
-            </MudTd>
-            <MudTd DataLabel="Needs Attention">
-                @if (context.NeedsAttention)
-                {
-                    <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" />
-                }
-            </MudTd>
-            <MudTd DataLabel="Has Tag Lots">
-                @if (context.HasTagLots)
-                {
-                    <MudIcon Icon="@Icons.Material.Filled.Check" Color="Color.Success" />
-                }
-            </MudTd>
-            <MudTd DataLabel="Sales Note">@context.SalesNote</MudTd>
-            <MudTd>
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => OpenAssignmentDialog(context)" />
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
+                    else
+                    {
+                        @context.Machine?.Name
+                    }
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
 }
 
 @code {
-    [Parameter]
-    public int Id { get; set; }
+    [Parameter] public int? Id { get; set; }
+    [Parameter] public Guid? DraftId { get; set; }
 
+    private bool IsDraft => DraftId.HasValue;
     private PickingList? _list;
-    private ApplicationUser? _user;
     private List<Machine> _machines = new();
+    private List<Machine> _machinesCtl = new();
+    private List<Machine> _machinesSlitter = new();
     private string _searchString = "";
-    private string _assignmentFilter = "All";
-    private int? _machineFilter;
-    private BuildingCategory? _pullingFilter;
 
     private IEnumerable<PickingListItem> FilteredItems =>
-        _list?.Items.Where(item =>
-        {
-            if (!string.IsNullOrWhiteSpace(_searchString) &&
-                !item.ItemId.Contains(_searchString, StringComparison.OrdinalIgnoreCase) &&
-                !item.ItemDescription.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            if (_assignmentFilter == "Unassigned" && (item.MachineId.HasValue || item.BuildingCategory != BuildingCategory.None))
-            {
-                return false;
-            }
-
-            if (_assignmentFilter == "Machine" && !item.MachineId.HasValue)
-            {
-                return false;
-            }
-
-            if (_assignmentFilter == "Pulling" && item.BuildingCategory == BuildingCategory.None)
-            {
-                return false;
-            }
-
-            if (_machineFilter.HasValue && item.MachineId != _machineFilter)
-            {
-                return false;
-            }
-
-            if (_pullingFilter.HasValue && item.BuildingCategory != _pullingFilter)
-            {
-                return false;
-            }
-
-            return true;
-        }) ?? Enumerable.Empty<PickingListItem>();
+        (_list?.Items ?? Enumerable.Empty<PickingListItem>())
+            .Where(i =>
+                string.IsNullOrWhiteSpace(_searchString) ||
+                i.ItemId.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                i.ItemDescription.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(i => i.LineNumber);
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        _user = await UserManager.GetUserAsync(authState.User);
-        await LoadData();
-    }
+        if (IsDraft)
+        {
+            _list = await DraftStore.GetAsync(DraftId!.Value);
+            if (_list == null) { Snackbar.Add("Draft not found or expired.", Severity.Error); Nav.NavigateTo("/"); return; }
+        }
+        else if (Id.HasValue)
+        {
+            _list = await PickingListService.GetByIdAsync(Id.Value); // should include Items+Machine
+            if (_list == null) { Snackbar.Add("Picking list not found.", Severity.Error); return; }
+        }
 
-    private async Task LoadData()
-    {
-        _list = await PickingListService.GetByIdAsync(Id);
         if (_list != null)
         {
             _machines = await MachineService.GetMachinesByBranchAsync(_list.BranchId);
+            _machinesCtl = _machines.Where(m => m.Category == MachineCategory.CTL).ToList();
+            _machinesSlitter = _machines.Where(m => m.Category == MachineCategory.Slitter).ToList();
         }
-        StateHasChanged();
     }
 
-    private async Task OpenAssignmentDialog(PickingListItem item)
+    private IEnumerable<Machine> CandidatesFor(PickingListItem item)
+        => (item.Length.HasValue && item.Length.Value > 0) ? _machinesCtl : _machinesSlitter;
+
+    private async Task SaveDraftAsync()
     {
-        var parameters = new DialogParameters { ["ItemId"] = item.Id };
-        var dialog = DialogService.Show<Components.Pages.Operations.Pickinglist.Dialogs.AssignDialog>("Assign Item", parameters);
-        var result = await dialog.Result;
-        if (result != null && !result.Canceled)
+        if (_list == null) return;
+
+        var newId = await PickingListService.CreateAsync(new PickingList
         {
-            await LoadData();
-        }
+            SalesOrderNumber = _list.SalesOrderNumber,
+            OrderDate = _list.OrderDate,
+            ShipDate = _list.ShipDate,
+            SoldTo = _list.SoldTo,
+            ShipTo = _list.ShipTo,
+            SalesRep = _list.SalesRep,
+            ShippingVia = _list.ShippingVia,
+            FOB = _list.FOB,
+            Buyer = _list.Buyer,
+            PrintDateTime = _list.PrintDateTime,
+            BranchId = _list.BranchId,
+            TotalWeight = _list.TotalWeight,
+            RemainingWeight = _list.RemainingWeight,
+            Status = PickingListStatus.Pending,
+            SourceFileName = _list.SourceFileName,
+            RawTextHash = _list.RawTextHash,
+            PageCount = _list.PageCount,
+            ParseNotes = _list.ParseNotes,
+            HasParseIssues = _list.HasParseIssues,
+            Items = _list.Items.Select(i => new PickingListItem
+            {
+                LineNumber = i.LineNumber,
+                ItemId = i.ItemId,
+                ItemDescription = i.ItemDescription,
+                Quantity = i.Quantity,
+                Unit = i.Unit,
+                Width = i.Width,
+                Length = i.Length,
+                Weight = i.Weight,
+                MachineId = i.MachineId,
+                Status = PickingLineStatus.Pending
+            }).ToList()
+        });
+
+        DraftStore.Remove(DraftId!.Value);
+        Snackbar.Add("Picking list saved.", Severity.Success);
+        Nav.NavigateTo($"/pickinglists/{newId}");
     }
 }

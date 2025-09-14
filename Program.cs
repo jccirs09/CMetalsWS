@@ -122,10 +122,9 @@ builder.Services.AddScoped<ITaskAuditEventService, TaskAuditEventService>();
 builder.Services.AddScoped<DestinationGroupService>();
 builder.Services.AddScoped<DestinationRegionService>();
 
-// Picking List PDF Parser
-builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();
-builder.Services.AddScoped<IPickingListIngestor, PickingListIngestor>();
-builder.Services.AddScoped<IAssignmentService, AssignmentService>();
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<PdfParsingService>();
+builder.Services.AddScoped<IPickingListDraftStore, MemoryPickingListDraftStore>();
 
 
 builder.Services.AddScoped<ChatStateService>();
