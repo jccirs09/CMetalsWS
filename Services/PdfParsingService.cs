@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using CMetalsWS.Data;
 using Microsoft.Extensions.Logging;
 using UglyToad.PdfPig;
-using UglyToad.PdfPig.Content;
 
 namespace CMetalsWS.Services
 {
@@ -83,7 +82,6 @@ namespace CMetalsWS.Services
                     if (item != null)
                     {
                         var notes = new List<string>();
-                        bool hasTagLots = false;
                         for (int j = i + 1; j < lines.Length; j++)
                         {
                             var nextLine = lines[j].Trim();

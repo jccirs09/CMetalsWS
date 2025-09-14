@@ -21,6 +21,7 @@
         </MudSelect>
     </DialogContent>
     <DialogActions>
+        <MudButton OnClick="ClearAssignment" Color="Color.Error">Clear</MudButton>
         <MudButton OnClick="Cancel">Cancel</MudButton>
         <MudButton Color="Color.Primary" OnClick="Submit">Assign</MudButton>
     </DialogActions>
@@ -28,7 +29,7 @@
 
 @code {
     [CascadingParameter]
-    MudDialogInstance MudDialog { get; set; }
+    IMudDialogInstance MudDialog { get; set; }
 
     [Parameter]
     public int ItemId { get; set; }
@@ -80,4 +81,22 @@
     }
 
     void Cancel() => MudDialog.Cancel();
+
+    private async Task ClearAssignment()
+    {
+        if (_user == null)
+        {
+            Snackbar.Add("You must be logged in to clear an assignment.", Severity.Warning);
+            return;
+        }
+        try
+        {
+            await AssignmentService.ClearAssignmentAsync(ItemId, _user.Id);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch(Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
 }

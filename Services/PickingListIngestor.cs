@@ -37,7 +37,7 @@ namespace CMetalsWS.Services
             if (existingList != null)
             {
                 _logger.LogInformation("Duplicate picking list detected. BranchId: {BranchId}, Hash: {Hash}", branchId, parsedList.RawTextHash);
-                return existingList.Id;
+                return -existingList.Id;
             }
 
             parsedList.BranchId = branchId;

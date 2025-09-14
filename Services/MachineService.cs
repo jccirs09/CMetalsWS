@@ -22,6 +22,16 @@ namespace CMetalsWS.Services
                 .ToListAsync();
         }
 
+        public async Task<List<Machine>> GetMachinesByBranchAsync(int branchId)
+        {
+            using var db = _dbContextFactory.CreateDbContext();
+            return await db.Machines
+                .Where(m => m.BranchId == branchId)
+                .AsNoTracking()
+                .OrderBy(m => m.Name)
+                .ToListAsync();
+        }
+
         public async Task<Machine?> GetByIdAsync(int id)
         {
             using var db = _dbContextFactory.CreateDbContext();

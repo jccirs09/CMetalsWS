@@ -8,6 +8,7 @@
 @using Microsoft.AspNetCore.Identity
 @inject PickingListService PickingListService
 @inject IAssignmentService AssignmentService
+@inject MachineService MachineService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
@@ -40,7 +41,32 @@ else
         </MudGrid>
     </MudPaper>
 
-    <MudTable Items="@_list.Items" Dense="true" Hover="true">
+    <MudTable Items="@FilteredItems" Dense="true" Hover="true">
+        <ToolBarContent>
+            <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            <MudSelect T="string" @bind-Value="_assignmentFilter" Label="Assignment" Clearable="true">
+                <MudSelectItem Value="@("All")">All</MudSelectItem>
+                <MudSelectItem Value="@("Unassigned")">Unassigned</MudSelectItem>
+                <MudSelectItem Value="@("Machine")">Machine</MudSelectItem>
+                <MudSelectItem Value="@("Pulling")">Pulling</MudSelectItem>
+            </MudSelect>
+            @if (_assignmentFilter == "Machine")
+            {
+                <MudSelect T="int?" @bind-Value="_machineFilter" Label="Machine" Clearable="true">
+                    @foreach (var machine in _machines)
+                    {
+                        <MudSelectItem Value="@((int?)machine.Id)">@machine.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            @if (_assignmentFilter == "Pulling")
+            {
+                <MudSelect T="BuildingCategory?" @bind-Value="_pullingFilter" Label="Pulling" Clearable="true">
+                    <MudSelectItem Value="@((BuildingCategory?)BuildingCategory.Sheet)">Sheet</MudSelectItem>
+                    <MudSelectItem Value="@((BuildingCategory?)BuildingCategory.Coil)">Coil</MudSelectItem>
+                </MudSelect>
+            }
+        </ToolBarContent>
         <HeaderContent>
             <MudTh>Line</MudTh>
             <MudTh>Qty</MudTh>
@@ -69,7 +95,7 @@ else
                 }
                 else if (context.BuildingCategory != BuildingCategory.None)
                 {
-                    <MudChip T="string" Color="Color.Secondary">@context.BuildingCategory</MudChip>
+                    <MudChip T="string" Color="Color.Secondary">@context.BuildingCategory.ToString()</MudChip>
                 }
                 else
                 {
@@ -89,6 +115,49 @@ else
 
     private PickingList? _list;
     private ApplicationUser? _user;
+    private List<Machine> _machines = new();
+    private string _searchString = "";
+    private string _assignmentFilter = "All";
+    private int? _machineFilter;
+    private BuildingCategory? _pullingFilter;
+
+    private IEnumerable<PickingListItem> FilteredItems =>
+        _list?.Items.Where(item =>
+        {
+            if (!string.IsNullOrWhiteSpace(_searchString) &&
+                !item.ItemId.Contains(_searchString, StringComparison.OrdinalIgnoreCase) &&
+                !item.ItemDescription.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (_assignmentFilter == "Unassigned" && (item.MachineId.HasValue || item.BuildingCategory != BuildingCategory.None))
+            {
+                return false;
+            }
+
+            if (_assignmentFilter == "Machine" && !item.MachineId.HasValue)
+            {
+                return false;
+            }
+
+            if (_assignmentFilter == "Pulling" && item.BuildingCategory == BuildingCategory.None)
+            {
+                return false;
+            }
+
+            if (_machineFilter.HasValue && item.MachineId != _machineFilter)
+            {
+                return false;
+            }
+
+            if (_pullingFilter.HasValue && item.BuildingCategory != _pullingFilter)
+            {
+                return false;
+            }
+
+            return true;
+        }) ?? Enumerable.Empty<PickingListItem>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -100,13 +169,17 @@ else
     private async Task LoadData()
     {
         _list = await PickingListService.GetByIdAsync(Id);
+        if (_list != null)
+        {
+            _machines = await MachineService.GetMachinesByBranchAsync(_list.BranchId);
+        }
         StateHasChanged();
     }
 
     private async Task OpenAssignmentDialog(PickingListItem item)
     {
         var parameters = new DialogParameters { ["ItemId"] = item.Id };
-        var dialog = DialogService.Show<AssignDialog>("Assign Item", parameters);
+        var dialog = DialogService.Show<Components.Pages.Operations.Pickinglist.Dialogs.AssignDialog>("Assign Item", parameters);
         var result = await dialog.Result;
         if (result != null && !result.Canceled)
         {

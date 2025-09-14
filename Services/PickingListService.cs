@@ -279,19 +279,5 @@ namespace CMetalsWS.Services
 
             await db.SaveChangesAsync();
         }
-
-        public async Task UpdateMachineAssignmentsAsync(IEnumerable<PickingListItem> itemsToUpdate)
-        {
-            using var db = await _dbContextFactory.CreateDbContextAsync();
-            foreach (var item in itemsToUpdate)
-            {
-                var trackedItem = await db.PickingListItems.FindAsync(item.Id);
-                if (trackedItem != null)
-                {
-                    trackedItem.MachineId = item.MachineId;
-                }
-            }
-            await db.SaveChangesAsync();
-        }
     }
 }

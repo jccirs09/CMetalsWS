@@ -119,13 +119,24 @@
 
         try
         {
-            await using var stream = _model.File.OpenReadStream(50 * 1024 * 1024);
-            var pickingListId = await Ingestor.UploadAsync(stream, _model.File.Name, _model.BranchId.Value, _user.Id);
+            await using var sourceStream = _model.File.OpenReadStream(50 * 1024 * 1024);
+            using var memoryStream = new MemoryStream();
+            await sourceStream.CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+            var pickingListId = await Ingestor.UploadAsync(memoryStream, _model.File.Name, _model.BranchId.Value, _user.Id);
 
-            _statusMessage = "Processing complete. Redirecting...";
-            StateHasChanged();
-
-            NavManager.NavigateTo($"/pickinglists/{pickingListId}");
+            if (pickingListId <= 0)
+            {
+                var existingId = Math.Abs(pickingListId);
+                _statusMessage = $"This picking list has already been uploaded. <a href='/pickinglists/{existingId}'>Click here to view it.</a>";
+                _statusSeverity = Severity.Warning;
+            }
+            else
+            {
+                _statusMessage = "Processing complete. Redirecting...";
+                StateHasChanged();
+                NavManager.NavigateTo($"/pickinglists/{pickingListId}");
+            }
         }
         catch (Exception ex)
         {

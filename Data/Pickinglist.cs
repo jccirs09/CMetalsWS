@@ -63,6 +63,10 @@ namespace CMetalsWS.Data
         [MaxLength(1024)]
         public string? ParseNotes { get; set; }
 
+        public string? UploadedBy { get; set; }
+        public DateTime UploadedAt { get; set; }
+        public string? SourceFileName { get; set; }
+
         public virtual ICollection<PickingListItem> Items { get; set; } = new List<PickingListItem>();
     }
 
