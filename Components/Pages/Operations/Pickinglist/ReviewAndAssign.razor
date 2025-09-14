@@ -1,0 +1,116 @@
+@page "/pickinglists/{id:int}"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using CMetalsWS.Models
+@using CMetalsWS.Security
+@using MudBlazor
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@inject PickingListService PickingListService
+@inject IAssignmentService AssignmentService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+
+@attribute [Authorize(Policy = Permissions.PickingLists.Edit)]
+
+@if (_list == null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudText Typo="Typo.h5">Review & Assign: @_list.SalesOrderNumber</MudText>
+
+    <MudPaper Class="pa-4 my-4">
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="3"><b>Sold To:</b> <br /> @((MarkupString)_list.SoldTo?.Replace("\n", "<br/>"))</MudItem>
+            <MudItem xs="12" sm="6" md="3"><b>Ship To:</b> <br /> @((MarkupString)_list.ShipTo?.Replace("\n", "<br/>"))</MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <b>Sales Order #:</b> @_list.SalesOrderNumber <br />
+                <b>Order Date:</b> @_list.OrderDate?.ToShortDateString() <br />
+                <b>Ship Date:</b> @_list.ShipDate?.ToShortDateString() <br />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <b>Sales Rep:</b> @_list.SalesRep <br />
+                <b>FOB:</b> @_list.FOB <br />
+                <b>Ship Via:</b> @_list.ShippingVia
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudTable Items="@_list.Items" Dense="true" Hover="true">
+        <HeaderContent>
+            <MudTh>Line</MudTh>
+            <MudTh>Qty</MudTh>
+            <MudTh>Unit</MudTh>
+            <MudTh>Item ID</MudTh>
+            <MudTh>Description</MudTh>
+            <MudTh>Width</MudTh>
+            <MudTh>Length</MudTh>
+            <MudTh>Weight</MudTh>
+            <MudTh>Assignment</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Line">@context.LineNumber</MudTd>
+            <MudTd DataLabel="Qty">@context.Quantity</MudTd>
+            <MudTd DataLabel="Unit">@context.Unit</MudTd>
+            <MudTd DataLabel="Item ID">@context.ItemId</MudTd>
+            <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
+            <MudTd DataLabel="Width">@context.Width</MudTd>
+            <MudTd DataLabel="Length">@context.Length</MudTd>
+            <MudTd DataLabel="Weight">@context.Weight</MudTd>
+            <MudTd DataLabel="Assignment">
+                @if (context.MachineId.HasValue)
+                {
+                    <MudChip T="string" Color="Color.Primary">@context.Machine?.Name</MudChip>
+                }
+                else if (context.BuildingCategory != BuildingCategory.None)
+                {
+                    <MudChip T="string" Color="Color.Secondary">@context.BuildingCategory</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string">Unassigned</MudChip>
+                }
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => OpenAssignmentDialog(context)" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private PickingList? _list;
+    private ApplicationUser? _user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _user = await UserManager.GetUserAsync(authState.User);
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _list = await PickingListService.GetByIdAsync(Id);
+        StateHasChanged();
+    }
+
+    private async Task OpenAssignmentDialog(PickingListItem item)
+    {
+        var parameters = new DialogParameters { ["ItemId"] = item.Id };
+        var dialog = DialogService.Show<AssignDialog>("Assign Item", parameters);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+}

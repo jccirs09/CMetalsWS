@@ -124,8 +124,8 @@ builder.Services.AddScoped<DestinationRegionService>();
 
 // Picking List PDF Parser
 builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();
-builder.Services.AddScoped<IPickingListImportService, PickingListImportService>();
-builder.Services.AddScoped<IParsingStateService, ParsingStateService>();
+builder.Services.AddScoped<IPickingListIngestor, PickingListIngestor>();
+builder.Services.AddScoped<IAssignmentService, AssignmentService>();
 
 
 builder.Services.AddScoped<ChatStateService>();

@@ -55,7 +55,22 @@ namespace CMetalsWS.Data
 
         public int Priority { get; set; } = 99;
 
+        // New fields for PDF parsing
+        [MaxLength(64)]
+        public string? RawTextHash { get; set; }
+        public int PageCount { get; set; }
+        public bool HasParseIssues { get; set; }
+        [MaxLength(1024)]
+        public string? ParseNotes { get; set; }
+
         public virtual ICollection<PickingListItem> Items { get; set; } = new List<PickingListItem>();
+    }
+
+    public enum BuildingCategory : byte
+    {
+        None = 0,
+        Sheet = 1,
+        Coil = 2
     }
 
     public class PickingListItem : IEquatable<PickingListItem>
@@ -102,6 +117,15 @@ namespace CMetalsWS.Data
 
         public int? MachineId { get; set; }
         public virtual Machine? Machine { get; set; }
+
+        // New fields for assignment
+        public BuildingCategory BuildingCategory { get; set; } = BuildingCategory.None;
+        public bool NeedsAttention { get; set; }
+        public bool HasTagLots { get; set; }
+        public string? SalesNote { get; set; }
+        public string? AssignedBy { get; set; }
+        public DateTime? AssignedAt { get; set; }
+
 
         public bool Equals(PickingListItem? other)
         {

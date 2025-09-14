@@ -10,20 +10,11 @@ namespace CMetalsWS.Services
     public class PickingListService
     {
         private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
-        private readonly IPickingListImportService _importService;
-        private readonly IPdfParsingService _parsingService;
-        private readonly IConfiguration _configuration;
 
         public PickingListService(
-            IDbContextFactory<ApplicationDbContext> dbContextFactory,
-            IPickingListImportService importService,
-            IPdfParsingService parsingService,
-            IConfiguration configuration)
+            IDbContextFactory<ApplicationDbContext> dbContextFactory)
         {
             _dbContextFactory = dbContextFactory;
-            _importService = importService;
-            _parsingService = parsingService;
-            _configuration = configuration;
         }
 
         public async Task<List<PickingList>> GetAsync(int? branchId = null)
@@ -289,75 +280,6 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
         }
 
-        public async Task<int> UpsertFromParsedDataAsync(int branchId, PickingList parsedList, List<PickingListItem> parsedItems)
-        {
-            // Propagate the main ship date to all line items if it exists.
-            if (parsedList.ShipDate.HasValue)
-            {
-                foreach (var item in parsedItems)
-                {
-                    item.ScheduledShipDate = parsedList.ShipDate;
-                }
-            }
-
-            using var db = await _dbContextFactory.CreateDbContextAsync();
-
-            var existingList = await db.PickingLists
-                .Include(p => p.Items)
-                .FirstOrDefaultAsync(p => p.BranchId == branchId && p.SalesOrderNumber == parsedList.SalesOrderNumber);
-
-            if (existingList == null)
-            {
-                // Create new list
-                parsedList.BranchId = branchId;
-                parsedList.Status = PickingListStatus.Pending; // Or some other default
-                parsedList.Items = parsedItems;
-                db.PickingLists.Add(parsedList);
-            }
-            else
-            {
-                // Update existing list header by manually mapping properties
-                // This avoids trying to change the primary key, which causes an exception.
-                existingList.OrderDate = parsedList.OrderDate;
-                existingList.ShipDate = parsedList.ShipDate;
-                existingList.SoldTo = parsedList.SoldTo;
-                existingList.ShipTo = parsedList.ShipTo;
-                existingList.SalesRep = parsedList.SalesRep;
-                existingList.ShippingVia = parsedList.ShippingVia;
-                existingList.FOB = parsedList.FOB;
-                existingList.Buyer = parsedList.Buyer;
-                existingList.PrintDateTime = parsedList.PrintDateTime;
-                existingList.TotalWeight = parsedList.TotalWeight;
-                // We don't update BranchId or SalesOrderNumber as they are the keys for the lookup.
-
-                var existingItemsDict = existingList.Items.ToDictionary(i => (i.LineNumber, i.ItemId));
-                var parsedItemsDict = parsedItems.ToDictionary(i => (i.LineNumber, i.ItemId));
-
-                // Items to delete
-                var itemsToDelete = existingList.Items.Where(i => !parsedItemsDict.ContainsKey((i.LineNumber, i.ItemId))).ToList();
-                db.PickingListItems.RemoveRange(itemsToDelete);
-
-                foreach (var parsedItem in parsedItems)
-                {
-                    if (existingItemsDict.TryGetValue((parsedItem.LineNumber, parsedItem.ItemId), out var existingItem))
-                    {
-                        // Update existing item, preserving MachineId
-                        var originalMachineId = existingItem.MachineId;
-                        db.Entry(existingItem).CurrentValues.SetValues(parsedItem);
-                        existingItem.MachineId = originalMachineId;
-                    }
-                    else
-                    {
-                        // Add new item
-                        existingList.Items.Add(parsedItem);
-                    }
-                }
-            }
-
-            await db.SaveChangesAsync();
-            return existingList?.Id ?? parsedList.Id;
-        }
-
         public async Task UpdateMachineAssignmentsAsync(IEnumerable<PickingListItem> itemsToUpdate)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
@@ -370,41 +292,6 @@ namespace CMetalsWS.Services
                 }
             }
             await db.SaveChangesAsync();
-        }
-
-        public async Task ReParseAsync(int pickingListId)
-        {
-            var latestImport = await _importService.GetLatestImportByPickingListIdAsync(pickingListId);
-            if (latestImport == null || !System.IO.File.Exists(latestImport.SourcePdfPath))
-            {
-                throw new InvalidOperationException("Could not find the original PDF file to re-parse.");
-            }
-
-            var pickingList = await GetByIdAsync(pickingListId);
-            if (pickingList == null)
-            {
-                throw new InvalidOperationException($"Picking list with ID {pickingListId} not found.");
-            }
-
-            var importGuid = Guid.NewGuid();
-            var imagesDir = System.IO.Path.Combine("wwwroot", "uploads", "pickinglists", importGuid.ToString());
-            var newImport = await _importService.CreateImportAsync(pickingList.BranchId, latestImport.SourcePdfPath, imagesDir, _configuration.GetValue<string>("OpenAI:Model") ?? "gpt-4o-mini");
-
-            try
-            {
-                var imagePaths = await _parsingService.ConvertPdfToImagesAsync(latestImport.SourcePdfPath, importGuid);
-                var (parsedList, parsedItems) = await _parsingService.ParsePickingListAsync(imagePaths);
-
-                var newPickingListId = await UpsertFromParsedDataAsync(pickingList.BranchId, parsedList, parsedItems);
-
-                var rawJson = System.Text.Json.JsonSerializer.Serialize(new { header = parsedList, items = parsedItems });
-                await _importService.UpdateImportSuccessAsync(newImport.Id, newPickingListId, rawJson);
-            }
-            catch (Exception ex)
-            {
-                await _importService.UpdateImportFailedAsync(newImport.Id, ex.ToString());
-                throw; // Re-throw to notify the caller
-            }
         }
     }
 }

@@ -1,11 +1,12 @@
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 using CMetalsWS.Data;
 
 namespace CMetalsWS.Services
 {
     public interface IPdfParsingService
     {
-        Task<List<string>> ConvertPdfToImagesAsync(string sourcePdfPath, Guid importGuid);
-        Task<List<string>> ConvertPdfToImagesAsync(byte[] pdfBytes, Guid importGuid);
-        Task<(PickingList, List<PickingListItem>)> ParsePickingListAsync(IEnumerable<string> imagePaths);
+        Task<PickingList> ParseAsync(Stream pdfStream, string sourceFileName);
     }
 }

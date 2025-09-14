@@ -1,365 +1,213 @@
-#pragma warning disable OPENAI001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using CMetalsWS.Data;
-using CMetalsWS.Services.Json;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using PDFtoImage;
-using SkiaSharp;
+using UglyToad.PdfPig;
+using UglyToad.PdfPig.Content;
 
 namespace CMetalsWS.Services
 {
     public class PdfParsingService : IPdfParsingService
     {
         private readonly ILogger<PdfParsingService> _logger;
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IConfiguration _configuration;
 
-        private static readonly JsonSerializerOptions _jsonOptions = new()
-        {
-            PropertyNameCaseInsensitive = true,
-            ReadCommentHandling = JsonCommentHandling.Skip,
-            AllowTrailingCommas = true
-        };
-
-        static PdfParsingService()
-        {
-            _jsonOptions.Converters.Add(new FlexibleDateTimeConverter());
-        }
-
-        public PdfParsingService(ILogger<PdfParsingService> logger, IHttpClientFactory httpClientFactory, IConfiguration configuration)
+        public PdfParsingService(ILogger<PdfParsingService> logger)
         {
             _logger = logger;
-            _httpClientFactory = httpClientFactory;
-            _configuration = configuration;
         }
 
-        public async Task<List<string>> ConvertPdfToImagesAsync(string sourcePdfPath, Guid importGuid)
+        public async Task<PickingList> ParseAsync(Stream pdfStream, string sourceFileName)
         {
-            var fileInfo = new FileInfo(sourcePdfPath);
-            _logger.LogInformation("Reading PDF ({Len} bytes) from {Path} for conversion.", fileInfo.Length, sourcePdfPath);
-            var pdfBytes = await File.ReadAllBytesAsync(sourcePdfPath);
-            return await ConvertPdfToImagesAsync(pdfBytes, importGuid);
+            var text = new StringBuilder();
+            int pageCount = 0;
+            using (var pdf = PdfDocument.Open(pdfStream))
+            {
+                pageCount = pdf.NumberOfPages;
+                foreach (var page in pdf.GetPages())
+                {
+                    text.AppendLine(page.Text);
+                }
+            }
+
+            var fullText = text.ToString();
+
+            var salesOrderNumber = ExtractValue(fullText, @"PICKING\s*LIST\s*No\.?\s*(\d+)") ?? ExtractValue(fullText, @"\b\d{7,}\b");
+            if(salesOrderNumber == null)
+            {
+                throw new InvalidOperationException("Could not parse Sales Order Number.");
+            }
+
+            var pickingList = new PickingList
+            {
+                SalesOrderNumber = salesOrderNumber,
+                PageCount = pageCount,
+                Status = PickingListStatus.Pending,
+                Items = new List<PickingListItem>()
+            };
+
+            using (var sha256 = SHA256.Create())
+            {
+                var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(fullText));
+                pickingList.RawTextHash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+            }
+
+            // Header parsing
+            pickingList.PrintDateTime = ParseDate(ExtractValue(fullText, @"PRINT\s*DATE/TIME:\s*(\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)"));
+            pickingList.ShipDate = ParseDate(ExtractValue(fullText, @"SHIP\s*DATE[:\s]\s*(\d{1,2}/\d{1,2}/\d{4})"));
+            pickingList.OrderDate = ParseDate(ExtractValue(fullText, @"ORDER\s*DATE[:\s]?\s*(\d{1,2}/\d{1,2}/\d{4})"));
+            pickingList.Buyer = ExtractValue(fullText, @"BUYER:\s*(.*)");
+            pickingList.SalesRep = ExtractValue(fullText, @"SALES\s*REP:\s*(.*)");
+            pickingList.ShippingVia = ExtractValue(fullText, @"SHIP\s*VIA:\s*(.*)");
+            pickingList.FOB = ExtractValue(fullText, @"FOB\s*POINT:\s*(.*)");
+            pickingList.SoldTo = ExtractBlock(fullText, "SOLD TO:", "SHIP TO:");
+            pickingList.ShipTo = ExtractBlock(fullText, "SHIP TO:", "Line");
+            pickingList.ParseNotes = ExtractNotes(fullText);
+
+            // Line item parsing
+            var lines = fullText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            var lineItemRegex = new Regex(@"^\s*(\d{1,3})\s+.*$");
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                if (lineItemRegex.IsMatch(line))
+                {
+                    var item = ParseLineItem(line);
+                    if (item != null)
+                    {
+                        var notes = new List<string>();
+                        bool hasTagLots = false;
+                        for (int j = i + 1; j < lines.Length; j++)
+                        {
+                            var nextLine = lines[j].Trim();
+                            if (lineItemRegex.IsMatch(nextLine) ||
+                                nextLine.StartsWith("SOURCE:", StringComparison.OrdinalIgnoreCase) ||
+                                nextLine.StartsWith("TAG #", StringComparison.OrdinalIgnoreCase) ||
+                                nextLine.StartsWith("Other Reservations:", StringComparison.OrdinalIgnoreCase) ||
+                                nextLine.StartsWith("PULLED BY", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (nextLine.Contains("TAG #") && nextLine.Contains("HEAT #") && nextLine.Contains("MILL REF #"))
+                                {
+                                    item.HasTagLots = true;
+                                }
+                                break;
+                            }
+                            notes.Add(nextLine);
+                        }
+                        item.SalesNote = string.Join("\n", notes);
+                        pickingList.Items.Add(item);
+                    }
+                }
+            }
+
+            pickingList.HasParseIssues = pickingList.Items.Any(i => i.NeedsAttention);
+
+            return await Task.FromResult(pickingList);
         }
 
-        public async Task<List<string>> ConvertPdfToImagesAsync(byte[] pdfBytes, Guid importGuid)
+        private PickingListItem? ParseLineItem(string line)
         {
-            var imagePaths = new List<string>();
-            var outputDirectory = Path.Combine("wwwroot", "uploads", "pickinglists", importGuid.ToString());
-            Directory.CreateDirectory(outputDirectory);
-
             try
             {
-                _logger.LogInformation("Rendering PDF ({Len} bytes) to images.", pdfBytes.Length);
-                var images = await Task.Run(() => Conversion.ToImages(pdfBytes));
+                var lineItemRegex = new Regex(
+                    @"^\s*(?<LineNumber>\d{1,3})\s+" +
+                    @"(?<Quantity>[\d,]+\.?\d*)\s+" +
+                    @"(?<Unit>[A-Za-z]+)\s+" +
+                    @"(?:QTY\s+STAGED\s+_{5,}\s+)?" +
+                    @"(?<ItemId>[^\s]+)\s+" +
+                    @"(?<ItemDescription>.*?)\s+" +
+                    @"(?<Width>[\d\.,\""]+)\s+" +
+                    @"(?<Length>[\d\.,\""]*)\s+" +
+                    @"(?<Weight>[\d\.,\""]+)\s*$",
+                    RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-                int pageNum = 1;
-                foreach (var image in images.Take(5)) // Cap at 5 pages
+                var match = lineItemRegex.Match(line);
+                if (!match.Success) return null;
+
+                var item = new PickingListItem
                 {
-                    var imagePath = Path.Combine(outputDirectory, $"page-{pageNum}.jpeg");
-                    bool success = await ProcessAndSaveImageAsync(image, imagePath, pageNum);
-                    if (success)
-                    {
-                        imagePaths.Add(imagePath);
-                    }
-                    pageNum++;
+                    LineNumber = int.Parse(match.Groups["LineNumber"].Value),
+                    Quantity = ParseDecimal(match.Groups["Quantity"].Value) ?? 0,
+                    Unit = match.Groups["Unit"].Value.ToUpperInvariant(),
+                    ItemId = match.Groups["ItemId"].Value,
+                    ItemDescription = match.Groups["ItemDescription"].Value.Trim(),
+                    Width = ParseDecimal(match.Groups["Width"].Value),
+                    Length = ParseDecimal(match.Groups["Length"].Value),
+                    Weight = ParseDecimal(match.Groups["Weight"].Value)
+                };
+
+                if (item.Quantity == 0 || item.Width == 0 || item.Weight == 0)
+                {
+                    item.NeedsAttention = true;
                 }
 
-                _logger.LogInformation("Successfully processed and saved {PageCount} pages to {Directory}", imagePaths.Count, outputDirectory);
-                return imagePaths;
+                return item;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to convert PDF byte array to images.");
-                throw;
+                _logger.LogError(ex, "Failed to parse line item: {Line}", line);
+                return null;
             }
         }
 
-        private async Task<bool> ProcessAndSaveImageAsync(SKBitmap src, string outputPath, int pageNum)
+        private string? ExtractValue(string text, string pattern)
         {
-            const int maxDimension = 1600;
-            const long twoMB = 2 * 1024 * 1024;
+            var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
+            return match.Success ? match.Groups[1].Value.Trim() : null;
+        }
 
-            using var original = src; // own the incoming bitmap exactly once
-            SKBitmap? resized = null; // only dispose if we allocate it
-            SKBitmap img = original;
+        private string ExtractBlock(string text, string startToken, string endToken)
+        {
+            var startMatch = Regex.Match(text, Regex.Escape(startToken), RegexOptions.IgnoreCase);
+            if (!startMatch.Success) return "";
+            var startIndex = startMatch.Index + startMatch.Length;
 
-            try
+            var endMatch = Regex.Match(text, Regex.Escape(endToken), RegexOptions.IgnoreCase);
+            var endIndex = endMatch.Success ? endMatch.Index : text.Length;
+
+            return text.Substring(startIndex, endIndex - startIndex).Trim();
+        }
+
+        private string ExtractNotes(string text)
+        {
+            var notes = new List<string>();
+            var lines = text.Split('\n');
+            foreach(var line in lines)
             {
-                // Downscale if needed
-                if (original.Width > maxDimension || original.Height > maxDimension)
+                if (line.Trim().StartsWith("MAX SKID WEIGHT", StringComparison.OrdinalIgnoreCase) || line.Trim().StartsWith("RECEIVING HOURS", StringComparison.OrdinalIgnoreCase))
                 {
-                    var ratio = (double)maxDimension / Math.Max(original.Width, original.Height);
-                    var w = Math.Max(1, (int)Math.Round(original.Width * ratio));
-                    var h = Math.Max(1, (int)Math.Round(original.Height * ratio));
-
-                    // Prefer Resize (higher quality than ScalePixels on some builds)
-                    resized = original.Resize(new SKImageInfo(w, h), SKFilterQuality.High);
-                    if (resized != null)
-                    {
-                        img = resized;
-                        _logger.LogInformation("Downscaled page {PageNum} {OrigW}x{OrigH} → {W}x{H}",
-                            pageNum, original.Width, original.Height, w, h);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Resize failed on page {PageNum}; using original size.", pageNum);
-                    }
-                }
-
-                // Encode via SKImage (more consistent than SKBitmap.Encode)
-                using var ms = new MemoryStream();
-                EncodeJpeg(img, ms, quality: 80);
-                _logger.LogInformation("Page {PageNum} @q80 = {Bytes} bytes", pageNum, ms.Length);
-
-                if (ms.Length > twoMB)
-                {
-                    _logger.LogWarning("Page {PageNum} too large at q80; re-encoding q70.", pageNum);
-                    ms.SetLength(0);
-                    EncodeJpeg(img, ms, quality: 70);
-                    _logger.LogInformation("Page {PageNum} @q70 = {Bytes} bytes", pageNum, ms.Length);
-                }
-
-                if (ms.Length > twoMB)
-                {
-                    _logger.LogError("Page {PageNum} still >2MB after recompress; skipping.", pageNum);
-                    return false;
-                }
-
-                await File.WriteAllBytesAsync(outputPath, ms.ToArray());
-                return true;
-            }
-            finally
-            {
-                resized?.Dispose();
-            }
-
-            static void EncodeJpeg(SKBitmap bmp, Stream dest, int quality)
-            {
-                using var img = SKImage.FromBitmap(bmp);
-                using var data = img.Encode(SKEncodedImageFormat.Jpeg, quality);
-                data.SaveTo(dest);
-            }
-        }
-
-        public async Task<(PickingList, List<PickingListItem>)> ParsePickingListAsync(IEnumerable<string> imagePaths)
-        {
-            if (!imagePaths.Any())
-            {
-                throw new ArgumentException("At least one image path is required for parsing.", nameof(imagePaths));
-            }
-
-            var header = await ParseHeaderAsync(imagePaths.First());
-            var lineItems = await ParseLineItemsAsync(imagePaths);
-
-            return (header, lineItems);
-        }
-
-        private async Task<PickingList> ParseHeaderAsync(string imagePath)
-        {
-            var prompt = @"Return ONLY a JSON object with the fields: { ""salesOrderNumber"": string, ""orderDate"": ""yyyy-MM-dd"", ""shipDate"": ""yyyy-MM-dd"", ""soldTo"": string, ""shipTo"": ""Extract the COMPLETE multi-line shipping address as a single string, including street, city, state, and zip code. Preserve line breaks with \\n."", ""salesRep"": string, ""shippingVia"": string, ""fob"": string, ""buyer"": string|null, ""printDateTime"": ""yyyy-MM-dd HH:mm:ss"", ""totalWeight"": number }. Use exactly those formats. If seconds are unknown, use :00.";
-            var json = await GetJsonFromVisionAsync(new[] { imagePath }, prompt, enforceJsonObject: true);
-
-            var parsedHeader = JsonSerializer.Deserialize<PickingListHeaderDto>(json, _jsonOptions);
-            if (parsedHeader == null)
-            {
-                throw new InvalidOperationException("Failed to deserialize header from OpenAI response.");
-            }
-
-            return new PickingList
-            {
-                SalesOrderNumber = parsedHeader.SalesOrderNumber,
-                OrderDate = parsedHeader.OrderDate,
-                ShipDate = parsedHeader.ShipDate,
-                SoldTo = parsedHeader.SoldTo,
-                ShipTo = parsedHeader.ShipTo,
-                SalesRep = parsedHeader.SalesRep,
-                ShippingVia = parsedHeader.ShippingVia,
-                FOB = parsedHeader.FOB,
-                Buyer = parsedHeader.Buyer,
-                PrintDateTime = parsedHeader.PrintDateTime,
-                TotalWeight = parsedHeader.TotalWeight
-            };
-        }
-
-        private async Task<List<PickingListItem>> ParseLineItemsAsync(IEnumerable<string> imagePaths)
-        {
-            var prompt = @"Return ONLY a JSON array of line items: [ { ""lineNumber"": int, ""quantity"": number, ""itemId"": string, ""itemDescription"": string, ""itemDescription"": string, ""width"": number|string, ""length"": number|string, ""weight"": number, ""unit"": string } ]";
-            var json = await GetJsonFromVisionAsync(imagePaths, prompt);
-
-            var dtos = JsonSerializer.Deserialize<List<PickingListItemDto>>(json, _jsonOptions);
-            if (dtos == null)
-            {
-                return new List<PickingListItem>();
-            }
-
-            return dtos.Select(dto => new PickingListItem
-            {
-                LineNumber = dto.LineNumber,
-                Quantity = dto.Quantity,
-                ItemId = dto.ItemId,
-                ItemDescription = dto.ItemDescription,
-                Width = NormalizeDimension(dto.Width),
-                Length = NormalizeDimension(dto.Length),
-                Weight = dto.Weight,
-                Unit = string.IsNullOrWhiteSpace(dto.Unit) ? "EA" : dto.Unit
-            }).ToList();
-        }
-
-        private async Task<string> GetJsonFromVisionAsync(IEnumerable<string> imagePaths, string prompt, bool enforceJsonObject = false)
-        {
-            var paths = imagePaths.Where(File.Exists).Take(5).ToList();
-            if (paths.Count == 0) throw new FileNotFoundException("No valid image paths provided for vision parsing.");
-
-            var apiKey = _configuration["OpenAI:ApiKey"];
-            var model = _configuration["OpenAI:Model"] ?? "gpt-4o-mini";
-
-            var contentParts = new List<OpenAiContentPart> { new OpenAiTextContentPart("text", prompt) };
-            foreach (var path in paths)
-            {
-                var dataUrl = await BuildDataUrlAsync(path);
-                contentParts.Add(new OpenAiImageUrlContentPart("image_url", new OpenAiImageUrl(dataUrl)));
-            }
-
-            var messages = new object[]
-            {
-                new { role = "system", content = "Return strictly valid JSON. No prose." },
-                new { role = "user", content = contentParts }
-            };
-
-            var payload = new Dictionary<string, object>
-            {
-                { "model", model },
-                { "messages", messages },
-                { "temperature", 0 },
-                { "max_tokens", 4000 }
-            };
-
-            if (enforceJsonObject)
-            {
-                payload["response_format"] = new { type = "json_object" };
-            }
-
-            var httpClient = _httpClientFactory.CreateClient("OpenAI");
-            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-            httpClient.DefaultRequestHeaders.Accept.Clear();
-            httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-            var requestBody = JsonSerializer.Serialize(payload);
-            _logger.LogDebug("OpenAI payload bytes: {Len}", Encoding.UTF8.GetByteCount(requestBody));
-            var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
-
-            var response = await httpClient.PostAsync("v1/chat/completions", content);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorBody = await response.Content.ReadAsStringAsync();
-                _logger.LogError("OpenAI API request failed with status {StatusCode}: {ErrorBody}", response.StatusCode, errorBody);
-                response.EnsureSuccessStatusCode(); // Throws HttpRequestException
-            }
-
-            var responseBody = await response.Content.ReadAsStringAsync();
-            var openAiResponse = JsonSerializer.Deserialize<OpenAiResponse>(responseBody);
-
-            var text = openAiResponse?.Choices?.FirstOrDefault()?.Message?.Content?.Trim() ?? "";
-            var json = TrimToJson(text);
-
-            if (string.IsNullOrWhiteSpace(json))
-            {
-                throw new InvalidOperationException("Model did not return valid JSON.");
-            }
-
-            return json;
-        }
-
-        private async Task<string> BuildDataUrlAsync(string path)
-        {
-            var bytes = await File.ReadAllBytesAsync(path);
-            var b64 = Convert.ToBase64String(bytes);
-            return $"data:image/jpeg;base64,{b64}";
-        }
-
-        // DTOs for serializing the request and deserializing the raw OpenAI API response
-        [JsonDerivedType(typeof(OpenAiTextContentPart))]
-        [JsonDerivedType(typeof(OpenAiImageUrlContentPart))]
-        private abstract record OpenAiContentPart([property: JsonPropertyName("type")] string Type);
-        private record OpenAiTextContentPart(string Type, [property: JsonPropertyName("text")] string Text) : OpenAiContentPart(Type);
-        private record OpenAiImageUrlContentPart(string Type, [property: JsonPropertyName("image_url")] OpenAiImageUrl ImageUrl) : OpenAiContentPart(Type);
-        private record OpenAiImageUrl([property: JsonPropertyName("url")] string Url);
-
-        private record OpenAiResponse([property: JsonPropertyName("choices")] List<OpenAiChoice> Choices);
-        private record OpenAiChoice([property: JsonPropertyName("message")] OpenAiMessage Message);
-        private record OpenAiMessage([property: JsonPropertyName("content")] string Content);
-
-        private string TrimToJson(string s)
-        {
-            int objStart = s.IndexOf('{');
-            int objEnd = s.LastIndexOf('}');
-            int arrStart = s.IndexOf('[');
-            int arrEnd = s.LastIndexOf(']');
-
-            if (arrStart >= 0 && arrEnd > arrStart)
-            {
-                return s.Substring(arrStart, arrEnd - arrStart + 1);
-            }
-
-            if (objStart >= 0 && objEnd > objStart)
-            {
-                return s.Substring(objStart, objEnd - objStart + 1);
-            }
-
-            throw new InvalidOperationException("No JSON found in model output.");
-        }
-
-        private decimal? NormalizeDimension(object? dimension)
-        {
-            if (dimension == null) return null;
-
-            if (dimension is decimal d) return d;
-            if (dimension is JsonElement je)
-            {
-                if (je.ValueKind == JsonValueKind.Number) return je.GetDecimal();
-                if (je.ValueKind == JsonValueKind.String)
-                {
-                    var s = je.GetString();
-                    if (s == null) return null;
-                    return ParseDimensionString(s);
+                    notes.Add(line.Trim());
                 }
             }
-
-            return ParseDimensionString(dimension.ToString());
+            return string.Join("\n", notes);
         }
 
-        private decimal? ParseDimensionString(string? s)
+        private DateTime? ParseDate(string? dateStr)
         {
-            if (string.IsNullOrWhiteSpace(s)) return null;
+            if (string.IsNullOrEmpty(dateStr)) return null;
+            if (DateTime.TryParse(dateStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+            {
+                return date;
+            }
+            return null;
+        }
 
-            var cleaned = s
-              .Replace("\"", "")
-              .Replace("inch", "", StringComparison.OrdinalIgnoreCase)
-              .Replace("in.", "", StringComparison.OrdinalIgnoreCase)
-              .Replace("in", "", StringComparison.OrdinalIgnoreCase)
-              .Replace("-", " ")
-              .Trim();
-
-            // Remove thousands separators, keep dot for decimals
-            cleaned = cleaned.Replace(",", "");
-
-            return decimal.TryParse(cleaned, System.Globalization.NumberStyles.Float,
-                                    System.Globalization.CultureInfo.InvariantCulture, out var d)
-                   ? Math.Round(d, 3)
-                   : (decimal?)null;
+        private decimal? ParseDecimal(string? decStr)
+        {
+            if (string.IsNullOrWhiteSpace(decStr)) return null;
+            var cleaned = decStr.Replace("\"", "").Replace(",", "").Trim();
+            if (decimal.TryParse(cleaned, NumberStyles.Any, CultureInfo.InvariantCulture, out var result))
+            {
+                return Math.Round(result, 3);
+            }
+            return null;
         }
     }
 }
