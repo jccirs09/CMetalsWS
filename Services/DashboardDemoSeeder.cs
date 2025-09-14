@@ -1,6 +1,5 @@
 using CMetalsWS.Configuration;
 using CMetalsWS.Data;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System;
@@ -14,53 +13,29 @@ namespace CMetalsWS.Services
     {
         private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
         private readonly IOptions<DashboardSettings> _settings;
-        private readonly UserManager<ApplicationUser> _userManager;
-        private readonly RoleManager<ApplicationRole> _roleManager;
 
-        public DashboardDemoSeeder(
-            IDbContextFactory<ApplicationDbContext> contextFactory,
-            IOptions<DashboardSettings> settings,
-            UserManager<ApplicationUser> userManager,
-            RoleManager<ApplicationRole> roleManager)
+        public DashboardDemoSeeder(IDbContextFactory<ApplicationDbContext> contextFactory, IOptions<DashboardSettings> settings)
         {
             _contextFactory = contextFactory;
             _settings = settings;
-            _userManager = userManager;
-            _roleManager = roleManager;
         }
 
         public async Task SeedAsync()
         {
             using var context = await _contextFactory.CreateDbContextAsync();
 
-            // For this demo, we'll start with a clean slate on each run to ensure consistency.
-            await context.Database.EnsureDeletedAsync();
-            await context.Database.MigrateAsync();
-
-            // Seed the essential Admin role and user, as they are needed by the seeder logic.
-            const string adminRoleName = "Admin";
-            if (!await _roleManager.RoleExistsAsync(adminRoleName))
+            // Seeding should be idempotent. If we already have one of our demo machines, we assume the DB is seeded.
+            if (await context.Machines.AnyAsync(m => m.Name == "CTL Line 1"))
             {
-                await _roleManager.CreateAsync(new ApplicationRole { Name = adminRoleName, Description = "Administrator" });
-            }
-
-            var adminUser = await _userManager.FindByNameAsync("admin");
-            if (adminUser == null)
-            {
-                adminUser = new ApplicationUser { UserName = "admin", Email = "admin@example.com", EmailConfirmed = true };
-                var result = await _userManager.CreateAsync(adminUser, "Admin123!");
-                if (result.Succeeded)
-                {
-                    await _userManager.AddToRoleAsync(adminUser, adminRoleName);
-                }
+                return;
             }
 
             var branch = await context.Branches.FirstOrDefaultAsync(b => b.Name == "Surrey");
             if (branch == null)
             {
-                branch = new Branch { Name = "Surrey", Code = "SUR" };
-                context.Branches.Add(branch);
-                await context.SaveChangesAsync();
+                // If the main seeder hasn't run, we can't continue.
+                // This seeder depends on the IdentityDataSeeder running first.
+                return;
             }
 
             var machines = new List<Machine>
@@ -127,13 +102,12 @@ namespace CMetalsWS.Services
 
             if (_settings.Value.PullingEnabled)
             {
-                // This is a simplified representation. A real seeder would be more complex.
                 var pickingList = new PickingList { SalesOrderNumber = "PULL-DEMO-20250913", BranchId = branch.Id, Status = PickingListStatus.InProgress };
                 context.PickingLists.Add(pickingList);
                 await context.SaveChangesAsync();
 
                 var user1 = await context.Users.FirstOrDefaultAsync(u => u.Email.Contains("admin"));
-                if (user1 == null) { /* In a real app, create a demo user */ return; }
+                if (user1 == null) { return; }
 
                 var pullingTasks = new List<PickingListItem>
                 {

@@ -118,6 +118,7 @@ builder.Services.AddScoped<TruckService>();
 builder.Services.AddScoped<PickingListService>();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<ItemRelationshipService>();
+builder.Services.AddTransient<IdentityDataSeeder>();
 builder.Services.AddTransient<DashboardDemoSeeder>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<LoadService>();
@@ -153,11 +154,18 @@ builder.Services.AddSignalR(options =>
 
 var app = builder.Build();
 
-// Seed demo data for the dashboard
+// Seed roles, permission claims, and admin user
 using (var scope = app.Services.CreateScope())
 {
-    var dashboardSeeder = scope.ServiceProvider.GetRequiredService<DashboardDemoSeeder>();
-    await dashboardSeeder.SeedAsync();
+    var identitySeeder = scope.ServiceProvider.GetRequiredService<IdentityDataSeeder>();
+    await identitySeeder.SeedAsync();
+
+    if (app.Environment.IsDevelopment())
+    {
+        // Seed demo data for the dashboard only in development
+        var dashboardSeeder = scope.ServiceProvider.GetRequiredService<DashboardDemoSeeder>();
+        await dashboardSeeder.SeedAsync();
+    }
 }
 
 // Pipeline
