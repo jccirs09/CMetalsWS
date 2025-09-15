@@ -386,14 +386,12 @@ namespace CMetalsWS.Services
                 throw new InvalidOperationException($"Picking list with ID {pickingListId} not found.");
             }
 
-            var importGuid = Guid.NewGuid();
-            var imagesDir = System.IO.Path.Combine("wwwroot", "uploads", "pickinglists", importGuid.ToString());
-            var newImport = await _importService.CreateImportAsync(pickingList.BranchId, latestImport.SourcePdfPath, imagesDir, _configuration.GetValue<string>("OpenAI:Model") ?? "gpt-4o-mini");
+            var newImport = await _importService.CreateImportAsync(pickingList.BranchId, latestImport.SourcePdfPath, "", "PdfPig");
 
             try
             {
-                var imagePaths = await _parsingService.ConvertPdfToImagesAsync(latestImport.SourcePdfPath, importGuid);
-                var (parsedList, parsedItems) = await _parsingService.ParsePickingListAsync(imagePaths);
+                var pdfBytes = await File.ReadAllBytesAsync(latestImport.SourcePdfPath);
+                var (parsedList, parsedItems) = await _parsingService.ParsePickingListAsync(pdfBytes);
 
                 var newPickingListId = await UpsertFromParsedDataAsync(pickingList.BranchId, parsedList, parsedItems);
 
