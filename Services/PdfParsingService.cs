@@ -16,18 +16,14 @@ namespace CMetalsWS.Services
     public class PdfParsingService : IPdfParsingService
     {
         private readonly ILogger<PdfParsingService> _logger;
-
-        public PdfParsingService(ILogger<PdfParsingService> logger)
-        {
-            _logger = logger;
-        }
+        public PdfParsingService(ILogger<PdfParsingService> logger) => _logger = logger;
 
         public Task<(PickingList, List<PickingListItem>)> ParsePickingListAsync(byte[] pdfBytes)
         {
             using var doc = PdfDocument.Open(pdfBytes);
 
             var header = ParseHeader(doc);
-            var items  = ParseLineItems(doc);
+            var items = ParseLineItems(doc);
 
             if (header.TotalWeight == 0 && items.Any(i => i.Weight.HasValue))
                 header.TotalWeight = items.Where(i => i.Weight.HasValue).Sum(i => i.Weight!.Value);
@@ -40,31 +36,26 @@ namespace CMetalsWS.Services
         {
             if (string.IsNullOrEmpty(s)) return string.Empty;
             s = s.Trim();
-            if (s.EndsWith(":", StringComparison.Ordinal))
-                s = s.Substring(0, s.Length - 1);
+            if (s.EndsWith(":", StringComparison.Ordinal)) s = s.Substring(0, s.Length - 1);
             return s.ToUpperInvariant();
         }
 
         private static bool HasAnyLetter(string s)
         {
-            for (int i = 0; i < s.Length; i++)
-                if (char.IsLetter(s[i])) return true;
+            for (int i = 0; i < s.Length; i++) if (char.IsLetter(s[i])) return true;
             return false;
         }
 
         private static decimal? ParseDecimalLoose(string s)
         {
             if (string.IsNullOrWhiteSpace(s)) return null;
-
             var sb = new StringBuilder(s.Length);
             for (int i = 0; i < s.Length; i++)
             {
                 var c = s[i];
-                if ((c >= '0' && c <= '9') || c == '.' || c == '-')
-                    sb.Append(c);
+                if ((c >= '0' && c <= '9') || c == '.' || c == '-') sb.Append(c);
             }
             if (sb.Length == 0) return null;
-
             if (decimal.TryParse(sb.ToString(),
                                  NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
                                  CultureInfo.InvariantCulture,
@@ -81,18 +72,27 @@ namespace CMetalsWS.Services
             return null;
         }
 
-        private static string JoinRaw(IEnumerable<string> tokens)
+        private static string JoinRaw(IEnumerable<string> parts)
         {
             var sb = new StringBuilder();
             bool first = true;
-            foreach (var t in tokens)
+            foreach (var p in parts)
             {
-                if (string.IsNullOrEmpty(t)) continue;
+                if (string.IsNullOrEmpty(p)) continue;
                 if (!first) sb.Append(' ');
-                sb.Append(t);
+                sb.Append(p);
                 first = false;
             }
             return sb.ToString();
+        }
+
+        // return multi-line address text
+        private static string CombineAddress(string sameLine, string below)
+        {
+            if (string.IsNullOrWhiteSpace(sameLine) && string.IsNullOrWhiteSpace(below)) return null;
+            if (string.IsNullOrWhiteSpace(sameLine)) return below.Trim();
+            if (string.IsNullOrWhiteSpace(below)) return sameLine.Trim();
+            return $"{sameLine.Trim()}\n{below.Trim()}";
         }
 
         // -------------------- page → lines model --------------------
@@ -112,20 +112,14 @@ namespace CMetalsWS.Services
             public double Y;
             private string[] _normTokensCache;
 
-            public L(List<W> words, double y)
-            {
-                Words = words;
-                Y = y;
-            }
-
-            public string RawLineText { get { return JoinRaw(Words.Select(w => w.Raw)); } }
+            public L(List<W> words, double y) { Words = words; Y = y; }
+            public string RawLineText => JoinRaw(Words.Select(w => w.Raw));
 
             public string[] NormTokens
             {
                 get
                 {
-                    if (_normTokensCache == null)
-                        _normTokensCache = Words.Select(w => w.Norm).ToArray();
+                    if (_normTokensCache == null) _normTokensCache = Words.Select(w => w.Norm).ToArray();
                     return _normTokensCache;
                 }
             }
@@ -134,278 +128,262 @@ namespace CMetalsWS.Services
         /// Lines are sorted top→bottom (PDF Y desc). Larger index == lower on page.
         private static List<L> GetLines(Page page, double yTol = 1.6)
         {
-            var words = page.GetWords().ToList(); // materialize for Count/2nd pass
-
+            var words = page.GetWords().ToList();
             var list = new List<W>(Math.Max(16, words.Count));
             foreach (var w in words)
             {
-                var box = w.BoundingBox;
-                var cent = box.Centroid;
-                list.Add(new W
-                {
-                    Word = w,
-                    Raw  = w.Text,
-                    Norm = NormToken(w.Text),
-                    X    = cent.X,
-                    Y    = cent.Y,
-                    Box  = box
-                });
+                var b = w.BoundingBox;
+                var c = b.Centroid;
+                list.Add(new W { Word = w, Raw = w.Text, Norm = NormToken(w.Text), X = c.X, Y = c.Y, Box = b });
             }
 
-            var lines = list
-                .GroupBy(w => Math.Round(w.Y / yTol) * yTol)
-                .OrderByDescending(g => g.Key) // top first
-                .Select(g => new L(g.OrderBy(x => x.X).ToList(), g.Key))
-                .ToList();
-
-            return lines;
+            return list.GroupBy(w => Math.Round(w.Y / yTol) * yTol)
+                       .OrderByDescending(g => g.Key)
+                       .Select(g => new L(g.OrderBy(x => x.X).ToList(), g.Key))
+                       .ToList();
         }
 
-        // -------------------- label finders & readers --------------------
-        private static (int lineIndex, PdfRectangle box)? FindLabelBox(List<L> lines, params string[] aliases)
+        // -------------------- label helpers --------------------
+        private static readonly string[] LabelPhrases =
         {
-            for (int i = 0; i < lines.Count; i++)
+            "SOLD TO","SHIP TO","SALES REP","SALESPERSON","SHIP VIA","SHIPPING VIA",
+            "ORDER DATE","SHIP DATE","FOB","FOB POINT","TOTAL WEIGHT","TOTAL WT",
+            "PRINT DATE/TIME","PRINT DATE","PRINTED","BUYER","PICKING GROUP","ROUTE","MILL CERTS"
+        };
+
+        private static readonly HashSet<string> StopTokens = new(StringComparer.Ordinal)
+        {
+            "LINE","QUANTITY","QTY","QTY STAGED","DESCRIPTION","ITEM","WIDTH","LENGTH","WEIGHT","UNIT","UOM",
+            "RECEIVING","HOURS","DELIVERED","TERMS","MAX","SKID","ROUTE","MILL","CERTS",
+            "SOURCE","TAG","HEAT","PULLED","BY","TOTAL","WT",
+            "SOLD","TO","SHIP","VIA","SALES","REP","ORDER","DATE","FOB","PRINT","PRINTED","BUYER","PURCHASE"
+        };
+
+        private static bool TryFindPhraseOnLine(L line, string phrase, out PdfRectangle box, out int startIdx)
+        {
+            startIdx = -1;
+            box = default;
+            var parts = phrase.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                              .Select(NormToken).ToArray();
+            if (parts.Length == 0) return false;
+
+            var toks = line.NormTokens;
+            for (int i = 0; i <= toks.Length - parts.Length; i++)
             {
-                var line = lines[i];
-                var tokens = line.NormTokens;
+                bool ok = true;
+                for (int k = 0; k < parts.Length; k++)
+                    if (!toks[i + k].Equals(parts[k], StringComparison.Ordinal)) { ok = false; break; }
 
-                for (int a = 0; a < aliases.Length; a++)
+                if (!ok) continue;
+
+                var b = line.Words[i].Box;
+                for (int k = 1; k < parts.Length; k++)
                 {
-                    var parts = aliases[a]
-                        .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
-                        .Select(s => NormToken(s))
-                        .ToArray();
-                    if (parts.Length == 0) continue;
+                    var nb = line.Words[i + k].Box;
+                    b = new PdfRectangle(Math.Min(b.Left, nb.Left), Math.Min(b.Bottom, nb.Bottom),
+                                         Math.Max(b.Right, nb.Right), Math.Max(b.Top, nb.Top));
+                }
+                startIdx = i; box = b; return true;
+            }
+            return false;
+        }
 
-                    for (int start = 0; start <= tokens.Length - parts.Length; start++)
-                    {
-                        bool match = true;
-                        for (int k = 0; k < parts.Length; k++)
-                        {
-                            if (!tokens[start + k].Equals(parts[k], StringComparison.Ordinal))
-                            {
-                                match = false;
-                                break;
-                            }
-                        }
-                        if (!match) continue;
-
-                        // union box
-                        var first = line.Words[start].Box;
-                        var box = first;
-                        for (int k = 1; k < parts.Length; k++)
-                        {
-                            var next = line.Words[start + k].Box;
-                            box = new PdfRectangle(
-                                Math.Min(box.Left, next.Left),
-                                Math.Min(box.Bottom, next.Bottom),
-                                Math.Max(box.Right, next.Right),
-                                Math.Max(box.Top, next.Top));
-                        }
-                        return (i, box);
-                    }
+        private static double? NextLabelRightOnSameLine(L line, PdfRectangle currentLabelBox)
+        {
+            double? best = null;
+            foreach (var phrase in LabelPhrases)
+            {
+                if (TryFindPhraseOnLine(line, phrase, out var b, out _))
+                {
+                    if (b.Left > currentLabelBox.Right + 0.5)
+                        if (best == null || b.Left < best.Value) best = b.Left;
                 }
             }
-            return null;
+            return best;
         }
 
-        private static string SameLineRightText(L line, PdfRectangle labelBox, double gapX, double maxX)
+        private static string ReadRightSameLineClamped(L line, PdfRectangle labelBox, double defaultMaxWidth = 360)
         {
-            var seq = line.Words.Where(w => w.Box.Left > labelBox.Right + gapX &&
-                                            w.Box.Left < labelBox.Right + maxX)
+            var stopX = NextLabelRightOnSameLine(line, labelBox);
+            double right = stopX.HasValue ? stopX.Value - 0.75 : (labelBox.Left + defaultMaxWidth);
+            var seq = line.Words.Where(w => w.Box.Left > labelBox.Right + 0.4 && w.X <= right)
                                 .Select(w => w.Raw);
             return JoinRaw(seq);
         }
 
-        /// simple span reader for a single line
-        private static string ReadSpan(L line, double left, double right)
-        {
-            var seq = line.Words.Where(w => w.X >= left && w.X <= right).Select(w => w.Raw);
-            return JoinRaw(seq);
-        }
-
-        private static readonly HashSet<string> StopTokens = new HashSet<string>(StringComparer.Ordinal)
-        {
-            // table headers
-            "LINE","QUANTITY","QTY","QTY STAGED","DESCRIPTION","ITEM","WIDTH","LENGTH","WEIGHT","UNIT","UOM",
-            // boilerplate / notes
-            "RECEIVING","HOURS","DELIVERED","TERMS","MAX","SKID","ROUTE","MILL","CERTS","SOURCE","TAG","HEAT","PULLED","BY","TOTAL","WT",
-            // other header labels
-            "SOLD","TO","SHIP","VIA","SALES","REP","ORDER","DATE","FOB","PRINT","PRINTED","BUYER","PURCHASE"
-        };
-
-        /// <summary>
-        /// Read up to <paramref name="maxLines"/> lines *below* the label (lower on page).
-        /// </summary>
-        private static string BlockBelow(List<L> lines, int labelLineIndex, PdfRectangle labelBox,
-                                         int maxLines, double leftPad, double rightPad)
+        /// Read up to maxLines below label (stopping at labels/table header). Returns multi-line string.
+        private static string BlockBelowClamped(List<L> lines, int labelLineIndex, PdfRectangle labelBox,
+                                               int maxLines, int tableHeaderIndex,
+                                               double leftPad = -2, double defaultRight = 420)
         {
             if (labelLineIndex < 0 || labelLineIndex >= lines.Count) return null;
 
             double left = labelBox.Left + leftPad;
-            double right = labelBox.Left + rightPad;
+            double right = labelBox.Left + defaultRight;
+
+            var nextX = NextLabelRightOnSameLine(lines[labelLineIndex], labelBox);
+            if (nextX.HasValue) right = Math.Min(right, nextX.Value - 0.75);
 
             var kept = new List<string>(maxLines);
 
-            // below == larger index.
             for (int i = labelLineIndex + 1; i < lines.Count && kept.Count < maxLines; i++)
             {
+                if (tableHeaderIndex >= 0 && i >= tableHeaderIndex) break;
+
                 var line = lines[i];
 
-                // stop on header-ish lines
-                var toks = line.NormTokens;
-                for (int t = 0; t < toks.Length; t++)
-                    if (StopTokens.Contains(toks[t])) goto Done;
+                foreach (var phrase in LabelPhrases)
+                    if (TryFindPhraseOnLine(line, phrase, out _, out _)) goto Done;
 
                 var seg = line.Words.Where(w => w.X >= left && w.X <= right).Select(w => w.Raw);
                 var text = JoinRaw(seg).Trim();
                 if (text.Length == 0) continue;
+
+                if (line.NormTokens.Any(t => StopTokens.Contains(t))) break;
+
                 kept.Add(text);
             }
         Done:
             if (kept.Count == 0) return null;
-            return JoinRaw(kept);
+            return string.Join("\n", kept);         // <<< multi-line return
         }
 
-        /// Read a 3-column grid row (labels) and take values from the very next line
-        private static bool TryReadGridRow3(Page page, List<L> lines,
-                                            string[] c1Labels, string[] c2Labels, string[] c3Labels,
-                                            out string v1, out string v2, out string v3)
+        // -------------------- table header helpers --------------------
+        private enum Col { Line, Qty, QtyStaged, Description, Width, Length, Weight, Unit }
+
+        private static readonly string[][] HeaderAliases =
         {
-            v1 = v2 = v3 = null;
+            new [] { "LINE" },
+            new [] { "QUANTITY", "QTY" },
+            new [] { "QTY STAGED", "QTY_STAGED", "STAGED" },
+            new [] { "DESCRIPTION", "ITEM", "ITEM DESCRIPTION" },
+            new [] { "WIDTH" },
+            new [] { "LENGTH" },
+            new [] { "WEIGHT", "WT", "LBS" },
+            new [] { "UNIT", "UOM" }
+        };
 
-            var b1 = FindLabelBox(lines, c1Labels);
-            var b2 = FindLabelBox(lines, c2Labels);
-            var b3 = FindLabelBox(lines, c3Labels);
-            if (b1 == null || b2 == null || b3 == null) return false;
-
-            var li = b1.Value.lineIndex;
-            if (b2.Value.lineIndex != li || b3.Value.lineIndex != li) return false;
-            if (li + 1 >= lines.Count) return false;
-
-            var boxes = new List<(int idx, PdfRectangle box)>
+        private static int FindTableHeaderIndex(List<L> lines)
+        {
+            for (int i = 0; i < lines.Count; i++)
             {
-                (0, b1.Value.box), (1, b2.Value.box), (2, b3.Value.box)
-            };
-            boxes.Sort((a, b) => a.box.Left.CompareTo(b.box.Left));
-
-            double left0  = 0;
-            double mid01  = (boxes[0].box.Right + boxes[1].box.Left) / 2.0;
-            double mid12  = (boxes[1].box.Right + boxes[2].box.Left) / 2.0;
-            double right2 = page.Width;
-
-            var next = lines[li + 1];
-            var s0 = ReadSpan(next, left0, mid01);
-            var s1 = ReadSpan(next, mid01, mid12);
-            var s2 = ReadSpan(next, mid12, right2);
-
-            var arr = new[] { s0, s1, s2 };
-            // map back to original order
-            var map = new string[3];
-            for (int i = 0; i < 3; i++)
-            {
-                int pos = boxes.FindIndex(b => b.idx == i);
-                map[i] = arr[pos];
+                var t = lines[i].NormTokens;
+                bool hasLine = false, hasDesc = false;
+                for (int k = 0; k < t.Length; k++)
+                {
+                    if (t[k] == "LINE") hasLine = true;
+                    if (t[k] == "DESCRIPTION" || t[k] == "ITEM") hasDesc = true;
+                }
+                if (hasLine && hasDesc) return i;
             }
-            v1 = map[0];
-            v2 = map[1];
-            v3 = map[2];
-            return true;
+            return -1;
         }
 
         // -------------------- header parsing --------------------
         private PickingList ParseHeader(PdfDocument doc)
         {
-            var page  = doc.GetPage(1);
+            var page = doc.GetPage(1);
             var lines = GetLines(page);
+            var tableHeaderIdx = FindTableHeaderIndex(lines);
 
-            // Simple labels (addresses)
-            var soldToLbl    = FindLabelBox(lines, "SOLD TO");
-            var shipToLbl    = FindLabelBox(lines, "SHIP TO");
-            var fobLbl       = FindLabelBox(lines, "FOB", "FOB POINT");
-            var printLbl     = FindLabelBox(lines, "PRINT DATE/TIME", "PRINT DATE", "PRINTED");
-            var totWtLbl     = FindLabelBox(lines, "TOTAL WEIGHT", "TOTAL WT");
+            // Prefer the more specific label first
+            var soldToLbl = FindLabelBox(lines, "SOLD TO");
+            var shipToLbl = FindLabelBox(lines, "SHIP TO");
+            var fobLbl = FindLabelBox(lines, "FOB POINT", "FOB");
+            var ordLbl = FindLabelBox(lines, "ORDER DATE");
+            var shipDateLbl = FindLabelBox(lines, "SHIP DATE");
+            var salesLbl = FindLabelBox(lines, "SALES REP", "SALESPERSON");
+            var shipViaLbl = FindLabelBox(lines, "SHIP VIA", "SHIPPING VIA");
+            var totWtLbl = FindLabelBox(lines, "TOTAL WEIGHT", "TOTAL WT");
+            var printLbl = FindLabelBox(lines, "PRINT DATE/TIME", "PRINT DATE", "PRINTED");
 
-            var soldTo = soldToLbl != null ? BlockBelow(lines, soldToLbl.Value.lineIndex, soldToLbl.Value.box, 3, -2, 340) : null;
-            var shipTo = shipToLbl != null ? BlockBelow(lines, shipToLbl.Value.lineIndex, shipToLbl.Value.box, 3, -2, 340) : null;
-
-            // Grid rows:
-            //   [JOB NAME | SALES REP | SHIP VIA] -> read next line (SalesRep, ShipVia)
-            string jobName = null, salesRep = null, shipVia = null;
-            TryReadGridRow3(page, lines,
-                new[] { "JOB NAME" }, new[] { "SALES REP", "SALESPERSON" }, new[] { "SHIP VIA", "SHIPPING VIA" },
-                out jobName, out salesRep, out shipVia);
-
-            //   [PICKING GROUP | BUYER | SHIP DATE] -> next line (ShipDate)
-            string grp = null, buyerGrid = null, shipDateGrid = null;
-            TryReadGridRow3(page, lines,
-                new[] { "PICKING GROUP" }, new[] { "BUYER" }, new[] { "SHIP DATE" },
-                out grp, out buyerGrid, out shipDateGrid);
-
-            // ORDER DATE: label appears on a different line; its value is on the next line (same column)
-            var orderDateLbl = FindLabelBox(lines, "ORDER DATE");
-            string orderDateText = null;
-            if (orderDateLbl != null)
+            string ReadSameOrBelow((int lineIndex, PdfRectangle box)? lbl, double maxW = 320)
             {
-                // prefer the next line in the same horizontal band as the label
-                if (orderDateLbl.Value.lineIndex + 1 < lines.Count)
-                {
-                    var next = lines[orderDateLbl.Value.lineIndex + 1];
-                    // read a narrow span under the label to avoid picking other columns
-                    orderDateText = ReadSpan(next, orderDateLbl.Value.box.Left - 5, orderDateLbl.Value.box.Left + 260);
-                }
-                // fallback: scan a small block below
-                if (string.IsNullOrWhiteSpace(orderDateText))
-                    orderDateText = BlockBelow(lines, orderDateLbl.Value.lineIndex, orderDateLbl.Value.box, 1, -2, 260);
+                if (lbl == null) return null;
+                var same = ReadRightSameLineClamped(lines[lbl.Value.lineIndex], lbl.Value.box, maxW);
+                if (!string.IsNullOrWhiteSpace(same)) return same.Trim();
+                var below = BlockBelowClamped(lines, lbl.Value.lineIndex, lbl.Value.box, 1, tableHeaderIdx, -2, maxW);
+                return string.IsNullOrWhiteSpace(below) ? null : below.Trim();
             }
 
-            // FOB on same line or below
-            var fob = fobLbl != null
-                ? (SameLineRightText(lines[fobLbl.Value.lineIndex], fobLbl.Value.box, 0.5, 300)
-                   ?? BlockBelow(lines, fobLbl.Value.lineIndex, fobLbl.Value.box, 1, -2, 300))
-                : null;
+            // Addresses
+            string soldTo = null;
+            if (soldToLbl != null)
+            {
+                var same = ReadRightSameLineClamped(lines[soldToLbl.Value.lineIndex], soldToLbl.Value.box, 420);
+                var below = BlockBelowClamped(lines, soldToLbl.Value.lineIndex, soldToLbl.Value.box, 5, tableHeaderIdx, -2, 420);
+                soldTo = CombineAddress(same, below);
+            }
 
-            // Print date/time
-            var print = printLbl != null
-                ? (SameLineRightText(lines[printLbl.Value.lineIndex], printLbl.Value.box, 0.5, 300)
-                   ?? BlockBelow(lines, printLbl.Value.lineIndex, printLbl.Value.box, 1, -2, 300))
-                : null;
+            string shipTo = null;
+            if (shipToLbl != null)
+            {
+                var same = ReadRightSameLineClamped(lines[shipToLbl.Value.lineIndex], shipToLbl.Value.box, 420);
+                var below = BlockBelowClamped(lines, shipToLbl.Value.lineIndex, shipToLbl.Value.box, 5, tableHeaderIdx, -2, 420);
+                shipTo = CombineAddress(same, below);
+            }
 
-            // Total weight
+            // Sales rep / ship via / dates
+            var salesRep = ReadSameOrBelow(salesLbl);
+            var shipVia = ReadSameOrBelow(shipViaLbl);
+            var orderDateText = ReadSameOrBelow(ordLbl, 260);
+            var shipDateText = ReadSameOrBelow(shipDateLbl, 260);
+
+            // FOB (prefer below)
+            string fob = null;
+            if (fobLbl != null)
+            {
+                fob = BlockBelowClamped(lines, fobLbl.Value.lineIndex, fobLbl.Value.box, 1, tableHeaderIdx, -2, 260)
+                      ?? ReadRightSameLineClamped(lines[fobLbl.Value.lineIndex], fobLbl.Value.box, 260);
+                if (!string.IsNullOrWhiteSpace(fob)) fob = fob.Trim();
+            }
+
+            // Print and total
+            string print = ReadSameOrBelow(printLbl, 260);
+
             decimal totalWeight = 0m;
             if (totWtLbl != null)
             {
-                var s = SameLineRightText(lines[totWtLbl.Value.lineIndex], totWtLbl.Value.box, 0.5, 200)
-                        ?? BlockBelow(lines, totWtLbl.Value.lineIndex, totWtLbl.Value.box, 1, -2, 200);
-                if (!string.IsNullOrWhiteSpace(s))
-                    totalWeight = ParseDecimalLoose(s) ?? 0m;
+                var s = ReadSameOrBelow(totWtLbl, 220);
+                if (!string.IsNullOrWhiteSpace(s)) totalWeight = ParseDecimalLoose(s) ?? 0m;
             }
 
             var list = new PickingList
             {
-                // SalesOrderNumber maps to Picking List No.
                 SalesOrderNumber = ExtractPickingListNumberFast(lines) ?? string.Empty,
-                OrderDate        = ParseDateLoose(orderDateText ?? string.Empty),
-                ShipDate         = ParseDateLoose(shipDateGrid ?? string.Empty),
-                SoldTo           = soldTo,
-                ShipTo           = shipTo,
-                SalesRep         = string.IsNullOrWhiteSpace(salesRep) ? null : salesRep.Trim(),
-                ShippingVia      = string.IsNullOrWhiteSpace(shipVia) ? null : shipVia.Trim(),
-                FOB              = fob,
-                Buyer            = string.IsNullOrWhiteSpace(buyerGrid) ? null : buyerGrid.Trim(),
-                PrintDateTime    = ParseDateLoose(print ?? string.Empty),
-                TotalWeight      = totalWeight
+                OrderDate = ParseDateLoose(orderDateText ?? string.Empty),
+                ShipDate = ParseDateLoose(shipDateText ?? string.Empty),
+                SoldTo = string.IsNullOrWhiteSpace(soldTo) ? null : soldTo.Trim(),
+                ShipTo = string.IsNullOrWhiteSpace(shipTo) ? null : shipTo.Trim(),
+                SalesRep = string.IsNullOrWhiteSpace(salesRep) ? null : salesRep.Trim(),
+                ShippingVia = string.IsNullOrWhiteSpace(shipVia) ? null : shipVia.Trim(),
+                FOB = string.IsNullOrWhiteSpace(fob) ? null : fob.Trim(),
+                Buyer = null,
+                PrintDateTime = ParseDateLoose(print ?? string.Empty),
+                TotalWeight = totalWeight
             };
 
             if (string.IsNullOrWhiteSpace(list.SalesOrderNumber))
             {
-                // top-band fallback (first ~6 lines)
                 var top = string.Join(" ", lines.Take(6).Select(l => l.RawLineText));
                 var m = Regex.Match(top, @"\b\d{6,}\b");
                 if (m.Success) list.SalesOrderNumber = m.Value;
             }
 
             return list;
+        }
+
+        private static (int lineIndex, PdfRectangle box)? FindLabelBox(List<L> lines, params string[] aliases)
+        {
+            for (int i = 0; i < lines.Count; i++)
+            {
+                foreach (var alias in aliases)
+                {
+                    if (TryFindPhraseOnLine(lines[i], alias, out var b, out _))
+                        return (i, b);
+                }
+            }
+            return null;
         }
 
         private static string ExtractPickingListNumberFast(List<L> lines)
@@ -417,44 +395,25 @@ namespace CMetalsWS.Services
 
             if (label != null)
             {
-                var same = SameLineRightText(lines[label.Value.lineIndex], label.Value.box, 0.5, 300);
+                var same = ReadRightSameLineClamped(lines[label.Value.lineIndex], label.Value.box, 300);
                 if (!string.IsNullOrWhiteSpace(same))
                 {
                     var m1 = Regex.Match(same, @"\b\d{5,}\b");
                     if (m1.Success) return m1.Value;
                 }
 
-                var below = BlockBelow(lines, label.Value.lineIndex, label.Value.box, 1, -2, 300);
+                var below = BlockBelowClamped(lines, label.Value.lineIndex, label.Value.box, 1, int.MaxValue, -2, 300);
                 if (!string.IsNullOrWhiteSpace(below))
                 {
                     var m2 = Regex.Match(below, @"\b\d{5,}\b");
                     if (m2.Success) return m2.Value;
                 }
-
-                var rightSide = lines[label.Value.lineIndex].Words
-                    .Where(w => w.X > label.Value.box.Right && w.X < label.Value.box.Right + 320)
-                    .Select(w => w.Raw);
-                var local = JoinRaw(rightSide);
-                var m3 = Regex.Match(local, @"\b\d{5,}\b");
-                if (m3.Success) return m3.Value;
             }
             return null;
         }
 
         // -------------------- table parsing --------------------
-        private enum Col { Line, Qty, QtyStaged, Description, Width, Length, Weight, Unit }
-
-        private static readonly string[][] HeaderAliases =
-        {
-            new [] { "LINE" },
-            new [] { "QUANTITY", "QTY" },
-            new [] { "QTY STAGED", "QTY_STAGED", "STAGED" }, // helper only
-            new [] { "DESCRIPTION", "ITEM", "ITEM DESCRIPTION" },
-            new [] { "WIDTH" },
-            new [] { "LENGTH" },
-            new [] { "WEIGHT", "WT", "LBS" },
-            new [] { "UNIT", "UOM" }
-        };
+       
 
         private sealed class Spans
         {
@@ -479,40 +438,35 @@ namespace CMetalsWS.Services
 
                 var colX = new List<(Col col, double x)>();
 
-                Action<Col, string[]> tryAdd = (c, aliases) =>
+                void tryAdd(Col c, string[] aliases)
                 {
                     for (int i = 0; i < line.Words.Count; i++)
                     {
                         var w = line.Words[i];
                         for (int a = 0; a < aliases.Length; a++)
                         {
-                            if (w.Norm == NormToken(aliases[a]))
-                            {
-                                colX.Add((c, w.Box.Left));
-                                return;
-                            }
+                            if (w.Norm == NormToken(aliases[a])) { colX.Add((c, w.Box.Left)); return; }
                         }
                     }
-                };
+                }
 
-                tryAdd(Col.Line,        HeaderAliases[(int)Col.Line]);
-                tryAdd(Col.Qty,         HeaderAliases[(int)Col.Qty]);
-                tryAdd(Col.QtyStaged,   HeaderAliases[(int)Col.QtyStaged]);
+                tryAdd(Col.Line, HeaderAliases[(int)Col.Line]);
+                tryAdd(Col.Qty, HeaderAliases[(int)Col.Qty]);
+                tryAdd(Col.QtyStaged, HeaderAliases[(int)Col.QtyStaged]);
                 tryAdd(Col.Description, HeaderAliases[(int)Col.Description]);
-                tryAdd(Col.Width,       HeaderAliases[(int)Col.Width]);
-                tryAdd(Col.Length,      HeaderAliases[(int)Col.Length]);
-                tryAdd(Col.Weight,      HeaderAliases[(int)Col.Weight]);
-                tryAdd(Col.Unit,        HeaderAliases[(int)Col.Unit]);
+                tryAdd(Col.Width, HeaderAliases[(int)Col.Width]);
+                tryAdd(Col.Length, HeaderAliases[(int)Col.Length]);
+                tryAdd(Col.Weight, HeaderAliases[(int)Col.Weight]);
+                tryAdd(Col.Unit, HeaderAliases[(int)Col.Unit]);
 
-                if (!colX.Any(c => c.col == Col.Line) || !colX.Any(c => c.col == Col.Description))
-                    continue;
+                if (!colX.Any(c => c.col == Col.Line) || !colX.Any(c => c.col == Col.Description)) continue;
 
                 colX.Sort((a, b) => a.x.CompareTo(b.x));
 
                 var spans = new Spans();
                 for (int i = 0; i < colX.Count; i++)
                 {
-                    double left  = (i == 0) ? 0 : (colX[i - 1].x + colX[i].x) / 2.0;
+                    double left = (i == 0) ? 0 : (colX[i - 1].x + colX[i].x) / 2.0;
                     double right = (i == colX.Count - 1) ? page.Width : (colX[i].x + colX[i + 1].x) / 2.0;
                     spans.Map[colX[i].col] = (left, right);
                 }
@@ -534,8 +488,7 @@ namespace CMetalsWS.Services
             foreach (var p in parts)
             {
                 bool alpha = true;
-                for (int i = 0; i < p.Length; i++)
-                    if (!char.IsLetter(p[i])) { alpha = false; break; }
+                for (int i = 0; i < p.Length; i++) if (!char.IsLetter(p[i])) { alpha = false; break; }
 
                 if (alpha && p.Length <= 6) return p.ToUpperInvariant(); // EA, PCS, LBS, etc.
             }
@@ -552,39 +505,23 @@ namespace CMetalsWS.Services
                 var spans = BuildSpansFromHeader(page, lines);
                 if (spans == null) continue;
 
-                // find header line index
-                int headIdx = -1;
-                for (int i = 0; i < lines.Count; i++)
-                {
-                    var t = lines[i].NormTokens;
-                    bool hasLine = false, hasDesc = false;
-                    for (int k = 0; k < t.Length; k++)
-                    {
-                        if (t[k] == "LINE") hasLine = true;
-                        if (t[k] == "DESCRIPTION" || t[k] == "ITEM") hasDesc = true;
-                    }
-                    if (hasLine && hasDesc) { headIdx = i; break; }
-                }
+                int headIdx = FindTableHeaderIndex(lines);
                 if (headIdx < 0) continue;
 
-                // iterate rows below header (larger index)
                 for (int i = headIdx + 1; i < lines.Count; i++)
                 {
                     var line = lines[i];
 
                     var lineCell = spans.Map.ContainsKey(Col.Line) ? ReadSpanText(line, spans.Map[Col.Line]) : null;
-                    int lineNo;
-                    if (!int.TryParse(lineCell != null ? lineCell.Trim() : null, out lineNo) || lineNo <= 0)
-                        continue;
+                    if (!int.TryParse(lineCell?.Trim(), out var lineNo) || lineNo <= 0) continue;
 
-                    var qtyCell   = spans.Map.ContainsKey(Col.Qty)         ? ReadSpanText(line, spans.Map[Col.Qty])         : null;
-                    var unitCell  = spans.Map.ContainsKey(Col.Unit)        ? ReadSpanText(line, spans.Map[Col.Unit])        : null;
-                    var descCell  = spans.Map.ContainsKey(Col.Description) ? ReadSpanText(line, spans.Map[Col.Description]) : null;
-                    var widthCell = spans.Map.ContainsKey(Col.Width)       ? ReadSpanText(line, spans.Map[Col.Width])       : null;
-                    var lenCell   = spans.Map.ContainsKey(Col.Length)      ? ReadSpanText(line, spans.Map[Col.Length])      : null;
-                    var wtCell    = spans.Map.ContainsKey(Col.Weight)      ? ReadSpanText(line, spans.Map[Col.Weight])      : null;
+                    var qtyCell = spans.Map.ContainsKey(Col.Qty) ? ReadSpanText(line, spans.Map[Col.Qty]) : null;
+                    var unitCell = spans.Map.ContainsKey(Col.Unit) ? ReadSpanText(line, spans.Map[Col.Unit]) : null;
+                    var descCell = spans.Map.ContainsKey(Col.Description) ? ReadSpanText(line, spans.Map[Col.Description]) : null;
+                    var widthCell = spans.Map.ContainsKey(Col.Width) ? ReadSpanText(line, spans.Map[Col.Width]) : null;
+                    var lenCell = spans.Map.ContainsKey(Col.Length) ? ReadSpanText(line, spans.Map[Col.Length]) : null;
+                    var wtCell = spans.Map.ContainsKey(Col.Weight) ? ReadSpanText(line, spans.Map[Col.Weight]) : null;
 
-                    // quantity + unit
                     decimal qty = 0m;
                     if (!string.IsNullOrWhiteSpace(qtyCell))
                     {
@@ -597,30 +534,28 @@ namespace CMetalsWS.Services
                     }
                     var unit = ExtractUnitToken(unitCell) ?? ExtractUnitToken(qtyCell) ?? "EA";
 
-                    // pick human description from the next non-line-number row (usually the very next row)
                     string longDesc = null;
                     if (i + 1 < lines.Count)
                     {
                         var next = lines[i + 1];
-                        string nextLineCell = spans.Map.ContainsKey(Col.Line) ? ReadSpanText(next, spans.Map[Col.Line]) : null;
-                        int dummy;
-                        if (!int.TryParse(nextLineCell != null ? nextLineCell.Trim() : null, out dummy))
+                        var nextLineCell = spans.Map.ContainsKey(Col.Line) ? ReadSpanText(next, spans.Map[Col.Line]) : null;
+                        if (!int.TryParse(nextLineCell?.Trim(), out _))
                         {
-                            string d = spans.Map.ContainsKey(Col.Description) ? ReadSpanText(next, spans.Map[Col.Description]) : null;
+                            var d = spans.Map.ContainsKey(Col.Description) ? ReadSpanText(next, spans.Map[Col.Description]) : null;
                             if (!string.IsNullOrWhiteSpace(d) && HasAnyLetter(d)) longDesc = d;
                         }
                     }
 
                     items.Add(new PickingListItem
                     {
-                        LineNumber      = lineNo,
-                        Quantity        = qty,
-                        Unit            = unit,
-                        ItemId          = ExtractItemId(descCell) ?? "UNKNOWN",
+                        LineNumber = lineNo,
+                        Quantity = qty,
+                        Unit = unit,
+                        ItemId = ExtractItemId(descCell) ?? "UNKNOWN",
                         ItemDescription = (longDesc ?? (descCell ?? string.Empty)).Trim(),
-                        Width           = widthCell != null ? ParseDecimalLoose(widthCell) : null,
-                        Length          = lenCell   != null ? ParseDecimalLoose(lenCell)   : null,
-                        Weight          = wtCell    != null ? ParseDecimalLoose(wtCell)    : null
+                        Width = widthCell != null ? ParseDecimalLoose(widthCell) : null,
+                        Length = lenCell != null ? ParseDecimalLoose(lenCell) : null,
+                        Weight = wtCell != null ? ParseDecimalLoose(wtCell) : null
                     });
                 }
             }
@@ -631,7 +566,6 @@ namespace CMetalsWS.Services
         private static string ExtractItemId(string descCell)
         {
             if (string.IsNullOrWhiteSpace(descCell)) return null;
-            // capture token containing digits (PPS2435, 3PVC, PP2448BWB, PP2448IO/C)
             var m = Regex.Match(descCell, @"\b([A-Z0-9]+[A-Z0-9/]*[A-Z0-9])\b");
             if (m.Success && m.Value.Any(char.IsDigit)) return m.Value;
             return null;

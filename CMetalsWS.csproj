@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="CMetalsWS.Tests\**" />
+    <Compile Remove="CMetalsWS.Tests/**" />
   </ItemGroup>
 
 </Project>

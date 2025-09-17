@@ -44,35 +44,47 @@ else
     <!-- Header Section -->
     <MudPaper Class="pa-4 mb-4">
         <MudGrid Spacing="2">
-            <MudItem xs="6" sm="3">
+            <MudItem xs="12" sm="6" md="3">
                 <MudText Typo="Typo.caption" Style="font-weight: bold;">SOLD TO</MudText>
-                <MudText Typo="Typo.body2">@_list.SoldTo</MudText>
+                <MudText Typo="Typo.body2" Style="white-space:pre-line; word-break:break-word;">
+                    @Display(_list.SoldTo)
+                </MudText>
             </MudItem>
-            <MudItem xs="6" sm="3">
+
+            <MudItem xs="12" sm="6" md="3">
                 <MudText Typo="Typo.caption" Style="font-weight: bold;">SHIP TO</MudText>
-                <MudText Typo="Typo.body2" Style="white-space: pre-wrap;">@_list.ShipTo</MudText>
+                <MudText Typo="Typo.body2" Style="white-space:pre-line; word-break:break-word;">
+                    @Display(_list.ShipTo)
+                </MudText>
             </MudItem>
-            <MudItem xs="6" sm="3">
+
+            <MudItem xs="6" sm="3" md="2">
                 <MudText Typo="Typo.caption" Style="font-weight: bold;">ORDER DATE</MudText>
-                <MudText Typo="Typo.body2">@_list.OrderDate?.ToShortDateString()</MudText>
+                <MudText Typo="Typo.body2">@(_list.OrderDate?.ToShortDateString() ?? "—")</MudText>
             </MudItem>
-            <MudItem xs="6" sm="3">
+
+            <MudItem xs="6" sm="3" md="2">
                 <MudText Typo="Typo.caption" Style="font-weight: bold;">SHIP DATE</MudText>
-                <MudText Typo="Typo.body2">@_list.ShipDate?.ToShortDateString()</MudText>
+                <MudText Typo="Typo.body2">@(_list.ShipDate?.ToShortDateString() ?? "—")</MudText>
             </MudItem>
-             <MudItem xs="6" sm="3">
+
+            <MudItem xs="6" sm="3" md="2">
                 <MudText Typo="Typo.caption" Style="font-weight: bold;">SALES REP</MudText>
-                <MudText Typo="Typo.body2">@_list.SalesRep</MudText>
+                <MudText Typo="Typo.body2">@Display(_list.SalesRep)</MudText>
             </MudItem>
-            <MudItem xs="6" sm="3">
+
+            <!-- You said Ship Via is assigned later; keep it visible for reference but optional -->
+            <MudItem xs="6" sm="3" md="2">
                 <MudText Typo="Typo.caption" Style="font-weight: bold;">SHIP VIA</MudText>
-                <MudText Typo="Typo.body2">@_list.ShippingVia</MudText>
+                <MudText Typo="Typo.body2">@Display(_list.ShippingVia)</MudText>
             </MudItem>
-            <MudItem xs="6" sm="3">
+
+            <MudItem xs="6" sm="3" md="2">
                 <MudText Typo="Typo.caption" Style="font-weight: bold;">FOB</MudText>
-                <MudText Typo="Typo.body2">@_list.FOB</MudText>
+                <MudText Typo="Typo.body2">@Display(_list.FOB)</MudText>
             </MudItem>
-            <MudItem xs="6" sm="3">
+
+            <MudItem xs="6" sm="3" md="2">
                 <MudText Typo="Typo.caption" Style="font-weight: bold;">TOTAL WEIGHT</MudText>
                 <MudText Typo="Typo.body2">@_list.TotalWeight.ToString("N3")</MudText>
             </MudItem>
@@ -175,7 +187,6 @@ else
 
             var newListId = _list.Id;
             ParsingStateService.Clear();
-            // Navigate to the standard editor for the newly created list
             NavManager.NavigateTo($"/picking-lists/{newListId}");
         }
         catch (Exception ex)
@@ -200,13 +211,9 @@ else
     }
 
     private string FormatDimension(object? dimension)
-    {
-        if (dimension is decimal d)
-        {
-            return d.ToString("N3");
-        }
-        return dimension?.ToString() ?? string.Empty;
-    }
+        => dimension is decimal d ? d.ToString("N3") : (dimension?.ToString() ?? string.Empty);
+
+    private string Display(string? s) => string.IsNullOrWhiteSpace(s) ? "—" : s;
 
     private void Cancel()
     {
@@ -216,7 +223,6 @@ else
 
     public void Dispose()
     {
-        // This is a good place to clear state if the user navigates away without saving.
         ParsingStateService.Clear();
     }
 }
