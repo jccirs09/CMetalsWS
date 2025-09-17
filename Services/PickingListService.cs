@@ -323,8 +323,6 @@ namespace CMetalsWS.Services
                 existingList.SoldTo = parsedList.SoldTo;
                 existingList.ShipTo = parsedList.ShipTo;
                 existingList.SalesRep = parsedList.SalesRep;
-                existingList.ShippingVia = parsedList.ShippingVia;
-                existingList.FOB = parsedList.FOB;
                 existingList.Buyer = parsedList.Buyer;
                 existingList.PrintDateTime = parsedList.PrintDateTime;
                 existingList.TotalWeight = parsedList.TotalWeight;
