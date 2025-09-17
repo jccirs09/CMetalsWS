@@ -143,6 +143,7 @@ else
     private HashSet<PickingListItem> _selectedItems = new();
     private int? _bulkAssignMachineId;
     private bool _isProcessing = false;
+    private bool _shouldRedirect = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -150,7 +151,7 @@ else
         if (_list == null || ParsingStateService.ParsedItems == null)
         {
             Snackbar.Add("No parsing data found. Please upload a new PDF.", Severity.Error);
-            NavManager.NavigateTo("/picking-lists/upload");
+            _shouldRedirect = true;
             return;
         }
         _list.Items = ParsingStateService.ParsedItems;
@@ -158,6 +159,14 @@ else
         var allMachines = await MachineService.GetMachinesAsync();
         _machines = allMachines.Where(m => m.BranchId == _list.BranchId).ToList();
         _destinationRegions = await DestinationRegionService.GetDestinationRegionsAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _shouldRedirect)
+        {
+            NavManager.NavigateTo("/picking-lists/upload");
+        }
     }
 
     private async Task SaveChanges()
