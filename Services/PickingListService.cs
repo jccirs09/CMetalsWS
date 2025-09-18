@@ -424,7 +424,7 @@ namespace CMetalsWS.Services
                 listA.ShipTo?.Trim() != listB.ShipTo?.Trim() ||
                 listA.OrderDate?.Date != listB.OrderDate?.Date ||
                 listA.ShipDate?.Date != listB.ShipDate?.Date ||
-                Math.Abs((listA.TotalWeight ?? 0) - (listB.TotalWeight ?? 0)) > 0.001m)
+                Math.Abs(listA.TotalWeight - listB.TotalWeight) > 0.001m)
             {
                 return false;
             }
@@ -446,7 +446,7 @@ namespace CMetalsWS.Services
                 if (itemA.LineNumber != itemB.LineNumber ||
                     itemA.ItemId != itemB.ItemId ||
                     itemA.ItemDescription?.Trim() != itemB.ItemDescription?.Trim() ||
-                    itemA.Quantity != itemB.Quantity ||
+                    Math.Abs(itemA.Quantity - itemB.Quantity) > 0.001m ||
                     itemA.Unit?.Trim() != itemB.Unit?.Trim() ||
                     itemA.Width != itemB.Width ||
                     itemA.Length != itemB.Length ||
