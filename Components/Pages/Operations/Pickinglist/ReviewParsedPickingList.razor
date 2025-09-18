@@ -157,6 +157,7 @@ else
     private bool _isLoading = true;
     private string _loadingMessage = "Loading review data...";
     private string? _userId;
+    private bool _shouldRedirectToUpload = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -166,7 +167,7 @@ else
         if (_list == null || ParsingStateService.ParsedItems == null || _userId == null)
         {
             Snackbar.Add("No parsing data found. Please upload a new PDF.", Severity.Error);
-            NavManager.NavigateTo("/picking-lists/upload");
+            _shouldRedirectToUpload = true;
             return;
         }
         _list.Items = ParsingStateService.ParsedItems;
@@ -204,6 +205,14 @@ else
         _machines = allMachines.Where(m => m.BranchId == _list.BranchId).ToList();
         _destinationRegions = await DestinationRegionService.GetDestinationRegionsAsync();
         _isLoading = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _shouldRedirectToUpload)
+        {
+            NavManager.NavigateTo("/picking-lists/upload");
+        }
     }
 
     private async Task ShowNoChangesDialog()
