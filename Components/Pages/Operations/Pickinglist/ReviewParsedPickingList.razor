@@ -205,9 +205,8 @@ else
     {
         var parameters = new DialogParameters
         {
-            ["ContentText"] = "The uploaded picking list already exists and has no changes.",
-            ["ButtonText"] = "OK",
-            ["Color"] = Color.Primary
+            ["Message"] = "The uploaded picking list already exists and has no changes.",
+            ["YesText"] = "OK"
         };
 
         var dialog = DialogService.Show<MudMessageBox>("No Changes Detected", parameters);
