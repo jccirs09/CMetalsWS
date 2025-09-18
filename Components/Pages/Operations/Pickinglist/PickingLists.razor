@@ -339,6 +339,10 @@
             Status = src.Status,
             TotalWeight = src.TotalWeight,
             RemainingWeight = src.RemainingWeight,
+            ScannedById = src.ScannedById,
+            ScannedDate = src.ScannedDate,
+            ModifiedById = src.ModifiedById,
+            ModifiedDate = src.ModifiedDate,
             Items = src.Items.Select(i => new PickingListItem
             {
                 Id = i.Id,

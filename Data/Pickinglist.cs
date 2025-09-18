@@ -53,7 +53,7 @@ namespace CMetalsWS.Data
 
         // Audit fields
         public DateTime ScannedDate { get; set; }
-        public required string ScannedById { get; set; }
+        public string ScannedById { get; set; } = null!;
         public virtual ApplicationUser ScannedBy { get; set; } = null!;
 
         public DateTime? ModifiedDate { get; set; }
