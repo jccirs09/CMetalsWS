@@ -356,8 +356,6 @@ namespace CMetalsWS.Services
                 SoldTo = string.IsNullOrWhiteSpace(soldTo) ? null : soldTo.Trim(),
                 ShipTo = string.IsNullOrWhiteSpace(shipTo) ? null : shipTo.Trim(),
                 SalesRep = string.IsNullOrWhiteSpace(salesRep) ? null : salesRep.Trim(),
-                ShippingVia = string.IsNullOrWhiteSpace(shipVia) ? null : shipVia.Trim(),
-                FOB = string.IsNullOrWhiteSpace(fob) ? null : fob.Trim(),
                 Buyer = null,
                 PrintDateTime = ParseDateLoose(print ?? string.Empty),
                 TotalWeight = totalWeight

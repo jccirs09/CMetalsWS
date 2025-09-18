@@ -1,14 +1,25 @@
+## Visual Studio cache files
+[Bb]in/
+[Oo]bj/
 .vs/
-bin/
-obj/
-out/
 *.user
 *.suo
 *.userosscache
+
+# Logs
 *.log
 
 # User-specific settings
-appsettings.Development.json
+appsettings.json
+appsettings.*.json
 
-.dotnet/
+# Environment variables
 .env
+
+# Rider
+.idea/
+*.sln.iml
+
+# Tools
+.dotnet/
+*.deb

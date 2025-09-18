@@ -26,12 +26,6 @@ namespace CMetalsWS.Data
         public string? SalesRep { get; set; }
 
         [MaxLength(128)]
-        public string? ShippingVia { get; set; }
-
-        [MaxLength(128)]
-        public string? FOB { get; set; }
-
-        [MaxLength(128)]
         public string? Buyer { get; set; }
         public DateTime? PrintDateTime { get; set; }
 
@@ -42,6 +36,8 @@ namespace CMetalsWS.Data
 
         public int? CustomerId { get; set; }
         public virtual Customer? Customer { get; set; }
+        public int? DestinationRegionId { get; set; }
+        public virtual DestinationRegion? DestinationRegion { get; set; }
 
         // Totals
         [Precision(18, 3)]

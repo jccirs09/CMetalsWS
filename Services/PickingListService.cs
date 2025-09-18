@@ -323,8 +323,7 @@ namespace CMetalsWS.Services
                 existingList.SoldTo = parsedList.SoldTo;
                 existingList.ShipTo = parsedList.ShipTo;
                 existingList.SalesRep = parsedList.SalesRep;
-                existingList.ShippingVia = parsedList.ShippingVia;
-                existingList.FOB = parsedList.FOB;
+                existingList.DestinationRegionId = parsedList.DestinationRegionId;
                 existingList.Buyer = parsedList.Buyer;
                 existingList.PrintDateTime = parsedList.PrintDateTime;
                 existingList.TotalWeight = parsedList.TotalWeight;
@@ -341,10 +340,17 @@ namespace CMetalsWS.Services
                 {
                     if (existingItemsDict.TryGetValue((parsedItem.LineNumber, parsedItem.ItemId), out var existingItem))
                     {
-                        // Update existing item, preserving MachineId
-                        var originalMachineId = existingItem.MachineId;
-                        db.Entry(existingItem).CurrentValues.SetValues(parsedItem);
-                        existingItem.MachineId = originalMachineId;
+                        // Update existing item, preserving MachineId and Id
+                        existingItem.LineNumber = parsedItem.LineNumber;
+                        existingItem.ItemId = parsedItem.ItemId;
+                        existingItem.ItemDescription = parsedItem.ItemDescription;
+                        existingItem.Quantity = parsedItem.Quantity;
+                        existingItem.Unit = parsedItem.Unit;
+                        existingItem.Width = parsedItem.Width;
+                        existingItem.Length = parsedItem.Length;
+                        existingItem.Weight = parsedItem.Weight;
+                        existingItem.Status = parsedItem.Status;
+                        existingItem.ScheduledShipDate = parsedItem.ScheduledShipDate;
                     }
                     else
                     {
