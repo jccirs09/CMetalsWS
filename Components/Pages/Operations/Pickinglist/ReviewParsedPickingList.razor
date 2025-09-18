@@ -15,6 +15,7 @@
 @inject NavigationManager NavManager
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject CustomerService CustomerService
 
 @if (_isLoading)
 {
@@ -221,12 +222,15 @@ else
     private async Task SaveChanges()
     {
         if (_list == null) return;
-
         _isProcessing = true;
+        StateHasChanged();
+
+        string? customerNameToCreate = null;
 
         if (!string.IsNullOrWhiteSpace(_list.SoldTo))
         {
             var customer = await DbContext.Customers
+                .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.CustomerName.ToLower() == _list.SoldTo.ToLower());
 
             if (customer != null)
@@ -235,7 +239,33 @@ else
             }
             else
             {
-                Snackbar.Add($"Warning: Customer '{_list.SoldTo}' not found. No customer ID will be linked.", Severity.Warning);
+                bool? createCustomer = await DialogService.ShowMessageBox(
+                    "Customer Not Found",
+                    $"Customer '{_list.SoldTo}' was not found. Would you like to create a new customer?",
+                    yesText: "Create New Customer",
+                    cancelText: "Save Without Linking");
+
+                if (createCustomer == true)
+                {
+                    customerNameToCreate = _list.SoldTo;
+                }
+            }
+        }
+
+        if (customerNameToCreate != null)
+        {
+            var newCustomer = await OpenCreateCustomerDialog(customerNameToCreate);
+            if (newCustomer != null)
+            {
+                _list.CustomerId = newCustomer.Id;
+                Snackbar.Add($"Customer '{newCustomer.CustomerName}' created and linked.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Save operation cancelled.", Severity.Info);
+                _isProcessing = false;
+                StateHasChanged();
+                return;
             }
         }
 
@@ -243,7 +273,6 @@ else
         {
             await PickingListService.UpsertFromParsedDataAsync(_list.BranchId, _userId, _list, _list.Items.ToList());
             Snackbar.Add("Picking list saved successfully.", Severity.Success);
-
             ParsingStateService.Clear();
             NavManager.NavigateTo("/picking-lists/upload");
         }
@@ -254,7 +283,39 @@ else
         finally
         {
             _isProcessing = false;
+            StateHasChanged();
         }
+    }
+
+    private async Task<Customer?> OpenCreateCustomerDialog(string customerName)
+    {
+        var newCustomer = new Customer
+        {
+            CustomerName = customerName,
+            Active = true
+        };
+
+        var parameters = new DialogParameters { ["Customer"] = newCustomer, ["IsNew"] = true };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = DialogService.Show<EditCustomerDialog>("Create New Customer", parameters, options);
+
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is Customer createdCustomer)
+        {
+            try
+            {
+                await CustomerService.CreateCustomerAsync(createdCustomer);
+                return createdCustomer;
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to create customer: {ex.Message}", Severity.Error);
+                return null;
+            }
+        }
+
+        return null;
     }
 
     private void OnMachineChanged(PickingListItem item, int? machineId)
