@@ -52,9 +52,9 @@ namespace CMetalsWS.Data
         public int Priority { get; set; } = 99;
 
         // Audit fields
-        public DateTime ScannedDate { get; set; }
-        public string ScannedById { get; set; } = null!;
-        public virtual ApplicationUser ScannedBy { get; set; } = null!;
+        public DateTime? ScannedDate { get; set; }
+        public string? ScannedById { get; set; }
+        public virtual ApplicationUser? ScannedBy { get; set; }
 
         public DateTime? ModifiedDate { get; set; }
         public string? ModifiedById { get; set; }

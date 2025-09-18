@@ -27,15 +27,13 @@ namespace CMetalsWS.Migrations
                 name: "ScannedById",
                 table: "PickingLists",
                 type: "nvarchar(450)",
-                nullable: false,
-                defaultValue: "");
+                nullable: true);
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "ScannedDate",
                 table: "PickingLists",
                 type: "datetime2",
-                nullable: false,
-                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+                nullable: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_PickingLists_ModifiedById",
@@ -60,7 +58,7 @@ namespace CMetalsWS.Migrations
                 column: "ScannedById",
                 principalTable: "AspNetUsers",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
         }
 
         /// <inheritdoc />

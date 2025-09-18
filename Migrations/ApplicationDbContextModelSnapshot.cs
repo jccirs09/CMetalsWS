@@ -820,10 +820,9 @@ namespace CMetalsWS.Migrations
                         .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("ScannedById")
-                        .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<DateTime>("ScannedDate")
+                    b.Property<DateTime?>("ScannedDate")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("ShipDate")
@@ -1693,8 +1692,7 @@ namespace CMetalsWS.Migrations
                     b.HasOne("CMetalsWS.Data.ApplicationUser", "ScannedBy")
                         .WithMany()
                         .HasForeignKey("ScannedById")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Branch");
 
