@@ -238,11 +238,11 @@ else
 
         try
         {
-            var newListId = await PickingListService.UpsertFromParsedDataAsync(_list.BranchId, _list, _list.Items.ToList());
+            await PickingListService.UpsertFromParsedDataAsync(_list.BranchId, _list, _list.Items.ToList());
             Snackbar.Add("Picking list saved successfully.", Severity.Success);
 
             ParsingStateService.Clear();
-            NavManager.NavigateTo($"/picking-lists/{newListId}");
+            NavManager.NavigateTo("/picking-lists/upload");
         }
         catch (Exception ex)
         {
