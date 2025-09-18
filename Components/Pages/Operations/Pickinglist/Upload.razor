@@ -31,35 +31,30 @@
                     <MudPaper class="pa-8 d-flex flex-column align-center justify-center"
                               Outlined="true"
                               style="border:2px dashed var(--mud-palette-primary); min-height: 200px;">
-                        <MudIcon Icon="@Icons.Material.Filled.UploadFile" Size="Size.Large" Color="Color.Primary" />
-                        <MudText Typo="Typo.h6" Class="mt-4">Select or Drop PDF File</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">The selection will appear below</MudText>
+                        @if (_isProcessing)
+                        {
+                            <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+                            <MudText Typo="Typo.h6" Class="mt-4">@(_statusMessage ?? "Processing...")</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">Please wait while the file is being parsed.</MudText>
+                        }
+                        else
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.UploadFile" Size="Size.Large" Color="Color.Primary" />
+                            <MudText Typo="Typo.h6" Class="mt-4">Select or Drop PDF File</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">Parsing will start automatically</MudText>
+                        }
                     </MudPaper>
-                    <InputFile OnChange="OnFileChanged"
-                               accept=".pdf,application/pdf"
-                               style="position:absolute; inset:0; opacity:0; cursor:pointer;" />
+                    @if(!_isProcessing)
+                    {
+                        <InputFile OnChange="OnFileChanged"
+                                   accept=".pdf,application/pdf"
+                                   style="position:absolute; inset:0; opacity:0; cursor:pointer;" />
+                    }
                 </div>
             </MudItem>
-            <MudItem xs="12" Class="d-flex justify-center">
-                @if (_model.File != null)
-                {
-                    <MudText Typo="Typo.h6" Class="mt-4">Selected: <MudChip T="string">@_model.File.Name</MudChip></MudText>
-                }
-            </MudItem>
         </MudGrid>
-        <MudButton OnClick="OnSubmit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="@(_isProcessing || _model.File == null)">
-            @if (_isProcessing)
-            {
-                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                <MudText Class="ms-2">Processing...</MudText>
-            }
-            else
-            {
-                <MudText>Upload and Parse</MudText>
-            }
-        </MudButton>
 
-        @if (!string.IsNullOrEmpty(_statusMessage))
+        @if (!string.IsNullOrEmpty(_statusMessage) && !_isProcessing)
         {
             <MudAlert Severity="@_statusSeverity" Class="mt-4">@_statusMessage</MudAlert>
         }
@@ -93,13 +88,14 @@
         }
     }
 
-    private void OnFileChanged(InputFileChangeEventArgs e)
+    private async Task OnFileChanged(InputFileChangeEventArgs e)
     {
         var file = e.File;
         if (file != null && (file.ContentType.Contains("pdf", StringComparison.OrdinalIgnoreCase)
                              || Path.GetExtension(file.Name).Equals(".pdf", StringComparison.OrdinalIgnoreCase)))
         {
             _model.File = file;
+            await ProcessFile();
         }
         else
         {
@@ -108,7 +104,7 @@
         }
     }
 
-    private async Task OnSubmit()
+    private async Task ProcessFile()
     {
         if (_model.BranchId == null || _model.File == null)
         {
