@@ -410,5 +410,53 @@ namespace CMetalsWS.Services
                 throw; // Re-throw to notify the caller
             }
         }
+
+        public bool AreEqual(PickingList listA, PickingList listB)
+        {
+            if (listA == null || listB == null)
+            {
+                return listA == listB;
+            }
+
+            // Compare header properties
+            if (listA.SalesOrderNumber != listB.SalesOrderNumber ||
+                listA.SoldTo?.Trim() != listB.SoldTo?.Trim() ||
+                listA.ShipTo?.Trim() != listB.ShipTo?.Trim() ||
+                listA.OrderDate?.Date != listB.OrderDate?.Date ||
+                listA.ShipDate?.Date != listB.ShipDate?.Date ||
+                Math.Abs(listA.TotalWeight - listB.TotalWeight) > 0.001m)
+            {
+                return false;
+            }
+
+            // Compare items
+            if (listA.Items.Count != listB.Items.Count)
+            {
+                return false;
+            }
+
+            var itemsA = listA.Items.OrderBy(i => i.LineNumber).ThenBy(i => i.ItemId).ToList();
+            var itemsB = listB.Items.OrderBy(i => i.LineNumber).ThenBy(i => i.ItemId).ToList();
+
+            for (int i = 0; i < itemsA.Count; i++)
+            {
+                var itemA = itemsA[i];
+                var itemB = itemsB[i];
+
+                if (itemA.LineNumber != itemB.LineNumber ||
+                    itemA.ItemId != itemB.ItemId ||
+                    itemA.ItemDescription?.Trim() != itemB.ItemDescription?.Trim() ||
+                    Math.Abs(itemA.Quantity - itemB.Quantity) > 0.001m ||
+                    itemA.Unit?.Trim() != itemB.Unit?.Trim() ||
+                    itemA.Width != itemB.Width ||
+                    itemA.Length != itemB.Length ||
+                    Math.Abs((itemA.Weight ?? 0) - (itemB.Weight ?? 0)) > 0.001m)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 }

@@ -14,10 +14,11 @@
 @inject ApplicationDbContext DbContext
 @inject NavigationManager NavManager
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
-@if (_list == null)
+@if (_isLoading)
 {
-    <MudText Typo="Typo.h5">Loading Review Data...</MudText>
+    <MudText Typo="Typo.h5">@_loadingMessage</MudText>
     <MudProgressCircular Indeterminate="true" />
 }
 else
@@ -151,7 +152,8 @@ else
     private HashSet<PickingListItem> _selectedItems = new();
     private int? _bulkAssignMachineId;
     private bool _isProcessing = false;
-    private bool _shouldRedirect = false;
+    private bool _isLoading = true;
+    private string _loadingMessage = "Loading review data...";
 
     protected override async Task OnInitializedAsync()
     {
@@ -159,10 +161,28 @@ else
         if (_list == null || ParsingStateService.ParsedItems == null)
         {
             Snackbar.Add("No parsing data found. Please upload a new PDF.", Severity.Error);
-            _shouldRedirect = true;
+            NavManager.NavigateTo("/picking-lists/upload");
             return;
         }
         _list.Items = ParsingStateService.ParsedItems;
+
+        _loadingMessage = "Checking for existing picking list...";
+        StateHasChanged();
+
+        var existingList = await DbContext.PickingLists
+            .Include(p => p.Items)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.SalesOrderNumber == _list.SalesOrderNumber && p.BranchId == _list.BranchId);
+
+        if (existingList != null)
+        {
+            if (PickingListService.AreEqual(_list, existingList))
+            {
+                _isLoading = false; // Stop loading before showing dialog
+                await ShowNoChangesDialog();
+                return;
+            }
+        }
 
         if (_list.ShipDate.HasValue)
         {
@@ -178,14 +198,21 @@ else
         var allMachines = await MachineService.GetMachinesAsync();
         _machines = allMachines.Where(m => m.BranchId == _list.BranchId).ToList();
         _destinationRegions = await DestinationRegionService.GetDestinationRegionsAsync();
+        _isLoading = false;
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private async Task ShowNoChangesDialog()
     {
-        if (firstRender && _shouldRedirect)
+        var parameters = new DialogParameters
         {
-            NavManager.NavigateTo("/picking-lists/upload");
-        }
+            ["Message"] = "The uploaded picking list already exists and has no changes.",
+            ["YesText"] = "OK"
+        };
+
+        var dialog = DialogService.Show<MudMessageBox>("No Changes Detected", parameters);
+        await dialog.Result;
+
+        NavManager.NavigateTo("/picking-lists/upload");
     }
 
     private async Task SaveChanges()
