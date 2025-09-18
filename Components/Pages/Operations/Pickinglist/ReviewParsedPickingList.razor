@@ -3,7 +3,6 @@
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using CMetalsWS.Security
-@using CMetalsWS.Components.Pages.Customers
 @using MudBlazor
 @using Microsoft.EntityFrameworkCore
 @attribute [Authorize(Policy = Permissions.PickingLists.Add)]
@@ -15,12 +14,10 @@
 @inject ApplicationDbContext DbContext
 @inject NavigationManager NavManager
 @inject ISnackbar Snackbar
-@inject IDialogService DialogService
-@inject CustomerService CustomerService
 
-@if (_isLoading)
+@if (_list == null)
 {
-    <MudText Typo="Typo.h5">@_loadingMessage</MudText>
+    <MudText Typo="Typo.h5">Loading Review Data...</MudText>
     <MudProgressCircular Indeterminate="true" />
 }
 else
@@ -154,41 +151,18 @@ else
     private HashSet<PickingListItem> _selectedItems = new();
     private int? _bulkAssignMachineId;
     private bool _isProcessing = false;
-    private bool _isLoading = true;
-    private string _loadingMessage = "Loading review data...";
-    private string? _userId;
-    private bool _shouldRedirectToUpload = false;
+    private bool _shouldRedirect = false;
 
     protected override async Task OnInitializedAsync()
     {
         _list = ParsingStateService.ParsedPickingList;
-        _userId = ParsingStateService.UserId;
-
-        if (_list == null || ParsingStateService.ParsedItems == null || _userId == null)
+        if (_list == null || ParsingStateService.ParsedItems == null)
         {
             Snackbar.Add("No parsing data found. Please upload a new PDF.", Severity.Error);
-            _shouldRedirectToUpload = true;
+            _shouldRedirect = true;
             return;
         }
         _list.Items = ParsingStateService.ParsedItems;
-
-        _loadingMessage = "Checking for existing picking list...";
-        StateHasChanged();
-
-        var existingList = await DbContext.PickingLists
-            .Include(p => p.Items)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.SalesOrderNumber == _list.SalesOrderNumber && p.BranchId == _list.BranchId);
-
-        if (existingList != null)
-        {
-            if (PickingListService.AreEqual(_list, existingList))
-            {
-                _isLoading = false; // Stop loading before showing dialog
-                await ShowNoChangesDialog();
-                return;
-            }
-        }
 
         if (_list.ShipDate.HasValue)
         {
@@ -204,43 +178,25 @@ else
         var allMachines = await MachineService.GetMachinesAsync();
         _machines = allMachines.Where(m => m.BranchId == _list.BranchId).ToList();
         _destinationRegions = await DestinationRegionService.GetDestinationRegionsAsync();
-        _isLoading = false;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && _shouldRedirectToUpload)
+        if (firstRender && _shouldRedirect)
         {
             NavManager.NavigateTo("/picking-lists/upload");
         }
     }
 
-    private async Task ShowNoChangesDialog()
-    {
-        var parameters = new DialogParameters
-        {
-            ["Message"] = "The uploaded picking list already exists and has no changes.",
-            ["YesText"] = "OK"
-        };
-
-        var dialog = DialogService.Show<MudMessageBox>("No Changes Detected", parameters);
-        await dialog.Result;
-
-        NavManager.NavigateTo("/picking-lists/upload");
-    }
-
     private async Task SaveChanges()
     {
         if (_list == null) return;
-        _isProcessing = true;
-        StateHasChanged();
 
-        string? customerNameToCreate = null;
+        _isProcessing = true;
 
         if (!string.IsNullOrWhiteSpace(_list.SoldTo))
         {
             var customer = await DbContext.Customers
-                .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.CustomerName.ToLower() == _list.SoldTo.ToLower());
 
             if (customer != null)
@@ -249,42 +205,17 @@ else
             }
             else
             {
-                bool? createCustomer = await DialogService.ShowMessageBox(
-                    "Customer Not Found",
-                    $"Customer '{_list.SoldTo}' was not found. Would you like to create a new customer?",
-                    yesText: "Create New Customer",
-                    cancelText: "Save Without Linking");
-
-                if (createCustomer == true)
-                {
-                    customerNameToCreate = _list.SoldTo;
-                }
-            }
-        }
-
-        if (customerNameToCreate != null)
-        {
-            var newCustomer = await OpenCreateCustomerDialog(customerNameToCreate);
-            if (newCustomer != null)
-            {
-                _list.CustomerId = newCustomer.Id;
-                Snackbar.Add($"Customer '{newCustomer.CustomerName}' created and linked.", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add("Save operation cancelled.", Severity.Info);
-                _isProcessing = false;
-                StateHasChanged();
-                return;
+                Snackbar.Add($"Warning: Customer '{_list.SoldTo}' not found. No customer ID will be linked.", Severity.Warning);
             }
         }
 
         try
         {
-            await PickingListService.UpsertFromParsedDataAsync(_list.BranchId, _userId, _list, _list.Items.ToList());
+            var newListId = await PickingListService.UpsertFromParsedDataAsync(_list.BranchId, _list, _list.Items.ToList());
             Snackbar.Add("Picking list saved successfully.", Severity.Success);
+
             ParsingStateService.Clear();
-            NavManager.NavigateTo("/picking-lists/upload");
+            NavManager.NavigateTo($"/picking-lists/{newListId}");
         }
         catch (Exception ex)
         {
@@ -293,39 +224,7 @@ else
         finally
         {
             _isProcessing = false;
-            StateHasChanged();
         }
-    }
-
-    private async Task<Customer?> OpenCreateCustomerDialog(string customerName)
-    {
-        var newCustomer = new Customer
-        {
-            CustomerName = customerName,
-            Active = true
-        };
-
-        var parameters = new DialogParameters { ["Customer"] = newCustomer, ["IsNew"] = true };
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var dialog = DialogService.Show<EditCustomerDialog>("Create New Customer", parameters, options);
-
-        var result = await dialog.Result;
-
-        if (!result.Canceled && result.Data is Customer createdCustomer)
-        {
-            try
-            {
-                await CustomerService.CreateCustomerAsync(createdCustomer);
-                return createdCustomer;
-            }
-            catch (Exception ex)
-            {
-                Snackbar.Add($"Failed to create customer: {ex.Message}", Severity.Error);
-                return null;
-            }
-        }
-
-        return null;
     }
 
     private void OnMachineChanged(PickingListItem item, int? machineId)
