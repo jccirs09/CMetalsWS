@@ -289,7 +289,7 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
         }
 
-        public async Task<int> UpsertFromParsedDataAsync(int branchId, PickingList parsedList, List<PickingListItem> parsedItems)
+        public async Task<int> UpsertFromParsedDataAsync(int branchId, string userId, PickingList parsedList, List<PickingListItem> parsedItems)
         {
             // Propagate the main ship date to all line items if it exists.
             if (parsedList.ShipDate.HasValue)
@@ -312,10 +312,18 @@ namespace CMetalsWS.Services
                 parsedList.BranchId = branchId;
                 parsedList.Status = PickingListStatus.Pending; // Or some other default
                 parsedList.Items = parsedItems;
+                parsedList.ScannedById = userId;
+                parsedList.ScannedDate = DateTime.UtcNow;
+                parsedList.ModifiedById = userId;
+                parsedList.ModifiedDate = DateTime.UtcNow;
                 db.PickingLists.Add(parsedList);
             }
             else
             {
+                // Update existing list
+                existingList.ModifiedById = userId;
+                existingList.ModifiedDate = DateTime.UtcNow;
+
                 // Update existing list header by manually mapping properties
                 // This avoids trying to change the primary key, which causes an exception.
                 existingList.OrderDate = parsedList.OrderDate;

@@ -152,6 +152,9 @@
             parsedList.BranchId = _model.BranchId.Value;
 
             // Store in state service and redirect for user review
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = await UserManager.GetUserAsync(authState.User);
+            ParsingStateService.UserId = user?.Id;
             ParsingStateService.ParsedPickingList = parsedList;
             ParsingStateService.ParsedItems = parsedItems;
 

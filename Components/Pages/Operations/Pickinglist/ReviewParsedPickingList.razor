@@ -154,11 +154,14 @@ else
     private bool _isProcessing = false;
     private bool _isLoading = true;
     private string _loadingMessage = "Loading review data...";
+    private string? _userId;
 
     protected override async Task OnInitializedAsync()
     {
         _list = ParsingStateService.ParsedPickingList;
-        if (_list == null || ParsingStateService.ParsedItems == null)
+        _userId = ParsingStateService.UserId;
+
+        if (_list == null || ParsingStateService.ParsedItems == null || _userId == null)
         {
             Snackbar.Add("No parsing data found. Please upload a new PDF.", Severity.Error);
             NavManager.NavigateTo("/picking-lists/upload");
@@ -238,7 +241,7 @@ else
 
         try
         {
-            await PickingListService.UpsertFromParsedDataAsync(_list.BranchId, _list, _list.Items.ToList());
+            await PickingListService.UpsertFromParsedDataAsync(_list.BranchId, _userId, _list, _list.Items.ToList());
             Snackbar.Add("Picking list saved successfully.", Severity.Success);
 
             ParsingStateService.Clear();
