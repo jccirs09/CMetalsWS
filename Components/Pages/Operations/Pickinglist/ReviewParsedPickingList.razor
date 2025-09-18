@@ -87,6 +87,14 @@ else
                 <MudText Typo="Typo.caption" Style="font-weight: bold;">TOTAL WEIGHT</MudText>
                 <MudText Typo="Typo.body2">@_list.TotalWeight.ToString("N3")</MudText>
             </MudItem>
+            <MudItem xs="6" sm="3" md="2">
+                <MudSelect T="PickingListStatus" @bind-Value="_list.Status" Label="Status" Dense="true" Margin="Margin.Dense">
+                    @foreach (var status in Enum.GetValues<PickingListStatus>())
+                    {
+                        <MudSelectItem Value="@status">@status.ToString()</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
         </MudGrid>
     </MudPaper>
 
@@ -113,7 +121,7 @@ else
             <MudTd DataLabel="Weight">@context.Weight?.ToString("N3")</MudTd>
             <MudTd DataLabel="Unit">@context.Unit</MudTd>
             <MudTd DataLabel="Machine">
-                <MudSelect T="int?" @bind-Value="context.MachineId" Dense="true" Margin="Margin.Dense">
+                <MudSelect T="int?" Value="context.MachineId" ValueChanged="@((int? machineId) => OnMachineChanged(context, machineId))" Dense="true" Margin="Margin.Dense">
                     @foreach (var machine in _machines)
                     {
                         <MudSelectItem Value="@((int?)machine.Id)">@machine.Name</MudSelectItem>
@@ -155,6 +163,17 @@ else
             return;
         }
         _list.Items = ParsingStateService.ParsedItems;
+
+        if (_list.ShipDate.HasValue)
+        {
+            foreach (var item in _list.Items)
+            {
+                if (item.ScheduledShipDate == null)
+                {
+                    item.ScheduledShipDate = _list.ShipDate;
+                }
+            }
+        }
 
         var allMachines = await MachineService.GetMachinesAsync();
         _machines = allMachines.Where(m => m.BranchId == _list.BranchId).ToList();
@@ -208,13 +227,37 @@ else
         }
     }
 
+    private void OnMachineChanged(PickingListItem item, int? machineId)
+    {
+        item.MachineId = machineId;
+        var machine = machineId.HasValue ? _machines.FirstOrDefault(m => m.Id == machineId.Value) : null;
+
+        if (machine != null)
+        {
+            if (machine.Category == MachineCategory.Sheet || machine.Category == MachineCategory.Coil)
+            {
+                item.Status = PickingLineStatus.AssignedPulling;
+                _list.Status = PickingListStatus.Scheduled;
+            }
+            else if (machine.Category == MachineCategory.CTL || machine.Category == MachineCategory.Slitter)
+            {
+                item.Status = PickingLineStatus.Pending;
+            }
+        }
+        else
+        {
+            item.Status = PickingLineStatus.Pending;
+        }
+        StateHasChanged();
+    }
+
     private void ApplyBulkAssign()
     {
         if (_bulkAssignMachineId == null || _selectedItems == null) return;
 
         foreach (var item in _selectedItems)
         {
-            item.MachineId = _bulkAssignMachineId;
+            OnMachineChanged(item, _bulkAssignMachineId);
         }
         Snackbar.Add($"Assigned machine to {_selectedItems.Count} items.", Severity.Success);
     }
