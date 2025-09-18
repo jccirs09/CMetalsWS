@@ -44,12 +44,10 @@
                             <MudText Typo="Typo.body2" Color="Color.Secondary">Parsing will start automatically</MudText>
                         }
                     </MudPaper>
-                    @if(!_isProcessing)
-                    {
-                        <InputFile OnChange="OnFileChanged"
-                                   accept=".pdf,application/pdf"
-                                   style="position:absolute; inset:0; opacity:0; cursor:pointer;" />
-                    }
+                    <InputFile OnChange="OnFileChanged"
+                               accept=".pdf,application/pdf"
+                               style="position:absolute; inset:0; opacity:0; cursor:pointer;"
+                               disabled="@_isProcessing" />
                 </div>
             </MudItem>
         </MudGrid>
