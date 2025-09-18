@@ -386,7 +386,7 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
         }
 
-        public async Task ReParseAsync(int pickingListId)
+        public async Task ReParseAsync(int pickingListId, string userId)
         {
             var latestImport = await _importService.GetLatestImportByPickingListIdAsync(pickingListId);
             if (latestImport == null || !System.IO.File.Exists(latestImport.SourcePdfPath))
@@ -407,7 +407,7 @@ namespace CMetalsWS.Services
                 var pdfBytes = await File.ReadAllBytesAsync(latestImport.SourcePdfPath);
                 var (parsedList, parsedItems) = await _parsingService.ParsePickingListAsync(pdfBytes);
 
-                var newPickingListId = await UpsertFromParsedDataAsync(pickingList.BranchId, parsedList, parsedItems);
+                var newPickingListId = await UpsertFromParsedDataAsync(pickingList.BranchId, userId, parsedList, parsedItems);
 
                 var rawJson = System.Text.Json.JsonSerializer.Serialize(new { header = parsedList, items = parsedItems });
                 await _importService.UpdateImportSuccessAsync(newImport.Id, newPickingListId, rawJson);
