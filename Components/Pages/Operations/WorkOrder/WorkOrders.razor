@@ -142,7 +142,7 @@
             ["IsEdit"] = false
         };
 
-        var dialog = await DialogService.ShowAsync<WorkOrderDialog>("New Work Order", parameters, new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true });
+        var dialog = await DialogService.ShowAsync<WorkOrderDialog>("New Work Order", parameters, new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, FullScreen = true });
         if(dialog is not null)
         {
             var result = await dialog.Result;
