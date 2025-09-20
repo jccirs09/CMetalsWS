@@ -103,35 +103,32 @@ namespace CMetalsWS.Services
 
             foreach (var row in rows)
             {
+                IDictionary<string, object> rowDict = row;
                 try
                 {
-                    IDictionary<string, object> rowDict = row;
-                    if (!rowDict.TryGetValue("ItemCode", out var itemCodeObj) || itemCodeObj is null)
+                    // ItemCode is always required.
+                    if (!rowDict.TryGetValue("ItemCode", out var itemCodeObj) || itemCodeObj is null || string.IsNullOrWhiteSpace(itemCodeObj.ToString()))
                     {
-                        result.Errors.Add("Skipping row: 'ItemCode' column not found or is empty.");
+                        result.Errors.Add("Skipping a row: 'ItemCode' column is missing or empty.");
                         continue;
                     }
-                    if (!rowDict.TryGetValue("CoilRelationship", out var coilRelationshipObj) || coilRelationshipObj is null)
-                    {
-                        result.Errors.Add($"Skipping row for ItemCode '{itemCodeObj}': 'CoilRelationship' column not found or is empty.");
-                        continue;
-                    }
-
                     var itemCode = itemCodeObj.ToString();
+
+                    // CoilRelationship is optional. If it's not present or empty, just skip the row silently.
+                    if (!rowDict.TryGetValue("CoilRelationship", out var coilRelationshipObj) || coilRelationshipObj is null || string.IsNullOrWhiteSpace(coilRelationshipObj.ToString()))
+                    {
+                        continue;
+                    }
                     var coilRelationship = coilRelationshipObj.ToString();
 
-                    if (string.IsNullOrWhiteSpace(itemCode) || string.IsNullOrWhiteSpace(coilRelationship))
-                    {
-                        result.Errors.Add($"Skipping row with ItemCode '{itemCode}': ItemCode or CoilRelationship is empty.");
-                        continue;
-                    }
-
+                    // If we get here, both ItemCode and CoilRelationship are valid, so create the relationship.
                     await AddChildAsync(coilRelationship, itemCode, ct);
                     result.SuccessfulImports++;
                 }
                 catch (Exception ex)
                 {
-                    result.Errors.Add($"Failed to import row: {ex.Message}");
+                    // We should still log errors if AddChildAsync fails (e.g., parent/child not found in inventory).
+                    result.Errors.Add($"Failed to import relationship for item '{rowDict.TryGetValue("ItemCode", out var ic) ? ic : "N/A"}': {ex.Message}");
                 }
             }
 
