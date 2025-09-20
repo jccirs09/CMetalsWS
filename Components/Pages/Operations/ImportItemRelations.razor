@@ -12,20 +12,19 @@
         <MudText Typo="Typo.h5">Import Coil → Sheet Relationships</MudText>
         <MudText>Select an Excel file with the following columns: <strong>ItemCode</strong>, <strong>Description</strong>, <strong>CoilRelationship</strong>.</MudText>
 
-        <MudFileUpload @ref="_upload" T="IReadOnlyList<IBrowserFile>" OnFilesChanged="OnFilesChanged" Accept=".xlsx,.xls" MaximumFileCount="1">
+        <MudFileUpload T="IBrowserFile" FilesChanged="OnFilesChanged" Accept=".xlsx,.xls">
             <ActivatorContent>
                 <MudButton HtmlTag="label"
                            Variant="Variant.Filled"
                            Color="Color.Primary"
-                           StartIcon="@Icons.Material.Filled.CloudUpload"
-                           for="@(_upload?.Identifier)">
+                           StartIcon="@Icons.Material.Filled.CloudUpload">
                     Select File
                 </MudButton>
             </ActivatorContent>
             <SelectedTemplate>
-                @if (context != null && context.Any())
+                @if (context != null)
                 {
-                    <MudText>Selected: @context.First().Name</MudText>
+                    <MudText>Selected: @context.Name</MudText>
                 }
             </SelectedTemplate>
         </MudFileUpload>
@@ -57,16 +56,15 @@
 </MudPaper>
 
 @code {
-    private MudFileUpload<IReadOnlyList<IBrowserFile>>? _upload;
     private IBrowserFile? _file;
     private bool _isUploading;
     private ImportResult? _importResult;
 
-    private void OnFilesChanged(IReadOnlyList<IBrowserFile> files)
+    private void OnFilesChanged(IBrowserFile file)
     {
-        if (files.Any())
+        if (file != null)
         {
-            _file = files.First();
+            _file = file;
             _importResult = null;
         }
         StateHasChanged();
