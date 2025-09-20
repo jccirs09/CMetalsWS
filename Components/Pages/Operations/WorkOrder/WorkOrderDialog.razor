@@ -281,12 +281,33 @@
 
         try
         {
-            _parentItem = await InvService.GetByTagNumberAsync(Model.TagNumber);
-            if (_parentItem is null)
+            var item = await InvService.GetByTagNumberAsync(Model.TagNumber);
+            if (item is null)
             {
                 Snackbar.Add($"Tag '{Model.TagNumber}' not found.", Severity.Error);
                 return;
             }
+
+            // Check if the scanned item is a child sheet
+            var parentRel = await RelService.GetParentAsync(item.ItemId);
+            if (parentRel != null)
+            {
+                // It's a sheet, so find the actual parent coil
+                var parents = await InvService.GetByItemIdsAsync(new List<string> { parentRel.ParentItemId });
+                _parentItem = parents.FirstOrDefault();
+            }
+            else
+            {
+                // It's a coil
+                _parentItem = item;
+            }
+
+            if (_parentItem is null)
+            {
+                Snackbar.Add("Could not determine the parent coil for the scanned tag.", Severity.Error);
+                return;
+            }
+
             Model.ParentItemId = _parentItem.ItemId;
 
             if (Model.MachineCategory == MachineCategory.Slitter)
@@ -300,11 +321,13 @@
                 if (children.Count == 0)
                 {
                     Snackbar.Add($"No child items (sheets) are related to the coil with tag '{Model.TagNumber}'. Use the 'Item Relationships' page to add some.", Severity.Info);
-                    return;
+                    _childItems.Clear();
                 }
-
-                _childItems.Clear();
-                _childItems = children.Select(c => new InventoryItem { ItemId = c.ChildItemId, Description = c.ChildItemDescription }).ToList();
+                else
+                {
+                    _childItems.Clear();
+                    _childItems = children.Select(c => new InventoryItem { ItemId = c.ChildItemId, Description = c.ChildItemDescription }).ToList();
+                }
             }
             Snackbar.Add($"Found {_childItems.Count} potential child item(s).", Severity.Success);
             StateHasChanged();

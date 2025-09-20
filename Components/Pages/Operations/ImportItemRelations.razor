@@ -1,0 +1,87 @@
+@page "/operations/import-item-relations"
+@using CMetalsWS.Services
+@using System.IO
+@using Microsoft.AspNetCore.Components.Forms
+@inject ItemRelationshipService RelService
+@inject ISnackbar Snackbar
+
+<PageTitle>Import Item Relationships</PageTitle>
+
+<MudPaper Class="p-4">
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.h5">Import Coil → Sheet Relationships</MudText>
+        <MudText>Select an Excel file with the following columns: <strong>ItemCode</strong>, <strong>Description</strong>, <strong>CoilRelationship</strong>.</MudText>
+
+        <InputFile OnChange="OnFileChanged" accept=".xlsx,.xls" />
+
+        @if (_file != null)
+        {
+            <MudText>File: @_file.Name</MudText>
+        }
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ImportAsync" Disabled="_isUploading || _file == null">Import</MudButton>
+
+        @if (_importResult != null)
+        {
+            <MudCard Class="mt-4">
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Import Results</MudText></CardHeaderContent></MudCardHeader>
+                <MudCardContent>
+                    <MudText>Total Rows: @_importResult.TotalRows</MudText>
+                    <MudText>Successful Imports: @_importResult.SuccessfulImports</MudText>
+                    <MudText>Failed Imports: @_importResult.FailedImports</MudText>
+                    @if (_importResult.Errors.Any())
+                    {
+                        <MudText Typo="Typo.subtitle1" Class="mt-2">Errors:</MudText>
+                        <MudList>
+                            @foreach (var error in _importResult.Errors)
+                            {
+                                <MudListItem>@error</MudListItem>
+                            }
+                        </MudList>
+                    }
+                </MudCardContent>
+            </MudCard>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    private IBrowserFile? _file;
+    private bool _isUploading;
+    private ImportResult? _importResult;
+
+    private void OnFileChanged(InputFileChangeEventArgs e)
+    {
+        _file = e.File;
+        _importResult = null;
+    }
+
+    private async Task ImportAsync()
+    {
+        if (_file == null)
+        {
+            Snackbar.Add("Please select a file.", Severity.Warning);
+            return;
+        }
+
+        _isUploading = true;
+        _importResult = null;
+        StateHasChanged();
+
+        try
+        {
+            await using var stream = _file.OpenReadStream(maxAllowedSize: 10_000_000); // 10 MB limit
+            _importResult = await RelService.ImportFromExcelAsync(stream);
+            Snackbar.Add("Import completed.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Import failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isUploading = false;
+            StateHasChanged();
+        }
+    }
+}

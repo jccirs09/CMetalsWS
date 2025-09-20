@@ -1,8 +1,18 @@
 using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
+using MiniExcelLibs;
+using System.IO;
 
 namespace CMetalsWS.Services
 {
+    public class ImportResult
+    {
+        public int TotalRows { get; set; }
+        public int SuccessfulImports { get; set; }
+        public int FailedImports => Errors.Count;
+        public List<string> Errors { get; } = new List<string>();
+    }
+
     public class ItemRelationshipService
     {
         private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
@@ -26,6 +36,18 @@ namespace CMetalsWS.Services
                 .OrderBy(r => r.ChildItemId)
                 .AsNoTracking()
                 .ToListAsync(ct);
+        }
+
+        public async Task<ItemRelationship?> GetParentAsync(string childItemId, CancellationToken ct = default)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync(ct);
+            childItemId = childItemId?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(childItemId))
+                return null;
+
+            return await db.ItemRelationships
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.ChildItemId == childItemId && r.Relation == "CoilToSheet", ct);
         }
 
         public async Task AddChildAsync(string parentItemId, string childItemId, CancellationToken ct = default)
@@ -71,6 +93,61 @@ namespace CMetalsWS.Services
                 db.ItemRelationships.Remove(rel);
                 await db.SaveChangesAsync(ct);
             }
+        }
+
+        public async Task<ImportResult> ImportFromExcelAsync(Stream stream, CancellationToken ct = default)
+        {
+            var result = new ImportResult();
+            var rows = stream.Query(useHeaderRow: true).ToList();
+            result.TotalRows = rows.Count;
+
+            foreach (var row in rows)
+            {
+                try
+                {
+                    IDictionary<string, object> rowDict = row;
+                    if (!rowDict.TryGetValue("ItemCode", out var itemCodeObj) || itemCodeObj is null)
+                    {
+                        result.Errors.Add("Skipping row: 'ItemCode' column not found or is empty.");
+                        continue;
+                    }
+                    if (!rowDict.TryGetValue("CoilRelationship", out var coilRelationshipObj) || coilRelationshipObj is null)
+                    {
+                        result.Errors.Add($"Skipping row for ItemCode '{itemCodeObj}': 'CoilRelationship' column not found or is empty.");
+                        continue;
+                    }
+
+                    var itemCode = itemCodeObj.ToString();
+                    var coilRelationship = coilRelationshipObj.ToString();
+
+                    if (string.IsNullOrWhiteSpace(itemCode) || string.IsNullOrWhiteSpace(coilRelationship))
+                    {
+                        result.Errors.Add($"Skipping row with ItemCode '{itemCode}': ItemCode or CoilRelationship is empty.");
+                        continue;
+                    }
+
+                    await AddChildAsync(coilRelationship, itemCode, ct);
+                    result.SuccessfulImports++;
+                }
+                catch (Exception ex)
+                {
+                    result.Errors.Add($"Failed to import row: {ex.Message}");
+                }
+            }
+
+            return result;
+        }
+
+        public async Task<Dictionary<string, ItemRelationship>> GetParentsForChildrenAsync(List<string> childItemIds, CancellationToken ct = default)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync(ct);
+            if (childItemIds == null || childItemIds.Count == 0)
+                return new Dictionary<string, ItemRelationship>();
+
+            return await db.ItemRelationships
+                .AsNoTracking()
+                .Where(r => childItemIds.Contains(r.ChildItemId) && r.Relation == "CoilToSheet")
+                .ToDictionaryAsync(r => r.ChildItemId, r => r, ct);
         }
     }
 }
