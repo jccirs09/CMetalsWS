@@ -196,7 +196,7 @@
             ["CurrentBranch"] = userBranch
         };
 
-        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseOnEscapeKey = true };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, FullScreen = true  };
         var dialogRef = await DialogService.ShowAsync<PickingListDialog>("Picking List Details", parameters, options);
         await dialogRef.Result;
     }
@@ -245,7 +245,7 @@
             ["CurrentBranch"] = userBranch
         };
 
-        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseOnEscapeKey = true };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, FullScreen = true};
         var dialogRef = await DialogService.ShowAsync<PickingListDialog>("New Picking List", parameters, options);
         if (dialogRef is null) return;
 
@@ -293,7 +293,7 @@
             ["CurrentBranch"] = userBranch
         };
 
-        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseOnEscapeKey = true };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, FullScreen = true};
         var dialogRef = await DialogService.ShowAsync<PickingListDialog>("Edit Picking List", parameters, options);
         if (dialogRef is null) return;
 
