@@ -320,6 +320,13 @@ namespace CMetalsWS.Services
             }
             else
             {
+                // If there are no changes, return 0 to signal this to the caller.
+                parsedList.Items = parsedItems;
+                if (AreEqual(existingList, parsedList))
+                {
+                    return 0;
+                }
+
                 // Update existing list
                 existingList.ModifiedById = userId;
                 existingList.ModifiedDate = DateTime.UtcNow;

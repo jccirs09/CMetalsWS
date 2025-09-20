@@ -225,10 +225,17 @@ else
         try
         {
             var newListId = await PickingListService.UpsertFromParsedDataAsync(_list.BranchId, userId, _list, _list.Items.ToList());
-            Snackbar.Add("Picking list saved successfully.", Severity.Success);
-
-            ParsingStateService.Clear();
-            NavManager.NavigateTo($"/picking-lists/{newListId}");
+            if (newListId == 0)
+            {
+                Snackbar.Add("No changes detected.", Severity.Info);
+                NavManager.NavigateTo("/picking-lists/upload");
+            }
+            else
+            {
+                Snackbar.Add("Picking list saved successfully.", Severity.Success);
+                ParsingStateService.Clear();
+                NavManager.NavigateTo($"/picking-lists/{newListId}");
+            }
         }
         catch (Exception ex)
         {
