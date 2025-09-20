@@ -4,6 +4,7 @@ using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250917205004_UpdatePickingListModel")]
+    partial class UpdatePickingListModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -791,12 +794,6 @@ namespace CMetalsWS.Migrations
                     b.Property<int?>("DestinationRegionId")
                         .HasColumnType("int");
 
-                    b.Property<string>("ModifiedById")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime?>("ModifiedDate")
-                        .HasColumnType("datetime2");
-
                     b.Property<DateTime?>("OrderDate")
                         .HasColumnType("datetime2");
 
@@ -818,12 +815,6 @@ namespace CMetalsWS.Migrations
                     b.Property<string>("SalesRep")
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
-
-                    b.Property<string>("ScannedById")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime?>("ScannedDate")
-                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("ShipDate")
                         .HasColumnType("datetime2");
@@ -849,12 +840,8 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("DestinationRegionId");
 
-                    b.HasIndex("ModifiedById");
-
                     b.HasIndex("SalesOrderNumber")
                         .IsUnique();
-
-                    b.HasIndex("ScannedById");
 
                     b.HasIndex("BranchId", "SalesOrderNumber")
                         .IsUnique();
@@ -1685,24 +1672,11 @@ namespace CMetalsWS.Migrations
                         .WithMany()
                         .HasForeignKey("DestinationRegionId");
 
-                    b.HasOne("CMetalsWS.Data.ApplicationUser", "ModifiedBy")
-                        .WithMany()
-                        .HasForeignKey("ModifiedById");
-
-                    b.HasOne("CMetalsWS.Data.ApplicationUser", "ScannedBy")
-                        .WithMany()
-                        .HasForeignKey("ScannedById")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("Branch");
 
                     b.Navigation("Customer");
 
                     b.Navigation("DestinationRegion");
-
-                    b.Navigation("ModifiedBy");
-
-                    b.Navigation("ScannedBy");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.PickingListImport", b =>
