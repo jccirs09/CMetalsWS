@@ -5,76 +5,89 @@
 @inject ItemRelationshipService RelService
 @inject ISnackbar Snackbar
 
+<style>
+    .file-upload-input {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: 10;
+        opacity: 0;
+        cursor: pointer;
+    }
+</style>
+
 <PageTitle>Import Item Relationships</PageTitle>
 
 <MudPaper Class="p-4">
-    <MudStack Spacing="2">
-        <MudText Typo="Typo.h5">Import Coil → Sheet Relationships</MudText>
-        <MudText>Select an Excel file with the following columns: <strong>ItemCode</strong>, <strong>Description</strong>, <strong>CoilRelationship</strong>.</MudText>
+    <MudText Typo="Typo.h5">Import Coil → Sheet Relationships</MudText>
+    <MudText Typo="Typo.body1" Class="mt-2 mb-4">Select or drop an Excel file to begin the import process. The file should have columns: <strong>ItemCode</strong>, <strong>Description</strong>, <strong>CoilRelationship</strong>.</MudText>
 
-        <MudFileUpload T="IBrowserFile" FilesChanged="OnFilesChanged" Accept=".xlsx,.xls">
-            <ActivatorContent>
-                <MudButton HtmlTag="label"
-                           Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           StartIcon="@Icons.Material.Filled.CloudUpload">
-                    Select File
-                </MudButton>
-            </ActivatorContent>
-            <SelectedTemplate>
-                @if (context != null)
-                {
-                    <MudText>Selected: @context.Name</MudText>
-                }
-            </SelectedTemplate>
-        </MudFileUpload>
-
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ImportAsync" Disabled="_isUploading || _file == null">Import</MudButton>
-
-        @if (_importResult != null)
-        {
-            <MudCard Class="mt-4">
-                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Import Results</MudText></CardHeaderContent></MudCardHeader>
-                <MudCardContent>
-                    <MudText>Total Rows: @_importResult.TotalRows</MudText>
-                    <MudText>Successful Imports: @_importResult.SuccessfulImports</MudText>
-                    <MudText>Failed Imports: @_importResult.FailedImports</MudText>
-                    @if (_importResult.Errors.Any())
+    <MudFileUpload T="IBrowserFile"
+                   FilesChanged="OnFilesChanged"
+                   Hidden="@false"
+                   InputClass="file-upload-input"
+                   Accept=".xlsx,.xls"
+                   @ondrop="@ClearDragClass"
+                   @ondragenter="@SetDragClass"
+                   @ondragleave="@ClearDragClass"
+                   @ondragend="@ClearDragClass">
+        <ActivatorContent>
+            <MudPaper Height="200px"
+                      Outlined="true"
+                      Class="@_dragClass">
+                <MudStack Justify="Justify.Center" AlignItems="AlignItems.Center" Style="height:100%">
+                    @if (_isUploading)
                     {
-                        <MudText Typo="Typo.subtitle1" Class="mt-2">Errors:</MudText>
-                        <MudList T="string" Dense="true">
-                            @foreach (var error in _importResult.Errors)
-                            {
-                                <MudListItem Text="@error" />
-                            }
-                        </MudList>
+                        <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+                        <MudText Typo="Typo.h6" Class="mt-4">Processing...</MudText>
                     }
-                </MudCardContent>
-            </MudCard>
-        }
-    </MudStack>
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" />
+                        <MudText Typo="Typo.h6">
+                            Drag and drop file here or click
+                        </MudText>
+                    }
+                </MudStack>
+            </MudPaper>
+        </ActivatorContent>
+    </MudFileUpload>
+
+    @if (_importResult != null)
+    {
+        <MudCard Class="mt-4">
+            <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Import Results</MudText></CardHeaderContent></MudCardHeader>
+            <MudCardContent>
+                <MudText>Total Rows: @_importResult.TotalRows</MudText>
+                <MudText>Successful Imports: @_importResult.SuccessfulImports</MudText>
+                <MudText>Failed Imports: @_importResult.FailedImports</MudText>
+                @if (_importResult.Errors.Any())
+                {
+                    <MudText Typo="Typo.subtitle1" Class="mt-2">Errors:</MudText>
+                    <MudList T="string" Dense="true">
+                        @foreach (var error in _importResult.Errors)
+                        {
+                            <MudListItem Text="@error" />
+                        }
+                    </MudList>
+                }
+            </MudCardContent>
+        </MudCard>
+    }
 </MudPaper>
 
 @code {
-    private IBrowserFile? _file;
+    private const string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mud-width-full mud-height-full d-flex align-center justify-center";
+    private string _dragClass = DefaultDragClass;
+
     private bool _isUploading;
     private ImportResult? _importResult;
 
-    private void OnFilesChanged(IBrowserFile file)
+    private async Task OnFilesChanged(IBrowserFile file)
     {
-        if (file != null)
+        if (file == null)
         {
-            _file = file;
-            _importResult = null;
-        }
-        StateHasChanged();
-    }
-
-    private async Task ImportAsync()
-    {
-        if (_file == null)
-        {
-            Snackbar.Add("Please select a file.", Severity.Warning);
             return;
         }
 
@@ -84,8 +97,11 @@
 
         try
         {
-            await using var stream = _file.OpenReadStream(maxAllowedSize: 10_000_000); // 10 MB limit
-            _importResult = await RelService.ImportFromExcelAsync(stream);
+            await using var memoryStream = new MemoryStream();
+            await file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+
+            _importResult = await RelService.ImportFromExcelAsync(memoryStream);
             Snackbar.Add("Import completed.", Severity.Success);
         }
         catch (Exception ex)
@@ -98,4 +114,7 @@
             StateHasChanged();
         }
     }
+
+    private void SetDragClass() => _dragClass = $"{DefaultDragClass} mud-border-primary";
+    private void ClearDragClass() => _dragClass = DefaultDragClass;
 }
