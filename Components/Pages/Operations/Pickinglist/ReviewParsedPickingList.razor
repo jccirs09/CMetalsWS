@@ -145,6 +145,8 @@ else
 }
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; }
     private PickingList? _list;
     private List<Machine> _machines = new();
     private List<DestinationRegion> _destinationRegions = new();
@@ -194,6 +196,17 @@ else
 
         _isProcessing = true;
 
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+        var userId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            Snackbar.Add("Could not authenticate user. Please log in again.", Severity.Error);
+            _isProcessing = false;
+            return;
+        }
+
         if (!string.IsNullOrWhiteSpace(_list.SoldTo))
         {
             var customer = await DbContext.Customers
@@ -211,7 +224,7 @@ else
 
         try
         {
-            var newListId = await PickingListService.UpsertFromParsedDataAsync(_list.BranchId, _list, _list.Items.ToList());
+            var newListId = await PickingListService.UpsertFromParsedDataAsync(_list.BranchId, userId, _list, _list.Items.ToList());
             Snackbar.Add("Picking list saved successfully.", Severity.Success);
 
             ParsingStateService.Clear();
