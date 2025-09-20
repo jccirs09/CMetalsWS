@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CMetalsWS.Migrations
 {
     /// <inheritdoc />
-    public partial class RefactorCustomerAndAddDynamicRegions : Migration
+    public partial class initialcreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -116,18 +116,13 @@ namespace CMetalsWS.Migrations
                 name: "ItemRelationship",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    ParentItemId = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
-                    ChildItemId = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
-                    ParentItemDescription = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ChildItemDescription = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Relation = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false, defaultValue: "CoilToSheet"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    ItemCode = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CoilRelationship = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ItemRelationship", x => x.Id);
+                    table.PrimaryKey("PK_ItemRelationship", x => x.ItemCode);
                 });
 
             migrationBuilder.CreateTable(
@@ -593,20 +588,33 @@ namespace CMetalsWS.Migrations
                     SoldTo = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     ShipTo = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     SalesRep = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
-                    ShippingVia = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
-                    FOB = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
                     Buyer = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
                     PrintDateTime = table.Column<DateTime>(type: "datetime2", nullable: true),
                     BranchId = table.Column<int>(type: "int", nullable: false),
                     CustomerId = table.Column<int>(type: "int", nullable: true),
+                    DestinationRegionId = table.Column<int>(type: "int", nullable: true),
                     TotalWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
                     RemainingWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
-                    Priority = table.Column<int>(type: "int", nullable: false)
+                    Priority = table.Column<int>(type: "int", nullable: false),
+                    ScannedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ScannedById = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ModifiedById = table.Column<string>(type: "nvarchar(450)", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_PickingLists", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PickingLists_AspNetUsers_ModifiedById",
+                        column: x => x.ModifiedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_PickingLists_AspNetUsers_ScannedById",
+                        column: x => x.ScannedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_PickingLists_Branches_BranchId",
                         column: x => x.BranchId,
@@ -617,6 +625,11 @@ namespace CMetalsWS.Migrations
                         name: "FK_PickingLists_Customer_CustomerId",
                         column: x => x.CustomerId,
                         principalTable: "Customer",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_PickingLists_DestinationRegions_DestinationRegionId",
+                        column: x => x.DestinationRegionId,
+                        principalTable: "DestinationRegions",
                         principalColumn: "Id");
                 });
 
@@ -1077,10 +1090,9 @@ namespace CMetalsWS.Migrations
                 column: "ItemId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ItemRelationship_ParentItemId_ChildItemId_Relation",
+                name: "IX_ItemRelationship_CoilRelationship",
                 table: "ItemRelationship",
-                columns: new[] { "ParentItemId", "ChildItemId", "Relation" },
-                unique: true);
+                column: "CoilRelationship");
 
             migrationBuilder.CreateIndex(
                 name: "IX_LoadItems_LoadId",
@@ -1176,10 +1188,25 @@ namespace CMetalsWS.Migrations
                 column: "CustomerId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_PickingLists_DestinationRegionId",
+                table: "PickingLists",
+                column: "DestinationRegionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PickingLists_ModifiedById",
+                table: "PickingLists",
+                column: "ModifiedById");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_PickingLists_SalesOrderNumber",
                 table: "PickingLists",
                 column: "SalesOrderNumber",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PickingLists_ScannedById",
+                table: "PickingLists",
+                column: "ScannedById");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PinnedThreads_UserId_ThreadId",
