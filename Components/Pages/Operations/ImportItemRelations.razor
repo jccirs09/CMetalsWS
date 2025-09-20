@@ -12,13 +12,13 @@
         <MudText Typo="Typo.h5">Import Coil → Sheet Relationships</MudText>
         <MudText>Select an Excel file with the following columns: <strong>ItemCode</strong>, <strong>Description</strong>, <strong>CoilRelationship</strong>.</MudText>
 
-        <MudFileUpload T="IReadOnlyList<IBrowserFile>" OnFilesChanged="OnFilesChanged" Accept=".xlsx,.xls" MaximumFileCount="1">
+        <MudFileUpload @ref="_upload" T="IReadOnlyList<IBrowserFile>" OnFilesChanged="OnFilesChanged" Accept=".xlsx,.xls" MaximumFileCount="1">
             <ActivatorContent>
                 <MudButton HtmlTag="label"
                            Variant="Variant.Filled"
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.CloudUpload"
-                           for="@context">
+                           for="@(_upload?.Identifier)">
                     Select File
                 </MudButton>
             </ActivatorContent>
@@ -57,6 +57,7 @@
 </MudPaper>
 
 @code {
+    private MudFileUpload<IReadOnlyList<IBrowserFile>>? _upload;
     private IBrowserFile? _file;
     private bool _isUploading;
     private ImportResult? _importResult;
@@ -68,6 +69,7 @@
             _file = files.First();
             _importResult = null;
         }
+        StateHasChanged();
     }
 
     private async Task ImportAsync()
