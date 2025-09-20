@@ -51,6 +51,15 @@ namespace CMetalsWS.Data
 
         public int Priority { get; set; } = 99;
 
+        // Audit fields
+        public DateTime? ScannedDate { get; set; }
+        public string? ScannedById { get; set; }
+        public virtual ApplicationUser? ScannedBy { get; set; }
+
+        public DateTime? ModifiedDate { get; set; }
+        public string? ModifiedById { get; set; }
+        public virtual ApplicationUser? ModifiedBy { get; set; }
+
         public virtual ICollection<PickingListItem> Items { get; set; } = new List<PickingListItem>();
     }
 

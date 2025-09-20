@@ -289,7 +289,25 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
         }
 
-        public async Task<int> UpsertFromParsedDataAsync(int branchId, PickingList parsedList, List<PickingListItem> parsedItems)
+        public async Task<bool> HasChangesAsync(int branchId, PickingList parsedList, List<PickingListItem> parsedItems)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+
+            var existingList = await db.PickingLists
+                .Include(p => p.Items)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.BranchId == branchId && p.SalesOrderNumber == parsedList.SalesOrderNumber);
+
+            if (existingList == null)
+            {
+                return true; // It's a new list, so it's a change.
+            }
+
+            parsedList.Items = parsedItems;
+            return !AreEqual(existingList, parsedList);
+        }
+
+        public async Task<int> UpsertFromParsedDataAsync(int branchId, string userId, PickingList parsedList, List<PickingListItem> parsedItems)
         {
             // Propagate the main ship date to all line items if it exists.
             if (parsedList.ShipDate.HasValue)
@@ -312,10 +330,18 @@ namespace CMetalsWS.Services
                 parsedList.BranchId = branchId;
                 parsedList.Status = PickingListStatus.Pending; // Or some other default
                 parsedList.Items = parsedItems;
+                parsedList.ScannedById = userId;
+                parsedList.ScannedDate = DateTime.UtcNow;
+                parsedList.ModifiedById = userId;
+                parsedList.ModifiedDate = DateTime.UtcNow;
                 db.PickingLists.Add(parsedList);
             }
             else
             {
+                // Update existing list
+                existingList.ModifiedById = userId;
+                existingList.ModifiedDate = DateTime.UtcNow;
+
                 // Update existing list header by manually mapping properties
                 // This avoids trying to change the primary key, which causes an exception.
                 existingList.OrderDate = parsedList.OrderDate;
@@ -378,7 +404,7 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
         }
 
-        public async Task ReParseAsync(int pickingListId)
+        public async Task ReParseAsync(int pickingListId, string userId)
         {
             var latestImport = await _importService.GetLatestImportByPickingListIdAsync(pickingListId);
             if (latestImport == null || !System.IO.File.Exists(latestImport.SourcePdfPath))
@@ -399,7 +425,7 @@ namespace CMetalsWS.Services
                 var pdfBytes = await File.ReadAllBytesAsync(latestImport.SourcePdfPath);
                 var (parsedList, parsedItems) = await _parsingService.ParsePickingListAsync(pdfBytes);
 
-                var newPickingListId = await UpsertFromParsedDataAsync(pickingList.BranchId, parsedList, parsedItems);
+                var newPickingListId = await UpsertFromParsedDataAsync(pickingList.BranchId, userId, parsedList, parsedItems);
 
                 var rawJson = System.Text.Json.JsonSerializer.Serialize(new { header = parsedList, items = parsedItems });
                 await _importService.UpdateImportSuccessAsync(newImport.Id, newPickingListId, rawJson);

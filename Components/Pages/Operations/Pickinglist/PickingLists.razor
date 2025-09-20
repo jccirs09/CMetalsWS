@@ -214,11 +214,23 @@
             machines = machines.Where(m => m.BranchId == userBranchId.Value).ToList();
         }
 
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        if (user == null)
+        {
+            Snackbar.Add("You must be logged in to create a picking list.", Severity.Error);
+            return;
+        }
+
         var model = new PickingList
         {
             SalesOrderNumber = string.Empty,
             Status = PickingListStatus.Pending,
-            BranchId = (!isAdmin && userBranchId.HasValue) ? userBranchId.Value : (branches.FirstOrDefault()?.Id ?? 0)
+            BranchId = (!isAdmin && userBranchId.HasValue) ? userBranchId.Value : (branches.FirstOrDefault()?.Id ?? 0),
+            ScannedById = user.Id,
+            ScannedDate = DateTime.UtcNow,
+            ModifiedById = user.Id,
+            ModifiedDate = DateTime.UtcNow
         };
 
         var parameters = new DialogParameters
@@ -327,6 +339,10 @@
             Status = src.Status,
             TotalWeight = src.TotalWeight,
             RemainingWeight = src.RemainingWeight,
+            ScannedById = src.ScannedById,
+            ScannedDate = src.ScannedDate,
+            ModifiedById = src.ModifiedById,
+            ModifiedDate = src.ModifiedDate,
             Items = src.Items.Select(i => new PickingListItem
             {
                 Id = i.Id,
