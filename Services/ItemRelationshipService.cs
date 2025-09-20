@@ -128,7 +128,7 @@ namespace CMetalsWS.Services
                 catch (Exception ex)
                 {
                     // We should still log errors if AddChildAsync fails (e.g., parent/child not found in inventory).
-                    result.Errors.Add($"Failed to import relationship for item '{rowDict.TryGetValue("ItemCode", out var ic) ? ic : "N/A"}': {ex.Message}");
+                    result.Errors.Add($"Failed to import relationship for item '{(rowDict.TryGetValue("ItemCode", out var ic) ? ic : "N/A")}': {ex.Message}");
                 }
             }
 
