@@ -10,7 +10,7 @@
 <PageTitle>Master Item List</PageTitle>
 
 <MudPaper Class="p-4">
-    <MudTable ServerData="@(new Func<TableState, Task<TableData<ItemRelationship>>>(ServerReload))"
+    <MudTable T="ItemRelationship" ServerData="ServerReload"
               Dense="true" Hover="true" @ref="table"
               Striped="true" Bordered="true">
         <ToolBarContent>
@@ -43,11 +43,11 @@
     private MudTable<ItemRelationship> table = new();
     private string _searchString = "";
 
-    private async Task<TableData<ItemRelationship>> ServerReload(TableState state)
+    private async Task<TableData<ItemRelationship>> ServerReload(TableState state, CancellationToken token)
     {
         try
         {
-            var (items, total) = await ItemService.GetAllAsync(_searchString, state.Page + 1, state.PageSize, state.SortLabel, state.SortDirection);
+            var (items, total) = await ItemService.GetAllAsync(_searchString, state.Page + 1, state.PageSize, state.SortLabel, state.SortDirection, token);
             return new TableData<ItemRelationship>() { TotalItems = total, Items = items };
         }
         catch (Exception ex)

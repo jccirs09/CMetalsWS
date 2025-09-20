@@ -59,9 +59,11 @@
         <MudCard Class="mt-4">
             <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Import Results</MudText></CardHeaderContent></MudCardHeader>
             <MudCardContent>
-                <MudText>Total Rows: @_importResult.TotalRows</MudText>
-                <MudText>Successful Imports: @_importResult.SuccessfulImports</MudText>
-                <MudText>Failed Imports: @_importResult.FailedImports</MudText>
+                <MudText>Total Rows in File: @_importResult.TotalRows</MudText>
+                <MudText>Rows Processed: @_importResult.Processed</MudText>
+                <MudText>New Items Added: @_importResult.Added</MudText>
+                <MudText>Existing Items Updated: @_importResult.Updated</MudText>
+                <MudText Color="Color.Error">Failures: @_importResult.Errors.Count</MudText>
                 @if (_importResult.Errors.Any())
                 {
                     <MudText Typo="Typo.subtitle1" Class="mt-2">Errors:</MudText>

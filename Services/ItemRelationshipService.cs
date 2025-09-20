@@ -59,7 +59,7 @@ namespace CMetalsWS.Services
         public async Task<ImportResult> ImportFromExcelAsync(Stream stream, CancellationToken ct = default)
         {
             var result = new ImportResult();
-            var rows = stream.Query<ItemRelationship>(useHeaderRow: true).ToList();
+            var rows = stream.Query<ItemRelationship>().ToList();
             result.TotalRows = rows.Count;
 
             using var db = await _dbContextFactory.CreateDbContextAsync(ct);
