@@ -164,6 +164,15 @@ else
             _shouldRedirect = true;
             return;
         }
+
+        var hasChanges = await PickingListService.HasChangesAsync(_list.BranchId, _list, ParsingStateService.ParsedItems);
+        if (!hasChanges)
+        {
+            Snackbar.Add("No changes detected compared to the existing picking list.", Severity.Info);
+            _shouldRedirect = true;
+            return;
+        }
+
         _list.Items = ParsingStateService.ParsedItems;
 
         if (_list.ShipDate.HasValue)
@@ -225,17 +234,9 @@ else
         try
         {
             var newListId = await PickingListService.UpsertFromParsedDataAsync(_list.BranchId, userId, _list, _list.Items.ToList());
-            if (newListId == 0)
-            {
-                Snackbar.Add("No changes detected.", Severity.Info);
-                NavManager.NavigateTo("/picking-lists/upload");
-            }
-            else
-            {
-                Snackbar.Add("Picking list saved successfully.", Severity.Success);
-                ParsingStateService.Clear();
-                NavManager.NavigateTo($"/picking-lists/{newListId}");
-            }
+            Snackbar.Add("Picking list saved successfully.", Severity.Success);
+            ParsingStateService.Clear();
+            NavManager.NavigateTo($"/picking-lists/{newListId}");
         }
         catch (Exception ex)
         {

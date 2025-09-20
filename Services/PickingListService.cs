@@ -289,6 +289,24 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
         }
 
+        public async Task<bool> HasChangesAsync(int branchId, PickingList parsedList, List<PickingListItem> parsedItems)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+
+            var existingList = await db.PickingLists
+                .Include(p => p.Items)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.BranchId == branchId && p.SalesOrderNumber == parsedList.SalesOrderNumber);
+
+            if (existingList == null)
+            {
+                return true; // It's a new list, so it's a change.
+            }
+
+            parsedList.Items = parsedItems;
+            return !AreEqual(existingList, parsedList);
+        }
+
         public async Task<int> UpsertFromParsedDataAsync(int branchId, string userId, PickingList parsedList, List<PickingListItem> parsedItems)
         {
             // Propagate the main ship date to all line items if it exists.
@@ -320,13 +338,6 @@ namespace CMetalsWS.Services
             }
             else
             {
-                // If there are no changes, return 0 to signal this to the caller.
-                parsedList.Items = parsedItems;
-                if (AreEqual(existingList, parsedList))
-                {
-                    return 0;
-                }
-
                 // Update existing list
                 existingList.ModifiedById = userId;
                 existingList.ModifiedDate = DateTime.UtcNow;
