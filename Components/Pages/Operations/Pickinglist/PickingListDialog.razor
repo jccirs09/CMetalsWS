@@ -6,6 +6,7 @@
 @inject ISnackbar Snackbar
 @inject CustomerService CustomerService
 @inject PickingListService PickingListService
+@inject ItemRelationshipService RelService
 
 <MudDialog>
     <TitleContent>
@@ -105,7 +106,15 @@
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Line">@context.LineNumber</MudTd>
-                        <MudTd DataLabel="Item">@context.ItemId</MudTd>
+                        <MudTd DataLabel="Item">
+                            @context.ItemId
+                            @if (_parentLookup.TryGetValue(context.ItemId, out var parentRel))
+                            {
+                                <MudTooltip Text="@($"Coil: {parentRel.ItemCode} - {parentRel.Description}")">
+                                    <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Primary" Size="Size.Small" Class="ml-1" />
+                                </MudTooltip>
+                            }
+                        </MudTd>
                         <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
                         <MudTd DataLabel="Qty" Class="text-right">@context.Quantity.ToString("N3")</MudTd>
                         <MudTd DataLabel="Unit">@context.Unit</MudTd>
@@ -181,6 +190,7 @@
 
     private Customer? _selectedCustomer;
     private bool CanAddOrEdit => IsEdit || (Model?.Id ?? 0) == 0;
+    private Dictionary<string, ItemRelationship> _parentLookup = new();
 
     protected override async Task OnParametersSetAsync()
     {
@@ -191,6 +201,15 @@
 
         if (Model.CustomerId.HasValue && _selectedCustomer == null)
             _selectedCustomer = await CustomerService.GetByIdAsync(Model.CustomerId.Value);
+
+        if (Model.Items != null && Model.Items.Any())
+        {
+            var itemIds = Model.Items.Select(i => i.ItemId).ToList();
+            if (itemIds.Any())
+            {
+                _parentLookup = await RelService.GetParentsForChildrenAsync(itemIds);
+            }
+        }
     }
 
 

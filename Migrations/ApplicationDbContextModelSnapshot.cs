@@ -609,44 +609,21 @@ namespace CMetalsWS.Migrations
 
             modelBuilder.Entity("CMetalsWS.Data.ItemRelationship", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ChildItemDescription")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ChildItemId")
-                        .IsRequired()
+                    b.Property<string>("ItemCode")
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ParentItemDescription")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ParentItemId")
-                        .IsRequired()
+                    b.Property<string>("CoilRelationship")
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
 
-                    b.Property<string>("Relation")
+                    b.Property<string>("Description")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)")
-                        .HasDefaultValue("CoilToSheet");
+                        .HasColumnType("nvarchar(max)");
 
-                    b.HasKey("Id");
+                    b.HasKey("ItemCode");
 
-                    b.HasIndex("ParentItemId", "ChildItemId", "Relation")
-                        .IsUnique();
+                    b.HasIndex("CoilRelationship");
 
                     b.ToTable("ItemRelationship", (string)null);
                 });
@@ -1691,8 +1668,7 @@ namespace CMetalsWS.Migrations
 
                     b.HasOne("CMetalsWS.Data.ApplicationUser", "ScannedBy")
                         .WithMany()
-                        .HasForeignKey("ScannedById")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("ScannedById");
 
                     b.Navigation("Branch");
 

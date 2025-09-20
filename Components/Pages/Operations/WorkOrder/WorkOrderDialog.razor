@@ -281,32 +281,83 @@
 
         try
         {
-            _parentItem = await InvService.GetByTagNumberAsync(Model.TagNumber);
-            if (_parentItem is null)
+            var taggedItem = await InvService.GetByTagNumberAsync(Model.TagNumber);
+            if (taggedItem is null)
             {
-                Snackbar.Add($"Tag '{Model.TagNumber}' not found.", Severity.Error);
+                Snackbar.Add($"Tag '{Model.TagNumber}' not found in inventory.", Severity.Error);
                 return;
             }
-            Model.ParentItemId = _parentItem.ItemId;
+
+            var masterItem = await RelService.GetByItemCodeAsync(taggedItem.ItemId);
+            if (masterItem is null)
+            {
+                Snackbar.Add($"Item code '{taggedItem.ItemId}' not found in master list.", Severity.Error);
+                return;
+            }
+
+            string parentItemCode;
+            if (!string.IsNullOrEmpty(masterItem.CoilRelationship))
+            {
+                // This is a sheet. The parent is the coil it's related to.
+                parentItemCode = masterItem.CoilRelationship;
+            }
+            else
+            {
+                // This is a coil. It is its own parent.
+                parentItemCode = masterItem.ItemCode;
+            }
+
+            Model.ParentItemId = parentItemCode;
+
+            // Find a physical inventory item for the parent coil to display its properties.
+            var parentInventoryItems = await InvService.GetByItemIdsAsync(new List<string> { parentItemCode });
+            _parentItem = parentInventoryItems.FirstOrDefault();
+
+            if (_parentItem is null)
+            {
+                 // If no physical coil exists, create a dummy one for display from the master list info.
+                 var parentMaster = await RelService.GetByItemCodeAsync(parentItemCode);
+                 if(parentMaster != null)
+                 {
+                    _parentItem = new InventoryItem { ItemId = parentMaster.ItemCode, Description = parentMaster.Description };
+                 } else {
+                    Snackbar.Add($"Parent item '{parentItemCode}' not found in master list.", Severity.Error);
+                    return;
+                 }
+            }
 
             if (Model.MachineCategory == MachineCategory.Slitter)
             {
                 _childItems.Clear();
-                _childItems.Add(_parentItem);
+                _childItems.Add(taggedItem); // Slitter works on the physically scanned coil
             }
-            else
+            else // CTL Machine
             {
-                var children = await RelService.GetAsync(_parentItem.ItemId);
-                if (children.Count == 0)
+                var childMasterItems = await RelService.GetChildrenAsync(parentItemCode);
+                if (childMasterItems.Count == 0)
                 {
-                    Snackbar.Add($"No child items (sheets) are related to the coil with tag '{Model.TagNumber}'. Use the 'Item Relationships' page to add some.", Severity.Info);
-                    return;
+                    Snackbar.Add($"No child items (sheets) are related to the coil '{parentItemCode}'.", Severity.Info);
+                    _childItems.Clear();
                 }
+                else
+                {
+                    // We have the master list of children. Now find their physical properties from inventory.
+                    var childItemCodes = childMasterItems.Select(c => c.ItemCode).ToList();
+                    var childInventoryItems = await InvService.GetByItemIdsAsync(childItemCodes);
+                    var childInventoryLookup = childInventoryItems.GroupBy(i => i.ItemId).ToDictionary(g => g.Key, g => g.First());
 
-                _childItems.Clear();
-                _childItems = children.Select(c => new InventoryItem { ItemId = c.ChildItemId, Description = c.ChildItemDescription }).ToList();
+                    _childItems = childMasterItems.Select(c => {
+                        var physicalItem = childInventoryLookup.GetValueOrDefault(c.ItemCode);
+                        return new InventoryItem {
+                            ItemId = c.ItemCode,
+                            Description = c.Description,
+                            Width = physicalItem?.Width,
+                            Length = physicalItem?.Length
+                        };
+                    }).ToList();
+                }
             }
-            Snackbar.Add($"Found {_childItems.Count} potential child item(s).", Severity.Success);
+            Snackbar.Add($"Found {(_childItems?.Count ?? 0)} potential child item(s).", Severity.Success);
             StateHasChanged();
         }
         catch (Exception ex)
