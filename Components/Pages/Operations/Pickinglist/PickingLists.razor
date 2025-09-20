@@ -41,32 +41,20 @@
         </AuthorizeView>
     </MudStack>
 
-    <MudTable Items="lists" Hover="true" Dense="true" Context="pickingList">
+    <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-4"></MudTextField>
+
+    <MudTable Items="lists" Hover="true" Dense="true" Context="pickingList" Filter="new Func<PickingList, bool>(FilterFunc)">
         <HeaderContent>
-            <MudTh>Priority</MudTh>
-            <MudTh>SO #</MudTh>
-            <MudTh>Customer</MudTh>
-            <MudTh>Loc</MudTh>
+            <MudTh>SalesOrderNumber</MudTh>
+            <MudTh>Customer Name</MudTh>
+            <MudTh>Total Line Items</MudTh>
             <MudTh>Status</MudTh>
             <MudTh>Ship Date</MudTh>
-            <MudTh Class="text-right">Total Wt</MudTh>
+            <MudTh Class="text-right">Total Weight</MudTh>
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Priority">
-                @if (_canEditInline)
-                {
-                    <MudNumericField Value="pickingList.Priority"
-                                     ValueChanged="@((int p) => OnPriorityChanged(pickingList, p))"
-                                     Variant="Variant.Text"
-                                     Margin="Margin.Dense" />
-                }
-                else
-                {
-                    @pickingList.Priority
-                }
-            </MudTd>
-            <MudTd DataLabel="SO #">
+            <MudTd DataLabel="SalesOrderNumber">
                 <MudButton Variant="Variant.Text"
                            Color="Color.Primary"
                            Class="px-0"
@@ -75,8 +63,8 @@
                     @pickingList.SalesOrderNumber
                 </MudButton>
             </MudTd>
-            <MudTd DataLabel="Customer">@pickingList.Customer?.CustomerName</MudTd>
-            <MudTd DataLabel="Loc">@pickingList.Customer?.DestinationGroup?.Name</MudTd>
+            <MudTd DataLabel="Customer Name">@pickingList.Customer?.CustomerName</MudTd>
+            <MudTd DataLabel="Total Line Items">@pickingList.Items.Count()</MudTd>
             <MudTd DataLabel="Status">
                 @if (_canEditInline)
                 {
@@ -102,7 +90,7 @@
                     @pickingList.ShipDate?.ToString("yyyy-MM-dd")
                 }
             </MudTd>
-            <MudTd DataLabel="Total Wt" Class="text-right">@pickingList.TotalWeight.ToString("N3")</MudTd>
+            <MudTd DataLabel="Total Weight" Class="text-right">@pickingList.TotalWeight.ToString("N3")</MudTd>
             <MudTd DataLabel="Actions">
                 @if (_canEdit)
                 {
@@ -122,6 +110,7 @@
 
 @code {
     private List<PickingList> lists = new();
+    private string searchString = "";
     private bool isAdmin;
     private int? userBranchId;
     private Branch? userBranch;
@@ -146,6 +135,17 @@
 
         await LoadUserContextAsync();
         await LoadAsync();
+    }
+
+    private bool FilterFunc(PickingList list)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (list.SalesOrderNumber.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (list.Customer?.CustomerName?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+        return false;
     }
 
     private async Task LoadUserContextAsync()
