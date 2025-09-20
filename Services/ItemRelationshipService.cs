@@ -38,6 +38,7 @@ namespace CMetalsWS.Services
         public async Task<List<ItemRelationship>> GetChildrenAsync(string parentItemCode, CancellationToken ct = default)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync(ct);
+            parentItemCode = parentItemCode?.Trim() ?? "";
             return await db.ItemRelationships
                 .AsNoTracking()
                 .Where(i => i.CoilRelationship == parentItemCode)
@@ -78,17 +79,19 @@ namespace CMetalsWS.Services
                     var existing = await db.ItemRelationships.FirstOrDefaultAsync(i => i.ItemCode == row.ItemCode, ct);
                     if (existing != null)
                     {
-                        existing.Description = row.Description;
-                        existing.CoilRelationship = string.IsNullOrWhiteSpace(row.CoilRelationship) ? null : row.CoilRelationship;
+                        existing.Description = row.Description?.Trim();
+                        var coilRel = row.CoilRelationship?.Trim();
+                        existing.CoilRelationship = string.IsNullOrWhiteSpace(coilRel) ? null : coilRel;
                         result.Updated++;
                     }
                     else
                     {
+                        var coilRel = row.CoilRelationship?.Trim();
                         db.ItemRelationships.Add(new ItemRelationship
                         {
-                            ItemCode = row.ItemCode,
-                            Description = row.Description,
-                            CoilRelationship = string.IsNullOrWhiteSpace(row.CoilRelationship) ? null : row.CoilRelationship
+                            ItemCode = row.ItemCode.Trim(),
+                            Description = row.Description?.Trim(),
+                            CoilRelationship = string.IsNullOrWhiteSpace(coilRel) ? null : coilRel
                         });
                         result.Added++;
                     }

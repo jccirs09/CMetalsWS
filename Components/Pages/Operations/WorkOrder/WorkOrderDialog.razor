@@ -298,24 +298,20 @@
             string parentItemCode;
             if (!string.IsNullOrEmpty(masterItem.CoilRelationship))
             {
-                // This is a sheet. The parent is the coil it's related to.
                 parentItemCode = masterItem.CoilRelationship;
             }
             else
             {
-                // This is a coil. It is its own parent.
                 parentItemCode = masterItem.ItemCode;
             }
 
             Model.ParentItemId = parentItemCode;
 
-            // Find a physical inventory item for the parent coil to display its properties.
             var parentInventoryItems = await InvService.GetByItemIdsAsync(new List<string> { parentItemCode });
             _parentItem = parentInventoryItems.FirstOrDefault();
 
             if (_parentItem is null)
             {
-                 // If no physical coil exists, create a dummy one for display from the master list info.
                  var parentMaster = await RelService.GetByItemCodeAsync(parentItemCode);
                  if(parentMaster != null)
                  {
@@ -329,32 +325,36 @@
             if (Model.MachineCategory == MachineCategory.Slitter)
             {
                 _childItems.Clear();
-                _childItems.Add(taggedItem); // Slitter works on the physically scanned coil
+                _childItems.Add(taggedItem);
             }
             else // CTL Machine
             {
                 var childMasterItems = await RelService.GetChildrenAsync(parentItemCode);
-                if (childMasterItems.Count == 0)
+                if (!childMasterItems.Any())
                 {
                     Snackbar.Add($"No child items (sheets) are related to the coil '{parentItemCode}'.", Severity.Info);
                     _childItems.Clear();
                 }
                 else
                 {
-                    // We have the master list of children. Now find their physical properties from inventory.
                     var childItemCodes = childMasterItems.Select(c => c.ItemCode).ToList();
-                    var childInventoryItems = await InvService.GetByItemIdsAsync(childItemCodes);
-                    var childInventoryLookup = childInventoryItems.GroupBy(i => i.ItemId).ToDictionary(g => g.Key, g => g.First());
+                    var physicalChildren = await InvService.GetByItemIdsAsync(childItemCodes);
+                    var physicalChildrenLookup = physicalChildren
+                        .Where(p => p.Width.HasValue && p.Length.HasValue)
+                        .GroupBy(i => i.ItemId)
+                        .ToDictionary(g => g.Key, g => g.First());
 
-                    _childItems = childMasterItems.Select(c => {
-                        var physicalItem = childInventoryLookup.GetValueOrDefault(c.ItemCode);
-                        return new InventoryItem {
-                            ItemId = c.ItemCode,
-                            Description = c.Description,
-                            Width = physicalItem?.Width,
-                            Length = physicalItem?.Length
-                        };
-                    }).ToList();
+                    _childItems = childMasterItems
+                        .Where(c => physicalChildrenLookup.ContainsKey(c.ItemCode))
+                        .Select(c => {
+                            var physicalItem = physicalChildrenLookup[c.ItemCode];
+                            return new InventoryItem {
+                                ItemId = c.ItemCode,
+                                Description = c.Description,
+                                Width = physicalItem.Width,
+                                Length = physicalItem.Length
+                            };
+                        }).ToList();
                 }
             }
             Snackbar.Add($"Found {(_childItems?.Count ?? 0)} potential child item(s).", Severity.Success);
@@ -499,6 +499,7 @@
     {
         if (string.IsNullOrWhiteSpace(description)) return null;
 
+        // Try "XX GA" format
         var match = Regex.Match(description, @"(?<gauge>\d+)\s*GA");
         if (match.Success && int.TryParse(match.Groups["gauge"].Value, out var gaugeNumber))
         {
@@ -508,11 +509,18 @@
             }
         }
 
-        // Fallback to original method
-        match = Regex.Match(description, @"\((?<gauge>\.\d+)\)");
-        if (match.Success && double.TryParse(match.Groups["gauge"].Value, out var gauge))
+        // Try ".XXX" at the start of the string
+        match = Regex.Match(description, @"^\s*\.(?<gauge>\d+)");
+        if (match.Success && double.TryParse("0." + match.Groups["gauge"].Value, out var leadingDecimal))
         {
-            return gauge;
+            return leadingDecimal;
+        }
+
+        // Fallback for formats like "(.0123)"
+        match = Regex.Match(description, @"\((?<gauge>\.\d+)\)");
+        if (match.Success && double.TryParse(match.Groups["gauge"].Value, out var parenthesizedDecimal))
+        {
+            return parenthesizedDecimal;
         }
 
         return null;
