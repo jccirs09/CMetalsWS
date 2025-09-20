@@ -12,12 +12,23 @@
         <MudText Typo="Typo.h5">Import Coil → Sheet Relationships</MudText>
         <MudText>Select an Excel file with the following columns: <strong>ItemCode</strong>, <strong>Description</strong>, <strong>CoilRelationship</strong>.</MudText>
 
-        <InputFile OnChange="OnFileChanged" accept=".xlsx,.xls" />
-
-        @if (_file != null)
-        {
-            <MudText>File: @_file.Name</MudText>
-        }
+        <MudFileUpload T="IReadOnlyList<IBrowserFile>" OnFilesChanged="OnFilesChanged" Accept=".xlsx,.xls" MaximumFileCount="1">
+            <ButtonTemplate>
+                <MudButton HtmlTag="label"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                           for="@context">
+                    Select File
+                </MudButton>
+            </ButtonTemplate>
+            <SelectedTemplate>
+                @if (context != null && context.Any())
+                {
+                    <MudText>Selected: @context.First().Name</MudText>
+                }
+            </SelectedTemplate>
+        </MudFileUpload>
 
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ImportAsync" Disabled="_isUploading || _file == null">Import</MudButton>
 
@@ -50,10 +61,13 @@
     private bool _isUploading;
     private ImportResult? _importResult;
 
-    private void OnFileChanged(InputFileChangeEventArgs e)
+    private void OnFilesChanged(IReadOnlyList<IBrowserFile> files)
     {
-        _file = e.File;
-        _importResult = null;
+        if (files.Any())
+        {
+            _file = files.First();
+            _importResult = null;
+        }
     }
 
     private async Task ImportAsync()
