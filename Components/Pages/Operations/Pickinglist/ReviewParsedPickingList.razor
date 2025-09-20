@@ -123,7 +123,7 @@ else
             <MudTd DataLabel="Unit">@context.Unit</MudTd>
             <MudTd DataLabel="Machine">
                 <MudSelect T="int?" Value="context.MachineId" ValueChanged="@((int? machineId) => OnMachineChanged(context, machineId))" Dense="true" Margin="Margin.Dense">
-                    @foreach (var machine in _machines)
+                    @foreach (var machine in GetFilteredMachines(context))
                     {
                         <MudSelectItem Value="@((int?)machine.Id)">@machine.Name</MudSelectItem>
                     }
@@ -240,7 +240,7 @@ else
             var newListId = await PickingListService.UpsertFromParsedDataAsync(_list.BranchId, userId, _list, _list.Items.ToList());
             Snackbar.Add("Picking list saved successfully.", Severity.Success);
             ParsingStateService.Clear();
-            NavManager.NavigateTo($"/picking-lists/{newListId}");
+            NavManager.NavigateTo("/picking-lists/upload");
         }
         catch (Exception ex)
         {
@@ -285,6 +285,18 @@ else
             OnMachineChanged(item, _bulkAssignMachineId);
         }
         Snackbar.Add($"Assigned machine to {_selectedItems.Count} items.", Severity.Success);
+    }
+
+    private IEnumerable<Machine> GetFilteredMachines(PickingListItem item)
+    {
+        if (item.Length.HasValue && item.Length > 0)
+        {
+            return _machines.Where(m => m.Category == MachineCategory.Sheet || m.Category == MachineCategory.CTL);
+        }
+        else
+        {
+            return _machines.Where(m => m.Category == MachineCategory.Slitter || m.Category == MachineCategory.Coil);
+        }
     }
 
     private string FormatDimension(object? dimension)
