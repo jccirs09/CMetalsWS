@@ -13,7 +13,7 @@
         <MudText>Select an Excel file with the following columns: <strong>ItemCode</strong>, <strong>Description</strong>, <strong>CoilRelationship</strong>.</MudText>
 
         <MudFileUpload T="IReadOnlyList<IBrowserFile>" OnFilesChanged="OnFilesChanged" Accept=".xlsx,.xls" MaximumFileCount="1">
-            <ButtonTemplate>
+            <ActivatorContent>
                 <MudButton HtmlTag="label"
                            Variant="Variant.Filled"
                            Color="Color.Primary"
@@ -21,7 +21,7 @@
                            for="@context">
                     Select File
                 </MudButton>
-            </ButtonTemplate>
+            </ActivatorContent>
             <SelectedTemplate>
                 @if (context != null && context.Any())
                 {
