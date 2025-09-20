@@ -110,7 +110,7 @@
                             @context.ItemId
                             @if (_parentLookup.TryGetValue(context.ItemId, out var parentRel))
                             {
-                                <MudTooltip Text="@($"Coil: {parentRel.ParentItemId} - {parentRel.ParentItemDescription}")">
+                                <MudTooltip Text="@($"Coil: {parentRel.ItemCode} - {parentRel.Description}")">
                                     <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Primary" Size="Size.Small" Class="ml-1" />
                                 </MudTooltip>
                             }

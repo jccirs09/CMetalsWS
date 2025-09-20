@@ -1,107 +1,59 @@
-﻿@page "/operations/item-relations"
+@page "/operations/item-relations"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using CMetalsWS.Security
 @attribute [Authorize(Policy = Permissions.WorkOrders.Edit)]
-@inject ItemRelationshipService RelService
+@inject ItemRelationshipService ItemService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
-<PageTitle>Item Relationships</PageTitle>
+<PageTitle>Master Item List</PageTitle>
 
 <MudPaper Class="p-4">
-    <MudStack Spacing="2">
-        <MudText Typo="Typo.h5">Coil → Sheet Relationships</MudText>
-
-        <MudStack Row Spacing="2" AlignItems="AlignItems.Center">
-            <MudTextField @bind-Value="_parentId" Label="Parent (Coil) ItemId" Immediate="true" />
-            <MudButton Variant="Variant.Filled" OnClick="LoadAsync">Load</MudButton>
-        </MudStack>
-
-        @if (_loaded)
-        {
-            <MudText Typo="Typo.subtitle2">
-                Parent Description: @(_parentDesc ?? "— not found —")
-            </MudText>
-
-            <MudDivider Class="my-2" />
-
-            <MudText Typo="Typo.subtitle2">Children (Sheets)</MudText>
-
-            <MudTable Items="_relationships" Dense="true" Hover="true" Bordered="true">
-                <HeaderContent>
-                    <MudTh>Child ItemId</MudTh>
-                    <MudTh>Description</MudTh>
-                    <MudTh></MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd>@context.ChildItemId</MudTd>
-                    <MudTd>@context.ChildItemDescription</MudTd>
-                    <MudTd>
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
-                                       OnClick="@(() => DeleteAsync(context.Id))" />
-                    </MudTd>
-                </RowTemplate>
-                <NoRecordsContent>
-                    <MudText Color="Color.Secondary">No children found.</MudText>
-                </NoRecordsContent>
-            </MudTable>
-
-            <MudStack Row Spacing="2" Class="mt-3" AlignItems="AlignItems.Center">
-                <MudTextField @bind-Value="_newChildId" Label="Add Child ItemId" Immediate="true" />
-                <MudButton Variant="Variant.Outlined" OnClick="AddAsync">Add</MudButton>
-            </MudStack>
-        }
-    </MudStack>
+    <MudTable ServerData="@(new Func<TableState, Task<TableData<ItemRelationship>>>(ServerReload))"
+              Dense="true" Hover="true" @ref="table"
+              Striped="true" Bordered="true">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Master Item List</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true"
+                          OnAdornmentClick="@(()=>table.ReloadServerData())"></MudTextField>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortLabel="item_code" T="ItemRelationship">Item Code</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="description" T="ItemRelationship">Description</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="coil_relationship" T="ItemRelationship">Coil Relationship</MudTableSortLabel></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Item Code">@context.ItemCode</MudTd>
+            <MudTd DataLabel="Description">@context.Description</MudTd>
+            <MudTd DataLabel="Coil Relationship">@context.CoilRelationship</MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+        <NoRecordsContent>
+            <MudText>No matching items found.</MudText>
+        </NoRecordsContent>
+    </MudTable>
 </MudPaper>
 
 @code {
-    private string _parentId = "";
-    private string? _parentDesc;
-    private bool _loaded;
-    private string _newChildId = "";
-    private List<ItemRelationship> _relationships = new();
+    private MudTable<ItemRelationship> table = new();
+    private string _searchString = "";
 
-    private async Task LoadAsync()
+    private async Task<TableData<ItemRelationship>> ServerReload(TableState state)
     {
         try
         {
-            _relationships = await RelService.GetAsync(_parentId);
-            _parentDesc = _relationships.FirstOrDefault()?.ParentItemDescription ?? "— not found —";
-            _loaded = true;
-            StateHasChanged();
+            var (items, total) = await ItemService.GetAllAsync(_searchString, state.Page + 1, state.PageSize, state.SortLabel, state.SortDirection);
+            return new TableData<ItemRelationship>() { TotalItems = total, Items = items };
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Load failed: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task AddAsync()
-    {
-        try
-        {
-            await RelService.AddChildAsync(_parentId, _newChildId);
-            _newChildId = "";
-            await LoadAsync();
-            Snackbar.Add("Child added.", Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Add failed: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task DeleteAsync(int relId)
-    {
-        try
-        {
-            await RelService.RemoveAsync(relId);
-            await LoadAsync();
-            Snackbar.Add("Child removed.", Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Delete failed: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+            return new TableData<ItemRelationship>() { TotalItems = 0, Items = new List<ItemRelationship>() };
         }
     }
 }

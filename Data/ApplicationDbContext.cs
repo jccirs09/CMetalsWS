@@ -193,14 +193,14 @@ namespace CMetalsWS.Data
                 .HasConversion<int>()
                 .HasDefaultValue(PickingLineStatus.Pending);
 
-            // ItemRelationship
+            // ItemRelationship (Master Item List)
             modelBuilder.Entity<ItemRelationship>(e =>
             {
                 e.ToTable("ItemRelationship");
-                e.Property(x => x.ParentItemId).HasMaxLength(128).IsRequired();
-                e.Property(x => x.ChildItemId).HasMaxLength(128).IsRequired();
-                e.Property(x => x.Relation).HasMaxLength(32).HasDefaultValue("CoilToSheet");
-                e.HasIndex(x => new { x.ParentItemId, x.ChildItemId, x.Relation }).IsUnique();
+                e.HasKey(x => x.ItemCode);
+                e.Property(x => x.ItemCode).HasMaxLength(128);
+                e.Property(x => x.CoilRelationship).HasMaxLength(128);
+                e.HasIndex(x => x.CoilRelationship);
             });
 
             // Numeric precisions (fix EF warnings)
