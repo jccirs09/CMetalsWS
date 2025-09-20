@@ -14,6 +14,7 @@
 @inject ApplicationDbContext DbContext
 @inject NavigationManager NavManager
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 @if (_list == null)
 {
@@ -168,8 +169,11 @@ else
         var hasChanges = await PickingListService.HasChangesAsync(_list.BranchId, _list, ParsingStateService.ParsedItems);
         if (!hasChanges)
         {
-            Snackbar.Add("No changes detected compared to the existing picking list.", Severity.Info);
-            _shouldRedirect = true;
+            await DialogService.ShowMessageBox(
+                "No Changes Detected",
+                "The uploaded picking list is identical to the existing one.",
+                yesText: "OK");
+            NavManager.NavigateTo("/picking-lists/upload");
             return;
         }
 
