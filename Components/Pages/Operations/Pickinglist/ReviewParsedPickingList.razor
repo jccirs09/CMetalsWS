@@ -183,10 +183,7 @@ else
         {
             foreach (var item in _list.Items)
             {
-                if (item.ScheduledShipDate == null)
-                {
-                    item.ScheduledShipDate = _list.ShipDate;
-                }
+                item.ScheduledShipDate = _list.ShipDate;
             }
         }
 
