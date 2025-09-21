@@ -1,5 +1,6 @@
 @page "/schedule/pulling"
 @using MudBlazor
+@using MudBlazor.Utilities
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.SignalR.Client
 @using CMetalsWS.Data
@@ -22,11 +23,26 @@
             <MudText Typo="Typo.h5">Pulling Schedule</MudText>
         </MudStack>
 
-        <MudDropContainer @ref="_container" T="PickingListItem" Items="_items" ItemsSelector="@((item,zone) => item.MachineId.ToString() == zone)" ItemDropped="ItemDropped" Class="d-flex flex-wrap flex-grow-1">
+        <MudDropContainer @ref="_container" T="PickingList" Items="_pickingLists" ItemsSelector="@((list,zone) => GetMachineIdForPickingList(list) == zone)" ItemDropped="ItemDropped" Class="d-flex flex-wrap flex-grow-1">
             <ItemRenderer>
-                <MudPaper Class="pa-4 my-2">
-                    <MudText Typo="Typo.body1">@context.PickingList.SalesOrderNumber</MudText>
-                    <MudText Typo="Typo.body2">@context.PickingList.Customer?.CustomerName</MudText>
+                <MudPaper Class="pa-4 my-2" Style="min-width: 300px;">
+                    <MudText Typo="Typo.h6">@context.SalesOrderNumber</MudText>
+                    <MudText Typo="Typo.body2">@context.Customer?.CustomerName</MudText>
+                    <MudDivider Class="my-2" />
+                    <MudGrid Spacing="1">
+                        <MudItem xs="6">
+                            <MudText Typo="Typo.caption">Ship Date:</MudText>
+                            <MudText Typo="Typo.body2">@context.ShipDate?.ToShortDateString()</MudText>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudText Typo="Typo.caption">Total Items:</MudText>
+                            <MudText Typo="Typo.body2">@context.Items.Count</MudText>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.caption">Total Sheet Weight:</MudText>
+                            <MudText Typo="Typo.body2">@context.Items.Where(i => i.Machine?.Category == MachineCategory.Sheet).Sum(i => i.Weight ?? 0).ToString("N3")</MudText>
+                        </MudItem>
+                    </MudGrid>
                 </MudPaper>
             </ItemRenderer>
             <ChildContent>
@@ -35,7 +51,7 @@
                     {
                         <MudPaper Class="pa-6 ma-2 mud-border-dotted">
                             <MudText Typo="Typo.h6" Class="mb-4">@machine.Name</MudText>
-                            <MudDropZone T="PickingListItem" Identifier="@(machine.Id.ToString())" />
+                            <MudDropZone T="PickingList" Identifier="@(machine.Id.ToString())" />
                         </MudPaper>
                     }
                 </div>
@@ -45,9 +61,9 @@
 </MudPaper>
 
 @code {
-    private List<PickingListItem> _items = new();
+    private List<PickingList> _pickingLists = new();
     private List<Machine> _machines = new();
-    private MudDropContainer<PickingListItem> _container = new();
+    private MudDropContainer<PickingList> _container = new();
     private HubConnection? _hub;
 
     protected override async Task OnInitializedAsync()
@@ -79,85 +95,54 @@
     private async Task LoadData(int? branchId)
     {
         _machines = (await MachineService.GetMachinesAsync()).Where(m => m.Category == MachineCategory.Sheet).ToList();
-        _items = await PickingListService.GetSheetPullingQueueAsync();
+        _pickingLists = await PickingListService.GetSheetPullingQueueListsAsync();
         if (branchId.HasValue)
         {
-            _items = _items.Where(i => i.PickingList?.BranchId == branchId.Value).ToList();
+            _pickingLists = _pickingLists.Where(p => p.BranchId == branchId.Value).ToList();
         }
     }
 
-    private async Task ItemDropped(MudItemDropInfo<PickingListItem> dropItem)
+    private string GetMachineIdForPickingList(PickingList list)
     {
-        var itemToMove = dropItem.Item;
+        // A picking list is associated with the machine of its first sheet item.
+        // This determines which drop zone it appears in.
+        return list.Items
+            .FirstOrDefault(i => i.Machine?.Category == MachineCategory.Sheet)?
+            .MachineId.ToString() ?? "0"; // Should not be 0, but as a fallback.
+    }
+
+    private async Task ItemDropped(MudItemDropInfo<PickingList> dropItem)
+    {
+        var listToMove = dropItem.Item;
         var newZoneId = dropItem.DropzoneIdentifier;
-        var indexInNewZone = dropItem.IndexInZone;
+        var newMachineId = int.Parse(newZoneId);
 
-        // Update the item's machine association
-        itemToMove.MachineId = int.Parse(newZoneId);
+        // The `UpdateOrder` extension method handles the re-ordering of the list based on the drop event.
+        // We use the `Priority` property as the "Order" field.
+        _pickingLists.UpdateOrder(dropItem, item => item.Priority);
 
-        // Manually re-order the backing list to match the UI state
-        _items.Remove(itemToMove);
+        // The list is now in the correct global order, with `Priority` reflecting this global order.
+        // We can now call the service to persist the changes.
+        // The service layer will be responsible for converting the global priority into the date-scoped priority.
 
-        var itemsInNewZone = _items.Where(i => i.MachineId.ToString() == newZoneId).ToList();
-        if (indexInNewZone < itemsInNewZone.Count)
-        {
-            // Insert before an existing item
-            var itemToInsertBefore = itemsInNewZone[indexInNewZone];
-            var globalIndex = _items.IndexOf(itemToInsertBefore);
-            _items.Insert(globalIndex, itemToMove);
-        }
-        else
-        {
-            // Insert at the end of the zone
-            if (itemsInNewZone.Any())
-            {
-                var lastItemInZone = itemsInNewZone.Last();
-                var globalIndex = _items.IndexOf(lastItemInZone);
-                _items.Insert(globalIndex + 1, itemToMove);
-            }
-            else // Dropped into an empty zone
-            {
-                // Find the first item of the next zone and insert before it
-                var machineZoneIds = _machines.Select(m => m.Id.ToString()).ToList();
-                var zoneIndex = machineZoneIds.IndexOf(newZoneId);
-                int insertionIndex = _items.Count; // Default to end of list
+        await PickingListService.UpdatePullingQueueOrderAsync(_pickingLists, listToMove.Id, newMachineId);
 
-                for (int i = zoneIndex + 1; i < machineZoneIds.Count; i++)
-                {
-                    var nextZoneId = machineZoneIds[i];
-                    var firstItemOfNextZone = _items.FirstOrDefault(it => it.MachineId.ToString() == nextZoneId);
-                    if (firstItemOfNextZone != null)
-                    {
-                        insertionIndex = _items.IndexOf(firstItemOfNextZone);
-                        break;
-                    }
-                }
-                _items.Insert(insertionIndex, itemToMove);
-            }
-        }
+        // After the update, we must reload the data to get the fresh state from the database,
+        // which includes the newly calculated date-scoped priorities and machine assignments.
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = auth.User;
+        var branches = await BranchService.GetBranchesAsync();
+        int? branchId = user.IsInRole("Admin") ? null : branches.FirstOrDefault()?.Id;
+        await LoadData(branchId);
 
-        // Recalculate priorities for all machine groups
-        var machineGroups = _items.GroupBy(i => i.MachineId);
-        foreach (var group in machineGroups)
-        {
-            int priority = 0;
-            foreach (var item in group)
-            {
-                item.PickingList.Priority = priority++;
-            }
-        }
-
-        // Persist changes and update UI
-        await PickingListService.UpdatePullingQueueAsync(_items);
-
-        var machineName = _machines.FirstOrDefault(m => m.Id == itemToMove.MachineId)?.Name;
-        Snackbar.Add($"Moved {itemToMove.PickingList.SalesOrderNumber} to machine {machineName}", Severity.Success);
+        Snackbar.Add($"Moved {listToMove.SalesOrderNumber} to machine {_machines.FirstOrDefault(m => m.Id == newMachineId)?.Name}", Severity.Success);
 
         if (_hub is not null)
         {
-            await _hub.SendAsync("PickingListUpdated", itemToMove.PickingListId);
+            await _hub.SendAsync("PickingListUpdated", listToMove.Id);
         }
 
+        // We must call StateHasChanged here to ensure the UI re-renders with the reloaded data.
         StateHasChanged();
     }
 

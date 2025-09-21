@@ -514,5 +514,64 @@ namespace CMetalsWS.Services
             }
             await db.SaveChangesAsync();
         }
+
+        public async Task<List<PickingList>> GetSheetPullingQueueListsAsync()
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+
+            var pickingListIds = await db.PickingListItems
+                .Where(i => i.Status == PickingLineStatus.AssignedPulling &&
+                            i.Machine != null &&
+                            i.Machine.Category == MachineCategory.Sheet)
+                .Select(i => i.PickingListId)
+                .Distinct()
+                .ToListAsync();
+
+            return await db.PickingLists
+                .Include(p => p.Customer)
+                .Include(p => p.Items)
+                .ThenInclude(i => i.Machine)
+                .Where(p => pickingListIds.Contains(p.Id))
+                .OrderBy(p => p.ShipDate)
+                .ThenBy(p => p.Priority)
+                .ToListAsync();
+        }
+
+        public async Task UpdatePullingQueueOrderAsync(List<PickingList> orderedLists, int droppedListId, int newMachineId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+
+            // The list comes in with a global order set in the Priority field.
+            // We need to convert this to a date-scoped priority.
+            var dateGroups = orderedLists.GroupBy(l => l.ShipDate?.Date);
+
+            foreach (var group in dateGroups)
+            {
+                int priority = 1; // Priority starts at 1 for each date group
+                foreach (var list in group) // The group is already ordered by the global priority
+                {
+                    var trackedList = await db.PickingLists.FindAsync(list.Id);
+                    if (trackedList != null)
+                    {
+                        trackedList.Priority = priority++;
+                    }
+                }
+            }
+
+            // Update machine for all sheet items in the dropped list
+            var droppedList = await db.PickingLists
+                .Include(p => p.Items.Where(i => i.Machine != null && i.Machine.Category == MachineCategory.Sheet))
+                .FirstOrDefaultAsync(p => p.Id == droppedListId);
+
+            if (droppedList != null)
+            {
+                foreach (var item in droppedList.Items)
+                {
+                    item.MachineId = newMachineId;
+                }
+            }
+
+            await db.SaveChangesAsync();
+        }
     }
 }
