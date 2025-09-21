@@ -45,6 +45,7 @@
 
     <MudTable Items="lists" Hover="true" Dense="true" Context="pickingList" Filter="new Func<PickingList, bool>(FilterFunc)">
         <HeaderContent>
+            <MudTh>Priority</MudTh>
             <MudTh>SalesOrderNumber</MudTh>
             <MudTh>Customer Name</MudTh>
             <MudTh>Total Line Items</MudTh>
@@ -54,6 +55,19 @@
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
+            <MudTd DataLabel="Priority">
+                @if (_canEditInline)
+                {
+                    <MudNumericField Value="pickingList.Priority"
+                                     ValueChanged="@((int p) => OnPriorityChanged(pickingList, p))"
+                                     Variant="Variant.Text"
+                                     Margin="Margin.Dense" />
+                }
+                else
+                {
+                    @pickingList.Priority
+                }
+            </MudTd>
             <MudTd DataLabel="SalesOrderNumber">
                 <MudButton Variant="Variant.Text"
                            Color="Color.Primary"
