@@ -47,10 +47,6 @@
             </ItemRenderer>
             <ChildContent>
                 <div class="d-flex flex-wrap">
-                    <MudPaper Class="pa-4 ma-2 mud-border-dotted" Style="min-width: 350px;">
-                        <MudText Typo="Typo.h6" Class="mb-2">Unassigned</MudText>
-                        <MudDropZone T="PickingList" Identifier="unassigned" Class="pa-2 mud-border-dashed" />
-                    </MudPaper>
                     @foreach (var machine in _machines)
                     {
                         <MudPaper Class="pa-4 ma-2 mud-border-dotted" Style="min-width: 350px;">
@@ -148,10 +144,28 @@
         var sheetItem = list.Items.FirstOrDefault(i => i.Machine?.Category == MachineCategory.Sheet);
         if (sheetItem?.MachineId == null || sheetItem.ScheduledProcessingDate == null)
         {
-            return "unassigned";
+            return "no-zone";
         }
 
         return $"{sheetItem.MachineId}-{sheetItem.ScheduledProcessingDate.Value:yyyy-MM-dd}";
+    }
+
+    private int CalculateIndexOffset(string zoneId)
+    {
+        int offset = 0;
+        foreach (var machine in _machines)
+        {
+            foreach (var date in _distinctDates)
+            {
+                string currentZone = $"{machine.Id}-{date:yyyy-MM-dd}";
+                if (currentZone == zoneId)
+                {
+                    return offset;
+                }
+                offset += _pickingLists.Count(l => GetZoneIdentifierForPickingList(l) == currentZone);
+            }
+        }
+        return offset;
     }
 
     private async Task ItemDropped(MudItemDropInfo<PickingList> dropItem)
@@ -159,18 +173,26 @@
         var listToMove = dropItem.Item;
         var newZoneId = dropItem.DropzoneIdentifier;
 
-        if (newZoneId == "unassigned")
-        {
-            return; // No action needed
-        }
-
         var zoneParts = newZoneId.Split('-');
         if (zoneParts.Length < 2) return;
 
         var newMachineId = int.Parse(zoneParts[0]);
         var newDate = DateTime.Parse(string.Join("-", zoneParts.Skip(1)));
 
-        await PickingListService.UpdatePullingQueueOrderAsync(new List<PickingList>(), listToMove.Id, newMachineId, newDate);
+        // Update the item in memory before reordering
+        foreach (var item in listToMove.Items)
+        {
+            if (item.Machine?.Category == MachineCategory.Sheet)
+            {
+                item.MachineId = newMachineId;
+                item.ScheduledProcessingDate = newDate;
+            }
+        }
+
+        var indexOffset = CalculateIndexOffset(newZoneId);
+        _pickingLists.UpdateOrder(dropItem, item => item.Priority, indexOffset);
+
+        await PickingListService.UpdatePullingQueueOrderAsync(_pickingLists, listToMove.Id, newMachineId, newDate);
 
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = auth.User;
