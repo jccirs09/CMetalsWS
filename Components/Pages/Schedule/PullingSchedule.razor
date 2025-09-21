@@ -52,7 +52,7 @@
                         <MudPaper Class="pa-4 ma-2 mud-border-dotted" Style="min-width: 350px;">
                             <MudText Typo="Typo.h6" Class="mb-2">@machine.Name</MudText>
                             <MudList T="object" Clickable="false" Dense="true">
-                                @foreach (var date in _distinctDates)
+                                @foreach (var date in _datesByMachine.GetValueOrDefault(machine.Id, new List<DateTime>()))
                                 {
                                     <MudListItem>
                                         <div class="d-flex flex-column" style="width: 100%;">
@@ -73,7 +73,7 @@
 @code {
     private List<PickingList> _pickingLists = new();
     private List<Machine> _machines = new();
-    private List<DateTime> _distinctDates = new();
+    private Dictionary<int, List<DateTime>> _datesByMachine = new();
     private MudDropContainer<PickingList> _container = new();
     private HubConnection? _hub;
 
@@ -112,15 +112,19 @@
             _pickingLists = _pickingLists.Where(p => p.BranchId == branchId.Value).ToList();
         }
 
-        // Date-based grouping logic
-        _distinctDates = _pickingLists
+        CalculateDatesByMachine();
+    }
+
+    private void CalculateDatesByMachine()
+    {
+        _datesByMachine.Clear();
+        var allDistinctDates = _pickingLists
             .SelectMany(p => p.Items)
             .Where(i => i.ScheduledProcessingDate.HasValue)
             .Select(i => i.ScheduledProcessingDate.Value.Date)
             .Distinct()
             .ToList();
 
-        // Add the next 5 business days (Mon-Fri)
         var today = DateTime.Today;
         var businessDaysAdded = 0;
         for (int i = 0; businessDaysAdded < 5; i++)
@@ -128,15 +132,25 @@
             var date = today.AddDays(i);
             if (date.DayOfWeek >= DayOfWeek.Monday && date.DayOfWeek <= DayOfWeek.Friday)
             {
-                if (!_distinctDates.Contains(date))
+                if (!allDistinctDates.Contains(date))
                 {
-                    _distinctDates.Add(date);
+                    allDistinctDates.Add(date);
                 }
                 businessDaysAdded++;
             }
         }
-        _distinctDates = _distinctDates.OrderBy(d => d).ToList();
 
+        foreach (var machine in _machines)
+        {
+            var datesForMachine = _pickingLists
+                .SelectMany(pl => pl.Items)
+                .Where(i => i.MachineId == machine.Id && i.ScheduledProcessingDate.HasValue)
+                .Select(i => i.ScheduledProcessingDate.Value.Date)
+                .Distinct()
+                .ToList();
+
+            _datesByMachine[machine.Id] = allDistinctDates.Union(datesForMachine).OrderBy(d => d).ToList();
+        }
     }
 
     private string GetZoneIdentifierForPickingList(PickingList list)
@@ -155,7 +169,8 @@
         int offset = 0;
         foreach (var machine in _machines)
         {
-            foreach (var date in _distinctDates)
+            var datesForMachine = _datesByMachine.GetValueOrDefault(machine.Id, new List<DateTime>());
+            foreach (var date in datesForMachine)
             {
                 string currentZone = $"{machine.Id}-{date:yyyy-MM-dd}";
                 if (currentZone == zoneId)
