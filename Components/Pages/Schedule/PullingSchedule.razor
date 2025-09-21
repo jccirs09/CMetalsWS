@@ -25,24 +25,15 @@
 
         <MudDropContainer @ref="_container" T="PickingList" Items="_pickingLists" ItemsSelector="@((list,zone) => GetZoneIdentifierForPickingList(list) == zone)" ItemDropped="ItemDropped" Class="d-flex flex-wrap flex-grow-1">
             <ItemRenderer>
-                <MudPaper Class="pa-4 my-2" Style="min-width: 300px;">
-                    <MudText Typo="Typo.h6">@context.SalesOrderNumber</MudText>
-                    <MudText Typo="Typo.body2">@context.Customer?.CustomerName</MudText>
-                    <MudDivider Class="my-2" />
-                    <MudGrid Spacing="1">
-                        <MudItem xs="6">
-                            <MudText Typo="Typo.caption">Ship Date:</MudText>
-                            <MudText Typo="Typo.body2">@context.ShipDate?.ToShortDateString()</MudText>
-                        </MudItem>
-                        <MudItem xs="6">
-                            <MudText Typo="Typo.caption">Total Items:</MudText>
-                            <MudText Typo="Typo.body2">@context.Items.Count</MudText>
-                        </MudItem>
-                        <MudItem xs="12">
-                            <MudText Typo="Typo.caption">Total Sheet Weight:</MudText>
-                            <MudText Typo="Typo.body2">@context.Items.Where(i => i.Machine?.Category == MachineCategory.Sheet).Sum(i => i.Weight ?? 0).ToString("N3")</MudText>
-                        </MudItem>
-                    </MudGrid>
+                <MudPaper Class="pa-2 my-1">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudText Typo="Typo.body2"><strong>@context.SalesOrderNumber</strong></MudText>
+                        <MudText Typo="Typo.body2" Style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@context.Customer?.CustomerName</MudText>
+                        <MudSpacer />
+                        <MudText Typo="Typo.caption">Ship: @context.ShipDate?.ToShortDateString()</MudText>
+                        <MudText Typo="Typo.caption">Items: @context.Items.Count</MudText>
+                        <MudText Typo="Typo.caption">Lbs: @context.Items.Where(i => i.Machine?.Category == MachineCategory.Sheet).Sum(i => i.Weight ?? 0).ToString("N0")</MudText>
+                    </MudStack>
                 </MudPaper>
             </ItemRenderer>
             <ChildContent>
