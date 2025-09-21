@@ -327,8 +327,14 @@ namespace CMetalsWS.Services
             if (existingList == null)
             {
                 // Create new list
-                var maxPriority = await db.PickingLists.MaxAsync(p => (int?)p.Priority) ?? 0;
-                parsedList.Priority = maxPriority + 1;
+                if (parsedList.ShipDate.HasValue)
+                {
+                    var maxPriority = await db.PickingLists
+                        .Where(p => p.ShipDate.HasValue && p.ShipDate.Value.Date == parsedList.ShipDate.Value.Date)
+                        .MaxAsync(p => (int?)p.Priority) ?? 0;
+                    parsedList.Priority = maxPriority + 1;
+                }
+                // If no ship date, it will use the default priority of 99.
 
                 parsedList.BranchId = branchId;
                 parsedList.Status = PickingListStatus.Pending; // Or some other default
