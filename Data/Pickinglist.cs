@@ -100,6 +100,8 @@ namespace CMetalsWS.Data
         public decimal PulledWeight { get; set; }
 
         public PickingLineStatus Status { get; set; } = PickingLineStatus.Pending;
+
+        public DateTime? ScheduledProcessingDate { get; set; }
         public DateTime? ScheduledShipDate { get; set; }
 
         [NotMapped]
