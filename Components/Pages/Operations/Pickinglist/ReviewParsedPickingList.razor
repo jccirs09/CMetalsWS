@@ -235,6 +235,31 @@ else
             }
         }
 
+        // Calculate ScheduledProcessingDate before saving
+        if (_list.ShipDate.HasValue)
+        {
+            var shipDate = _list.ShipDate.Value;
+            var processingDate = shipDate.AddDays(-1);
+
+            if (processingDate.DayOfWeek == DayOfWeek.Monday)
+            {
+                processingDate = processingDate.AddDays(-3);
+            }
+            else if (processingDate.DayOfWeek == DayOfWeek.Sunday)
+            {
+                processingDate = processingDate.AddDays(-2);
+            }
+            else if (processingDate.DayOfWeek == DayOfWeek.Saturday)
+            {
+                processingDate = processingDate.AddDays(-1);
+            }
+
+            foreach (var item in _list.Items)
+            {
+                item.ScheduledProcessingDate = processingDate;
+            }
+        }
+
         try
         {
             var newListId = await PickingListService.UpsertFromParsedDataAsync(_list.BranchId, userId, _list, _list.Items.ToList());

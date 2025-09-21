@@ -537,37 +537,58 @@ namespace CMetalsWS.Services
                 .ToListAsync();
         }
 
-        public async Task UpdatePullingQueueOrderAsync(List<PickingList> orderedLists, int droppedListId, int newMachineId)
+        public async Task UpdatePullingQueueOrderAsync(List<PickingList> orderedLists, int droppedListId, int newMachineId, DateTime newScheduledProcessingDate)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
 
             // The list comes in with a global order set in the Priority field.
-            // We need to convert this to a date-scoped priority.
-            var dateGroups = orderedLists.GroupBy(l => l.ShipDate?.Date);
+            // We need to convert this to a (machine, date)-scoped priority.
 
-            foreach (var group in dateGroups)
+            var droppedListInMemory = orderedLists.FirstOrDefault(l => l.Id == droppedListId);
+            if (droppedListInMemory != null)
             {
-                int priority = 1; // Priority starts at 1 for each date group
-                foreach (var list in group) // The group is already ordered by the global priority
+                foreach (var item in droppedListInMemory.Items)
                 {
-                    var trackedList = await db.PickingLists.FindAsync(list.Id);
-                    if (trackedList != null)
+                    item.MachineId = newMachineId;
+                    item.ScheduledProcessingDate = newScheduledProcessingDate;
+                }
+            }
+
+            var machineGroups = orderedLists.GroupBy(l => l.Items.FirstOrDefault(i => i.Machine?.Category == MachineCategory.Sheet)?.MachineId);
+
+            foreach (var machineGroup in machineGroups)
+            {
+                var dateGroups = machineGroup.GroupBy(l => l.Items.FirstOrDefault(i => i.Machine?.Category == MachineCategory.Sheet)?.ScheduledProcessingDate?.Date);
+
+                foreach (var dateGroup in dateGroups)
+                {
+                    int priority = 1; // Priority starts at 1 for each (machine, date) group
+                    foreach (var list in dateGroup) // The group is already ordered by the global priority
                     {
-                        trackedList.Priority = priority++;
+                        var trackedList = await db.PickingLists.FindAsync(list.Id);
+                        if (trackedList != null)
+                        {
+                            trackedList.Priority = priority++;
+                        }
                     }
                 }
             }
 
-            // Update machine for all sheet items in the dropped list
-            var droppedList = await db.PickingLists
-                .Include(p => p.Items.Where(i => i.Machine != null && i.Machine.Category == MachineCategory.Sheet))
+            // Update machine and date for all sheet items in the dropped list
+            var trackedDroppedList = await db.PickingLists
+                .Include(p => p.Items)
+                .ThenInclude(i => i.Machine)
                 .FirstOrDefaultAsync(p => p.Id == droppedListId);
 
-            if (droppedList != null)
+            if (trackedDroppedList != null)
             {
-                foreach (var item in droppedList.Items)
+                foreach (var item in trackedDroppedList.Items)
                 {
-                    item.MachineId = newMachineId;
+                    if (item.Machine?.Category == MachineCategory.Sheet)
+                    {
+                        item.MachineId = newMachineId;
+                        item.ScheduledProcessingDate = newScheduledProcessingDate;
+                    }
                 }
             }
 
