@@ -22,7 +22,7 @@
             <MudText Typo="Typo.h5">Pulling Schedule</MudText>
         </MudStack>
 
-        <MudDropContainer @ref="_container" T="PickingListItem" Items="_items" ItemsSelector="@((item,zone) => (item.MachineId?.ToString() ?? "0") == zone)" ItemDropped="ItemDropped" Class="d-flex flex-wrap flex-grow-1">
+        <MudDropContainer @ref="_container" T="PickingListItem" Items="_items" ItemsSelector="@((item,zone) => item.MachineId.ToString() == zone)" ItemDropped="ItemDropped" Class="d-flex flex-wrap flex-grow-1">
             <ItemRenderer>
                 <MudPaper Class="pa-4 my-2">
                     <MudText Typo="Typo.body1">@context.PickingList.SalesOrderNumber</MudText>
@@ -39,10 +39,6 @@
                         </MudPaper>
                     }
                 </div>
-                <MudPaper Class="pa-6 ma-2 mud-border-dotted">
-                    <MudText Typo="Typo.h6" Class="mb-4">Unassigned</MudText>
-                    <MudDropZone T="PickingListItem" Identifier="0" />
-                </MudPaper>
             </ChildContent>
         </MudDropContainer>
     </MudStack>
@@ -92,48 +88,77 @@
 
     private async Task ItemDropped(MudItemDropInfo<PickingListItem> dropItem)
     {
-        // The underlying collection is updated by the drop container automatically.
-        // We just need to recalculate priorities and persist.
+        var itemToMove = dropItem.Item;
+        var newZoneId = dropItem.DropzoneIdentifier;
+        var indexInNewZone = dropItem.IndexInZone;
 
-        var newOrderedList = new List<PickingListItem>();
+        // Update the item's machine association
+        itemToMove.MachineId = int.Parse(newZoneId);
 
-        // Process machine zones
-        foreach (var machine in _machines)
+        // Manually re-order the backing list to match the UI state
+        _items.Remove(itemToMove);
+
+        var itemsInNewZone = _items.Where(i => i.MachineId.ToString() == newZoneId).ToList();
+        if (indexInNewZone < itemsInNewZone.Count)
         {
-            var zoneItems = _container.GetItems(machine.Id.ToString()).ToList();
-            for (int i = 0; i < zoneItems.Count; i++)
+            // Insert before an existing item
+            var itemToInsertBefore = itemsInNewZone[indexInNewZone];
+            var globalIndex = _items.IndexOf(itemToInsertBefore);
+            _items.Insert(globalIndex, itemToMove);
+        }
+        else
+        {
+            // Insert at the end of the zone
+            if (itemsInNewZone.Any())
             {
-                var item = zoneItems[i];
-                item.MachineId = machine.Id;
-                item.PickingList.Priority = i;
-                newOrderedList.Add(item);
+                var lastItemInZone = itemsInNewZone.Last();
+                var globalIndex = _items.IndexOf(lastItemInZone);
+                _items.Insert(globalIndex + 1, itemToMove);
+            }
+            else // Dropped into an empty zone
+            {
+                // Find the first item of the next zone and insert before it
+                var machineZoneIds = _machines.Select(m => m.Id.ToString()).ToList();
+                var zoneIndex = machineZoneIds.IndexOf(newZoneId);
+                int insertionIndex = _items.Count; // Default to end of list
+
+                for (int i = zoneIndex + 1; i < machineZoneIds.Count; i++)
+                {
+                    var nextZoneId = machineZoneIds[i];
+                    var firstItemOfNextZone = _items.FirstOrDefault(it => it.MachineId.ToString() == nextZoneId);
+                    if (firstItemOfNextZone != null)
+                    {
+                        insertionIndex = _items.IndexOf(firstItemOfNextZone);
+                        break;
+                    }
+                }
+                _items.Insert(insertionIndex, itemToMove);
             }
         }
 
-        // Process unassigned zone
-        var unassignedItems = _container.GetItems("0").ToList();
-        for (int i = 0; i < unassignedItems.Count; i++)
+        // Recalculate priorities for all machine groups
+        var machineGroups = _items.GroupBy(i => i.MachineId);
+        foreach (var group in machineGroups)
         {
-            var item = unassignedItems[i];
-            item.MachineId = 0;
-            item.PickingList.Priority = i;
-            newOrderedList.Add(item);
+            int priority = 0;
+            foreach (var item in group)
+            {
+                item.PickingList.Priority = priority++;
+            }
         }
 
-        _items = newOrderedList.OrderBy(i => i.MachineId).ThenBy(i => i.PickingList.Priority).ToList();
-
+        // Persist changes and update UI
         await PickingListService.UpdatePullingQueueAsync(_items);
 
-        var machineName = _machines.FirstOrDefault(m => m.Id == dropItem.Item.MachineId)?.Name;
-        Snackbar.Add($"Moved {dropItem.Item.PickingList.SalesOrderNumber} to {(string.IsNullOrEmpty(machineName) ? "Unassigned" : $"machine {machineName}")}", Severity.Success);
+        var machineName = _machines.FirstOrDefault(m => m.Id == itemToMove.MachineId)?.Name;
+        Snackbar.Add($"Moved {itemToMove.PickingList.SalesOrderNumber} to machine {machineName}", Severity.Success);
 
         if (_hub is not null)
         {
-            await _hub.SendAsync("PickingListUpdated", dropItem.Item.PickingListId);
+            await _hub.SendAsync("PickingListUpdated", itemToMove.PickingListId);
         }
 
-        // We need to refresh the container to reflect the changes.
-        _container.Refresh();
+        StateHasChanged();
     }
 
     public async ValueTask DisposeAsync()
