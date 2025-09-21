@@ -537,38 +537,34 @@ namespace CMetalsWS.Services
                 .ToListAsync();
         }
 
-        public async Task UpdatePullingQueueOrderAsync(List<PickingList> orderedLists, int droppedListId, int newMachineId)
+        public async Task UpdatePullingQueueOrderAsync(List<PickingList> orderedLists, int droppedListId, int newMachineId, DateTime newScheduledProcessingDate)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
 
-            // The list comes in with a global order set in the Priority field.
-            // We need to convert this to a date-scoped priority.
-            var dateGroups = orderedLists.GroupBy(l => l.ShipDate?.Date);
-
-            foreach (var group in dateGroups)
-            {
-                int priority = 1; // Priority starts at 1 for each date group
-                foreach (var list in group) // The group is already ordered by the global priority
-                {
-                    var trackedList = await db.PickingLists.FindAsync(list.Id);
-                    if (trackedList != null)
-                    {
-                        trackedList.Priority = priority++;
-                    }
-                }
-            }
-
-            // Update machine for all sheet items in the dropped list
-            var droppedList = await db.PickingLists
-                .Include(p => p.Items.Where(i => i.Machine != null && i.Machine.Category == MachineCategory.Sheet))
+            var trackedDroppedList = await db.PickingLists
+                .Include(p => p.Items)
+                .ThenInclude(i => i.Machine)
                 .FirstOrDefaultAsync(p => p.Id == droppedListId);
 
-            if (droppedList != null)
+            if (trackedDroppedList != null)
             {
-                foreach (var item in droppedList.Items)
+                // Set the new machine and date
+                foreach (var item in trackedDroppedList.Items)
                 {
-                    item.MachineId = newMachineId;
+                    if (item.Machine?.Category == MachineCategory.Sheet)
+                    {
+                        item.MachineId = newMachineId;
+                        item.ScheduledProcessingDate = newScheduledProcessingDate;
+                    }
                 }
+
+                // Determine the highest priority in the new group and add 1
+                var maxPriority = await db.PickingListItems
+                    .Where(i => i.MachineId == newMachineId && i.ScheduledProcessingDate.HasValue && i.ScheduledProcessingDate.Value.Date == newScheduledProcessingDate.Date)
+                    .Select(i => (int?)i.PickingList.Priority)
+                    .MaxAsync() ?? 0;
+
+                trackedDroppedList.Priority = maxPriority + 1;
             }
 
             await db.SaveChangesAsync();

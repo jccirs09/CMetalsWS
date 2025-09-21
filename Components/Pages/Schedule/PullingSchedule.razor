@@ -23,7 +23,7 @@
             <MudText Typo="Typo.h5">Pulling Schedule</MudText>
         </MudStack>
 
-        <MudDropContainer @ref="_container" T="PickingList" Items="_pickingLists" ItemsSelector="@((list,zone) => GetMachineIdForPickingList(list) == zone)" ItemDropped="ItemDropped" Class="d-flex flex-wrap flex-grow-1">
+        <MudDropContainer @ref="_container" T="PickingList" Items="_pickingLists" ItemsSelector="@((list,zone) => GetZoneIdentifierForPickingList(list) == zone)" ItemDropped="ItemDropped" Class="d-flex flex-wrap flex-grow-1">
             <ItemRenderer>
                 <MudPaper Class="pa-4 my-2" Style="min-width: 300px;">
                     <MudText Typo="Typo.h6">@context.SalesOrderNumber</MudText>
@@ -47,11 +47,25 @@
             </ItemRenderer>
             <ChildContent>
                 <div class="d-flex flex-wrap">
+                    <MudPaper Class="pa-4 ma-2 mud-border-dotted" Style="min-width: 350px;">
+                        <MudText Typo="Typo.h6" Class="mb-2">Unassigned</MudText>
+                        <MudDropZone T="PickingList" Identifier="unassigned" Class="pa-2 mud-border-dashed" />
+                    </MudPaper>
                     @foreach (var machine in _machines)
                     {
-                        <MudPaper Class="pa-6 ma-2 mud-border-dotted">
-                            <MudText Typo="Typo.h6" Class="mb-4">@machine.Name</MudText>
-                            <MudDropZone T="PickingList" Identifier="@(machine.Id.ToString())" />
+                        <MudPaper Class="pa-4 ma-2 mud-border-dotted" Style="min-width: 350px;">
+                            <MudText Typo="Typo.h6" Class="mb-2">@machine.Name</MudText>
+                            <MudList T="object" Clickable="false" Dense="true">
+                                @foreach (var date in _distinctDates)
+                                {
+                                    <MudListItem>
+                                        <div class="d-flex flex-column" style="width: 100%;">
+                                            <MudText Typo="Typo.subtitle2">@date.ToString("ddd, MMM dd")</MudText>
+                                            <MudDropZone T="PickingList" Identifier="@($"{machine.Id}-{date:yyyy-MM-dd}")" Class="pa-2 mud-border-dashed" />
+                                        </div>
+                                    </MudListItem>
+                                }
+                            </MudList>
                         </MudPaper>
                     }
                 </div>
@@ -63,6 +77,7 @@
 @code {
     private List<PickingList> _pickingLists = new();
     private List<Machine> _machines = new();
+    private List<DateTime> _distinctDates = new();
     private MudDropContainer<PickingList> _container = new();
     private HubConnection? _hub;
 
@@ -94,55 +109,82 @@
 
     private async Task LoadData(int? branchId)
     {
-        _machines = (await MachineService.GetMachinesAsync()).Where(m => m.Category == MachineCategory.Sheet).ToList();
+        _machines = (await MachineService.GetMachinesAsync()).Where(m => m.Category == MachineCategory.Sheet).OrderBy(m => m.Name).ToList();
         _pickingLists = await PickingListService.GetSheetPullingQueueListsAsync();
         if (branchId.HasValue)
         {
             _pickingLists = _pickingLists.Where(p => p.BranchId == branchId.Value).ToList();
         }
+
+        // Date-based grouping logic
+        _distinctDates = _pickingLists
+            .SelectMany(p => p.Items)
+            .Where(i => i.ScheduledProcessingDate.HasValue)
+            .Select(i => i.ScheduledProcessingDate.Value.Date)
+            .Distinct()
+            .ToList();
+
+        // Add the next 5 business days (Mon-Fri)
+        var today = DateTime.Today;
+        var businessDaysAdded = 0;
+        for (int i = 0; businessDaysAdded < 5; i++)
+        {
+            var date = today.AddDays(i);
+            if (date.DayOfWeek >= DayOfWeek.Monday && date.DayOfWeek <= DayOfWeek.Friday)
+            {
+                if (!_distinctDates.Contains(date))
+                {
+                    _distinctDates.Add(date);
+                }
+                businessDaysAdded++;
+            }
+        }
+        _distinctDates = _distinctDates.OrderBy(d => d).ToList();
+
     }
 
-    private string GetMachineIdForPickingList(PickingList list)
+    private string GetZoneIdentifierForPickingList(PickingList list)
     {
-        // A picking list is associated with the machine of its first sheet item.
-        // This determines which drop zone it appears in.
-        return list.Items
-            .FirstOrDefault(i => i.Machine?.Category == MachineCategory.Sheet)?
-            .MachineId.ToString() ?? "0"; // Should not be 0, but as a fallback.
+        var sheetItem = list.Items.FirstOrDefault(i => i.Machine?.Category == MachineCategory.Sheet);
+        if (sheetItem?.MachineId == null || sheetItem.ScheduledProcessingDate == null)
+        {
+            return "unassigned";
+        }
+
+        return $"{sheetItem.MachineId}-{sheetItem.ScheduledProcessingDate.Value:yyyy-MM-dd}";
     }
 
     private async Task ItemDropped(MudItemDropInfo<PickingList> dropItem)
     {
         var listToMove = dropItem.Item;
         var newZoneId = dropItem.DropzoneIdentifier;
-        var newMachineId = int.Parse(newZoneId);
 
-        // The `UpdateOrder` extension method handles the re-ordering of the list based on the drop event.
-        // We use the `Priority` property as the "Order" field.
-        _pickingLists.UpdateOrder(dropItem, item => item.Priority);
+        if (newZoneId == "unassigned")
+        {
+            return; // No action needed
+        }
 
-        // The list is now in the correct global order, with `Priority` reflecting this global order.
-        // We can now call the service to persist the changes.
-        // The service layer will be responsible for converting the global priority into the date-scoped priority.
+        var zoneParts = newZoneId.Split('-');
+        if (zoneParts.Length < 2) return;
 
-        await PickingListService.UpdatePullingQueueOrderAsync(_pickingLists, listToMove.Id, newMachineId);
+        var newMachineId = int.Parse(zoneParts[0]);
+        var newDate = DateTime.Parse(string.Join("-", zoneParts.Skip(1)));
 
-        // After the update, we must reload the data to get the fresh state from the database,
-        // which includes the newly calculated date-scoped priorities and machine assignments.
+        await PickingListService.UpdatePullingQueueOrderAsync(new List<PickingList>(), listToMove.Id, newMachineId, newDate);
+
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = auth.User;
         var branches = await BranchService.GetBranchesAsync();
         int? branchId = user.IsInRole("Admin") ? null : branches.FirstOrDefault()?.Id;
         await LoadData(branchId);
 
-        Snackbar.Add($"Moved {listToMove.SalesOrderNumber} to machine {_machines.FirstOrDefault(m => m.Id == newMachineId)?.Name}", Severity.Success);
+        Snackbar.Add($"Moved {listToMove.SalesOrderNumber} to machine {_machines.FirstOrDefault(m => m.Id == newMachineId)?.Name} on {newDate:ddd, MMM dd}", Severity.Success);
 
         if (_hub is not null)
         {
             await _hub.SendAsync("PickingListUpdated", listToMove.Id);
         }
 
-        // We must call StateHasChanged here to ensure the UI re-renders with the reloaded data.
         StateHasChanged();
     }
 
