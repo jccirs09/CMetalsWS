@@ -327,6 +327,9 @@ namespace CMetalsWS.Services
             if (existingList == null)
             {
                 // Create new list
+                var maxPriority = await db.PickingLists.MaxAsync(p => (int?)p.Priority) ?? 0;
+                parsedList.Priority = maxPriority + 1;
+
                 parsedList.BranchId = branchId;
                 parsedList.Status = PickingListStatus.Pending; // Or some other default
                 parsedList.Items = parsedItems;
