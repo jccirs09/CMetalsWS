@@ -337,6 +337,7 @@
             CustomerId = src.CustomerId,
             Customer = src.Customer,
             Status = src.Status,
+            ShipDate = src.ShipDate,
             TotalWeight = src.TotalWeight,
             RemainingWeight = src.RemainingWeight,
             ScannedById = src.ScannedById,
@@ -356,7 +357,8 @@
                 Length = i.Length,
                 Weight = i.Weight,
                 MachineId = i.MachineId,
-                Status = i.Status
+                Status = i.Status,
+                ScheduledShipDate = i.ScheduledShipDate
             }).OrderBy(i => i.LineNumber).ToList()
         };
 
