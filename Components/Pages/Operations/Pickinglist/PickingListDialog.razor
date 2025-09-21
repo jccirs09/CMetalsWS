@@ -66,7 +66,7 @@
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" sm="3">
-                        <MudDatePicker Label="Ship Date" Date="Model.ShipDate" DateChanged="OnMainShipDateChanged" />
+                        <MudDatePicker Label="Ship Date" @bind-Date="Model.ShipDate" ReadOnly="true" />
                     </MudItem>
                 </MudGrid>
 
@@ -141,11 +141,6 @@
                         @if (CanAddOrEdit)
                         {
                             <MudTd DataLabel="Actions">
-                                <MudTooltip Text="Split to item shipment (inherit list Ship Date)">
-                                    <MudIconButton Color="Color.Primary"
-                                                   Icon="@Icons.Material.Filled.CalendarMonth"
-                                                   OnClick="@(() => SplitShip(context))" />
-                                </MudTooltip>
                                 <MudIconButton Color="Color.Info"
                                                Icon="@Icons.Material.Filled.Edit"
                                                OnClick="@(async () => await EditItem(context))" />
@@ -231,19 +226,6 @@
         }
 
         Model.CustomerId = c.Id;
-    }
-
-    private void OnMainShipDateChanged(DateTime? newDate)
-    {
-        Model.ShipDate = newDate;
-        if (Model.ShipDate.HasValue)
-        {
-            foreach (var item in Model.Items)
-            {
-                item.ScheduledShipDate = Model.ShipDate;
-            }
-        }
-        StateHasChanged();
     }
 
     private async Task AddItem()
@@ -341,21 +323,6 @@
         StateHasChanged();
     }
 
-    // Split-ship: set a line-level schedule to today at 08:00
-    private async Task SplitShip(PickingListItem line)
-    {
-        var when = DateTime.Today.AddHours(8);
-        line.ScheduledShipDate = when;
-
-        await PickingListService.UpdateAsync(Model);
-
-        if (OnLineSplitShipped.HasDelegate)
-            await OnLineSplitShipped.InvokeAsync((Model.Id, line.Id == 0 ? null : line.Id, when));
-
-        Snackbar.Add($"Line {line.LineNumber} scheduled for {when:yyyy-MM-dd HH:mm}.", Severity.Success);
-        StateHasChanged();
-    }
-
     private async Task Save()
     {
         await form.Validate();
@@ -369,63 +336,20 @@
 
     private void Cancel() => Dialog.Cancel();
 
-    private DateTime? CalculateAutoScheduleDate()
-    {
-        if (!Model.ShipDate.HasValue) return null;
-
-        var shippingDate = Model.ShipDate.Value.Date;
-        var pullDate = shippingDate.AddDays(-1);
-
-        if (pullDate.DayOfWeek == DayOfWeek.Saturday)
-        {
-            pullDate = pullDate.AddDays(-1); // Becomes Friday
-        }
-        else if (pullDate.DayOfWeek == DayOfWeek.Sunday)
-        {
-            pullDate = pullDate.AddDays(-2); // Becomes Friday
-        }
-
-        return pullDate.AddHours(8);
-    }
-
     private void OnMachineChanged(PickingListItem item, int? machineId)
     {
         item.MachineId = machineId;
         var machine = machineId.HasValue ? Machines.FirstOrDefault(m => m.Id == machineId.Value) : null;
-        var autoScheduleDate = CalculateAutoScheduleDate();
 
         if (machine != null)
         {
             item.Status = PickingLineStatus.AssignedPulling;
-
-            if (machine.Name.Contains("Sheet", StringComparison.OrdinalIgnoreCase))
-            {
-                if (autoScheduleDate.HasValue)
-                {
-                    item.ScheduledShipDate = autoScheduleDate;
-                    Snackbar.Add($"Item auto-scheduled for pulling on {item.ScheduledShipDate:yyyy-MM-dd HH:mm}.", Severity.Info);
-                }
-            }
-            else
-            {
-                // It's not a sheet machine. Clear the date only if it was the one we would have set automatically.
-                if (item.ScheduledShipDate.HasValue && item.ScheduledShipDate.Value == autoScheduleDate)
-                {
-                    item.ScheduledShipDate = null;
-                }
-            }
         }
         else // Machine is unassigned
         {
             if (item.Status == PickingLineStatus.AssignedPulling)
             {
                 item.Status = PickingLineStatus.Pending;
-            }
-
-            // Also clear auto-scheduled date on unassign
-            if (item.ScheduledShipDate.HasValue && item.ScheduledShipDate.Value == autoScheduleDate)
-            {
-                item.ScheduledShipDate = null;
             }
         }
         StateHasChanged();
