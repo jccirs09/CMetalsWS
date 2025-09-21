@@ -1,9 +1,6 @@
 @page "/schedule/pulling"
-@using System.Linq
 @using MudBlazor
-@using Heron.MudCalendar
 @using Microsoft.AspNetCore.Components
-@using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.SignalR.Client
 @using CMetalsWS.Data
 @using CMetalsWS.Services
@@ -11,9 +8,11 @@
 @attribute [Authorize(Policy = Permissions.WorkOrders.Schedule)]
 
 @inject PickingListService PickingListService
+@inject MachineService MachineService
 @inject BranchService BranchService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
 
 @implements IAsyncDisposable
 
@@ -23,50 +22,36 @@
             <MudText Typo="Typo.h5">Pulling Schedule</MudText>
         </MudStack>
 
-        <MudGrid>
-            <MudItem xs="12" sm="9">
-                <MudCalendar T="SchedItem"
-                             Items="_items"
-                             View="_view"
-                             MonthCellMinHeight="120"
-                             EnableDragItems="true"
-                             EnableResizeItems="true"
-                             CanDragItem="@(it => it.Start >= DateTime.Now)"
-                             CanDropItem="@((it, date, view) => (view == CalendarView.Month && date.Add(it.Start.TimeOfDay) >= DateTime.Now) || date >= DateTime.Now)"
-                             ItemChanged="HandleItemChanged"
-                             ItemClicked="HandleItemClick">
-                    <CellTemplate>
-                        <PickingListCalendarItem PickingList="context.PickingList" />
-                    </CellTemplate>
-                </MudCalendar>
-            </MudItem>
-
-            <MudItem xs="12" sm="3">
-                <MudText Typo="Typo.h6">Unscheduled Pulling Orders</MudText>
-                <MudList T="PickingList" Dense="true">
-                    @foreach (var pl in _unscheduled)
+        <MudDropContainer @ref="_container" T="PickingListItem" Items="_items" ItemsSelector="@((item,zone) => (item.MachineId?.ToString() ?? "0") == zone)" ItemDropped="ItemDropped" Class="d-flex flex-wrap flex-grow-1">
+            <ItemRenderer>
+                <MudPaper Class="pa-4 my-2">
+                    <MudText Typo="Typo.body1">@context.PickingList.SalesOrderNumber</MudText>
+                    <MudText Typo="Typo.body2">@context.PickingList.Customer?.CustomerName</MudText>
+                </MudPaper>
+            </ItemRenderer>
+            <ChildContent>
+                <div class="d-flex flex-wrap">
+                    @foreach (var machine in _machines)
                     {
-                        <MudListItem T="PickingList" Value="@pl">
-                            @pl.SalesOrderNumber - @(pl.Customer?.CustomerName ?? "N/A")
-                        </MudListItem>
+                        <MudPaper Class="pa-6 ma-2 mud-border-dotted">
+                            <MudText Typo="Typo.h6" Class="mb-4">@machine.Name</MudText>
+                            <MudDropZone T="PickingListItem" Identifier="@(machine.Id.ToString())" />
+                        </MudPaper>
                     }
-                </MudList>
-            </MudItem>
-        </MudGrid>
+                </div>
+                <MudPaper Class="pa-6 ma-2 mud-border-dotted">
+                    <MudText Typo="Typo.h6" Class="mb-4">Unassigned</MudText>
+                    <MudDropZone T="PickingListItem" Identifier="0" />
+                </MudPaper>
+            </ChildContent>
+        </MudDropContainer>
     </MudStack>
 </MudPaper>
 
 @code {
-    private sealed class SchedItem : CalendarItem
-    {
-        public PickingList PickingList { get; init; } = default!;
-    }
-
-    private List<PickingList> _all = new();
-    private List<PickingList> _unscheduled = new();
-    private List<SchedItem> _items = new();
-
-    private CalendarView _view = CalendarView.Week;
+    private List<PickingListItem> _items = new();
+    private List<Machine> _machines = new();
+    private MudDropContainer<PickingListItem> _container = new();
     private HubConnection? _hub;
 
     protected override async Task OnInitializedAsync()
@@ -76,8 +61,7 @@
         var branches = await BranchService.GetBranchesAsync();
         int? branchId = user.IsInRole("Admin") ? null : branches.FirstOrDefault()?.Id;
 
-        await LoadPickingLists(branchId);
-        BuildCalendarItems();
+        await LoadData(branchId);
 
         _hub = new HubConnectionBuilder()
             .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/schedule"))
@@ -88,8 +72,7 @@
         {
             await InvokeAsync(async () =>
             {
-                await LoadPickingLists(branchId);
-                BuildCalendarItems();
+                await LoadData(branchId);
                 StateHasChanged();
             });
         });
@@ -97,74 +80,60 @@
         await _hub.StartAsync();
     }
 
-    private async Task LoadPickingLists(int? branchId)
+    private async Task LoadData(int? branchId)
     {
-        _all = await PickingListService.GetPendingPullingOrdersAsync(branchId);
-
-        // Unscheduled = no item has a ScheduledShipDate
-        _unscheduled = _all
-            .Where(p => !p.Items.Any(i => i.ScheduledShipDate.HasValue))
-            .OrderBy(p => p.SalesOrderNumber)
-            .ToList();
+        _machines = (await MachineService.GetMachinesAsync()).Where(m => m.Category == MachineCategory.Sheet).ToList();
+        _items = await PickingListService.GetSheetPullingQueueAsync();
+        if (branchId.HasValue)
+        {
+            _items = _items.Where(i => i.PickingList?.BranchId == branchId.Value).ToList();
+        }
     }
 
-    private void BuildCalendarItems()
+    private async Task ItemDropped(MudItemDropInfo<PickingListItem> dropItem)
     {
-        // Scheduled = use the earliest item-level ScheduledShipDate
-        _items = _all
-            .Select(p => new
+        // The underlying collection is updated by the drop container automatically.
+        // We just need to recalculate priorities and persist.
+
+        var newOrderedList = new List<PickingListItem>();
+
+        // Process machine zones
+        foreach (var machine in _machines)
+        {
+            var zoneItems = _container.GetItems(machine.Id.ToString()).ToList();
+            for (int i = 0; i < zoneItems.Count; i++)
             {
-                PL = p,
-                Min = p.Items
-                    .Where(i => i.ScheduledShipDate.HasValue)
-                    .Select(i => i.ScheduledShipDate!.Value)
-                    .DefaultIfEmpty()
-                    .Min()
-            })
-            .Where(x => x.Min != default)
-            .Select(x => new SchedItem
-            {
-                Start = x.Min,
-                End = x.Min.AddHours(1),
-                AllDay = false,
-                PickingList = x.PL,
-                Text = $"{x.PL.SalesOrderNumber} - {x.PL.Customer?.CustomerName ?? "N/A"}"
-            })
-            .OrderBy(i => i.Start)
-            .ToList();
-    }
+                var item = zoneItems[i];
+                item.MachineId = machine.Id;
+                item.PickingList.Priority = i;
+                newOrderedList.Add(item);
+            }
+        }
 
-    private async Task HandleItemChanged(CalendarItem e)
-    {
-        if (e is not SchedItem item) return;
+        // Process unassigned zone
+        var unassignedItems = _container.GetItems("0").ToList();
+        for (int i = 0; i < unassignedItems.Count; i++)
+        {
+            var item = unassignedItems[i];
+            item.MachineId = 0;
+            item.PickingList.Priority = i;
+            newOrderedList.Add(item);
+        }
 
-        var pl = item.PickingList;
+        _items = newOrderedList.OrderBy(i => i.MachineId).ThenBy(i => i.PickingList.Priority).ToList();
 
-        // Update all PL items' ScheduledShipDate to the new start
-        foreach (var pli in pl.Items)
-            pli.ScheduledShipDate = item.Start;
+        await PickingListService.UpdatePullingQueueAsync(_items);
 
-        await PickingListService.UpdateAsync(pl);
-
-        // Refresh
-        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = auth.User;
-        var branches = await BranchService.GetBranchesAsync();
-        int? branchId = user.IsInRole("Admin") ? null : branches.FirstOrDefault()?.Id;
-
-        await LoadPickingLists(branchId);
-        BuildCalendarItems();
-        StateHasChanged();
+        var machineName = _machines.FirstOrDefault(m => m.Id == dropItem.Item.MachineId)?.Name;
+        Snackbar.Add($"Moved {dropItem.Item.PickingList.SalesOrderNumber} to {(string.IsNullOrEmpty(machineName) ? "Unassigned" : $"machine {machineName}")}", Severity.Success);
 
         if (_hub is not null)
-            await _hub.SendAsync("PickingListUpdated", pl.Id);
-    }
+        {
+            await _hub.SendAsync("PickingListUpdated", dropItem.Item.PickingListId);
+        }
 
-    private Task HandleItemClick(SchedItem item)
-    {
-        // If you want to navigate to details later, uncomment:
-        // NavigationManager.NavigateTo($"/picking-lists/{item.PickingList.Id}");
-        return Task.CompletedTask;
+        // We need to refresh the container to reflect the changes.
+        _container.Refresh();
     }
 
     public async ValueTask DisposeAsync()

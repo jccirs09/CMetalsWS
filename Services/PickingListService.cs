@@ -272,8 +272,8 @@ namespace CMetalsWS.Services
                 .Where(i => i.Status == PickingLineStatus.AssignedPulling &&
                             i.Machine != null &&
                             i.Machine.Category == MachineCategory.Sheet)
-                .OrderBy(i => i.PickingList.Priority)
-                .ThenBy(i => i.PickingList.ShipDate)
+                .OrderBy(i => i.PickingList.ShipDate)
+                .ThenBy(i => i.PickingList.Priority)
                 .ToListAsync();
         }
 
@@ -483,6 +483,27 @@ namespace CMetalsWS.Services
             }
 
             return true;
+        }
+
+        public async Task UpdatePullingQueueAsync(List<PickingListItem> items)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var itemIds = items.Select(i => i.Id).ToList();
+            var trackedItems = await db.PickingListItems.Include(i => i.PickingList).Where(i => itemIds.Contains(i.Id)).ToListAsync();
+            var trackedItemsDict = trackedItems.ToDictionary(i => i.Id);
+
+            foreach (var item in items)
+            {
+                if (trackedItemsDict.TryGetValue(item.Id, out var trackedItem))
+                {
+                    trackedItem.MachineId = item.MachineId;
+                    if (trackedItem.PickingList != null)
+                    {
+                        trackedItem.PickingList.Priority = item.PickingList.Priority;
+                    }
+                }
+            }
+            await db.SaveChangesAsync();
         }
     }
 }
