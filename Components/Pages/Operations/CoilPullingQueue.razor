@@ -1,0 +1,157 @@
+@page "/operations/pulling/coil-queue"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using System.Security.Claims
+@using CMetalsWS.Security
+@using Microsoft.AspNetCore.Components.Authorization
+@using CMetalsWS.Components.Pages.Operations.Pickinglist.Dialogs
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.SignalR.Client
+@attribute [Authorize(Policy = Permissions.PickingLists.Assign)]
+
+@inject PickingListService PickingListService
+@inject ITaskAuditEventService AuditService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IDialogService DialogService
+@inject UserService UserService
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager NavigationManager
+
+@implements IAsyncDisposable
+
+<MudText Typo="Typo.h5" Class="mb-4">Coil Pulling Queue</MudText>
+
+<MudTable Items="_tasks" Hover="true" Dense="true">
+    <HeaderContent>
+        <MudTh>Priority</MudTh>
+        <MudTh>Ship Date</MudTh>
+        <MudTh>SO #</MudTh>
+        <MudTh>Item Code</MudTh>
+        <MudTh>Description</MudTh>
+        <MudTh>Qty</MudTh>
+        <MudTh>Weight</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Priority">@context.PickingList?.Priority</MudTd>
+        <MudTd DataLabel="Ship Date">@context.PickingList?.ShipDate?.ToString("yyyy-MM-dd")</MudTd>
+        <MudTd DataLabel="SO #">@context.PickingList?.SalesOrderNumber</MudTd>
+        <MudTd DataLabel="Item Code">@context.ItemId</MudTd>
+        <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
+        <MudTd DataLabel="Qty">@context.Quantity</MudTd>
+        <MudTd DataLabel="Weight">@context.Weight</MudTd>
+        <MudTd DataLabel="Actions">
+            @if (!_auditEvents.ContainsKey(context.Id) || _auditEvents[context.Id] == null)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => HandleAuditEvent(context.Id, AuditEventType.Start))">Start</MudButton>
+            }
+            else if (_auditEvents[context.Id] == AuditEventType.Start || _auditEvents[context.Id] == AuditEventType.Resume)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small" OnClick="@(() => HandleAuditEvent(context.Id, AuditEventType.Pause))">Pause</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="@(() => ProcessTask(context))">Process</MudButton>
+            }
+            else if (_auditEvents[context.Id] == AuditEventType.Pause)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => HandleAuditEvent(context.Id, AuditEventType.Resume))">Resume</MudButton>
+            }
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No coil pulling tasks found.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private List<PickingListItem> _tasks = new();
+    private Dictionary<int, AuditEventType?> _auditEvents = new();
+    private ApplicationUser? _user;
+    private HubConnection? _hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity.IsAuthenticated)
+        {
+            _user = await UserManager.GetUserAsync(user);
+            await LoadTasks();
+        }
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/schedule"))
+            .Build();
+
+        _hubConnection.On<int>("PickingListUpdated", async (id) =>
+        {
+            await LoadTasks();
+            await InvokeAsync(StateHasChanged);
+        });
+
+        await _hubConnection.StartAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    private async Task LoadTasks()
+    {
+        _tasks = await PickingListService.GetCoilPullingQueueAsync(_user?.MachineId);
+        if (_tasks.Any())
+        {
+            var taskIds = _tasks.Select(t => t.Id).ToList();
+            var lastEvents = await AuditService.GetLastEventTypesForTasksAsync(taskIds, TaskType.Pulling);
+
+            _auditEvents = _tasks.ToDictionary(
+                t => t.Id,
+                t => lastEvents.TryGetValue(t.Id, out var eventType) ? (AuditEventType?)eventType : null
+            );
+        }
+        else
+        {
+            _auditEvents.Clear();
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ProcessTask(PickingListItem item)
+    {
+        var parameters = new DialogParameters { ["Item"] = item };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PullingTaskDetailDialog>("Process Task", parameters, options);
+        if (dialog is null) return;
+
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is ValueTuple<decimal?, decimal?> data)
+        {
+            await PickingListService.UpdatePulledQuantitiesAsync(item.Id, data.Item1, data.Item2 ?? 0);
+            await HandleAuditEvent(item.Id, AuditEventType.Complete, false); // Log completion
+            await PickingListService.SetLineStatusAsync(item.Id, PickingLineStatus.Completed);
+            await LoadTasks(); // Refresh the list
+        }
+    }
+
+    private async Task HandleAuditEvent(int taskId, AuditEventType eventType, bool stateHasChanged = true)
+    {
+        if (_user is null)
+        {
+            Snackbar.Add("Could not identify user. Action aborted.", Severity.Error);
+            return;
+        }
+
+        await AuditService.CreateAuditEventAsync(taskId, TaskType.Pulling, eventType, _user.Id);
+        _auditEvents[taskId] = eventType;
+        Snackbar.Add($"Task successfully {eventType.ToString().ToLower()}ed.", Severity.Success);
+
+        if (stateHasChanged)
+        {
+            StateHasChanged();
+        }
+    }
+}

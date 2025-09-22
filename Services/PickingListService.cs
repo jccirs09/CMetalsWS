@@ -288,6 +288,26 @@ namespace CMetalsWS.Services
                 .ToListAsync();
         }
 
+        public async Task<List<PickingListItem>> GetCoilPullingQueueAsync(int? machineId = null)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var query = db.PickingListItems
+                .Include(i => i.PickingList)
+                .Include(i => i.Machine)
+                .Where(i => i.Status == PickingLineStatus.AssignedPulling &&
+                            i.Machine != null &&
+                            i.Machine.Category == MachineCategory.Coil);
+
+            if (machineId.HasValue)
+            {
+                query = query.Where(i => i.MachineId == machineId.Value);
+            }
+
+            return await query.OrderBy(i => i.ScheduledProcessingDate)
+                .ThenBy(i => i.PickingList.Priority)
+                .ToListAsync();
+        }
+
         public async Task UpdatePulledQuantitiesAsync(int itemId, decimal? pulledQuantity, decimal pulledWeight)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
