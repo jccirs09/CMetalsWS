@@ -14,7 +14,7 @@
     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
     <MudNavLink Href="auth" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Lock">Auth Required</MudNavLink>
     <MudNavLink Href="/dashboard" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
-    <MudNavLink Href="/messages" Icon="@Icons.Material.Filled.Chat">Messages</MudNavLink>
+    @* <MudNavLink Href="/messages" Icon="@Icons.Material.Filled.Chat">Messages</MudNavLink> *@
 
     <MudNavGroup text="System Panel" Icon="@Icons.Material.Filled.Settings" Title="System Panel" Expanded="true">
         <AuthorizeView Policy="@Permissions.Users.View">
@@ -42,7 +42,7 @@
             <MudNavLink Href="/admin/destination-groups" Icon="@Icons.Material.Filled.GroupWork">Destination Groups</MudNavLink>
             <MudNavLink Href="/admin/destination-regions" Icon="@Icons.Material.Filled.Public">Destination Regions</MudNavLink>
         </AuthorizeView>
-        <MudNavLink Href="/admin/chatgroups" Icon="@Icons.Material.Filled.Chat">Chat Groups</MudNavLink>
+        @* <MudNavLink Href="/admin/chatgroups" Icon="@Icons.Material.Filled.Chat">Chat Groups</MudNavLink> *@
     </MudNavGroup>
 
     @if (canWorkOrders || canPickingLists)

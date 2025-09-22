@@ -17,9 +17,9 @@ namespace CMetalsWS.Components.Layout
     {
         [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
         [Inject] private NavigationManager NavigationManager { get; set; } = default!;
-        [Inject] private ChatStateService ChatState { get; set; } = default!;
-        [Inject] IChatRepository ChatRepository { get; set; } = default!;
-        [Inject]ChatHubClient ChatHubClient { get; set; } = default!;
+        //[Inject] private ChatStateService ChatState { get; set; } = default!;
+        //[Inject] IChatRepository ChatRepository { get; set; } = default!;
+        //[Inject]ChatHubClient ChatHubClient { get; set; } = default!;
 
         private bool _isDarkMode = false;
         private bool _drawerOpen = true;
@@ -66,16 +66,16 @@ namespace CMetalsWS.Components.Layout
             }
         }
 
-        protected override void OnInitialized()
-        {
-            ChatState.OnChange += StateHasChanged;
-        }
+        //protected override void OnInitialized()
+        //{
+        //    ChatState.OnChange += StateHasChanged;
+        //}
 
-        private void OnHeaderThreadSelected(CMetalsWS.Data.Chat.ThreadSummary t)
-        {
-            // Off page -> open dock (or navigate if already on messages page, handled by service)
-            ChatState.HandleThreadClick(t);
-        }
+        //private void OnHeaderThreadSelected(CMetalsWS.Data.Chat.ThreadSummary t)
+        //{
+        //    // Off page -> open dock (or navigate if already on messages page, handled by service)
+        //    //ChatState.HandleThreadClick(t);
+        //}
         protected override async Task OnInitializedAsync()
         {
             var auth = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -84,31 +84,31 @@ namespace CMetalsWS.Components.Layout
                      ?? auth.User.FindFirst("oid")?.Value
                      ?? auth.User.FindFirst("uid")?.Value;
 
-            ChatHubClient.ThreadsUpdated += OnThreadsChanged;
-            ChatHubClient.InboxNewMessage += OnInboxNewMessage;
-            await ChatHubClient.ConnectAsync();
+            //ChatHubClient.ThreadsUpdated += OnThreadsChanged;
+            //ChatHubClient.InboxNewMessage += OnInboxNewMessage;
+            //await ChatHubClient.ConnectAsync();
 
-            await RecalcUnread();
+            //await RecalcUnread();
         }
 
-        private async Task RecalcUnread()
-        {
-            if (string.IsNullOrEmpty(_userId)) { _unreadTotal = 0; return; }
-            var threads = await ChatRepository.GetThreadSummariesAsync(_userId);
-            _unreadTotal = threads.Sum(t => t.UnreadCount);
-        }
+        //private async Task RecalcUnread()
+        //{
+        //    if (string.IsNullOrEmpty(_userId)) { _unreadTotal = 0; return; }
+        //    var threads = await ChatRepository.GetThreadSummariesAsync(_userId);
+        //    _unreadTotal = threads.Sum(t => t.UnreadCount);
+        //}
 
-        private async Task OnThreadsChanged()
-        {
-            await RecalcUnread();
-            await InvokeAsync(StateHasChanged);
-        }
+        //private async Task OnThreadsChanged()
+        //{
+        //    await RecalcUnread();
+        //    await InvokeAsync(StateHasChanged);
+        //}
 
-        private async Task OnInboxNewMessage(MessageDto _)
-        {
-            await RecalcUnread(); // fast recompute on new message
-            await InvokeAsync(StateHasChanged);
-        }
+        //private async Task OnInboxNewMessage(MessageDto _)
+        //{
+        //    await RecalcUnread(); // fast recompute on new message
+        //    await InvokeAsync(StateHasChanged);
+        //}
 
         private void OpenNotifications()
         {
@@ -117,8 +117,8 @@ namespace CMetalsWS.Components.Layout
 
         public void Dispose()
         {
-            ChatHubClient.ThreadsUpdated -= OnThreadsChanged;
-            ChatHubClient.InboxNewMessage -= OnInboxNewMessage;
+            //ChatHubClient.ThreadsUpdated -= OnThreadsChanged;
+            //ChatHubClient.InboxNewMessage -= OnInboxNewMessage;
         }
         
     }

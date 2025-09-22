@@ -17,14 +17,14 @@
         <MudSpacer />
 
         <!-- Use the unified NotificationBell component here -->
-        <NotificationBell />
+        @* <NotificationBell /> *@
 
         <MudMenu Icon="@Icons.Material.Filled.Person" Color="Color.Inherit" Edge="Edge.End">
             <MudMenuItem Link="/profile">Profile</MudMenuItem>
             <MudMenuItem OnClick="Logout">Logout</MudMenuItem>
         </MudMenu>
 
-        @if (!ChatState.IsChatPageOpen)
+        @*@if (!ChatState.IsChatPageOpen)
         {
             <MudIconButton Icon="@Icons.Material.Filled.Chat"
                            OnClick="@(() => ChatState.ToggleThreadPanel())"
@@ -37,7 +37,7 @@
                     <ChatThreadPanel OnThreadSelected="OnHeaderThreadSelected" />
                 </div>
             </MudPopover>
-        }
+        }*@
     </MudAppBar>
 
     <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
@@ -49,10 +49,10 @@
     </MudMainContent>
 </MudLayout>
 
-@if (!ChatState.IsChatPageOpen)
+@*@if (!ChatState.IsChatPageOpen)
 {
     <ChatDockHost />
-}
+}*@
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
