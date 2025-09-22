@@ -1,9 +1,12 @@
-﻿@page "/dashboard"
+@page "/dashboard"
 @using CMetalsWS.Models
 @using CMetalsWS.Security
 @using Microsoft.Extensions.Logging
+@using Microsoft.AspNetCore.SignalR.Client
 @inject DashboardService DashboardService
 @inject ILogger<Dashboard> Logger
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
 @attribute [Authorize(Policy = Permissions.Dashboards.View)]
 
 <MudText Typo="Typo.h5" Class="mb-4">Now Playing - Pulling</MudText>
@@ -78,8 +81,26 @@ else
 
 @code {
     private List<MachinePullingStatusDto> _machineStatus;
+    private HubConnection _hubConnection;
 
     protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/dashboard"))
+            .Build();
+
+        _hubConnection.On("DashboardUpdated", async () =>
+        {
+            await LoadDataAsync();
+            await InvokeAsync(StateHasChanged);
+        });
+
+        await _hubConnection.StartAsync();
+    }
+
+    private async Task LoadDataAsync()
     {
         try
         {
@@ -89,6 +110,14 @@ else
         {
             Logger.LogError(ex, "Error fetching machine pulling status data");
             _machineStatus = new List<MachinePullingStatusDto>();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
         }
     }
 }

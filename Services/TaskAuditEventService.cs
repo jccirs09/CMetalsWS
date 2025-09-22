@@ -1,6 +1,10 @@
 using CMetalsWS.Data;
+using CMetalsWS.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace CMetalsWS.Services
@@ -8,10 +12,12 @@ namespace CMetalsWS.Services
     public class TaskAuditEventService : ITaskAuditEventService
     {
         private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
+        private readonly IHubContext<DashboardHub, IDashboardClient> _dashboardHubContext;
 
-        public TaskAuditEventService(IDbContextFactory<ApplicationDbContext> contextFactory)
+        public TaskAuditEventService(IDbContextFactory<ApplicationDbContext> contextFactory, IHubContext<DashboardHub, IDashboardClient> dashboardHubContext)
         {
             _contextFactory = contextFactory;
+            _dashboardHubContext = dashboardHubContext;
         }
 
         public async Task CreateAuditEventAsync(int taskId, TaskType taskType, AuditEventType eventType, string userId, string? notes = null)
@@ -30,6 +36,10 @@ namespace CMetalsWS.Services
 
             context.TaskAuditEvents.Add(auditEvent);
             await context.SaveChangesAsync();
+            if (taskType == TaskType.Pulling)
+            {
+                await _dashboardHubContext.Clients.All.DashboardUpdated();
+            }
         }
 
         public async Task<AuditEventType?> GetLastEventTypeForTaskAsync(int taskId, TaskType taskType)

@@ -179,6 +179,7 @@ app.MapRazorComponents<App>()
 app.MapAdditionalIdentityEndpoints();
 
 app.MapHub<ScheduleHub>("/hubs/schedule");
+app.MapHub<DashboardHub>("/hubs/dashboard");
 //app.MapHub<ChatHub>("/chathub");
 
 
