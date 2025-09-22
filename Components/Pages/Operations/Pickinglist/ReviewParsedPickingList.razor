@@ -277,7 +277,7 @@ else
         }
     }
 
-    private void OnMachineChanged(PickingListItem item, int? machineId)
+    private void UpdateItemMachine(PickingListItem item, int? machineId)
     {
         item.MachineId = machineId;
         var machine = machineId.HasValue ? _machines.FirstOrDefault(m => m.Id == machineId.Value) : null;
@@ -298,6 +298,11 @@ else
         {
             item.Status = PickingLineStatus.Pending;
         }
+    }
+
+    private void OnMachineChanged(PickingListItem item, int? machineId)
+    {
+        UpdateItemMachine(item, machineId);
         StateHasChanged();
     }
 
@@ -307,9 +312,10 @@ else
 
         foreach (var item in _selectedItems)
         {
-            OnMachineChanged(item, _bulkAssignMachineId);
+            UpdateItemMachine(item, _bulkAssignMachineId);
         }
         Snackbar.Add($"Assigned machine to {_selectedItems.Count} items.", Severity.Success);
+        StateHasChanged();
     }
 
     private IEnumerable<Machine> GetFilteredMachines(PickingListItem item)

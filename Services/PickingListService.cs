@@ -386,7 +386,8 @@ namespace CMetalsWS.Services
                 {
                     if (existingItemsDict.TryGetValue((parsedItem.LineNumber, parsedItem.ItemId), out var existingItem))
                     {
-                        // Update existing item, preserving MachineId and Id
+                        // Update existing item, preserving Id
+                        existingItem.MachineId = parsedItem.MachineId;
                         existingItem.LineNumber = parsedItem.LineNumber;
                         existingItem.ItemId = parsedItem.ItemId;
                         existingItem.ItemDescription = parsedItem.ItemDescription;
