@@ -37,21 +37,23 @@
         </AuthorizeView>
         <AuthorizeView Policy="@Permissions.Customers.View">
             <MudNavLink Href="/customers" Icon="@Icons.Material.Filled.People">Customer Manager</MudNavLink>
+            
         </AuthorizeView>
         <AuthorizeView Policy="@Permissions.Customers.Manage">
             <MudNavLink Href="/admin/destination-groups" Icon="@Icons.Material.Filled.GroupWork">Destination Groups</MudNavLink>
             <MudNavLink Href="/admin/destination-regions" Icon="@Icons.Material.Filled.Public">Destination Regions</MudNavLink>
-        </AuthorizeView>
-        @* <MudNavLink Href="/admin/chatgroups" Icon="@Icons.Material.Filled.Chat">Chat Groups</MudNavLink> *@
-    </MudNavGroup>
+            <MudNavLink Href="/operations/item-relations" Icon="@Icons.Material.Filled.Link">Item Relationships</MudNavLink>
+            <MudNavLink Href="/operations/import-item-relations" Icon="@Icons.Material.Filled.UploadFile">Import Relationships</MudNavLink>
+            <MudNavLink Href="/operations/inventory" Icon="@Icons.Material.Filled.Inventory2">Inventory</MudNavLink>
+        </AuthorizeView>        
+     </MudNavGroup>
 
     @if (canWorkOrders || canPickingLists)
     {
         <MudNavGroup text="Operations" Icon="@Icons.Material.Filled.DashboardCustomize" Title="Operations">
             @if (canWorkOrders)
             {
-                <MudNavLink Href="/operations/workorders" Icon="@Icons.Material.Filled.Assignment">Work Orders</MudNavLink>
-                <MudNavLink Href="/operations/inventory" Icon="@Icons.Material.Filled.Inventory2">Inventory</MudNavLink>
+                <MudNavLink Href="/operations/workorders" Icon="@Icons.Material.Filled.Assignment">Work Orders</MudNavLink>                
             }
             @if (canPickingLists)
             {
@@ -61,9 +63,7 @@
                 @if (canAssignPickingLists)
                 {
                     <MudNavLink Href="/operations/pulling/sheet-queue" Icon="@Icons.Material.Filled.ViewList">Sheet Pulling Queue</MudNavLink>
-                }
-                <MudNavLink Href="/operations/item-relations" Icon="@Icons.Material.Filled.Link">Item Relationships</MudNavLink>
-                <MudNavLink Href="/operations/import-item-relations" Icon="@Icons.Material.Filled.UploadFile">Import Relationships</MudNavLink>
+                }                
             }
         </MudNavGroup>
     }
