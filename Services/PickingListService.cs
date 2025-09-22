@@ -407,7 +407,9 @@ namespace CMetalsWS.Services
             }
 
             await db.SaveChangesAsync();
-            return existingList?.Id ?? parsedList.Id;
+            var updatedListId = existingList?.Id ?? parsedList.Id;
+            await _hubContext.Clients.All.SendAsync("PickingListUpdated", updatedListId);
+            return updatedListId;
         }
 
         public async Task UpdateMachineAssignmentsAsync(IEnumerable<PickingListItem> itemsToUpdate)

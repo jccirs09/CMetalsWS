@@ -116,7 +116,7 @@
         {
             _auditEvents.Clear();
         }
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task ProcessTask(PickingListItem item)
