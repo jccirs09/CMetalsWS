@@ -1,0 +1,161 @@
+﻿@page "/shifts"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using CMetalsWS.Security
+@using MudBlazor
+@attribute [Authorize(Policy = Permissions.Shifts.View)]
+
+@inject ShiftService ShiftService
+@inject BranchService BranchService
+@inject IDialogService DialogService
+@inject IAuthorizationService AuthorizationService
+
+<MudPaper Class="p-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h5">Shifts</MudText>
+        <AuthorizeView Policy="@Permissions.Shifts.Add">
+            <Authorized>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" OnClick="AddShift" Disabled="@(selectedBranch == null)">Add Shift</MudButton>
+            </Authorized>
+        </AuthorizeView>
+    </MudStack>
+    <MudSelect T="int?" Label="Branch" @bind-Value="SelectedBranchId">
+        @foreach (var branch in branches)
+        {
+            <MudSelectItem T="int?" Value="@branch.Id">@branch.Name</MudSelectItem>
+        }
+    </MudSelect>
+    <MudTable Items="shifts" Hover="true" Context="shift">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Start Time</MudTh>
+            <MudTh>End Time</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@shift.Name</MudTd>
+            <MudTd DataLabel="Start Time">@shift.StartTime</MudTd>
+            <MudTd DataLabel="End Time">@shift.EndTime</MudTd>
+            <MudTd DataLabel="Actions">
+                @if (_canEdit)
+                {
+                    <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditShift(shift))"></MudIconButton>
+                }
+                @if (_canDelete)
+                {
+                    <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteShift(shift))"></MudIconButton>
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<Shift> shifts = new();
+    private List<Branch> branches = new();
+    private Branch? selectedBranch;
+    private int? selectedBranchId;
+    public int? SelectedBranchId
+    {
+        get => selectedBranchId;
+        set
+        {
+            selectedBranchId = value;
+            OnBranchSelected(value);
+        }
+    }
+    private bool _canEdit;
+    private bool _canDelete;
+    private bool _canAdd;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthState).User;
+        _canAdd = (await AuthorizationService.AuthorizeAsync(user, Permissions.Shifts.Add)).Succeeded;
+        _canEdit = (await AuthorizationService.AuthorizeAsync(user, Permissions.Shifts.Edit)).Succeeded;
+        _canDelete = (await AuthorizationService.AuthorizeAsync(user, Permissions.Shifts.Delete)).Succeeded;
+        branches = await BranchService.GetBranchesAsync();
+    }
+
+    private async Task OnBranchSelected(int? branchId)
+    {
+        selectedBranchId = branchId;
+        if (selectedBranchId.HasValue)
+        {
+            selectedBranch = branches.FirstOrDefault(b => b.Id == selectedBranchId.Value);
+            shifts = await ShiftService.GetShiftsAsync(selectedBranchId.Value);
+        }
+        else
+        {
+            selectedBranch = null;
+            shifts = new();
+        }
+    }
+
+    private async Task AddShift()
+    {
+        var parameters = new DialogParameters
+        {
+            ["Model"] = new Shift { BranchId = selectedBranchId.Value },
+            ["IsEdit"] = false,
+            ["Title"] = "Add Shift"
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialogRef = await DialogService.ShowAsync<ShiftDialog>("Add Shift", parameters, options);
+        if (dialogRef is not null)
+        {
+            var result = await dialogRef.Result;
+            if (result is not null && result.Data is Shift saved)
+            {
+                await ShiftService.AddShiftAsync(saved);
+                shifts = await ShiftService.GetShiftsAsync(selectedBranchId.Value);
+            }
+        }
+    }
+
+    private async Task EditShift(Shift shift)
+    {
+        var clone = new Shift
+        {
+            Id = shift.Id,
+            Name = shift.Name,
+            StartTime = shift.StartTime,
+            EndTime = shift.EndTime,
+            BranchId = shift.BranchId
+        };
+        var parameters = new DialogParameters
+        {
+            ["Model"] = clone,
+            ["IsEdit"] = true,
+            ["Title"] = "Edit Shift"
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialogRef = await DialogService.ShowAsync<ShiftDialog>("Edit Shift", parameters, options);
+        if (dialogRef is not null)
+        {
+            var result = await dialogRef.Result;
+            if (result is not null && result.Data is Shift updated)
+            {
+                updated.Id = shift.Id;
+                await ShiftService.UpdateShiftAsync(updated);
+                shifts = await ShiftService.GetShiftsAsync(selectedBranchId.Value);
+            }
+        }
+    }
+
+    private async Task DeleteShift(Shift shift)
+    {
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Delete Confirmation",
+            $"Are you sure you want to delete shift '{shift.Name}'?",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirm == true)
+        {
+            await ShiftService.DeleteShiftAsync(shift.Id);
+            shifts = await ShiftService.GetShiftsAsync(selectedBranchId.Value);
+        }
+    }
+}

@@ -1,0 +1,66 @@
+﻿@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@Title</MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudForm Model="@Model" @ref="shiftForm">
+                <MudStack Spacing="2">
+                    <MudTextField @bind-Value="Model.Name" Label="Name" Required="true"></MudTextField>
+                    <MudTimePicker Label="Start Time" @bind-Time="startTime" Required="true" />
+                    <MudTimePicker Label="End Time" @bind-Time="endTime" Required="true" />
+                </MudStack>
+            </MudForm>
+        </MudPaper>
+    </DialogContent>
+
+    <DialogActions>
+        <MudSpacer />
+        <MudButton Color="Color.Secondary" Variant="Variant.Outlined" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public Shift Model { get; set; } = new();
+    [Parameter] public bool IsEdit { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+
+    private MudForm shiftForm = default!;
+    private TimeSpan? startTime;
+    private TimeSpan? endTime;
+
+    [CascadingParameter] public IMudDialogInstance Dialog { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        startTime = Model.StartTime.ToTimeSpan();
+        endTime = Model.EndTime.ToTimeSpan();
+    }
+
+    private async Task Save()
+    {
+        await shiftForm.Validate();
+        if (shiftForm.IsValid)
+        {
+            if (startTime.HasValue)
+            {
+                Model.StartTime = TimeOnly.FromTimeSpan(startTime.Value);
+            }
+            if (endTime.HasValue)
+            {
+                Model.EndTime = TimeOnly.FromTimeSpan(endTime.Value);
+            }
+            Dialog.Close(DialogResult.Ok(Model));
+        }
+    }
+
+    private void Cancel()
+    {
+        Dialog.Cancel();
+    }
+}

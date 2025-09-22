@@ -31,7 +31,7 @@ namespace CMetalsWS.Data
         public DbSet<DestinationRegion> DestinationRegions => Set<DestinationRegion>();
         public DbSet<TaskAuditEvent> TaskAuditEvents => Set<TaskAuditEvent>();
         public DbSet<TransferItem> TransferItems => Set<TransferItem>();
-
+        public DbSet<Shift> Shifts => Set<Shift>();
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
         public DbSet<ChatGroup> ChatGroups => Set<ChatGroup>();
         public DbSet<ChatGroupUser> ChatGroupUsers => Set<ChatGroupUser>();
@@ -51,6 +51,13 @@ namespace CMetalsWS.Data
                 .HasMany(dr => dr.Branches)
                 .WithMany(b => b.DestinationRegions)
                 .UsingEntity(j => j.ToTable("DestinationRegionBranch"));
+
+            // Shift -> Branch
+            modelBuilder.Entity<Shift>()
+                .HasOne(s => s.Branch)
+                .WithMany()
+                .HasForeignKey(s => s.BranchId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Machine -> Branch
             modelBuilder.Entity<Machine>()

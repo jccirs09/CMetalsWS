@@ -19,7 +19,10 @@ namespace CMetalsWS.Data
         // Foreign key to associate a user with a branch (nullable – a user may not belong to a specific branch)
         public int? BranchId { get; set; }
         public Branch? Branch { get; set; }
-
+        public int? ShiftId { get; set; }
+        public Shift? Shift { get; set; }
+        public int? MachineId { get; set; }
+        public Machine? Machine { get; set; }
         // Navigation property for many‑to‑many roles via Identity tables comes automatically with Identity
     }
 }

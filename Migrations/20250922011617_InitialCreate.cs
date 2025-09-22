@@ -162,40 +162,6 @@ namespace CMetalsWS.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "AspNetUsers",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    FirstName = table.Column<string>(type: "nvarchar(450)", nullable: true),
-                    LastName = table.Column<string>(type: "nvarchar(450)", nullable: true),
-                    Avatar = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    BranchId = table.Column<int>(type: "int", nullable: true),
-                    UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    NormalizedEmail = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    EmailConfirmed = table.Column<bool>(type: "bit", nullable: false),
-                    PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    SecurityStamp = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    ConcurrencyStamp = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    PhoneNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    PhoneNumberConfirmed = table.Column<bool>(type: "bit", nullable: false),
-                    TwoFactorEnabled = table.Column<bool>(type: "bit", nullable: false),
-                    LockoutEnd = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
-                    LockoutEnabled = table.Column<bool>(type: "bit", nullable: false),
-                    AccessFailedCount = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_AspNetUsers", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_AspNetUsers_Branches_BranchId",
-                        column: x => x.BranchId,
-                        principalTable: "Branches",
-                        principalColumn: "Id");
-                });
-
-            migrationBuilder.CreateTable(
                 name: "ChatGroups",
                 columns: table => new
                 {
@@ -237,6 +203,28 @@ namespace CMetalsWS.Migrations
                         principalTable: "Branches",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Shifts",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    StartTime = table.Column<TimeOnly>(type: "time", nullable: false),
+                    EndTime = table.Column<TimeOnly>(type: "time", nullable: false),
+                    BranchId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Shifts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Shifts_Branches_BranchId",
+                        column: x => x.BranchId,
+                        principalTable: "Branches",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -311,6 +299,92 @@ namespace CMetalsWS.Migrations
                         principalTable: "DestinationRegions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "WorkOrders",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    WorkOrderNumber = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    PdfWorkOrderNumber = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
+                    TagNumber = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    BranchId = table.Column<int>(type: "int", nullable: false),
+                    MachineId = table.Column<int>(type: "int", nullable: true),
+                    MachineCategory = table.Column<int>(type: "int", nullable: false),
+                    DueDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ParentItemId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Instructions = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    LastUpdatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    LastUpdatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ScheduledStartDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ScheduledEndDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    Shift = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WorkOrders", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_WorkOrders_Branches_BranchId",
+                        column: x => x.BranchId,
+                        principalTable: "Branches",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_WorkOrders_Machines_MachineId",
+                        column: x => x.MachineId,
+                        principalTable: "Machines",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "AspNetUsers",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    FirstName = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    LastName = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    Avatar = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    BranchId = table.Column<int>(type: "int", nullable: true),
+                    ShiftId = table.Column<int>(type: "int", nullable: true),
+                    MachineId = table.Column<int>(type: "int", nullable: true),
+                    UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    NormalizedEmail = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    EmailConfirmed = table.Column<bool>(type: "bit", nullable: false),
+                    PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    SecurityStamp = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ConcurrencyStamp = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    PhoneNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    PhoneNumberConfirmed = table.Column<bool>(type: "bit", nullable: false),
+                    TwoFactorEnabled = table.Column<bool>(type: "bit", nullable: false),
+                    LockoutEnd = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
+                    LockoutEnabled = table.Column<bool>(type: "bit", nullable: false),
+                    AccessFailedCount = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AspNetUsers", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_AspNetUsers_Branches_BranchId",
+                        column: x => x.BranchId,
+                        principalTable: "Branches",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_AspNetUsers_Machines_MachineId",
+                        column: x => x.MachineId,
+                        principalTable: "Machines",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_AspNetUsers_Shifts_ShiftId",
+                        column: x => x.ShiftId,
+                        principalTable: "Shifts",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -399,6 +473,125 @@ namespace CMetalsWS.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ChatGroupUsers",
+                columns: table => new
+                {
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ChatGroupId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChatGroupUsers", x => new { x.UserId, x.ChatGroupId });
+                    table.ForeignKey(
+                        name: "FK_ChatGroupUsers_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ChatGroupUsers_ChatGroups_ChatGroupId",
+                        column: x => x.ChatGroupId,
+                        principalTable: "ChatGroups",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ChatMessages",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Content = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Timestamp = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    EditedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsPinned = table.Column<bool>(type: "bit", nullable: false),
+                    SenderId = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    RecipientId = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    ChatGroupId = table.Column<int>(type: "int", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChatMessages", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ChatMessages_AspNetUsers_RecipientId",
+                        column: x => x.RecipientId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ChatMessages_AspNetUsers_SenderId",
+                        column: x => x.SenderId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ChatMessages_ChatGroups_ChatGroupId",
+                        column: x => x.ChatGroupId,
+                        principalTable: "ChatGroups",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PickingLists",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    SalesOrderNumber = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    OrderDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ShipDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    SoldTo = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    ShipTo = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    SalesRep = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    Buyer = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    PrintDateTime = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    BranchId = table.Column<int>(type: "int", nullable: false),
+                    CustomerId = table.Column<int>(type: "int", nullable: true),
+                    DestinationRegionId = table.Column<int>(type: "int", nullable: true),
+                    TotalWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
+                    RemainingWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    Priority = table.Column<int>(type: "int", nullable: false),
+                    ScannedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ScannedById = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ModifiedById = table.Column<string>(type: "nvarchar(450)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PickingLists", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PickingLists_AspNetUsers_ModifiedById",
+                        column: x => x.ModifiedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_PickingLists_AspNetUsers_ScannedById",
+                        column: x => x.ScannedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_PickingLists_Branches_BranchId",
+                        column: x => x.BranchId,
+                        principalTable: "Branches",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_PickingLists_Customer_CustomerId",
+                        column: x => x.CustomerId,
+                        principalTable: "Customer",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_PickingLists_DestinationRegions_DestinationRegionId",
+                        column: x => x.DestinationRegionId,
+                        principalTable: "DestinationRegions",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "PinnedThreads",
                 columns: table => new
                 {
@@ -470,227 +663,6 @@ namespace CMetalsWS.Migrations
                         name: "FK_Trucks_Branches_BranchId",
                         column: x => x.BranchId,
                         principalTable: "Branches",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ChatGroupUsers",
-                columns: table => new
-                {
-                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    ChatGroupId = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ChatGroupUsers", x => new { x.UserId, x.ChatGroupId });
-                    table.ForeignKey(
-                        name: "FK_ChatGroupUsers_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_ChatGroupUsers_ChatGroups_ChatGroupId",
-                        column: x => x.ChatGroupId,
-                        principalTable: "ChatGroups",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ChatMessages",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Content = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Timestamp = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    EditedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    IsPinned = table.Column<bool>(type: "bit", nullable: false),
-                    SenderId = table.Column<string>(type: "nvarchar(450)", nullable: true),
-                    RecipientId = table.Column<string>(type: "nvarchar(450)", nullable: true),
-                    ChatGroupId = table.Column<int>(type: "int", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ChatMessages", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_ChatMessages_AspNetUsers_RecipientId",
-                        column: x => x.RecipientId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ChatMessages_AspNetUsers_SenderId",
-                        column: x => x.SenderId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ChatMessages_ChatGroups_ChatGroupId",
-                        column: x => x.ChatGroupId,
-                        principalTable: "ChatGroups",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "WorkOrders",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    WorkOrderNumber = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    PdfWorkOrderNumber = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
-                    TagNumber = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    BranchId = table.Column<int>(type: "int", nullable: false),
-                    MachineId = table.Column<int>(type: "int", nullable: true),
-                    MachineCategory = table.Column<int>(type: "int", nullable: false),
-                    DueDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ParentItemId = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Instructions = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    LastUpdatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    LastUpdatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ScheduledStartDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ScheduledEndDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    Shift = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_WorkOrders", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_WorkOrders_Branches_BranchId",
-                        column: x => x.BranchId,
-                        principalTable: "Branches",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_WorkOrders_Machines_MachineId",
-                        column: x => x.MachineId,
-                        principalTable: "Machines",
-                        principalColumn: "Id");
-                });
-
-            migrationBuilder.CreateTable(
-                name: "PickingLists",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    SalesOrderNumber = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    OrderDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ShipDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    SoldTo = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    ShipTo = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    SalesRep = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
-                    Buyer = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
-                    PrintDateTime = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    BranchId = table.Column<int>(type: "int", nullable: false),
-                    CustomerId = table.Column<int>(type: "int", nullable: true),
-                    DestinationRegionId = table.Column<int>(type: "int", nullable: true),
-                    TotalWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
-                    RemainingWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    Priority = table.Column<int>(type: "int", nullable: false),
-                    ScannedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ScannedById = table.Column<string>(type: "nvarchar(450)", nullable: true),
-                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ModifiedById = table.Column<string>(type: "nvarchar(450)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PickingLists", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_PickingLists_AspNetUsers_ModifiedById",
-                        column: x => x.ModifiedById,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_PickingLists_AspNetUsers_ScannedById",
-                        column: x => x.ScannedById,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_PickingLists_Branches_BranchId",
-                        column: x => x.BranchId,
-                        principalTable: "Branches",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_PickingLists_Customer_CustomerId",
-                        column: x => x.CustomerId,
-                        principalTable: "Customer",
-                        principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_PickingLists_DestinationRegions_DestinationRegionId",
-                        column: x => x.DestinationRegionId,
-                        principalTable: "DestinationRegions",
-                        principalColumn: "Id");
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Loads",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    LoadNumber = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    TruckId = table.Column<int>(type: "int", nullable: true),
-                    ShippingDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    TotalWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    OriginBranchId = table.Column<int>(type: "int", nullable: false),
-                    DestinationBranchId = table.Column<int>(type: "int", nullable: true),
-                    Notes = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Loads", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Loads_Branches_DestinationBranchId",
-                        column: x => x.DestinationBranchId,
-                        principalTable: "Branches",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Loads_Branches_OriginBranchId",
-                        column: x => x.OriginBranchId,
-                        principalTable: "Branches",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Loads_Trucks_TruckId",
-                        column: x => x.TruckId,
-                        principalTable: "Trucks",
-                        principalColumn: "Id");
-                });
-
-            migrationBuilder.CreateTable(
-                name: "TruckRoutes",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    BranchId = table.Column<int>(type: "int", nullable: false),
-                    RouteDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    RegionCode = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
-                    TruckId = table.Column<int>(type: "int", nullable: true),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    CreatedUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ModifiedUtc = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_TruckRoutes", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_TruckRoutes_Trucks_TruckId",
-                        column: x => x.TruckId,
-                        principalTable: "Trucks",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -824,35 +796,65 @@ namespace CMetalsWS.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "TruckRouteStops",
+                name: "Loads",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    RouteId = table.Column<int>(type: "int", nullable: false),
-                    LoadId = table.Column<int>(type: "int", nullable: false),
-                    StopOrder = table.Column<int>(type: "int", nullable: false),
-                    PlannedStart = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    PlannedEnd = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ActualDepart = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ActualArrive = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    Notes = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true)
+                    LoadNumber = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    TruckId = table.Column<int>(type: "int", nullable: true),
+                    ShippingDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    TotalWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    OriginBranchId = table.Column<int>(type: "int", nullable: false),
+                    DestinationBranchId = table.Column<int>(type: "int", nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_TruckRouteStops", x => x.Id);
+                    table.PrimaryKey("PK_Loads", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_TruckRouteStops_Loads_LoadId",
-                        column: x => x.LoadId,
-                        principalTable: "Loads",
+                        name: "FK_Loads_Branches_DestinationBranchId",
+                        column: x => x.DestinationBranchId,
+                        principalTable: "Branches",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_TruckRouteStops_TruckRoutes_RouteId",
-                        column: x => x.RouteId,
-                        principalTable: "TruckRoutes",
+                        name: "FK_Loads_Branches_OriginBranchId",
+                        column: x => x.OriginBranchId,
+                        principalTable: "Branches",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Loads_Trucks_TruckId",
+                        column: x => x.TruckId,
+                        principalTable: "Trucks",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TruckRoutes",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    BranchId = table.Column<int>(type: "int", nullable: false),
+                    RouteDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    RegionCode = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    TruckId = table.Column<int>(type: "int", nullable: true),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    CreatedUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedUtc = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TruckRoutes", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TruckRoutes_Trucks_TruckId",
+                        column: x => x.TruckId,
+                        principalTable: "Trucks",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -872,6 +874,44 @@ namespace CMetalsWS.Migrations
                         name: "FK_PickingListPageImages_PickingListImports_PickingListImportId",
                         column: x => x.PickingListImportId,
                         principalTable: "PickingListImports",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "WorkOrderItems",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    WorkOrderId = table.Column<int>(type: "int", nullable: false),
+                    PickingListItemId = table.Column<int>(type: "int", nullable: true),
+                    ItemCode = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    SalesOrderNumber = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
+                    CustomerName = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    OrderQuantity = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
+                    OrderWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
+                    Width = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
+                    Length = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
+                    ProducedQuantity = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
+                    ProducedWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
+                    Unit = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
+                    Location = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
+                    IsStockItem = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WorkOrderItems", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_WorkOrderItems_PickingListItems_PickingListItemId",
+                        column: x => x.PickingListItemId,
+                        principalTable: "PickingListItems",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_WorkOrderItems_WorkOrders_WorkOrderId",
+                        column: x => x.WorkOrderId,
+                        principalTable: "WorkOrders",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -912,39 +952,33 @@ namespace CMetalsWS.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "WorkOrderItems",
+                name: "TruckRouteStops",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    WorkOrderId = table.Column<int>(type: "int", nullable: false),
-                    PickingListItemId = table.Column<int>(type: "int", nullable: true),
-                    ItemCode = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                    SalesOrderNumber = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
-                    CustomerName = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
-                    OrderQuantity = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
-                    OrderWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
-                    Width = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
-                    Length = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
-                    ProducedQuantity = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
-                    ProducedWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
-                    Unit = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
-                    Location = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
-                    IsStockItem = table.Column<bool>(type: "bit", nullable: false)
+                    RouteId = table.Column<int>(type: "int", nullable: false),
+                    LoadId = table.Column<int>(type: "int", nullable: false),
+                    StopOrder = table.Column<int>(type: "int", nullable: false),
+                    PlannedStart = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    PlannedEnd = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ActualDepart = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ActualArrive = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_WorkOrderItems", x => x.Id);
+                    table.PrimaryKey("PK_TruckRouteStops", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_WorkOrderItems_PickingListItems_PickingListItemId",
-                        column: x => x.PickingListItemId,
-                        principalTable: "PickingListItems",
-                        principalColumn: "Id");
+                        name: "FK_TruckRouteStops_Loads_LoadId",
+                        column: x => x.LoadId,
+                        principalTable: "Loads",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_WorkOrderItems_WorkOrders_WorkOrderId",
-                        column: x => x.WorkOrderId,
-                        principalTable: "WorkOrders",
+                        name: "FK_TruckRouteStops_TruckRoutes_RouteId",
+                        column: x => x.RouteId,
+                        principalTable: "TruckRoutes",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -1000,6 +1034,16 @@ namespace CMetalsWS.Migrations
                 name: "IX_AspNetUsers_LastName",
                 table: "AspNetUsers",
                 column: "LastName");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_MachineId",
+                table: "AspNetUsers",
+                column: "MachineId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_ShiftId",
+                table: "AspNetUsers",
+                column: "ShiftId");
 
             migrationBuilder.CreateIndex(
                 name: "UserNameIndex",
@@ -1216,6 +1260,11 @@ namespace CMetalsWS.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_Shifts_BranchId",
+                table: "Shifts",
+                column: "BranchId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_TaskAuditEvents_UserId",
                 table: "TaskAuditEvents",
                 column: "UserId");
@@ -1369,22 +1418,25 @@ namespace CMetalsWS.Migrations
                 name: "PickingLists");
 
             migrationBuilder.DropTable(
-                name: "Machines");
-
-            migrationBuilder.DropTable(
                 name: "AspNetUsers");
 
             migrationBuilder.DropTable(
                 name: "Customer");
 
             migrationBuilder.DropTable(
-                name: "Branches");
+                name: "Machines");
+
+            migrationBuilder.DropTable(
+                name: "Shifts");
 
             migrationBuilder.DropTable(
                 name: "DestinationGroups");
 
             migrationBuilder.DropTable(
                 name: "DestinationRegions");
+
+            migrationBuilder.DropTable(
+                name: "Branches");
         }
     }
 }
