@@ -5,6 +5,7 @@
 @using CMetalsWS.Security
 @using Microsoft.AspNetCore.Components.Authorization
 @using CMetalsWS.Components.Pages.Operations.Pickinglist.Dialogs
+@using Microsoft.AspNetCore.Identity
 @attribute [Authorize(Policy = Permissions.PickingLists.Assign)]
 
 @inject PickingListService PickingListService
@@ -12,6 +13,8 @@
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IDialogService DialogService
+@inject UserService UserService
+@inject UserManager<ApplicationUser> UserManager
 
 <MudText Typo="Typo.h5" Class="mb-4">Sheet Pulling Queue</MudText>
 
@@ -58,18 +61,22 @@
 @code {
     private List<PickingListItem> _tasks = new();
     private Dictionary<int, AuditEventType?> _auditEvents = new();
-    private string? _userId;
+    private ApplicationUser? _user;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        await LoadTasks();
+        var user = authState.User;
+        if (user.Identity.IsAuthenticated)
+        {
+            _user = await UserManager.GetUserAsync(user);
+            await LoadTasks();
+        }
     }
 
     private async Task LoadTasks()
     {
-        _tasks = await PickingListService.GetSheetPullingQueueAsync();
+        _tasks = await PickingListService.GetSheetPullingQueueAsync(_user?.MachineId);
         if (_tasks.Any())
         {
             var taskIds = _tasks.Select(t => t.Id).ToList();
@@ -107,13 +114,13 @@
 
     private async Task HandleAuditEvent(int taskId, AuditEventType eventType, bool stateHasChanged = true)
     {
-        if (string.IsNullOrEmpty(_userId))
+        if (_user is null)
         {
             Snackbar.Add("Could not identify user. Action aborted.", Severity.Error);
             return;
         }
 
-        await AuditService.CreateAuditEventAsync(taskId, TaskType.Pulling, eventType, _userId);
+        await AuditService.CreateAuditEventAsync(taskId, TaskType.Pulling, eventType, _user.Id);
         _auditEvents[taskId] = eventType;
         Snackbar.Add($"Task successfully {eventType.ToString().ToLower()}ed.", Severity.Success);
 
