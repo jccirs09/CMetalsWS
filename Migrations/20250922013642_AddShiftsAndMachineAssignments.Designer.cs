@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250922011644_AddShiftsAndMachineAssignments")]
+    [Migration("20250922013642_AddShiftsAndMachineAssignments")]
     partial class AddShiftsAndMachineAssignments
     {
         /// <inheritdoc />

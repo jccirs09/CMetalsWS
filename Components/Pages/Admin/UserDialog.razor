@@ -231,17 +231,14 @@
     private async Task OnBranchChanged(int? branchId)
     {
         UserModel.BranchId = branchId;
+        _shifts.Clear();
+        _machines.Clear();
+        UserModel.ShiftId = null;
+        UserModel.MachineId = null;
         if (UserModel.BranchId.HasValue)
         {
             await LoadShifts(UserModel.BranchId.Value);
             await LoadMachines(UserModel.BranchId.Value);
-        }
-        else
-        {
-            _shifts.Clear();
-            UserModel.ShiftId = null;
-            _machines.Clear();
-            UserModel.MachineId = null;
         }
     }
 
