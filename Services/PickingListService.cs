@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using CMetalsWS.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 namespace CMetalsWS.Services
 {
@@ -13,17 +15,20 @@ namespace CMetalsWS.Services
         private readonly IPickingListImportService _importService;
         private readonly IPdfParsingService _parsingService;
         private readonly IConfiguration _configuration;
+        private readonly IHubContext<ScheduleHub> _hubContext;
 
         public PickingListService(
             IDbContextFactory<ApplicationDbContext> dbContextFactory,
             IPickingListImportService importService,
             IPdfParsingService parsingService,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IHubContext<ScheduleHub> hubContext)
         {
             _dbContextFactory = dbContextFactory;
             _importService = importService;
             _parsingService = parsingService;
             _configuration = configuration;
+            _hubContext = hubContext;
         }
 
         public async Task<List<PickingList>> GetAsync(int? branchId = null)
@@ -278,7 +283,7 @@ namespace CMetalsWS.Services
                 query = query.Where(i => i.MachineId == machineId.Value);
             }
 
-            return await query.OrderBy(i => i.PickingList.ShipDate)
+            return await query.OrderBy(i => i.ScheduledProcessingDate)
                 .ThenBy(i => i.PickingList.Priority)
                 .ToListAsync();
         }
@@ -599,6 +604,7 @@ namespace CMetalsWS.Services
             }
 
             await db.SaveChangesAsync();
+            await _hubContext.Clients.All.SendAsync("PickingListUpdated", droppedListId);
         }
     }
 }
