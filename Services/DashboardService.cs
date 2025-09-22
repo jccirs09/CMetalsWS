@@ -27,7 +27,9 @@ public class DashboardService
 
     public async Task<List<MachinePullingStatusDto>> GetMachinePullingStatusAsync(int? branchId)
     {
-        var allAssignedTasks = await _pickingListService.GetSheetPullingQueueAsync();
+        var sheetTasks = await _pickingListService.GetSheetPullingQueueAsync();
+        var coilTasks = await _pickingListService.GetCoilPullingQueueAsync();
+        var allAssignedTasks = sheetTasks.Concat(coilTasks).ToList();
 
         if (branchId.HasValue)
         {
