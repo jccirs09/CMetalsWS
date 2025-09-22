@@ -24,7 +24,7 @@ else if (_machineStatus.Any())
 
         @if (machine.InProgressOrders.Any())
         {
-            <MudGrid Spacing={2}>
+            <MudGrid Spacing="2">
                 @foreach (var item in machine.InProgressOrders)
                 {
                     <MudItem xs="12" sm="6">
