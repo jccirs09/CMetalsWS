@@ -38,18 +38,17 @@ public class DashboardService
             return new List<NowPlayingDto>();
 
         var taskIds = sheetPullingQueue.Select(t => t.Id).ToList();
-        var lastEvents = await _taskAuditEventService.GetLastEventTypesForTasksAsync(taskIds, TaskType.Pulling);
+        var lastEvents = await _taskAuditEventService.GetLastEventsForTasksAsync(taskIds, TaskType.Pulling);
 
         var inProgressTasks = sheetPullingQueue
-            .Where(t => lastEvents.TryGetValue(t.Id, out var eventType) &&
-                        (eventType == AuditEventType.Start || eventType == AuditEventType.Resume))
+            .Where(t => lastEvents.TryGetValue(t.Id, out var lastEvent) &&
+                        (lastEvent.EventType == AuditEventType.Start || lastEvent.EventType == AuditEventType.Resume))
             .ToList();
 
         if (!inProgressTasks.Any())
             return new List<NowPlayingDto>();
 
-        var lastAuditors = await _taskAuditEventService.GetLastAuditorsForTasksAsync(inProgressTasks.Select(t => t.Id), TaskType.Pulling);
-        var operatorIds = lastAuditors.Values.Distinct().ToList();
+        var operatorIds = lastEvents.Values.Select(e => e.UserId).Distinct().ToList();
         var operators = await _userService.GetUsersByIdsAsync(operatorIds);
         var operatorDict = operators.ToDictionary(u => u.Id, u => u.FullName);
 
@@ -57,8 +56,8 @@ public class DashboardService
         foreach (var task in inProgressTasks)
         {
             var progress = (task.Weight ?? 0) == 0 ? 0 : (int)((task.PulledWeight / task.Weight) * 100);
-            lastAuditors.TryGetValue(task.Id, out var operatorId);
-            var operatorName = (operatorId != null && operatorDict.TryGetValue(operatorId, out var name)) ? name : "N/A";
+            lastEvents.TryGetValue(task.Id, out var lastEvent);
+            var operatorName = (lastEvent != null && operatorDict.TryGetValue(lastEvent.UserId, out var name)) ? name : "N/A";
 
             result.Add(new NowPlayingDto
             {
