@@ -18,7 +18,7 @@ else if (_groupedNowPlaying.Any())
     @foreach (var group in _groupedNowPlaying)
     {
         <MudText Typo="Typo.h6" Class="mt-4">@group.Key</MudText>
-        <MudText Typo="Typo.subtitle2" Class="mb-2">@($"Total Weight: {group.Value.Sum(x => x.TotalWeight).ToString("N0")} lbs")</MudText>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">@GetTotalWeight(group.Value)</MudText>
         <MudGrid Spacing={2}>
             @foreach (var item in group.Value)
             {
@@ -81,5 +81,10 @@ else
             Logger.LogError(ex, "Error fetching now playing data");
             _groupedNowPlaying = new Dictionary<string, List<NowPlayingDto>>();
         }
+    }
+
+    private string GetTotalWeight(List<NowPlayingDto> items)
+    {
+        return $"Total Weight: {items.Sum(x => x.TotalWeight).ToString("N0")} lbs";
     }
 }
