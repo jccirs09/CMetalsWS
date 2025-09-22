@@ -59,5 +59,22 @@ namespace CMetalsWS.Services
 
             return lastEvents;
         }
+
+        public async Task<Dictionary<int, TaskAuditEvent>> GetLastEventsForTasksAsync(List<int> taskIds, TaskType taskType)
+        {
+            using var context = await _contextFactory.CreateDbContextAsync();
+            if (!taskIds.Any())
+            {
+                return new Dictionary<int, TaskAuditEvent>();
+            }
+
+            var lastEvents = await context.TaskAuditEvents
+                .Where(e => e.TaskType == taskType && taskIds.Contains(e.TaskId))
+                .GroupBy(e => e.TaskId)
+                .Select(g => g.OrderByDescending(e => e.Timestamp).First())
+                .ToDictionaryAsync(k => k.TaskId, v => v);
+
+            return lastEvents;
+        }
     }
 }

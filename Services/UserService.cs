@@ -26,6 +26,11 @@ namespace CMetalsWS.Services
                 .FirstOrDefaultAsync(u => u.Id == id);
         }
 
+        public async Task<List<ApplicationUser>> GetUsersByIdsAsync(List<string> ids)
+        {
+            return await _userManager.Users.Where(u => ids.Contains(u.Id)).ToListAsync();
+        }
+
         public async Task<List<string>> GetRolesForUserAsync(ApplicationUser user)
         {
             return (await _userManager.GetRolesAsync(user)).ToList();
