@@ -77,8 +77,8 @@ namespace CMetalsWS.Services
 
             var operatorPermissions = new[]
             {
-                Permissions.PickingLists.View,
-                Permissions.WorkOrders.View, Permissions.WorkOrders.Process
+                Permissions.PickingLists.View, Permissions.PickingLists.Add, Permissions.PickingLists.Edit, Permissions.PickingLists.Assign,
+                Permissions.WorkOrders.View, Permissions.WorkOrders.Add, Permissions.WorkOrders.Edit, Permissions.WorkOrders.Process
             };
 
             var driverPermissions = new[]

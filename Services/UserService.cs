@@ -64,6 +64,8 @@ namespace CMetalsWS.Services
             existing.FirstName = user.FirstName;
             existing.LastName = user.LastName;
             existing.BranchId = user.BranchId;
+            existing.ShiftId = user.ShiftId;
+            existing.MachineId = user.MachineId;
 
             var result = await _userManager.UpdateAsync(existing);
             if (result.Succeeded)
