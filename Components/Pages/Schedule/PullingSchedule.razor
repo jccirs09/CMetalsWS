@@ -208,11 +208,6 @@
 
         Snackbar.Add($"Moved {listToMove.SalesOrderNumber} to machine {_machines.FirstOrDefault(m => m.Id == newMachineId)?.Name} on {newDate:ddd, MMM dd}", Severity.Success);
 
-        if (_hub is not null)
-        {
-            await _hub.SendAsync("PickingListUpdated", listToMove.Id);
-        }
-
         StateHasChanged();
     }
 
