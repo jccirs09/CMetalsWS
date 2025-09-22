@@ -25,51 +25,65 @@ public class DashboardService
         _userService = userService;
     }
 
-    public async Task<List<NowPlayingDto>> GetNowPlayingAsync(int? branchId)
+    public async Task<List<MachinePullingStatusDto>> GetMachinePullingStatusAsync(int? branchId)
     {
-        var sheetPullingQueue = await _pickingListService.GetSheetPullingQueueAsync();
+        var allAssignedTasks = await _pickingListService.GetSheetPullingQueueAsync();
 
         if (branchId.HasValue)
         {
-            sheetPullingQueue = sheetPullingQueue.Where(t => t.PickingList.BranchId == branchId.Value).ToList();
+            allAssignedTasks = allAssignedTasks.Where(t => t.PickingList.BranchId == branchId.Value).ToList();
         }
 
-        if (!sheetPullingQueue.Any())
-            return new List<NowPlayingDto>();
+        if (!allAssignedTasks.Any())
+        {
+            return new List<MachinePullingStatusDto>();
+        }
 
-        var taskIds = sheetPullingQueue.Select(t => t.Id).ToList();
-        var lastEvents = await _taskAuditEventService.GetLastEventsForTasksAsync(taskIds, TaskType.Pulling);
+        var machineGroups = allAssignedTasks.GroupBy(t => t.Machine?.Name ?? "Unassigned");
 
-        var inProgressTasks = sheetPullingQueue
-            .Where(t => lastEvents.TryGetValue(t.Id, out var lastEvent) &&
-                        (lastEvent.EventType == AuditEventType.Start || lastEvent.EventType == AuditEventType.Resume))
-            .ToList();
+        var result = new List<MachinePullingStatusDto>();
 
-        if (!inProgressTasks.Any())
-            return new List<NowPlayingDto>();
+        var allTaskIds = allAssignedTasks.Select(t => t.Id).ToList();
+        var lastEvents = await _taskAuditEventService.GetLastEventsForTasksAsync(allTaskIds, TaskType.Pulling);
 
-        var operatorIds = lastEvents.Values.Select(e => e.UserId).Distinct().ToList();
-        var operators = await _userService.GetUsersByIdsAsync(operatorIds);
+        var allOperatorIds = lastEvents.Values.Select(e => e.UserId).Distinct().ToList();
+        var operators = await _userService.GetUsersByIdsAsync(allOperatorIds);
         var operatorDict = operators.ToDictionary(u => u.Id, u => u.FullName);
 
-        var result = new List<NowPlayingDto>();
-        foreach (var task in inProgressTasks)
+        foreach (var group in machineGroups)
         {
-            var progress = (task.Weight ?? 0) == 0 ? 0 : (int)((task.PulledWeight / task.Weight) * 100);
-            lastEvents.TryGetValue(task.Id, out var lastEvent);
-            var operatorName = (lastEvent != null && operatorDict.TryGetValue(lastEvent.UserId, out var name)) ? name : "N/A";
-
-            result.Add(new NowPlayingDto
+            var machineStatus = new MachinePullingStatusDto
             {
-                SalesOrderNumber = task.PickingList.SalesOrderNumber,
-                Status = "In Progress",
-                MachineName = task.Machine?.Name ?? "N/A",
-                CustomerName = task.PickingList.SoldTo,
-                LineItems = task.PickingList.Items.Count,
-                TotalWeight = task.PickingList.TotalWeight,
-                OperatorName = operatorName,
-                Progress = progress > 100 ? 100 : (int)progress
-            });
+                MachineName = group.Key,
+                TotalAssignedItems = group.Count(),
+                TotalAssignedWeight = group.Sum(t => t.Weight ?? 0),
+                InProgressOrders = new List<NowPlayingDto>()
+            };
+
+            var inProgressTasks = group
+                .Where(t => lastEvents.TryGetValue(t.Id, out var lastEvent) &&
+                            (lastEvent.EventType == AuditEventType.Start || lastEvent.EventType == AuditEventType.Resume))
+                .ToList();
+
+            foreach (var task in inProgressTasks)
+            {
+                var progress = (task.Weight ?? 0) == 0 ? 0 : (int)((task.PulledWeight / task.Weight) * 100);
+                lastEvents.TryGetValue(task.Id, out var lastEvent);
+                var operatorName = (lastEvent != null && operatorDict.TryGetValue(lastEvent.UserId, out var name)) ? name : "N/A";
+
+                machineStatus.InProgressOrders.Add(new NowPlayingDto
+                {
+                    SalesOrderNumber = task.PickingList.SalesOrderNumber,
+                    Status = "In Progress",
+                    MachineName = task.Machine?.Name ?? "N/A",
+                    CustomerName = task.PickingList.SoldTo,
+                    LineItems = task.PickingList.Items.Count,
+                    TotalWeight = task.PickingList.TotalWeight,
+                    OperatorName = operatorName,
+                    Progress = progress > 100 ? 100 : (int)progress
+                });
+            }
+            result.Add(machineStatus);
         }
 
         return result;

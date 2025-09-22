@@ -9,82 +9,86 @@
 <MudText Typo="Typo.h5" Class="mb-4">Now Playing - Pulling</MudText>
 <MudText Typo="Typo.subtitle1" Class="mb-4">Current picking and packing sessions</MudText>
 
-@if (_groupedNowPlaying is null)
+@if (_machineStatus is null)
 {
     <MudProgressCircular Indeterminate="true" />
 }
-else if (_groupedNowPlaying.Any())
+else if (_machineStatus.Any())
 {
-    @foreach (var group in _groupedNowPlaying)
+    @foreach (var machine in _machineStatus)
     {
-        <MudText Typo="Typo.h6" Class="mt-4">@group.Key</MudText>
-        <MudText Typo="Typo.subtitle2" Class="mb-2">@GetTotalWeight(group.Value)</MudText>
-        <MudGrid Spacing={2}>
-            @foreach (var item in group.Value)
-            {
-                <MudItem xs="12" sm="6">
-                    <MudPaper Class="pa-4">
-                        <MudGrid>
-                            <MudItem xs="6">
-                                <MudText Typo="Typo.h6">@item.SalesOrderNumber</MudText>
-                            </MudItem>
-                            <MudItem xs="6" Class="d-flex justify-end">
-                                <MudChip T="string" Color="Color.Primary">@item.Status</MudChip>
-                            </MudItem>
-                        </MudGrid>
-                        <MudGrid>
-                            <MudItem xs="6">
-                                <MudText Typo="Typo.body2">Customer</MudText>
-                                <MudText Typo="Typo.body1"><b>@item.CustomerName</b></MudText>
-                            </MudItem>
-                            <MudItem xs="6">
-                                <MudText Typo="Typo.body2">Items</MudText>
-                                <MudText Typo="Typo.body1"><b>@item.LineItems line items</b></MudText>
-                            </MudItem>
-                        </MudGrid>
-                        <MudGrid>
-                            <MudItem xs="6">
-                                <MudText Typo="Typo.body2">Weight</MudText>
-                                <MudText Typo="Typo.body1"><b>@item.TotalWeight.ToString("N0") lbs</b></MudText>
-                            </MudItem>
-                            <MudItem xs="6">
-                                <MudText Typo="Typo.body2">Operator</MudText>
-                                <MudText Typo="Typo.body1"><b>@item.OperatorName</b></MudText>
-                            </MudItem>
-                        </MudGrid>
-                        <MudProgressLinear Color="Color.Primary" Value="@item.Progress" Class="my-2" />
-                        <MudText Align="Align.End">@item.Progress%</MudText>
-                    </MudPaper>
-                </MudItem>
-            }
-        </MudGrid>
+        <MudText Typo="Typo.h6" Class="mt-4">@machine.MachineName</MudText>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">
+            Total Assigned: @machine.TotalAssignedItems line items, @machine.TotalAssignedWeight.ToString("N0") lbs
+        </MudText>
+
+        @if (machine.InProgressOrders.Any())
+        {
+            <MudGrid Spacing={2}>
+                @foreach (var item in machine.InProgressOrders)
+                {
+                    <MudItem xs="12" sm="6">
+                        <MudPaper Class="pa-4">
+                            <MudGrid>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.h6">@item.SalesOrderNumber</MudText>
+                                </MudItem>
+                                <MudItem xs="6" Class="d-flex justify-end">
+                                    <MudChip T="string" Color="Color.Primary">@item.Status</MudChip>
+                                </MudItem>
+                            </MudGrid>
+                            <MudGrid>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body2">Customer</MudText>
+                                    <MudText Typo="Typo.body1"><b>@item.CustomerName</b></MudText>
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body2">Items</MudText>
+                                    <MudText Typo="Typo.body1"><b>@item.LineItems line items</b></MudText>
+                                </MudItem>
+                            </MudGrid>
+                            <MudGrid>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body2">Weight</MudText>
+                                    <MudText Typo="Typo.body1"><b>@item.TotalWeight.ToString("N0") lbs</b></MudText>
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body2">Operator</MudText>
+                                    <MudText Typo="Typo.body1"><b>@item.OperatorName</b></MudText>
+                                </MudItem>
+                            </MudGrid>
+                            <MudProgressLinear Color="Color.Primary" Value="@item.Progress" Class="my-2" />
+                            <MudText Align="Align.End">@item.Progress%</MudText>
+                        </MudPaper>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+        else
+        {
+            <MudText Class="mt-2">No active pulling sessions for this machine.</MudText>
+        }
     }
 }
 else
 {
-    <MudText>No active pulling sessions.</MudText>
+    <MudText>No assigned sheet pulling tasks found.</MudText>
 }
 
 
 @code {
-    private Dictionary<string, List<NowPlayingDto>> _groupedNowPlaying;
+    private List<MachinePullingStatusDto> _machineStatus;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            var nowPlaying = await DashboardService.GetNowPlayingAsync(null);
-            _groupedNowPlaying = nowPlaying.GroupBy(x => x.MachineName).ToDictionary(g => g.Key, g => g.ToList());
+            _machineStatus = await DashboardService.GetMachinePullingStatusAsync(null);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error fetching now playing data");
-            _groupedNowPlaying = new Dictionary<string, List<NowPlayingDto>>();
+            Logger.LogError(ex, "Error fetching machine pulling status data");
+            _machineStatus = new List<MachinePullingStatusDto>();
         }
-    }
-
-    private string GetTotalWeight(List<NowPlayingDto> items)
-    {
-        return $"Total Weight: {items.Sum(x => x.TotalWeight).ToString("N0")} lbs";
     }
 }
