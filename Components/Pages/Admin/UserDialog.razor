@@ -1,4 +1,5 @@
 ﻿@using CMetalsWS.Data
+@using CMetalsWS.Services
 @using MudBlazor
 
 <MudDialog>
@@ -76,13 +77,40 @@
 
                     <MudItem xs="12" sm="6">
                         <MudSelect T="int?" Label="Branch"
-                                   @bind-Value="UserModel.BranchId"
+                                   ValueChanged="OnBranchChanged"
+                                   Value="UserModel.BranchId"
                                    Clearable="true"
                                    Class="mb-2">
                             <MudSelectItem T="int?" Value="@((int?)null)" Disabled="true">Select Branch</MudSelectItem>
                             @foreach (var b in Branches)
                             {
                                 <MudSelectItem T="int?" Value="@((int?)b.Id)">@b.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="int?" Label="Shift"
+                                   @bind-Value="UserModel.ShiftId"
+                                   Clearable="true"
+                                   Class="mb-2"
+                                   Disabled="@(UserModel.BranchId == null)">
+                            <MudSelectItem T="int?" Value="@((int?)null)" Disabled="true">Select Shift</MudSelectItem>
+                            @foreach (var s in _shifts)
+                            {
+                                <MudSelectItem T="int?" Value="@((int?)s.Id)">@s.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="int?" Label="Machine"
+                                   @bind-Value="UserModel.MachineId"
+                                   Clearable="true"
+                                   Class="mb-2"
+                                   Disabled="@(UserModel.BranchId == null)">
+                            <MudSelectItem T="int?" Value="@((int?)null)" Disabled="true">Select Machine</MudSelectItem>
+                            @foreach (var m in _machines)
+                            {
+                                <MudSelectItem T="int?" Value="@((int?)m.Id)">@m.Name</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -161,6 +189,10 @@
     [Parameter] public List<ApplicationRole> Roles { get; set; } = new();
     [Parameter] public List<Branch> Branches { get; set; } = new();
     [Parameter] public IEnumerable<string> SelectedRoles { get; set; } = Enumerable.Empty<string>();
+    [Inject] private ShiftService ShiftService { get; set; } = default!;
+    [Inject] private MachineService MachineService { get; set; } = default!;
+    private List<Shift> _shifts = new();
+    private List<Machine> _machines = new();
 
     private MudForm form = default!;
     private string Password { get; set; } = "";
@@ -174,9 +206,43 @@
     private bool _confirmError;
     private string _confirmErrorText = "";
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
         _selectedRole = SelectedRoles?.FirstOrDefault();
+        if (UserModel.BranchId.HasValue)
+        {
+            await LoadShifts(UserModel.BranchId.Value);
+            await LoadMachines(UserModel.BranchId.Value);
+        }
+    }
+
+    private async Task LoadShifts(int branchId)
+    {
+        _shifts = await ShiftService.GetShiftsAsync(branchId);
+        StateHasChanged();
+    }
+
+    private async Task LoadMachines(int branchId)
+    {
+        _machines = await MachineService.GetMachinesAsync(branchId);
+        StateHasChanged();
+    }
+
+    private async Task OnBranchChanged(int? branchId)
+    {
+        UserModel.BranchId = branchId;
+        if (UserModel.BranchId.HasValue)
+        {
+            await LoadShifts(UserModel.BranchId.Value);
+            await LoadMachines(UserModel.BranchId.Value);
+        }
+        else
+        {
+            _shifts.Clear();
+            UserModel.ShiftId = null;
+            _machines.Clear();
+            UserModel.MachineId = null;
+        }
     }
 
     private void ValidateConfirm()

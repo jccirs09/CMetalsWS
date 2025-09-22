@@ -26,6 +26,9 @@
         <AuthorizeView Policy="@Permissions.Branches.View">
             <MudNavLink Href="/branches" Icon="@Icons.Material.Filled.LocationCity">Branches</MudNavLink>
         </AuthorizeView>
+        <AuthorizeView Policy="@Permissions.Shifts.View">
+            <MudNavLink Href="/shifts" Icon="@Icons.Material.Filled.AccessTime">Shifts</MudNavLink>
+        </AuthorizeView>
         <AuthorizeView Policy="@Permissions.Machines.View">
             <MudNavLink Href="/machines" Icon="@Icons.Material.Filled.Build">Machines</MudNavLink>
         </AuthorizeView>

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250921162556_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250922011644_AddShiftsAndMachineAssignments")]
+    partial class AddShiftsAndMachineAssignments
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -107,6 +107,9 @@ namespace CMetalsWS.Migrations
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<int?>("MachineId")
+                        .HasColumnType("int");
+
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
@@ -127,6 +130,9 @@ namespace CMetalsWS.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("ShiftId")
+                        .HasColumnType("int");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
 
@@ -142,6 +148,8 @@ namespace CMetalsWS.Migrations
 
                     b.HasIndex("LastName");
 
+                    b.HasIndex("MachineId");
+
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
@@ -149,6 +157,8 @@ namespace CMetalsWS.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.HasIndex("ShiftId");
 
                     b.HasIndex("FirstName", "LastName");
 
@@ -998,6 +1008,34 @@ namespace CMetalsWS.Migrations
                     b.ToTable("PickingListPageImages");
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.Shift", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<TimeOnly>("EndTime")
+                        .HasColumnType("time");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.ToTable("Shifts");
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.TaskAuditEvent", b =>
                 {
                     b.Property<int>("Id")
@@ -1470,7 +1508,19 @@ namespace CMetalsWS.Migrations
                         .WithMany("Users")
                         .HasForeignKey("BranchId");
 
+                    b.HasOne("CMetalsWS.Data.Machine", "Machine")
+                        .WithMany()
+                        .HasForeignKey("MachineId");
+
+                    b.HasOne("CMetalsWS.Data.Shift", "Shift")
+                        .WithMany("Users")
+                        .HasForeignKey("ShiftId");
+
                     b.Navigation("Branch");
+
+                    b.Navigation("Machine");
+
+                    b.Navigation("Shift");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.Chat.MessageReaction", b =>
@@ -1734,6 +1784,17 @@ namespace CMetalsWS.Migrations
                     b.Navigation("Import");
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.Shift", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Branch");
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.TaskAuditEvent", b =>
                 {
                     b.HasOne("CMetalsWS.Data.ApplicationUser", "User")
@@ -1917,6 +1978,11 @@ namespace CMetalsWS.Migrations
             modelBuilder.Entity("CMetalsWS.Data.PickingListImport", b =>
                 {
                     b.Navigation("PageImages");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.Shift", b =>
+                {
+                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.TruckRoute", b =>

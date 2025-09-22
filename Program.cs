@@ -108,6 +108,7 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 builder.Services.AddScoped<BranchService>();
 builder.Services.AddScoped<RoleService>();
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<ShiftService>();
 builder.Services.AddScoped<MachineService>();
 builder.Services.AddScoped<TruckService>();
 builder.Services.AddScoped<PickingListService>();
