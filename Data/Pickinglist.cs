@@ -114,10 +114,27 @@ namespace CMetalsWS.Data
         {
             if (other is null) return false;
             if (ReferenceEquals(this, other)) return true;
+
+            // For new entities, Id is 0. Use LineNumber for equality as it's unique within the list.
+            if (Id == 0 && other.Id == 0)
+            {
+                return PickingListId == other.PickingListId && LineNumber == other.LineNumber;
+            }
+
             return Id == other.Id;
         }
 
         public override bool Equals(object? obj) => Equals(obj as PickingListItem);
-        public override int GetHashCode() => Id.GetHashCode();
+
+        public override int GetHashCode()
+        {
+            // For new entities, Id is 0. Use LineNumber for hash code.
+            if (Id == 0)
+            {
+                return HashCode.Combine(PickingListId, LineNumber);
+            }
+
+            return Id.GetHashCode();
+        }
     }
 }
