@@ -1,10 +1,13 @@
 ﻿@page "/dashboard"
 @using CMetalsWS.Models
 @using CMetalsWS.Security
+@using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.Extensions.Logging
 @inject DashboardService DashboardService
 @inject ILogger<Dashboard> Logger
+@inject NavigationManager NavigationManager
 @attribute [Authorize(Policy = Permissions.Dashboards.View)]
+@implements IAsyncDisposable
 
 <MudText Typo="Typo.h5" Class="mb-4">Now Playing - Pulling</MudText>
 <MudText Typo="Typo.subtitle1" Class="mb-4">Current picking and packing sessions</MudText>
@@ -15,36 +18,66 @@
 }
 else if (_machineStatus.Any())
 {
-    @foreach (var machine in _machineStatus)
-    {
-        <MudText Typo="Typo.h6" Class="mt-4">@machine.MachineName</MudText>
-        <MudText Typo="Typo.subtitle2" Class="mb-2">
-            Total Assigned: @machine.TotalAssignedItems line items, @machine.TotalAssignedWeight.ToString("N0") lbs
-        </MudText>
-
-        @if (machine.InProgressOrders.Any())
+    <MudGrid Spacing="2">
+        @foreach (var machine in _machineStatus)
         {
-            <MudGrid Spacing="2">
-                @foreach (var item in machine.InProgressOrders)
-                {
-                    <MudItem xs="12" sm="6">
-                        <MudPaper Class="pa-4">
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Class="pa-4" Style="height: 100%;">
+                    <MudText Typo="Typo.h6">@machine.MachineName</MudText>
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">
+                        Assigned: @machine.TotalAssignedItems items, @machine.TotalAssignedWeight.ToString("N0") lbs
+                    </MudText>
+                    <MudDivider />
+
+                    @if (machine.InProgressOrders.Any())
+                    {
+                        @foreach (var item in machine.InProgressOrders)
+                        {
+                            <div class="mt-2">
+                                <MudGrid>
+                                    <MudItem xs="6">
+                                        <MudText Typo="Typo.h6">@item.SalesOrderNumber</MudText>
+                                    </MudItem>
+                                    <MudItem xs="6" Class="d-flex justify-end">
+                                        <MudChip T="string" Color="@GetStatusColor(item.Status)">@item.Status</MudChip>
+                                    </MudItem>
+                                </MudGrid>
+                                <MudGrid>
+                                    <MudItem xs="6">
+                                        <MudText Typo="Typo.body2">Customer</MudText>
+                                        <MudText Typo="Typo.body1"><b>@item.CustomerName</b></MudText>
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <MudText Typo="Typo.body2">Items</MudText>
+                                        <MudText Typo="Typo.body1"><b>@item.LineItems line items</b></MudText>
+                                    </MudItem>
+                                </MudGrid>
+                                <MudGrid>
+                                    <MudItem xs="6">
+                                        <MudText Typo="Typo.body2">Weight</MudText>
+                                        <MudText Typo="Typo.body1"><b>@item.TotalWeight.ToString("N0") lbs</b></MudText>
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <MudText Typo="Typo.body2">Operator</MudText>
+                                        <MudText Typo="Typo.body1"><b>@item.OperatorName</b></MudText>
+                                    </MudItem>
+                                </MudGrid>
+                                <MudProgressLinear Color="Color.Primary" Value="@item.Progress" Class="my-2" />
+                                <MudText Align="Align.End">@item.Progress%</MudText>
+                            </div>
+                        }
+                    }
+                    else if (machine.LastCompletedOrder != null)
+                    {
+                        var item = machine.LastCompletedOrder;
+                        <div class="mt-2">
+                            <MudText Typo="Typo.caption">Last Completed</MudText>
                             <MudGrid>
                                 <MudItem xs="6">
                                     <MudText Typo="Typo.h6">@item.SalesOrderNumber</MudText>
                                 </MudItem>
                                 <MudItem xs="6" Class="d-flex justify-end">
-                                    <MudChip T="string" Color="Color.Primary">@item.Status</MudChip>
-                                </MudItem>
-                            </MudGrid>
-                            <MudGrid>
-                                <MudItem xs="6">
-                                    <MudText Typo="Typo.body2">Customer</MudText>
-                                    <MudText Typo="Typo.body1"><b>@item.CustomerName</b></MudText>
-                                </MudItem>
-                                <MudItem xs="6">
-                                    <MudText Typo="Typo.body2">Items</MudText>
-                                    <MudText Typo="Typo.body1"><b>@item.LineItems line items</b></MudText>
+                                    <MudChip T="string" Color="@GetStatusColor(item.Status)">@item.Status</MudChip>
                                 </MudItem>
                             </MudGrid>
                             <MudGrid>
@@ -57,18 +90,16 @@ else if (_machineStatus.Any())
                                     <MudText Typo="Typo.body1"><b>@item.OperatorName</b></MudText>
                                 </MudItem>
                             </MudGrid>
-                            <MudProgressLinear Color="Color.Primary" Value="@item.Progress" Class="my-2" />
-                            <MudText Align="Align.End">@item.Progress%</MudText>
-                        </MudPaper>
-                    </MudItem>
-                }
-            </MudGrid>
+                        </div>
+                    }
+                    else
+                    {
+                        <MudText Class="mt-2">No active or completed pulling sessions for this machine.</MudText>
+                    }
+                </MudPaper>
+            </MudItem>
         }
-        else
-        {
-            <MudText Class="mt-2">No active pulling sessions for this machine.</MudText>
-        }
-    }
+    </MudGrid>
 }
 else
 {
@@ -78,8 +109,26 @@ else
 
 @code {
     private List<MachinePullingStatusDto> _machineStatus;
+    private HubConnection _hubConnection;
 
     protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/schedule"))
+            .Build();
+
+        _hubConnection.On("PullingStatusUpdated", async () =>
+        {
+            await LoadDataAsync();
+            await InvokeAsync(StateHasChanged);
+        });
+
+        await _hubConnection.StartAsync();
+    }
+
+    private async Task LoadDataAsync()
     {
         try
         {
@@ -90,5 +139,24 @@ else
             Logger.LogError(ex, "Error fetching machine pulling status data");
             _machineStatus = new List<MachinePullingStatusDto>();
         }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    private Color GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "In Progress" => Color.Primary,
+            "Paused" => Color.Warning,
+            "Completed" => Color.Success,
+            _ => Color.Default
+        };
     }
 }

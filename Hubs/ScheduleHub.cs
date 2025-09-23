@@ -9,5 +9,10 @@ namespace CMetalsWS.Hubs
         {
             await Clients.All.SendAsync("WorkOrderUpdated", workOrderId);
         }
+
+        public async Task NotifyPullingStatusUpdated()
+        {
+            await Clients.All.SendAsync("PullingStatusUpdated");
+        }
     }
 }

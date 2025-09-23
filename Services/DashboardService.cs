@@ -1,4 +1,4 @@
-﻿using CMetalsWS.Data;
+using CMetalsWS.Data;
 using CMetalsWS.Models;
 using CMetalsWS.Services;
 using Microsoft.EntityFrameworkCore;
@@ -12,36 +12,35 @@ public class DashboardService
     private readonly PickingListService _pickingListService;
     private readonly ITaskAuditEventService _taskAuditEventService;
     private readonly UserService _userService;
+    private readonly MachineService _machineService;
 
     public DashboardService(
         ApplicationDbContext db,
         PickingListService pickingListService,
         ITaskAuditEventService taskAuditEventService,
-        UserService userService)
+        UserService userService,
+        MachineService machineService)
     {
         _db = db;
         _pickingListService = pickingListService;
         _taskAuditEventService = taskAuditEventService;
         _userService = userService;
+        _machineService = machineService;
     }
 
     public async Task<List<MachinePullingStatusDto>> GetMachinePullingStatusAsync(int? branchId)
     {
-        var sheetTasks = await _pickingListService.GetSheetPullingQueueAsync();
-        var coilTasks = await _pickingListService.GetCoilPullingQueueAsync();
-        var allAssignedTasks = sheetTasks.Concat(coilTasks).ToList();
+        var machines = (await _machineService.GetMachinesAsync())
+            .Where(m => m.Category == MachineCategory.Sheet || m.Category == MachineCategory.Coil);
 
         if (branchId.HasValue)
         {
-            allAssignedTasks = allAssignedTasks.Where(t => t.PickingList.BranchId == branchId.Value).ToList();
+            machines = machines.Where(m => m.BranchId == branchId.Value);
         }
 
-        if (!allAssignedTasks.Any())
-        {
-            return new List<MachinePullingStatusDto>();
-        }
-
-        var machineGroups = allAssignedTasks.GroupBy(t => t.Machine?.Name ?? "Unassigned");
+        var sheetTasks = await _pickingListService.GetSheetPullingQueueAsync();
+        var coilTasks = await _pickingListService.GetCoilPullingQueueAsync();
+        var allAssignedTasks = sheetTasks.Concat(coilTasks).ToList();
 
         var result = new List<MachinePullingStatusDto>();
 
@@ -52,38 +51,105 @@ public class DashboardService
         var operators = await _userService.GetUsersByIdsAsync(allOperatorIds);
         var operatorDict = operators.ToDictionary(u => u.Id, u => u.FullName);
 
-        foreach (var group in machineGroups)
+        var allActiveTasks = allAssignedTasks
+            .Where(t => lastEvents.TryGetValue(t.Id, out var lastEvent) &&
+                        (lastEvent.EventType == AuditEventType.Start ||
+                         lastEvent.EventType == AuditEventType.Resume ||
+                         lastEvent.EventType == AuditEventType.Pause))
+            .ToList();
+
+        var activePickingListIds = allActiveTasks.Select(t => t.PickingListId).Distinct().ToList();
+        var activePickingLists = await _db.PickingLists
+            .Include(p => p.Items)
+            .AsNoTracking()
+            .Where(p => activePickingListIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id);
+
+
+        foreach (var machine in machines)
         {
             var machineStatus = new MachinePullingStatusDto
             {
-                MachineName = group.Key,
-                TotalAssignedItems = group.Count(),
-                TotalAssignedWeight = group.Sum(t => t.Weight ?? 0),
+                MachineName = machine.Name,
                 InProgressOrders = new List<NowPlayingDto>()
             };
 
-            var inProgressTasks = group
-                .Where(t => lastEvents.TryGetValue(t.Id, out var lastEvent) &&
-                            (lastEvent.EventType == AuditEventType.Start || lastEvent.EventType == AuditEventType.Resume))
+            var tasksForMachine = allAssignedTasks.Where(t => t.MachineId == machine.Id).ToList();
+            machineStatus.TotalAssignedItems = tasksForMachine.Count;
+            machineStatus.TotalAssignedWeight = tasksForMachine.Sum(t => t.Weight ?? 0);
+
+            var activeTasksForMachine = allActiveTasks
+                .Where(t => t.MachineId == machine.Id)
                 .ToList();
 
-            foreach (var task in inProgressTasks)
+            if (activeTasksForMachine.Any())
             {
-                var progress = (task.Weight ?? 0) == 0 ? 0 : (int)((task.PulledWeight / task.Weight) * 100);
-                lastEvents.TryGetValue(task.Id, out var lastEvent);
-                var operatorName = (lastEvent != null && operatorDict.TryGetValue(lastEvent.UserId, out var name)) ? name : "N/A";
+                var activeGroups = activeTasksForMachine.GroupBy(t => t.PickingListId);
 
-                machineStatus.InProgressOrders.Add(new NowPlayingDto
+                foreach (var group in activeGroups)
                 {
-                    SalesOrderNumber = task.PickingList.SalesOrderNumber,
-                    Status = "In Progress",
-                    MachineName = task.Machine?.Name ?? "N/A",
-                    CustomerName = task.PickingList.SoldTo,
-                    LineItems = task.PickingList.Items.Count,
-                    TotalWeight = task.PickingList.TotalWeight,
-                    OperatorName = operatorName,
-                    Progress = progress > 100 ? 100 : (int)progress
-                });
+                    if (!activePickingLists.TryGetValue(group.Key, out var pickingList))
+                    {
+                        continue;
+                    }
+
+                    var totalItems = pickingList.Items.Count;
+                    var completedItems = pickingList.Items.Count(i => i.Status == PickingLineStatus.Completed);
+                    var progress = (totalItems == 0) ? 0 : (completedItems * 100) / totalItems;
+
+                    var firstTaskInGroup = group.First();
+                    lastEvents.TryGetValue(firstTaskInGroup.Id, out var lastEvent);
+                    var operatorName = (lastEvent != null && operatorDict.TryGetValue(lastEvent.UserId, out var name)) ? name : "N/A";
+                    var status = (lastEvent?.EventType == AuditEventType.Pause) ? "Paused" : "In Progress";
+
+                    machineStatus.InProgressOrders.Add(new NowPlayingDto
+                    {
+                        SalesOrderNumber = pickingList.SalesOrderNumber,
+                        Status = status,
+                        MachineName = machine.Name,
+                        CustomerName = pickingList.SoldTo,
+                        LineItems = totalItems,
+                        TotalWeight = pickingList.TotalWeight,
+                        OperatorName = operatorName,
+                        Progress = progress
+                    });
+                }
+            }
+            else
+            {
+                // Find the last completed task for this machine
+                var lastCompletedEvent = await _db.TaskAuditEvents
+                    .Where(e => e.TaskType == TaskType.Pulling && e.EventType == AuditEventType.Complete)
+                    .Join(_db.PickingListItems, e => e.TaskId, i => i.Id, (e, i) => new { Event = e, Item = i })
+                    .Where(x => x.Item.MachineId == machine.Id)
+                    .OrderByDescending(x => x.Event.Timestamp)
+                    .FirstOrDefaultAsync();
+
+
+                if (lastCompletedEvent != null)
+                {
+                    var task = await _db.PickingListItems
+                        .Include(i => i.PickingList)
+                        .ThenInclude(p => p.Items)
+                        .Include(i => i.Machine)
+                        .FirstOrDefaultAsync(i => i.Id == lastCompletedEvent.Event.TaskId);
+
+                    if (task != null)
+                    {
+                        var operatorName = operatorDict.TryGetValue(lastCompletedEvent.Event.UserId, out var name) ? name : "N/A";
+                        machineStatus.LastCompletedOrder = new NowPlayingDto
+                        {
+                            SalesOrderNumber = task.PickingList.SalesOrderNumber,
+                            Status = "Completed",
+                            MachineName = task.Machine?.Name ?? "N/A",
+                            CustomerName = task.PickingList.SoldTo,
+                            LineItems = task.PickingList.Items.Count,
+                            TotalWeight = task.PickingList.TotalWeight,
+                            OperatorName = operatorName,
+                            Progress = 100
+                        };
+                    }
+                }
             }
             result.Add(machineStatus);
         }
