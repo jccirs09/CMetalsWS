@@ -1,39 +1,63 @@
 @page "/schedule/all-machines"
 @using CMetalsWS.Data
 @using CMetalsWS.Security
+@using CMetalsWS.Components.Pages.Schedule.Shared
 @attribute [Authorize(Policy = Permissions.Schedules.ViewAll)]
 @inherits AllMachinesScheduleBase
 
-<PageTitle>All Machines Schedule</PageTitle>
+<PageTitle>Machine Daily Schedule</PageTitle>
 
-<MudPaper Class="pa-4 full-screen-schedule" Elevation="2">
-    <MudGrid Spacing="2" Justify="Justify.FlexStart" Style="height: 100%;">
-        <MudItem xs="12" sm="6" md="4" Style="height: 100%;">
-            <MudDatePicker Label="Select Date" @bind-Date="SelectedDate" PickerVariant="PickerVariant.Static" />
-        </MudItem>
-        <MudItem xs="12" sm="6" md="8">
-            <div class="swim-lane-container">
-                <div class="timeline-header">
-                    @for (int hour = 0; hour < 24; hour++)
-                    {
-                        <div class="hour-marker" style="left: @(hour * 100 / 24)%;">@hour:00</div>
-                    }
-                </div>
-                @foreach (var machine in _machines)
+<div class="pa-4 full-screen-schedule">
+    <div class="d-flex justify-space-between align-center mb-4">
+        <div>
+            <MudText Typo="Typo.h5" GutterBottom="true">Machine Daily Schedule</MudText>
+            <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Production scheduling for CTL, Slitter, and Pulling operations</MudText>
+        </div>
+        <div class="d-flex align-center">
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="@(() => SelectedDate = SelectedDate?.AddDays(-1))" />
+            <MudText Typo="Typo.h6">@SelectedDate?.ToString("dddd, MMMM dd, yyyy")</MudText>
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" OnClick="@(() => SelectedDate = SelectedDate?.AddDays(1))" />
+            <MudButton Variant="Variant.Outlined" OnClick="@(() => SelectedDate = DateTime.Today)" Class="ml-4">Today</MudButton>
+        </div>
+    </div>
+
+    <MudGrid Spacing="3" Justify="Justify.FlexStart">
+        @foreach (var status in _machineStatuses)
+        {
+            <MudItem xs="12" sm="6" md="4" lg="2">
+                <MachineStatusCard Status="status" />
+            </MudItem>
+        }
+    </MudGrid>
+
+    <MudPaper Class="mt-4 pa-4" Elevation="0" Style="flex-grow: 1; display: flex; flex-direction: column;">
+        <MudText Typo="Typo.h6" GutterBottom="true">Daily Production Schedule</MudText>
+        <div class="swim-lane-container">
+            <div class="timeline-header">
+                @for (int hour = 6; hour < 19; hour++)
                 {
-                    <div class="swim-lane">
-                        <div class="machine-name">@machine.Name</div>
-                        <div class="timeline">
-                            @foreach (var item in GetScheduleItemsForMachine(machine.Id))
-                            {
-                                <div class="work-order-block" style="@GetScheduleItemStyle(item)" @onclick="() => ShowItemDetails(item)">
-                                    @item.Text
-                                </div>
-                            }
-                        </div>
-                    </div>
+                    <div class="hour-marker" style="left: @((hour - 6) * 100 / 12)%;">@hour:00</div>
                 }
             </div>
-        </MudItem>
-    </MudGrid>
-</MudPaper>
+            @foreach (var machine in _machines)
+            {
+                <div class="swim-lane">
+                    <div class="machine-name">
+                        <MudText Typo="Typo.subtitle1">@machine.Name</MudText>
+                        <MudText Typo="Typo.caption">@machine.Category.ToString()</MudText>
+                    </div>
+                    <div class="timeline">
+                        @foreach (var item in GetScheduleItemsForMachine(machine.Id))
+                        {
+                            <div class="work-order-block" style="@GetScheduleItemStyle(item)" @onclick="() => ShowItemDetails(item)">
+                                <div class="work-order-text">@item.Text</div>
+                                <div class="customer-name">@item.CustomerName</div>
+                                <div class="item-status @GetStatusClass(item.Status)">@item.Status</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </MudPaper>
+</div>

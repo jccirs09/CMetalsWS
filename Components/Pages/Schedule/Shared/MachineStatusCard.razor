@@ -1,0 +1,41 @@
+@using CMetalsWS.Models
+
+<MudPaper Class="pa-3 machine-status-card" Elevation="0">
+    <div class="d-flex justify-space-between align-center mb-2">
+        <MudText Typo="Typo.subtitle1" Class="font-weight-medium">@Status.MachineName</MudText>
+        <MudIcon Icon="@GetStatusIcon()" Style="@($"color: {GetStatusColor()};")" />
+    </div>
+    <MudText Typo="Typo.body2" GutterBottom="true">Type: @Status.MachineType</MudText>
+    <MudText Typo="Typo.body2" GutterBottom="true">Status: <span class="font-weight-medium">@Status.Status</span></MudText>
+
+    <MudText Typo="Typo.body2" Class="mt-2">Current Task:</MudText>
+    <MudText Typo="Typo.body2" Class="font-weight-bold">@Status.CurrentWorkOrder</MudText>
+</MudPaper>
+
+@code {
+    [Parameter]
+    public MachineDailyStatusDto Status { get; set; } = new();
+
+    private string GetStatusIcon()
+    {
+        return Status.Status switch
+        {
+            "Running" => Icons.Material.Filled.PlayCircle,
+            "Idle" => Icons.Material.Filled.PauseCircle,
+            "Maintenance" => Icons.Material.Filled.Build,
+            _ => Icons.Material.Filled.Help
+        };
+    }
+
+    private string GetStatusColor()
+    {
+        return Status.Status switch
+        {
+            "Running" => "var(--mud-palette-success)",
+            "Idle" => "var(--mud-palette-warning)",
+            "Maintenance" => "var(--mud-palette-info)",
+            _ => "var(--mud-palette-action-disabled)"
+        };
+    }
+
+}

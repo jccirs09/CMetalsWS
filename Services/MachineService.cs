@@ -1,15 +1,24 @@
 using CMetalsWS.Data;
+using CMetalsWS.Models;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace CMetalsWS.Services
 {
     public class MachineService
     {
         private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
+        private readonly WorkOrderService _workOrderService;
+        private readonly PickingListService _pickingListService;
 
-        public MachineService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
+        public MachineService(IDbContextFactory<ApplicationDbContext> dbContextFactory, WorkOrderService workOrderService, PickingListService pickingListService)
         {
             _dbContextFactory = dbContextFactory;
+            _workOrderService = workOrderService;
+            _pickingListService = pickingListService;
         }
 
         public async Task<List<Machine>> GetMachinesAsync()
@@ -66,6 +75,51 @@ namespace CMetalsWS.Services
                 db.Machines.Remove(entity);
                 await db.SaveChangesAsync();
             }
+        }
+
+        public async Task<List<MachineDailyStatusDto>> GetMachineDailyStatusAsync(DateTime date)
+        {
+            var machines = await GetMachinesAsync();
+            var workOrders = await _workOrderService.GetByDateAsync(date);
+            var sheetItems = await _pickingListService.GetSheetPullingQueueAsync();
+            var coilItems = await _pickingListService.GetCoilPullingQueueAsync();
+            var pickingListItems = sheetItems.Concat(coilItems)
+                .Where(i => i.ScheduledProcessingDate?.Date == date.Date)
+                .ToList();
+
+            var result = new List<MachineDailyStatusDto>();
+
+            foreach (var machine in machines)
+            {
+                var now = DateTime.Now;
+                var currentWorkOrder = workOrders.FirstOrDefault(wo => wo.MachineId == machine.Id && wo.ScheduledStartDate <= now && wo.ScheduledEndDate >= now);
+                var currentPickingListItem = pickingListItems.FirstOrDefault(pi => pi.MachineId == machine.Id && pi.ScheduledProcessingDate <= now && (pi.ScheduledProcessingDate ?? DateTime.MinValue).AddHours(1) >= now);
+
+                var status = "Idle";
+                string? currentTask = null;
+
+                if (currentWorkOrder != null)
+                {
+                    status = "Running";
+                    currentTask = currentWorkOrder.WorkOrderNumber;
+                }
+                else if (currentPickingListItem != null)
+                {
+                    status = "Running";
+                    currentTask = currentPickingListItem.ItemDescription;
+                }
+
+                result.Add(new MachineDailyStatusDto
+                {
+                    MachineId = machine.Id,
+                    MachineName = machine.Name,
+                    MachineType = machine.Category.ToString(),
+                    Status = status,
+                    CurrentWorkOrder = currentTask
+                });
+            }
+
+            return result;
         }
     }
 }

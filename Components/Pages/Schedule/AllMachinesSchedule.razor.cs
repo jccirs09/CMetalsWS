@@ -1,4 +1,5 @@
 using CMetalsWS.Data;
+using CMetalsWS.Models;
 using CMetalsWS.Services;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
@@ -17,6 +18,8 @@ namespace CMetalsWS.Components.Pages.Schedule
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public string Text { get; set; } = string.Empty;
+        public string CustomerName { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
         public object OriginalItem { get; set; } = default!;
     }
 
@@ -32,8 +35,9 @@ namespace CMetalsWS.Components.Pages.Schedule
         [Inject] protected PickingListService PickingListService { get; set; } = default!;
         [Inject] protected MachineService MachineService { get; set; } = default!;
         [Inject] protected IDialogService DialogService { get; set; } = default!;
+        [Inject] protected IDbContextFactory<ApplicationDbContext> DbContextFactory { get; set; } = default!;
 
-        private DateTime? _selectedDate = DateTime.Today.AddDays(1);
+        private DateTime? _selectedDate = DateTime.Today;
         protected DateTime? SelectedDate
         {
             get => _selectedDate;
@@ -46,6 +50,7 @@ namespace CMetalsWS.Components.Pages.Schedule
 
         protected List<Machine> _machines = new();
         protected List<ScheduleItem> _scheduleItems = new();
+        protected List<MachineDailyStatusDto> _machineStatuses = new();
 
         protected override async Task OnInitializedAsync()
         {
@@ -59,6 +64,8 @@ namespace CMetalsWS.Components.Pages.Schedule
 
             if (_selectedDate.HasValue)
             {
+                _machineStatuses = await MachineService.GetMachineDailyStatusAsync(_selectedDate.Value);
+
                 var workOrders = await WorkOrderService.GetByDateAsync(_selectedDate.Value);
                 foreach (var wo in workOrders)
                 {
@@ -70,16 +77,28 @@ namespace CMetalsWS.Components.Pages.Schedule
                         StartDate = wo.ScheduledStartDate,
                         EndDate = wo.ScheduledEndDate,
                         Text = wo.WorkOrderNumber,
+                        CustomerName = wo.Items.FirstOrDefault()?.CustomerName ?? "N/A",
+                        Status = wo.Status.ToString(),
                         OriginalItem = wo
                     });
                 }
 
                 var sheetItems = await PickingListService.GetSheetPullingQueueAsync();
                 var coilItems = await PickingListService.GetCoilPullingQueueAsync();
-                var pickingListItems = sheetItems.Concat(coilItems).ToList();
+                var pickingListItems = sheetItems.Concat(coilItems)
+                    .Where(i => i.ScheduledProcessingDate?.Date == _selectedDate.Value.Date)
+                    .ToList();
 
-                foreach (var item in pickingListItems.Where(i => i.ScheduledProcessingDate?.Date == _selectedDate.Value.Date))
+                var pickingListIds = pickingListItems.Select(i => i.PickingListId).Distinct().ToList();
+                using var db = await DbContextFactory.CreateDbContextAsync();
+                var pickingLists = await db.PickingLists
+                    .Include(p => p.Customer)
+                    .Where(p => pickingListIds.Contains(p.Id))
+                    .ToDictionaryAsync(p => p.Id);
+
+                foreach (var item in pickingListItems)
                 {
+                    var pickingList = pickingLists.GetValueOrDefault(item.PickingListId);
                     _scheduleItems.Add(new ScheduleItem
                     {
                         Id = item.Id,
@@ -88,6 +107,8 @@ namespace CMetalsWS.Components.Pages.Schedule
                         StartDate = item.ScheduledProcessingDate ?? DateTime.MinValue,
                         EndDate = (item.ScheduledProcessingDate ?? DateTime.MinValue).AddHours(1), // Assuming 1 hour duration
                         Text = item.ItemDescription,
+                        CustomerName = pickingList?.Customer?.Name ?? "N/A",
+                        Status = item.Status.ToString(),
                         OriginalItem = item
                     });
                 }
@@ -102,11 +123,25 @@ namespace CMetalsWS.Components.Pages.Schedule
 
         protected string GetScheduleItemStyle(ScheduleItem item)
         {
+            var timelineStartHour = 6;
+            var timelineEndHour = 18;
+            var timelineDurationHours = timelineEndHour - timelineStartHour;
+
             var start = item.StartDate.TimeOfDay;
             var end = item.EndDate.TimeOfDay;
-            var duration = end - start;
-            var left = (start.TotalHours / 24) * 100;
-            var width = (duration.TotalHours / 24) * 100;
+
+            // Clamp start and end times to the timeline window
+            var clampedStart = Math.Max(timelineStartHour, start.TotalHours);
+            var clampedEnd = Math.Min(timelineEndHour, end.TotalHours);
+
+            if (clampedStart >= clampedEnd)
+            {
+                return "display: none;"; // Hide tasks outside the timeline
+            }
+
+            var duration = clampedEnd - clampedStart;
+            var left = ((clampedStart - timelineStartHour) / timelineDurationHours) * 100;
+            var width = (duration / timelineDurationHours) * 100;
 
             var color = item.Type == ScheduleItemType.WorkOrder ? "#3f51b5" : "#ff9800"; // Blue for WorkOrder, Orange for PickingListItem
 
@@ -122,10 +157,14 @@ namespace CMetalsWS.Components.Pages.Schedule
             }
             else
             {
-                // TODO: Create a dialog for PickingListItem details
                 var parameters = new DialogParameters { ["PickingListItemId"] = item.Id };
-                // await DialogService.ShowAsync<Dialogs.PickingListItemDetailsDialog>("Picking List Item Details", parameters);
+                await DialogService.ShowAsync<Dialogs.PickingListItemDetailsDialog>("Picking List Item Details", parameters);
             }
+        }
+
+        protected string GetStatusClass(string status)
+        {
+            return "status-" + status.ToLower();
         }
     }
 }

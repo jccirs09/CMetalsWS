@@ -81,6 +81,15 @@ namespace CMetalsWS.Services
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
 
+        public async Task<PickingListItem?> GetItemByIdAsync(int id)
+        {
+            using var db = _dbContextFactory.CreateDbContext();
+            return await db.PickingListItems
+                .Include(i => i.PickingList)
+                .ThenInclude(pl => pl!.Customer)
+                .FirstOrDefaultAsync(i => i.Id == id);
+        }
+
         public async Task CreateAsync(PickingList model)
         {
             using var db = _dbContextFactory.CreateDbContext();

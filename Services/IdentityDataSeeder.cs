@@ -122,28 +122,10 @@ namespace CMetalsWS.Services
                     .Select(c => c.Value)
                     .ToHashSet();
 
-                if (role.Name == "Admin")
+                foreach (var perm in kv.Value.Distinct())
                 {
-                    // For Admin, ensure all permissions are always present.
-                    // First, remove any permission claims that might be stale.
-                    foreach (var claim in existingClaims.Where(c => c.Type == Permissions.ClaimType))
-                    {
-                        await _roleManager.RemoveClaimAsync(role, claim);
-                    }
-                    // Then, add all permissions from the comprehensive list.
-                    foreach (var perm in all.Distinct())
-                    {
+                    if (!existingPerms.Contains(perm))
                         await _roleManager.AddClaimAsync(role, new Claim(Permissions.ClaimType, perm));
-                    }
-                }
-                else
-                {
-                    // For other roles, just add missing permissions.
-                    foreach (var perm in kv.Value.Distinct())
-                    {
-                        if (!existingPerms.Contains(perm))
-                            await _roleManager.AddClaimAsync(role, new Claim(Permissions.ClaimType, perm));
-                    }
                 }
             }
 

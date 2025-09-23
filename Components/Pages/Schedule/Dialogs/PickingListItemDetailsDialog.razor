@@ -1,0 +1,53 @@
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@inject PickingListService PickingListService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Picking List Item Details</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_item == null)
+        {
+            <MudProgressCircular Indeterminate="true" />
+        }
+        else
+        {
+            <MudGrid Spacing="2">
+                <MudItem xs="6">
+                    <MudText><strong>Item ID:</strong> @_item.ItemId</MudText>
+                    <MudText><strong>Description:</strong> @_item.ItemDescription</MudText>
+                    <MudText><strong>Quantity:</strong> @_item.Quantity @_item.Unit</MudText>
+                    <MudText><strong>Weight:</strong> @_item.Weight?.ToString("N2")</MudText>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudText><strong>Status:</strong> @_item.Status</MudText>
+                    <MudText><strong>Scheduled Date:</strong> @_item.ScheduledProcessingDate?.ToString("yyyy-MM-dd")</MudText>
+                    <MudText><strong>Sales Order:</strong> @_item.PickingList?.SalesOrderNumber</MudText>
+                    <MudText><strong>Customer:</strong> @_item.PickingList?.Customer?.Name</MudText>
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public int PickingListItemId { get; set; }
+
+    private PickingListItem? _item;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // This is not efficient, we should pass the whole item or get it from a service that gets it with its parent
+        // but for now this will do to unblock the UI.
+        // I will create a new method in PickingListService to get a single item with its parent.
+        _item = await PickingListService.GetItemByIdAsync(PickingListItemId);
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
