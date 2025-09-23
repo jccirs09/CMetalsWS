@@ -17,6 +17,7 @@
 @inject UserService UserService
 @inject UserManager<ApplicationUser> UserManager
 @inject NavigationManager NavigationManager
+@inject ITaskAuditEventService TaskAuditEventService
 
 @implements IAsyncDisposable
 
@@ -40,7 +41,7 @@
         <MudTd DataLabel="Total Line Items">@context.Items.Count</MudTd>
         <MudTd DataLabel="Total Weight">@context.Items.Where(i => i.Machine?.Category == MachineCategory.Sheet).Sum(i => i.Weight)</MudTd>
         <MudTd DataLabel="Actions">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => StartPickingList(context))">Start</MudButton>
+            <MudButton Variant="Variant.Filled" Color="@GetButtonColor(context)" Size="Size.Small" OnClick="@(() => StartPickingList(context))">@GetButtonText(context)</MudButton>
         </MudTd>
     </RowTemplate>
     <NoRecordsContent>
@@ -52,6 +53,29 @@
     private List<PickingList> _pickingLists = new();
     private ApplicationUser? _user;
     private HubConnection? _hubConnection;
+    private Dictionary<int, AuditEventType> _lastEvents = new();
+
+    private bool IsPaused(PickingList pickingList)
+    {
+        foreach (var item in pickingList.Items)
+        {
+            if (_lastEvents.TryGetValue(item.Id, out var lastEvent) && lastEvent == AuditEventType.Pause)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private string GetButtonText(PickingList pickingList)
+    {
+        return IsPaused(pickingList) ? "Resume" : "Start";
+    }
+
+    private Color GetButtonColor(PickingList pickingList)
+    {
+        return IsPaused(pickingList) ? Color.Warning : Color.Primary;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -87,6 +111,11 @@
     private async Task LoadPickingLists()
     {
         _pickingLists = await PickingListService.GetSheetPullingQueueListsAsync(_user?.MachineId);
+        var itemIds = _pickingLists.SelectMany(pl => pl.Items).Select(i => i.Id).ToList();
+        if (itemIds.Any())
+        {
+            _lastEvents = await TaskAuditEventService.GetLastEventTypesForTasksAsync(itemIds, TaskType.Pulling);
+        }
         await InvokeAsync(StateHasChanged);
     }
 
