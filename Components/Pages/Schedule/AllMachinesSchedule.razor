@@ -1,0 +1,39 @@
+@page "/schedule/all-machines"
+@using CMetalsWS.Data
+@using CMetalsWS.Security
+@attribute [Authorize(Policy = Permissions.Schedules.ViewAll)]
+@inherits AllMachinesScheduleBase
+
+<PageTitle>All Machines Schedule</PageTitle>
+
+<MudPaper Class="pa-4" Elevation="2">
+    <MudGrid Spacing="2" Justify="Justify.FlexStart">
+        <MudItem xs="12" sm="6" md="4">
+            <MudDatePicker Label="Select Date" @bind-Date="SelectedDate" PickerVariant="PickerVariant.Static" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="8">
+            <div class="swim-lane-container">
+                <div class="timeline-header">
+                    @for (int hour = 0; hour < 24; hour++)
+                    {
+                        <div class="hour-marker" style="left: @(hour * 100 / 24)%;">@hour:00</div>
+                    }
+                </div>
+                @foreach (var machine in _machines)
+                {
+                    <div class="swim-lane">
+                        <div class="machine-name">@machine.Name</div>
+                        <div class="timeline">
+                            @foreach (var workOrder in GetWorkOrdersForMachine(machine.Id))
+                            {
+                                <div class="work-order-block" style="@GetWorkOrderStyle(workOrder)" @onclick="() => ShowWorkOrderDetails(workOrder)">
+                                    @workOrder.WorkOrderNumber
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </MudItem>
+    </MudGrid>
+</MudPaper>

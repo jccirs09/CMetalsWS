@@ -82,6 +82,10 @@
     @if (canWorkOrders)
     {
         <MudNavGroup text="Schedule" Icon="@Icons.Material.Filled.EventNote" Title="Scheduling">
+            @if (canViewAllSchedules)
+            {
+                <MudNavLink Href="/schedule/all-machines" Icon="@Icons.Material.Filled.ViewTimeline">All Machines</MudNavLink>
+            }
             <MudNavLink Href="/schedule/ctl" Icon="@Icons.Material.Filled.CalendarToday">CTL</MudNavLink>
             <MudNavLink Href="/schedule/slitter" Icon="@Icons.Material.Filled.CalendarViewDay">Slitter</MudNavLink>
             <MudNavLink Href="/schedule/pulling" Icon="@Icons.Material.Filled.PanTool">Pulling</MudNavLink>
@@ -114,6 +118,7 @@
     private bool canWorkOrders;
     private bool canPickingLists;
     private bool canAssignPickingLists;
+    private bool canViewAllSchedules;
 
     protected override async Task OnInitializedAsync()
     {
@@ -130,6 +135,7 @@
         canWorkOrders = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.WorkOrders.View)).Succeeded;
         canPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.View)).Succeeded;
         canAssignPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.Assign)).Succeeded;
+        canViewAllSchedules = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.Schedules.ViewAll)).Succeeded;
     }
 
     private async Task LoadDestinationRegionsAsync()

@@ -97,6 +97,11 @@ namespace CMetalsWS.Security
             public const string Delete = "Shifts.Delete";
         }
 
+        public static class Schedules
+        {
+            public const string ViewAll = "Schedules.ViewAll";
+        }
+
         public static IEnumerable<string> All()
         {
             yield return Users.View; yield return Users.Add; yield return Users.Edit; yield return Users.Delete;
@@ -112,6 +117,7 @@ namespace CMetalsWS.Security
             yield return Reports.View; yield return Reports.Export;
             yield return Customers.View; yield return Customers.Add; yield return Customers.Edit; yield return Customers.Delete; yield return Customers.Import; yield return Customers.Manage;
             yield return Shifts.View; yield return Shifts.Add; yield return Shifts.Edit; yield return Shifts.Delete;
+            yield return Schedules.ViewAll;
         }
     }
 }

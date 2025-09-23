@@ -42,6 +42,21 @@ namespace CMetalsWS.Services
                 .ToListAsync();
         }
 
+        public async Task<List<WorkOrder>> GetByDateAsync(DateTime date)
+        {
+            using var db = _dbContextFactory.CreateDbContext();
+            var startOfDay = date.Date;
+            var endOfDay = startOfDay.AddDays(1);
+
+            return await db.WorkOrders
+                .Include(w => w.Items)
+                .Include(w => w.Machine)
+                .Where(w => w.ScheduledStartDate >= startOfDay && w.ScheduledStartDate < endOfDay)
+                .AsNoTracking()
+                .OrderBy(w => w.ScheduledStartDate)
+                .ToListAsync();
+        }
+
         public async Task<List<WorkOrder>> GetByCategoryAsync(MachineCategory category, int? branchId = null)
         {
             using var db = _dbContextFactory.CreateDbContext();
