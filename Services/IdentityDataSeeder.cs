@@ -116,16 +116,34 @@ namespace CMetalsWS.Services
                 var role = await _roleManager.FindByNameAsync(kv.Key);
                 if (role is null) continue;
 
-                var existing = await _roleManager.GetClaimsAsync(role);
-                var existingPerms = existing
+                var existingClaims = await _roleManager.GetClaimsAsync(role);
+                var existingPerms = existingClaims
                     .Where(c => c.Type == Permissions.ClaimType)
                     .Select(c => c.Value)
                     .ToHashSet();
 
-                foreach (var perm in kv.Value.Distinct())
+                if (role.Name == "Admin")
                 {
-                    if (!existingPerms.Contains(perm))
+                    // For Admin, ensure all permissions are always present.
+                    // First, remove any permission claims that might be stale.
+                    foreach (var claim in existingClaims.Where(c => c.Type == Permissions.ClaimType))
+                    {
+                        await _roleManager.RemoveClaimAsync(role, claim);
+                    }
+                    // Then, add all permissions from the comprehensive list.
+                    foreach (var perm in all.Distinct())
+                    {
                         await _roleManager.AddClaimAsync(role, new Claim(Permissions.ClaimType, perm));
+                    }
+                }
+                else
+                {
+                    // For other roles, just add missing permissions.
+                    foreach (var perm in kv.Value.Distinct())
+                    {
+                        if (!existingPerms.Contains(perm))
+                            await _roleManager.AddClaimAsync(role, new Claim(Permissions.ClaimType, perm));
+                    }
                 }
             }
 
