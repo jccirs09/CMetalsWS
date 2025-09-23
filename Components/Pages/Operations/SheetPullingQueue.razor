@@ -17,6 +17,7 @@
 @inject UserService UserService
 @inject UserManager<ApplicationUser> UserManager
 @inject NavigationManager NavigationManager
+@inject ITaskAuditEventService TaskAuditEventService
 
 @implements IAsyncDisposable
 
@@ -52,10 +53,18 @@
     private List<PickingList> _pickingLists = new();
     private ApplicationUser? _user;
     private HubConnection? _hubConnection;
+    private Dictionary<int, AuditEventType> _lastEvents = new();
 
     private string GetButtonText(PickingList pickingList)
     {
-        return pickingList.Status == PickingListStatus.OnHold ? "Resume" : "Start";
+        foreach (var item in pickingList.Items)
+        {
+            if (_lastEvents.TryGetValue(item.Id, out var lastEvent) && lastEvent == AuditEventType.Pause)
+            {
+                return "Resume";
+            }
+        }
+        return "Start";
     }
 
     protected override async Task OnInitializedAsync()
@@ -92,6 +101,11 @@
     private async Task LoadPickingLists()
     {
         _pickingLists = await PickingListService.GetSheetPullingQueueListsAsync(_user?.MachineId);
+        var itemIds = _pickingLists.SelectMany(pl => pl.Items).Select(i => i.Id).ToList();
+        if (itemIds.Any())
+        {
+            _lastEvents = await TaskAuditEventService.GetLastEventTypesForTasksAsync(itemIds, TaskType.Pulling);
+        }
         await InvokeAsync(StateHasChanged);
     }
 
