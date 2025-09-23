@@ -1,8 +1,15 @@
+.full-screen-schedule {
+    height: calc(100vh - 64px - 48px); /* Adjust 64px for app bar height and 48px for padding */
+    display: flex;
+    flex-direction: column;
+}
+
 .swim-lane-container {
     position: relative;
     width: 100%;
+    height: 100%;
     border: 1px solid #ccc;
-    overflow-x: auto;
+    overflow: auto;
 }
 
 .timeline-header {

@@ -6,9 +6,9 @@
 
 <PageTitle>All Machines Schedule</PageTitle>
 
-<MudPaper Class="pa-4" Elevation="2">
-    <MudGrid Spacing="2" Justify="Justify.FlexStart">
-        <MudItem xs="12" sm="6" md="4">
+<MudPaper Class="pa-4 full-screen-schedule" Elevation="2">
+    <MudGrid Spacing="2" Justify="Justify.FlexStart" Style="height: 100%;">
+        <MudItem xs="12" sm="6" md="4" Style="height: 100%;">
             <MudDatePicker Label="Select Date" @bind-Date="SelectedDate" PickerVariant="PickerVariant.Static" />
         </MudItem>
         <MudItem xs="12" sm="6" md="8">
@@ -24,10 +24,10 @@
                     <div class="swim-lane">
                         <div class="machine-name">@machine.Name</div>
                         <div class="timeline">
-                            @foreach (var workOrder in GetWorkOrdersForMachine(machine.Id))
+                            @foreach (var item in GetScheduleItemsForMachine(machine.Id))
                             {
-                                <div class="work-order-block" style="@GetWorkOrderStyle(workOrder)" @onclick="() => ShowWorkOrderDetails(workOrder)">
-                                    @workOrder.WorkOrderNumber
+                                <div class="work-order-block" style="@GetScheduleItemStyle(item)" @onclick="() => ShowItemDetails(item)">
+                                    @item.Text
                                 </div>
                             }
                         </div>
