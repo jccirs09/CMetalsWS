@@ -51,6 +51,19 @@ public class DashboardService
         var operators = await _userService.GetUsersByIdsAsync(allOperatorIds);
         var operatorDict = operators.ToDictionary(u => u.Id, u => u.FullName);
 
+        var allInProgressTasks = allAssignedTasks
+            .Where(t => lastEvents.TryGetValue(t.Id, out var lastEvent) &&
+                        (lastEvent.EventType == AuditEventType.Start || lastEvent.EventType == AuditEventType.Resume))
+            .ToList();
+
+        var inProgressPickingListIds = allInProgressTasks.Select(t => t.PickingListId).Distinct().ToList();
+        var inProgressPickingLists = await _db.PickingLists
+            .Include(p => p.Items)
+            .AsNoTracking()
+            .Where(p => inProgressPickingListIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id);
+
+
         foreach (var machine in machines)
         {
             var machineStatus = new MachinePullingStatusDto
@@ -63,29 +76,39 @@ public class DashboardService
             machineStatus.TotalAssignedItems = tasksForMachine.Count;
             machineStatus.TotalAssignedWeight = tasksForMachine.Sum(t => t.Weight ?? 0);
 
-            var inProgressTasks = tasksForMachine
-                .Where(t => lastEvents.TryGetValue(t.Id, out var lastEvent) &&
-                            (lastEvent.EventType == AuditEventType.Start || lastEvent.EventType == AuditEventType.Resume))
+            var inProgressTasksForMachine = allInProgressTasks
+                .Where(t => t.MachineId == machine.Id)
                 .ToList();
 
-            if (inProgressTasks.Any())
+            if (inProgressTasksForMachine.Any())
             {
-                foreach (var task in inProgressTasks)
+                var inProgressGroups = inProgressTasksForMachine.GroupBy(t => t.PickingListId);
+
+                foreach (var group in inProgressGroups)
                 {
-                    var progress = (task.Weight ?? 0) == 0 ? 0 : (int)((task.PulledWeight / task.Weight) * 100);
-                    lastEvents.TryGetValue(task.Id, out var lastEvent);
+                    if (!inProgressPickingLists.TryGetValue(group.Key, out var pickingList))
+                    {
+                        continue;
+                    }
+
+                    var totalItems = pickingList.Items.Count;
+                    var completedItems = pickingList.Items.Count(i => i.Status == PickingLineStatus.Completed);
+                    var progress = (totalItems == 0) ? 0 : (completedItems * 100) / totalItems;
+
+                    var firstTaskInGroup = group.First();
+                    lastEvents.TryGetValue(firstTaskInGroup.Id, out var lastEvent);
                     var operatorName = (lastEvent != null && operatorDict.TryGetValue(lastEvent.UserId, out var name)) ? name : "N/A";
 
                     machineStatus.InProgressOrders.Add(new NowPlayingDto
                     {
-                        SalesOrderNumber = task.PickingList.SalesOrderNumber,
+                        SalesOrderNumber = pickingList.SalesOrderNumber,
                         Status = "In Progress",
-                        MachineName = task.Machine?.Name ?? "N/A",
-                        CustomerName = task.PickingList.SoldTo,
-                        LineItems = task.PickingList.Items.Count,
-                        TotalWeight = task.PickingList.TotalWeight,
+                        MachineName = machine.Name,
+                        CustomerName = pickingList.SoldTo,
+                        LineItems = totalItems,
+                        TotalWeight = pickingList.TotalWeight,
                         OperatorName = operatorName,
-                        Progress = progress > 100 ? 100 : (int)progress
+                        Progress = progress
                     });
                 }
             }
@@ -104,6 +127,7 @@ public class DashboardService
                 {
                     var task = await _db.PickingListItems
                         .Include(i => i.PickingList)
+                        .ThenInclude(p => p.Items)
                         .Include(i => i.Machine)
                         .FirstOrDefaultAsync(i => i.Id == lastCompletedEvent.Event.TaskId);
 
