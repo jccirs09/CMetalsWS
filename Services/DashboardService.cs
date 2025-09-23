@@ -51,16 +51,18 @@ public class DashboardService
         var operators = await _userService.GetUsersByIdsAsync(allOperatorIds);
         var operatorDict = operators.ToDictionary(u => u.Id, u => u.FullName);
 
-        var allInProgressTasks = allAssignedTasks
+        var allActiveTasks = allAssignedTasks
             .Where(t => lastEvents.TryGetValue(t.Id, out var lastEvent) &&
-                        (lastEvent.EventType == AuditEventType.Start || lastEvent.EventType == AuditEventType.Resume))
+                        (lastEvent.EventType == AuditEventType.Start ||
+                         lastEvent.EventType == AuditEventType.Resume ||
+                         lastEvent.EventType == AuditEventType.Pause))
             .ToList();
 
-        var inProgressPickingListIds = allInProgressTasks.Select(t => t.PickingListId).Distinct().ToList();
-        var inProgressPickingLists = await _db.PickingLists
+        var activePickingListIds = allActiveTasks.Select(t => t.PickingListId).Distinct().ToList();
+        var activePickingLists = await _db.PickingLists
             .Include(p => p.Items)
             .AsNoTracking()
-            .Where(p => inProgressPickingListIds.Contains(p.Id))
+            .Where(p => activePickingListIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id);
 
 
@@ -76,17 +78,17 @@ public class DashboardService
             machineStatus.TotalAssignedItems = tasksForMachine.Count;
             machineStatus.TotalAssignedWeight = tasksForMachine.Sum(t => t.Weight ?? 0);
 
-            var inProgressTasksForMachine = allInProgressTasks
+            var activeTasksForMachine = allActiveTasks
                 .Where(t => t.MachineId == machine.Id)
                 .ToList();
 
-            if (inProgressTasksForMachine.Any())
+            if (activeTasksForMachine.Any())
             {
-                var inProgressGroups = inProgressTasksForMachine.GroupBy(t => t.PickingListId);
+                var activeGroups = activeTasksForMachine.GroupBy(t => t.PickingListId);
 
-                foreach (var group in inProgressGroups)
+                foreach (var group in activeGroups)
                 {
-                    if (!inProgressPickingLists.TryGetValue(group.Key, out var pickingList))
+                    if (!activePickingLists.TryGetValue(group.Key, out var pickingList))
                     {
                         continue;
                     }
@@ -98,11 +100,12 @@ public class DashboardService
                     var firstTaskInGroup = group.First();
                     lastEvents.TryGetValue(firstTaskInGroup.Id, out var lastEvent);
                     var operatorName = (lastEvent != null && operatorDict.TryGetValue(lastEvent.UserId, out var name)) ? name : "N/A";
+                    var status = (lastEvent?.EventType == AuditEventType.Pause) ? "Paused" : "In Progress";
 
                     machineStatus.InProgressOrders.Add(new NowPlayingDto
                     {
                         SalesOrderNumber = pickingList.SalesOrderNumber,
-                        Status = "In Progress",
+                        Status = status,
                         MachineName = machine.Name,
                         CustomerName = pickingList.SoldTo,
                         LineItems = totalItems,

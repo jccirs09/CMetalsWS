@@ -39,7 +39,7 @@ else if (_machineStatus.Any())
                                         <MudText Typo="Typo.h6">@item.SalesOrderNumber</MudText>
                                     </MudItem>
                                     <MudItem xs="6" Class="d-flex justify-end">
-                                        <MudChip T="string" Color="Color.Primary">@item.Status</MudChip>
+                                        <MudChip T="string" Color="@GetStatusColor(item.Status)">@item.Status</MudChip>
                                     </MudItem>
                                 </MudGrid>
                                 <MudGrid>
@@ -77,7 +77,7 @@ else if (_machineStatus.Any())
                                     <MudText Typo="Typo.h6">@item.SalesOrderNumber</MudText>
                                 </MudItem>
                                 <MudItem xs="6" Class="d-flex justify-end">
-                                    <MudChip T="string" Color="Color.Success">@item.Status</MudChip>
+                                    <MudChip T="string" Color="@GetStatusColor(item.Status)">@item.Status</MudChip>
                                 </MudItem>
                             </MudGrid>
                             <MudGrid>
@@ -147,5 +147,16 @@ else
         {
             await _hubConnection.DisposeAsync();
         }
+    }
+
+    private Color GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "In Progress" => Color.Primary,
+            "Paused" => Color.Warning,
+            "Completed" => Color.Success,
+            _ => Color.Default
+        };
     }
 }
