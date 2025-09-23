@@ -86,7 +86,7 @@
 
     private async Task LoadPickingLists()
     {
-        _pickingLists = await PickingListService.GetSheetPullingQueueListsAsync();
+        _pickingLists = await PickingListService.GetSheetPullingQueueListsAsync(_user?.MachineId);
         await InvokeAsync(StateHasChanged);
     }
 

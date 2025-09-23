@@ -549,14 +549,21 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
         }
 
-        public async Task<List<PickingList>> GetSheetPullingQueueListsAsync()
+        public async Task<List<PickingList>> GetSheetPullingQueueListsAsync(int? machineId = null)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
 
-            var pickingListIds = await db.PickingListItems
+            var query = db.PickingListItems
                 .Where(i => i.Status == PickingLineStatus.AssignedPulling &&
                             i.Machine != null &&
-                            i.Machine.Category == MachineCategory.Sheet)
+                            i.Machine.Category == MachineCategory.Sheet);
+
+            if (machineId.HasValue)
+            {
+                query = query.Where(i => i.MachineId == machineId.Value);
+            }
+
+            var pickingListIds = await query
                 .Select(i => i.PickingListId)
                 .Distinct()
                 .ToListAsync();
