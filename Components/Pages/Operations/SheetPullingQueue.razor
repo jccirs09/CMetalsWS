@@ -40,7 +40,7 @@
         <MudTd DataLabel="Total Line Items">@context.Items.Count</MudTd>
         <MudTd DataLabel="Total Weight">@context.Items.Where(i => i.Machine?.Category == MachineCategory.Sheet).Sum(i => i.Weight)</MudTd>
         <MudTd DataLabel="Actions">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => StartPickingList(context))">Start</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => StartPickingList(context))">@GetButtonText(context)</MudButton>
         </MudTd>
     </RowTemplate>
     <NoRecordsContent>
@@ -52,6 +52,11 @@
     private List<PickingList> _pickingLists = new();
     private ApplicationUser? _user;
     private HubConnection? _hubConnection;
+
+    private string GetButtonText(PickingList pickingList)
+    {
+        return pickingList.Status == PickingListStatus.OnHold ? "Resume" : "Start";
+    }
 
     protected override async Task OnInitializedAsync()
     {
