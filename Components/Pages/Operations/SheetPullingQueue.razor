@@ -36,7 +36,7 @@
         <MudTd DataLabel="Scheduled Processing Date">@context.Items.FirstOrDefault()?.ScheduledProcessingDate?.ToString("yyyy-MM-dd")</MudTd>
         <MudTd DataLabel="Priority">@context.Priority</MudTd>
         <MudTd DataLabel="SO #">@context.SalesOrderNumber</MudTd>
-        <MudTd DataLabel="Customer">@context.Customer?.Name</MudTd>
+        <MudTd DataLabel="Customer">@context.Customer?.CustomerName</MudTd>
         <MudTd DataLabel="Total Line Items">@context.Items.Count</MudTd>
         <MudTd DataLabel="Total Weight">@context.Items.Where(i => i.Machine?.Category == MachineCategory.Sheet).Sum(i => i.Weight)</MudTd>
         <MudTd DataLabel="Actions">
