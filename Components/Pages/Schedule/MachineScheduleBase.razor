@@ -8,6 +8,8 @@
 @using MudBlazor.Utilities
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
+@using CMetalsWS.Security
 
 @inject WorkOrderService WorkOrderService
 @inject MachineService MachineService
@@ -17,13 +19,14 @@
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IAuthorizationService AuthorizationService
 
 @implements IAsyncDisposable
 
 <MudPaper Class="d-flex flex-grow-1 pa-4" Elevation="0">
     <MudCalendar T="ScheduleEvent" Items="_events"
-                 EnableDragItems="true"
-                 EnableResizeItems="true"
+                 EnableDragItems="_canEditSchedule"
+                 EnableResizeItems="_canEditSchedule"
                  MonthCellMinHeight="120"
                  ItemClicked="OnItemClicked"
                  ItemChanged="OnItemChanged"
@@ -69,12 +72,15 @@
     private (TimeOnly Start, TimeOnly End) _branchWorkHours;
     private DayOfWeek _firstDayOfWeek = DayOfWeek.Monday;
     private int? _currentBranchId;
+    private bool _canEditSchedule;
 
     protected override async Task OnInitializedAsync()
     {
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = await UserManager.GetUserAsync(auth.User);
-        _currentBranchId = user?.BranchId;
+        var user = auth.User;
+        _canEditSchedule = (await AuthorizationService.AuthorizeAsync(user, Permissions.WorkOrders.Edit)).Succeeded;
+        var appUser = await UserManager.GetUserAsync(user);
+        _currentBranchId = appUser?.BranchId;
 
         var branches = await BranchService.GetBranchesAsync();
         var branch = branches.FirstOrDefault(b => b.Id == _currentBranchId);
