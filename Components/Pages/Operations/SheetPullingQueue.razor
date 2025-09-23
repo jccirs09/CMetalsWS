@@ -41,7 +41,7 @@
         <MudTd DataLabel="Total Line Items">@context.Items.Count</MudTd>
         <MudTd DataLabel="Total Weight">@context.Items.Where(i => i.Machine?.Category == MachineCategory.Sheet).Sum(i => i.Weight)</MudTd>
         <MudTd DataLabel="Actions">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => StartPickingList(context))">@GetButtonText(context)</MudButton>
+            <MudButton Variant="Variant.Filled" Color="@GetButtonColor(context)" Size="Size.Small" OnClick="@(() => StartPickingList(context))">@GetButtonText(context)</MudButton>
         </MudTd>
     </RowTemplate>
     <NoRecordsContent>
@@ -55,16 +55,26 @@
     private HubConnection? _hubConnection;
     private Dictionary<int, AuditEventType> _lastEvents = new();
 
-    private string GetButtonText(PickingList pickingList)
+    private bool IsPaused(PickingList pickingList)
     {
         foreach (var item in pickingList.Items)
         {
             if (_lastEvents.TryGetValue(item.Id, out var lastEvent) && lastEvent == AuditEventType.Pause)
             {
-                return "Resume";
+                return true;
             }
         }
-        return "Start";
+        return false;
+    }
+
+    private string GetButtonText(PickingList pickingList)
+    {
+        return IsPaused(pickingList) ? "Resume" : "Start";
+    }
+
+    private Color GetButtonColor(PickingList pickingList)
+    {
+        return IsPaused(pickingList) ? Color.Warning : Color.Primary;
     }
 
     protected override async Task OnInitializedAsync()
