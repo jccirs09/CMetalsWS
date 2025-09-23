@@ -1,4 +1,6 @@
 using CMetalsWS.Data;
+using CMetalsWS.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Threading.Tasks;
@@ -8,10 +10,12 @@ namespace CMetalsWS.Services
     public class TaskAuditEventService : ITaskAuditEventService
     {
         private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
+        private readonly IHubContext<ScheduleHub> _hubContext;
 
-        public TaskAuditEventService(IDbContextFactory<ApplicationDbContext> contextFactory)
+        public TaskAuditEventService(IDbContextFactory<ApplicationDbContext> contextFactory, IHubContext<ScheduleHub> hubContext)
         {
             _contextFactory = contextFactory;
+            _hubContext = hubContext;
         }
 
         public async Task CreateAuditEventAsync(int taskId, TaskType taskType, AuditEventType eventType, string userId, string? notes = null)
@@ -30,6 +34,10 @@ namespace CMetalsWS.Services
 
             context.TaskAuditEvents.Add(auditEvent);
             await context.SaveChangesAsync();
+            if (taskType == TaskType.Pulling)
+            {
+                await _hubContext.Clients.All.SendAsync("PullingStatusUpdated");
+            }
         }
 
         public async Task<AuditEventType?> GetLastEventTypeForTaskAsync(int taskId, TaskType taskType)
