@@ -14,8 +14,6 @@ public static class SeedFromDb_PickingLists_WithMachines
 
     public static async Task RunAsync(ApplicationDbContext db)
     {
-        await db.Database.EnsureCreatedAsync();
-
         // ----- Load sources from DB -----
         var customers = await db.Set<Customer>()
             .AsNoTracking()
@@ -284,6 +282,20 @@ public static class SeedFromDb_PickingLists_WithMachines
 
     private static string BuildItemDescription(InventoryItem inv, bool hasLen, int machineId)
     {
-        return inv.Description ?? inv.ItemId;
+        // Rough, PDF-like flavor lines
+        if (hasLen)
+        {
+            // SHEET/CTL → include size
+            var w = inv.Width ?? 48m;
+            var l = inv.Length ?? 120m;
+            return $"{(inv.Description ?? inv.ItemId)} — SHEET {w:0.#}\" x {l:0.#}\" (SOURCE: STOCK)";
+        }
+
+        if (inv.Width.HasValue)
+        {
+            return $"{(inv.Description ?? inv.ItemId)} — {(IsStdCoilWidth(inv.Width.Value) ? "COIL slit" : "SLITTER program")} @{inv.Width:0.###}\" (SOURCE: STOCK)";
+        }
+
+        return $"{(inv.Description ?? inv.ItemId)} — COIL (SOURCE: STOCK)";
     }
 }
