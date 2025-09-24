@@ -45,6 +45,7 @@ namespace CMetalsWS.Services
                 .Include(p => p.Items).ThenInclude(i => i.PickedBy)
                 .Include(p => p.Items).ThenInclude(i => i.PackedBy)
                 .Include(p => p.Items).ThenInclude(i => i.QualityCheckedBy)
+                .Where(p => p.Items.Any(i => i.Machine != null && (i.Machine.Category == MachineCategory.Coil || i.Machine.Category == MachineCategory.Sheet)))
                 .AsNoTracking();
 
             if (branchId.HasValue)
