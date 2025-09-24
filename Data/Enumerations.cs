@@ -15,6 +15,7 @@
         InProgress,
         Scheduled,
         Picked,
+        Packing,
         Completed,
         ReadyToShip,
         Shipped,
@@ -30,7 +31,9 @@
         Completed,
         Canceled,
         WorkOrder,
-        Awaiting
+        Awaiting,
+        Packing,
+        Packed
     }
 
     public enum TaskType

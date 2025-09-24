@@ -27,7 +27,7 @@
 @implements IAsyncDisposable
 
 <MudTabs Elevation="2" Rounded="true" Centered="true">
-    <MudTabPanel Text="Picking Lists">
+    <MudTabPanel Text="Picking List Grid View">
         <MudPaper Class="p-4">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                 <MudText Typo="Typo.h5">Picking Lists</MudText>
@@ -118,75 +118,155 @@
             </MudTable>
         </MudPaper>
     </MudTabPanel>
-    <MudTabPanel Text="Sheet Pulling Queue">
-        <MudText Typo="Typo.h5" Class="mb-4">Sheet Pulling Queue</MudText>
-        <MudTable Items="spq_pickingLists" Hover="true" Dense="true">
-            <HeaderContent>
-                <MudTh>Scheduled Processing Date</MudTh>
-                <MudTh>Priority</MudTh>
-                <MudTh>SO #</MudTh>
-                <MudTh>Customer</MudTh>
-                <MudTh>Total Line Items</MudTh>
-                <MudTh>Total Weight</MudTh>
-                <MudTh>Actions</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Scheduled Processing Date">@context.Items.FirstOrDefault()?.ScheduledProcessingDate?.ToString("yyyy-MM-dd")</MudTd>
-                <MudTd DataLabel="Priority">@context.Priority</MudTd>
-                <MudTd DataLabel="SO #">@context.SalesOrderNumber</MudTd>
-                <MudTd DataLabel="Customer">@context.Customer?.CustomerName</MudTd>
-                <MudTd DataLabel="Total Line Items">@context.Items.Count</MudTd>
-                <MudTd DataLabel="Total Weight">@context.Items.Where(i => i.Machine?.Category == MachineCategory.Sheet).Sum(i => i.Weight)</MudTd>
-                <MudTd DataLabel="Actions">
-                    <MudButton Variant="Variant.Filled" Color="@spq_GetButtonColor(context)" Size="Size.Small" OnClick="@(() => spq_StartPickingList(context))">@spq_GetButtonText(context)</MudButton>
-                </MudTd>
-            </RowTemplate>
-            <NoRecordsContent>
-                <MudText>No sheet pulling tasks found.</MudText>
-            </NoRecordsContent>
-        </MudTable>
+    <MudTabPanel Text="Picking List Card View">
+        <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+            <MudGrid Spacing="3">
+                @foreach (var list in pl_lists)
+                {
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCard>
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudText Typo="Typo.h6">@list.SalesOrderNumber</MudText>
+                                    <MudText Typo="Typo.subtitle2">@list.Customer?.CustomerName</MudText>
+                                </CardHeaderContent>
+                                <CardHeaderActions>
+                                    <MudChip T="string" Color="@(GetPriorityColor(list.Priority))" Size="Size.Small">@list.Priority.ToString()</MudChip>
+                                    <MudChip T="string" Color="Color.Default" Size="Size.Small">@list.Status.ToString()</MudChip>
+                                </CardHeaderActions>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <MudText><strong>Destination:</strong> @list.DestinationRegion?.Name</MudText>
+                                <MudText><strong>Due Date:</strong> @list.ShipDate?.ToString("yyyy-MM-dd")</MudText>
+                                <MudText><strong>Total Weight:</strong> @list.TotalWeight.ToString("N3")</MudText>
+                                <MudText><strong>Line Items:</strong> @list.Items.Count()</MudText>
+                            </MudCardContent>
+                            <MudCardActions>
+                                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(async () => await pl_View(list))">View</MudButton>
+                                @if (pl_canEdit)
+                                {
+                                    <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" title="Edit" OnClick="@(async () => await pl_Edit(list))" />
+                                }
+                                @if (pl_canDelete)
+                                {
+                                    <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" title="Delete" OnClick="@(async () => await pl_Delete(list))" />
+                                }
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudContainer>
     </MudTabPanel>
-    <MudTabPanel Text="Coil Pulling Queue">
-        <MudText Typo="Typo.h5" Class="mb-4">Coil Pulling Queue</MudText>
-        <MudTable Items="cpq_tasks" Hover="true" Dense="true">
-            <HeaderContent>
-                <MudTh>Priority</MudTh>
-                <MudTh>Ship Date</MudTh>
-                <MudTh>SO #</MudTh>
-                <MudTh>Item Code</MudTh>
-                <MudTh>Description</MudTh>
-                <MudTh>Qty</MudTh>
-                <MudTh>Weight</MudTh>
-                <MudTh>Actions</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Priority">@context.PickingList?.Priority</MudTd>
-                <MudTd DataLabel="Ship Date">@context.PickingList?.ShipDate?.ToString("yyyy-MM-dd")</MudTd>
-                <MudTd DataLabel="SO #">@context.PickingList?.SalesOrderNumber</MudTd>
-                <MudTd DataLabel="Item Code">@context.ItemId</MudTd>
-                <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
-                <MudTd DataLabel="Qty">@context.Quantity</MudTd>
-                <MudTd DataLabel="Weight">@context.Weight</MudTd>
-                <MudTd DataLabel="Actions">
-                    @if (!cpq_auditEvents.ContainsKey(context.Id) || cpq_auditEvents[context.Id] == null)
-                    {
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => cpq_HandleAuditEvent(context.Id, AuditEventType.Start))">Start</MudButton>
-                    }
-                    else if (cpq_auditEvents[context.Id] == AuditEventType.Start || cpq_auditEvents[context.Id] == AuditEventType.Resume)
-                    {
-                        <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small" OnClick="@(() => cpq_HandleAuditEvent(context.Id, AuditEventType.Pause))">Pause</MudButton>
-                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="@(() => cpq_ProcessTask(context))">Process</MudButton>
-                    }
-                    else if (cpq_auditEvents[context.Id] == AuditEventType.Pause)
-                    {
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => cpq_HandleAuditEvent(context.Id, AuditEventType.Resume))">Resume</MudButton>
-                    }
-                </MudTd>
-            </RowTemplate>
-            <NoRecordsContent>
-                <MudText>No coil pulling tasks found.</MudText>
-            </NoRecordsContent>
-        </MudTable>
+    <MudTabPanel Text="Picking Process">
+        <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+            <MudGrid Spacing="3">
+                @foreach (var list in pp_pickingLists)
+                {
+                    <MudItem xs="12">
+                        <MudCard>
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudText Typo="Typo.h6">@list.SalesOrderNumber - Picking Process</MudText>
+                                    <MudText Typo="Typo.subtitle2">@list.Customer?.CustomerName</MudText>
+                                </CardHeaderContent>
+                                <CardHeaderActions>
+                                    <MudChip T="string" Color="@(GetPriorityColor(list.Priority))" Size="Size.Small">@list.Priority.ToString()</MudChip>
+                                    <MudChip T="string" Color="Color.Default" Size="Size.Small">@list.Status.ToString()</MudChip>
+                                </CardHeaderActions>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <MudProgressLinear Value="GetPickingProgress(list)" Color="Color.Primary" />
+                                <MudList T="PickingListItem">
+                                    @foreach (var item in list.Items)
+                                    {
+                                        <MudListItem T="PickingListItem">
+                                            <div class="d-flex justify-space-between align-center" style="width: 100%">
+                                                <div>
+                                                    <MudText>@item.ItemDescription</MudText>
+                                                    <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight</MudText>
+                                                </div>
+                                                <div>
+                                                    @if (item.Status == PickingLineStatus.Pending)
+                                                    {
+                                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => pp_HandleItemAuditEvent(item, AuditEventType.Start))">Start Pick</MudButton>
+                                                    }
+                                                    else if (item.Status == PickingLineStatus.InProgress)
+                                                    {
+                                                        <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small" OnClick="@(() => pp_HandleItemAuditEvent(item, AuditEventType.Pause))">Pause</MudButton>
+                                                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="@(() => pp_CompleteItem(item))">Complete</MudButton>
+                                                    }
+                                                    else if (item.Status == PickingLineStatus.Awaiting)
+                                                    {
+                                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => pp_HandleItemAuditEvent(item, AuditEventType.Resume))">Resume</MudButton>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </MudListItem>
+                                    }
+                                </MudList>
+                            </MudCardContent>
+                            <MudCardActions>
+                                <MudButton Variant="Variant.Text" Color="Color.Warning" OnClick="@(() => pp_PauseList(list))">Pause List</MudButton>
+                                <MudButton Variant="Variant.Text" Color="Color.Success" Disabled="@(GetPickingProgress(list) < 100)" OnClick="@(() => pp_CompletePicking(list))">Complete Picking</MudButton>
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudContainer>
+    </MudTabPanel>
+    <MudTabPanel Text="Packing Process">
+        <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+            <MudGrid Spacing="3">
+                @foreach (var list in pack_pickingLists)
+                {
+                    <MudItem xs="12">
+                        <MudCard>
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudText Typo="Typo.h6">@list.SalesOrderNumber - Packing Process</MudText>
+                                    <MudText Typo="Typo.subtitle2">@list.Customer?.CustomerName</MudText>
+                                </CardHeaderContent>
+                                <CardHeaderActions>
+                                    <MudChip T="string" Color="@(GetPriorityColor(list.Priority))" Size="Size.Small">@list.Priority.ToString()</MudChip>
+                                    <MudChip T="string" Color="Color.Default" Size="Size.Small">@list.Status.ToString()</MudChip>
+                                </CardHeaderActions>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <MudProgressLinear Value="GetPackingProgress(list)" Color="Color.Info" />
+                                <MudList T="PickingListItem">
+                                    @foreach (var item in list.Items)
+                                    {
+                                        <MudListItem T="PickingListItem">
+                                            <div class="d-flex justify-space-between align-center" style="width: 100%">
+                                                <div>
+                                                    <MudText>@item.ItemDescription</MudText>
+                                                    <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight</MudText>
+                                                </div>
+                                                <div>
+                                                    @if (item.Status == PickingLineStatus.Completed)
+                                                    {
+                                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => pack_StartPackingItem(item))">Start Pack</MudButton>
+                                                    }
+                                                    else if (item.Status == PickingLineStatus.Packing)
+                                                    {
+                                                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="@(() => pack_CompletePackingItem(item))">Complete Pack</MudButton>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </MudListItem>
+                                    }
+                                </MudList>
+                            </MudCardContent>
+                            <MudCardActions>
+                                <MudButton Variant="Variant.Text" Color="Color.Success" Disabled="@(GetPackingProgress(list) < 100)" OnClick="@(() => pack_CompletePacking(list))">Complete Packing</MudButton>
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudContainer>
     </MudTabPanel>
 </MudTabs>
 
@@ -204,14 +284,6 @@
     private bool pl_canEdit;
     private bool pl_canDelete;
     private bool pl_canEditInline;
-
-    // Sheet Pulling Queue
-    private List<PickingList> spq_pickingLists = new();
-    private Dictionary<int, AuditEventType> spq_lastEvents = new();
-
-    // Coil Pulling Queue
-    private List<PickingListItem> cpq_tasks = new();
-    private Dictionary<int, AuditEventType?> cpq_auditEvents = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -236,12 +308,6 @@
         await pl_LoadUserContextAsync();
         await pl_LoadAsync();
 
-        // Sheet Pulling Queue
-        await spq_LoadPickingLists();
-
-        // Coil Pulling Queue
-        await cpq_LoadTasks();
-
         // SignalR
         _hubConnection = new HubConnectionBuilder()
             .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/schedule"))
@@ -250,8 +316,6 @@
         _hubConnection.On<int>("PickingListUpdated", async (id) =>
         {
             await pl_LoadAsync();
-            await spq_LoadPickingLists();
-            await cpq_LoadTasks();
             await InvokeAsync(StateHasChanged);
         });
 
@@ -512,79 +576,64 @@
         await pl_LoadAsync();
     }
 
-
-    // Sheet Pulling Queue Methods
-    private bool spq_IsPaused(PickingList pickingList)
+    private Color GetPriorityColor(int priority)
     {
-        foreach (var item in pickingList.Items)
+        return priority switch
         {
-            if (spq_lastEvents.TryGetValue(item.Id, out var lastEvent) && lastEvent == AuditEventType.Pause)
-            {
-                return true;
-            }
-        }
-        return false;
+            1 => Color.Error,
+            2 => Color.Warning,
+            3 => Color.Info,
+            _ => Color.Default,
+        };
     }
 
-    private string spq_GetButtonText(PickingList pickingList)
+    // Picking Process Methods
+    private List<PickingList> pp_pickingLists => pl_lists.Where(l => l.Status == PickingListStatus.Pending || l.Status == PickingListStatus.InProgress).ToList();
+
+    private double GetPickingProgress(PickingList list)
     {
-        return spq_IsPaused(pickingList) ? "Resume" : "Start";
+        if (list.Items == null || !list.Items.Any())
+            return 0;
+
+        var pickedItems = list.Items.Count(i => i.Status == PickingLineStatus.Completed);
+        return (double)pickedItems / list.Items.Count() * 100;
     }
 
-    private Color spq_GetButtonColor(PickingList pickingList)
+    // Packing Process Methods
+    private List<PickingList> pack_pickingLists => pl_lists.Where(l => l.Status == PickingListStatus.Picked || l.Status == PickingListStatus.Packing).ToList();
+
+    private double GetPackingProgress(PickingList list)
     {
-        return spq_IsPaused(pickingList) ? Color.Warning : Color.Primary;
+        if (list.Items == null || !list.Items.Any())
+            return 0;
+
+        var packedItems = list.Items.Count(i => i.Status == PickingLineStatus.Packed);
+        return (double)packedItems / list.Items.Count() * 100;
     }
 
-    private async Task spq_LoadPickingLists()
+    private async Task pp_HandleItemAuditEvent(PickingListItem item, AuditEventType eventType)
     {
-        spq_pickingLists = await PickingListService.GetSheetPullingQueueListsAsync(_user?.MachineId);
-        var itemIds = spq_pickingLists.SelectMany(pl => pl.Items).Select(i => i.Id).ToList();
-        if (itemIds.Any())
+        if (_user is null)
         {
-            spq_lastEvents = await AuditService.GetLastEventTypesForTasksAsync(itemIds, TaskType.Pulling);
+            Snackbar.Add("Could not identify user. Action aborted.", Severity.Error);
+            return;
         }
-        await InvokeAsync(StateHasChanged);
+
+        await AuditService.CreateAuditEventAsync(item.Id, TaskType.Pulling, eventType, _user.Id);
+
+        var status = eventType switch
+        {
+            AuditEventType.Start => PickingLineStatus.InProgress,
+            AuditEventType.Pause => PickingLineStatus.Awaiting,
+            AuditEventType.Resume => PickingLineStatus.InProgress,
+            _ => item.Status
+        };
+
+        await PickingListService.SetLineStatusAsync(item.Id, status);
+        await pl_LoadAsync(); // Reload all data
     }
 
-    private async Task spq_StartPickingList(PickingList pickingList)
-    {
-        var parameters = new DialogParameters { ["PickingList"] = pickingList };
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var dialog = await DialogService.ShowAsync<PickingListDialog>("Picking List", parameters, options);
-        if (dialog is null) return;
-
-        var result = await dialog.Result;
-
-        if (result is not null && !result.Canceled)
-        {
-            await spq_LoadPickingLists();
-        }
-    }
-
-
-    // Coil Pulling Queue Methods
-    private async Task cpq_LoadTasks()
-    {
-        cpq_tasks = await PickingListService.GetCoilPullingQueueAsync(_user?.MachineId);
-        if (cpq_tasks.Any())
-        {
-            var taskIds = cpq_tasks.Select(t => t.Id).ToList();
-            var lastEvents = await AuditService.GetLastEventTypesForTasksAsync(taskIds, TaskType.Pulling);
-
-            cpq_auditEvents = cpq_tasks.ToDictionary(
-                t => t.Id,
-                t => lastEvents.TryGetValue(t.Id, out var eventType) ? (AuditEventType?)eventType : null
-            );
-        }
-        else
-        {
-            cpq_auditEvents.Clear();
-        }
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task cpq_ProcessTask(PickingListItem item)
+    private async Task pp_CompleteItem(PickingListItem item)
     {
         var parameters = new DialogParameters { ["Item"] = item };
         var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
@@ -596,27 +645,54 @@
         if (result is not null && !result.Canceled && result.Data is ValueTuple<decimal?, decimal?> data)
         {
             await PickingListService.UpdatePulledQuantitiesAsync(item.Id, data.Item1, data.Item2 ?? 0);
-            await cpq_HandleAuditEvent(item.Id, AuditEventType.Complete, false); // Log completion
+            await pp_HandleItemAuditEvent(item, AuditEventType.Complete);
             await PickingListService.SetLineStatusAsync(item.Id, PickingLineStatus.Completed);
-            await cpq_LoadTasks(); // Refresh the list
+            await pl_LoadAsync(); // Refresh the list
         }
     }
 
-    private async Task cpq_HandleAuditEvent(int taskId, AuditEventType eventType, bool stateHasChanged = true)
+    private async Task pp_PauseList(PickingList list)
     {
-        if (_user is null)
+        foreach (var item in list.Items.Where(i => i.Status == PickingLineStatus.InProgress))
         {
-            Snackbar.Add("Could not identify user. Action aborted.", Severity.Error);
-            return;
-        }
-
-        await AuditService.CreateAuditEventAsync(taskId, TaskType.Pulling, eventType, _user.Id);
-        cpq_auditEvents[taskId] = eventType;
-        Snackbar.Add($"Task successfully {eventType.ToString().ToLower()}ed.", Severity.Success);
-
-        if (stateHasChanged)
-        {
-            StateHasChanged();
+            await pp_HandleItemAuditEvent(item, AuditEventType.Pause);
         }
     }
+
+    private async Task pp_CompletePicking(PickingList list)
+    {
+        var listToUpdate = await PickingListService.GetByIdAsync(list.Id);
+        if (listToUpdate != null)
+        {
+            listToUpdate.Status = PickingListStatus.Picked;
+            await PickingListService.UpdateAsync(listToUpdate);
+            await pl_LoadAsync();
+        }
+    }
+
+    // Packing Process Methods
+    private async Task pack_StartPackingItem(PickingListItem item)
+    {
+        await PickingListService.SetLineStatusAsync(item.Id, PickingLineStatus.Packing);
+        await pl_LoadAsync();
+    }
+
+    private async Task pack_CompletePackingItem(PickingListItem item)
+    {
+        await PickingListService.SetLineStatusAsync(item.Id, PickingLineStatus.Packed);
+        await pl_LoadAsync();
+    }
+
+    private async Task pack_CompletePacking(PickingList list)
+    {
+        var listToUpdate = await PickingListService.GetByIdAsync(list.Id);
+        if (listToUpdate != null)
+        {
+            listToUpdate.Status = PickingListStatus.Completed;
+            await PickingListService.UpdateAsync(listToUpdate);
+            await pl_LoadAsync();
+        }
+    }
+
+
 }
