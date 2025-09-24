@@ -1,11 +1,10 @@
 @page "/operations/picking-packing"
-@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = "Permissions.PickingLists.View")]
-@attribute [Title("Pick and Pack")]
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using System.Security.Claims
 @using CMetalsWS.Security
 @using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Policy = Permissions.PickingLists.View)]
 
 @inject PickingListService PickingListService
 @inject ITaskAuditEventService AuditService
@@ -14,14 +13,12 @@
 @inject IDialogService DialogService
 @inject DestinationRegionService DestinationRegionService
 
+<PageTitle>Pick and Pack</PageTitle>
+
 <MudTabs Elevation="2" Rounded="true" PanelClass="mt-4">
     <MudTabPanel Text="Picking Lists">
         <MudPaper Class="pa-4 mb-4">
             <MudGrid Spacing="2">
-                <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.h6">Total Line Items: @TotalLineItems</MudText>
-                    <MudText Typo="Typo.h6">Total Weight: @TotalWeight.ToString("N2") lbs</MudText>
-                </MudItem>
                 <MudItem xs="12" sm="3">
                     <MudTextField @bind-Value="_searchTerm" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
@@ -68,6 +65,8 @@
                 <MudCardContent>
                     <MudText>Destination: @pickingList.DestinationRegion?.Name</MudText>
                     <MudText>Ship Date: @pickingList.ShipDate?.ToShortDateString()</MudText>
+                    <MudText><b>Total Line Items (Sheet/Coil):</b> @GetTotalLineItems(pickingList)</MudText>
+                    <MudText><b>Total Weight (Sheet/Coil):</b> @GetTotalWeight(pickingList).ToString("N2") lbs</MudText>
                     <MudText Class="mt-2">Picking Progress</MudText>
                     <MudProgressLinear Color="Color.Primary" Value="@GetPickingProgress(pickingList)" Class="my-1">
                         <MudText Typo="Typo.caption" Style="color:white;">@($"{GetPickingProgress(pickingList):F0}%")</MudText>
@@ -178,8 +177,6 @@
     private PickingListStatus? _selectedStatus;
     private MachineCategory? _selectedMachineCategory;
 
-    private int TotalLineItems => FilteredPickingLists.SelectMany(pl => pl.Items).Count(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil));
-    private decimal TotalWeight => FilteredPickingLists.SelectMany(pl => pl.Items).Where(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil)).Sum(i => i.Weight ?? 0);
     private List<PickingList> FilteredPickingLists
     {
         get
@@ -299,6 +296,15 @@
         }
     }
 
+    private int GetTotalLineItems(PickingList pickingList)
+    {
+        return pickingList.Items.Count(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil));
+    }
+
+    private decimal GetTotalWeight(PickingList pickingList)
+    {
+        return pickingList.Items.Where(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil)).Sum(i => i.Weight ?? 0);
+    }
     private double GetPickingProgress(PickingList pickingList)
     {
         if (pickingList.Items == null || !pickingList.Items.Any())
