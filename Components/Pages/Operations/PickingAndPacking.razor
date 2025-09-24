@@ -18,10 +18,10 @@
     <MudTabPanel Text="Picking Lists">
         <MudPaper Class="pa-4 mb-4">
             <MudGrid Spacing="2">
-                <MudItem xs="12" sm="4">
+                <MudItem xs="12" sm="3">
                     <MudTextField @bind-Value="_searchTerm" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
-                <MudItem xs="12" sm="4">
+                <MudItem xs="12" sm="3">
                     <MudSelect T="int?" @bind-Value="_selectedDestinationRegionId" Label="Destination" Variant="Variant.Outlined">
                         <MudSelectItem T="int?" Value="@(null)">All Destinations</MudSelectItem>
                         @foreach (var destination in _destinations)
@@ -30,13 +30,20 @@
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" sm="4">
+                <MudItem xs="12" sm="3">
                     <MudSelect T="PickingListStatus?" @bind-Value="_selectedStatus" Label="Status" Variant="Variant.Outlined">
                         <MudSelectItem T="PickingListStatus?" Value="@(null)">All Statuses</MudSelectItem>
                         @foreach (var status in Enum.GetValues<PickingListStatus>())
                         {
                             <MudSelectItem T="PickingListStatus?" Value="@status">@status.ToString()</MudSelectItem>
                         }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudSelect T="MachineCategory?" @bind-Value="_selectedMachineCategory" Label="Machine Category" Variant="Variant.Outlined">
+                        <MudSelectItem T="MachineCategory?" Value="@(null)">All</MudSelectItem>
+                        <MudSelectItem T="MachineCategory?" Value="@MachineCategory.Coil">Coil</MudSelectItem>
+                        <MudSelectItem T="MachineCategory?" Value="@MachineCategory.Sheet">Sheet</MudSelectItem>
                     </MudSelect>
                 </MudItem>
             </MudGrid>
@@ -157,12 +164,13 @@
     private string _searchTerm = "";
     private int? _selectedDestinationRegionId;
     private PickingListStatus? _selectedStatus;
+    private MachineCategory? _selectedMachineCategory;
 
     private List<PickingList> FilteredPickingLists
     {
         get
         {
-            var lists = _pickingLists;
+            var lists = _pickingLists.Where(pl => pl.Items.Any(i => i.Machine != null && (i.Machine.Category == MachineCategory.Coil || i.Machine.Category == MachineCategory.Sheet))).ToList();
 
             if (!string.IsNullOrWhiteSpace(_searchTerm))
             {
@@ -180,6 +188,11 @@
             if (_selectedStatus.HasValue)
             {
                 lists = lists.Where(pl => pl.Status == _selectedStatus.Value).ToList();
+            }
+
+            if (_selectedMachineCategory.HasValue)
+            {
+                lists = lists.Where(pl => pl.Items.Any(i => i.Machine?.Category == _selectedMachineCategory.Value)).ToList();
             }
 
             return lists;

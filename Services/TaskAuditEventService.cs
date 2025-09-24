@@ -34,7 +34,7 @@ namespace CMetalsWS.Services
 
             context.TaskAuditEvents.Add(auditEvent);
             await context.SaveChangesAsync();
-            if (taskType == TaskType.Pulling)
+            if (taskType == TaskType.Picking || taskType == TaskType.Packing)
             {
                 await _hubContext.Clients.All.SendAsync("PullingStatusUpdated");
             }

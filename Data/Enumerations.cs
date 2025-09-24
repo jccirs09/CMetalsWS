@@ -36,7 +36,8 @@
     public enum TaskType
     {
         WorkOrder,
-        Pulling
+        Picking,
+        Packing
     }
 
     public enum AuditEventType

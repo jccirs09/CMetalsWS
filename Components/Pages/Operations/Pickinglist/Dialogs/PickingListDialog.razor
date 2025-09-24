@@ -74,7 +74,7 @@
         if (PickingList.Items.Any())
         {
             var taskIds = PickingList.Items.Select(t => t.Id).ToList();
-            var lastEvents = await AuditService.GetLastEventTypesForTasksAsync(taskIds, TaskType.Pulling);
+            var lastEvents = await AuditService.GetLastEventTypesForTasksAsync(taskIds, TaskType.Picking);
 
             _auditEvents = PickingList.Items.ToDictionary(
                 t => t.Id,
@@ -91,7 +91,7 @@
             return;
         }
 
-        await AuditService.CreateAuditEventAsync(taskId, TaskType.Pulling, eventType, _user.Id);
+        await AuditService.CreateAuditEventAsync(taskId, TaskType.Picking, eventType, _user.Id);
         _auditEvents[taskId] = eventType;
         Snackbar.Add($"Task successfully {eventType.ToString().ToLower()}ed.", Severity.Success);
 

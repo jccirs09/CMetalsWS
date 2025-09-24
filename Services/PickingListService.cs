@@ -17,18 +17,21 @@ namespace CMetalsWS.Services
         private readonly IConfiguration _configuration;
         private readonly IHubContext<ScheduleHub> _hubContext;
 
+        private readonly ITaskAuditEventService _auditService;
         public PickingListService(
             IDbContextFactory<ApplicationDbContext> dbContextFactory,
             IPickingListImportService importService,
             IPdfParsingService parsingService,
             IConfiguration configuration,
-            IHubContext<ScheduleHub> hubContext)
+            IHubContext<ScheduleHub> hubContext,
+            ITaskAuditEventService auditService)
         {
             _dbContextFactory = dbContextFactory;
             _importService = importService;
             _parsingService = parsingService;
             _configuration = configuration;
             _hubContext = hubContext;
+            _auditService = auditService;
         }
 
         public async Task<List<PickingList>> GetAsync(int? branchId = null)
@@ -497,8 +500,11 @@ namespace CMetalsWS.Services
             item.Picked = true;
             item.PickedById = userId;
             item.PickedAt = DateTime.UtcNow;
+            item.Status = PickingLineStatus.InProgress;
+            await _auditService.CreateAuditEventAsync(itemId, TaskType.Picking, AuditEventType.Complete, userId);
 
             await db.SaveChangesAsync();
+            await UpdatePickingListStatusAsync(item.PickingListId);
         }
 
         public async Task ConfirmPackAsync(int itemId, string userId, decimal quantity, decimal actualWeight, string notes)
@@ -517,8 +523,11 @@ namespace CMetalsWS.Services
             }
             item.ActualWeight = actualWeight;
             item.PackingNotes = notes;
+            item.Status = PickingLineStatus.Completed;
+            await _auditService.CreateAuditEventAsync(itemId, TaskType.Packing, AuditEventType.Complete, userId);
 
             await db.SaveChangesAsync();
+            await UpdatePickingListStatusAsync(item.PickingListId);
         }
 
         public async Task QualityCheckAsync(int itemId, string userId, bool passed, string? damageNotes)

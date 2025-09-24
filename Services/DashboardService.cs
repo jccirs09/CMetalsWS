@@ -45,7 +45,7 @@ public class DashboardService
         var result = new List<MachinePullingStatusDto>();
 
         var allTaskIds = allAssignedTasks.Select(t => t.Id).ToList();
-        var lastEvents = await _taskAuditEventService.GetLastEventsForTasksAsync(allTaskIds, TaskType.Pulling);
+        var lastEvents = await _taskAuditEventService.GetLastEventsForTasksAsync(allTaskIds, TaskType.Picking);
 
         var allOperatorIds = lastEvents.Values.Select(e => e.UserId).Distinct().ToList();
         var operators = await _userService.GetUsersByIdsAsync(allOperatorIds);
@@ -119,7 +119,7 @@ public class DashboardService
             {
                 // Find the last completed task for this machine
                 var lastCompletedEvent = await _db.TaskAuditEvents
-                    .Where(e => e.TaskType == TaskType.Pulling && e.EventType == AuditEventType.Complete)
+                    .Where(e => e.TaskType == TaskType.Packing && e.EventType == AuditEventType.Complete)
                     .Join(_db.PickingListItems, e => e.TaskId, i => i.Id, (e, i) => new { Event = e, Item = i })
                     .Where(x => x.Item.MachineId == machine.Id)
                     .OrderByDescending(x => x.Event.Timestamp)
