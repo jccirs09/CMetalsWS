@@ -245,7 +245,12 @@ public static class SeedFromDb_PickingLists_WithMachines
         }
         // Fallback: any machine we can find (keeps seed from failing in sparse DBs)
         var any = coil.Concat(slitter).Concat(ctl).Concat(sheet).ToList();
-        return any.Count > 0 ? any[rng.Next(any.Count)] : 0;
+        if (any.Count > 0)
+        {
+            return any[rng.Next(any.Count)];
+        }
+
+        throw new InvalidOperationException("Could not route to a machine. No machines available for the default branch that match the required categories. Please upload machine data for the Surrey branch (ID 1).");
     }
 
     private static decimal GuessThickness(string? desc)
