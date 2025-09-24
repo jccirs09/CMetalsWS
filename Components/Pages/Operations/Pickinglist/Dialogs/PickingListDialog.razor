@@ -5,7 +5,6 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.SignalR.Client
-@using CMetalsWS.Components.Pages.Operations.Pickinglist.Dialogs
 
 @inject PickingListService PickingListService
 @inject ITaskAuditEventService AuditService
@@ -42,7 +41,6 @@
                     else if (_auditEvents[context.Id] == AuditEventType.Start || _auditEvents[context.Id] == AuditEventType.Resume)
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small" OnClick="@(() => HandleAuditEvent(context.Id, AuditEventType.Pause))">Pause</MudButton>
-                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="@(() => ProcessTask(context))">Process</MudButton>
                     }
                     else if (_auditEvents[context.Id] == AuditEventType.Pause)
                     {
@@ -82,24 +80,6 @@
                 t => t.Id,
                 t => lastEvents.TryGetValue(t.Id, out var eventType) ? (AuditEventType?)eventType : null
             );
-        }
-    }
-
-    private async Task ProcessTask(PickingListItem item)
-    {
-        var parameters = new DialogParameters { ["Item"] = item };
-        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
-        var dialog = await DialogService.ShowAsync<PullingTaskDetailDialog>("Process Task", parameters, options);
-        if (dialog is null) return;
-
-        var result = await dialog.Result;
-
-        if (result is not null && !result.Canceled && result.Data is ValueTuple<decimal?, decimal?> data)
-        {
-            await PickingListService.UpdatePulledQuantitiesAsync(item.Id, data.Item1, data.Item2 ?? 0);
-            await HandleAuditEvent(item.Id, AuditEventType.Complete, false); // Log completion
-            await PickingListService.SetLineStatusAsync(item.Id, PickingLineStatus.Completed);
-            StateHasChanged();
         }
     }
 

@@ -1,0 +1,247 @@
+@page "/operations/picking-packing"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using System.Security.Claims
+@using CMetalsWS.Security
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Policy = Permissions.PickingLists.View)]
+@inject PickingListService PickingListService
+@inject ITaskAuditEventService AuditService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IDialogService DialogService
+
+<MudText Typo="Typo.h5" Class="mb-4">Picking & Packing</MudText>
+
+<MudTabs Elevation="2" Rounded="true" PanelClass="mt-4">
+    <MudTabPanel Text="Picking Lists">
+        <MudPaper Class="pa-4 mb-4">
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="4">
+                    <MudTextField @bind-Value="_searchTerm" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="string" @bind-Value="_selectedDestination" Label="Destination" Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("All")">All Destinations</MudSelectItem>
+                        @foreach (var destination in _destinations)
+                        {
+                            <MudSelectItem Value="@destination">@destination</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="PickingListStatus?" @bind-Value="_selectedStatus" Label="Status" Variant="Variant.Outlined">
+                        <MudSelectItem T="PickingListStatus?" Value="@(null)">All Statuses</MudSelectItem>
+                        @foreach (var status in Enum.GetValues<PickingListStatus>())
+                        {
+                            <MudSelectItem T="PickingListStatus?" Value="@status">@status.ToString()</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+        @foreach (var pickingList in FilteredPickingLists)
+        {
+            <MudCard Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">@pickingList.SalesOrderNumber</MudText>
+                        <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudText>@GetPriorityText(pickingList.Priority)</MudText>
+                        <MudText>@pickingList.Status.ToString()</MudText>
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText>Destination: @pickingList.Destination</MudText>
+                    <MudText>Ship Date: @pickingList.ShipDate?.ToShortDateString()</MudText>
+                </MudCardContent>
+            </MudCard>
+        }
+    </MudTabPanel>
+    <MudTabPanel Text="Picking Process">
+        @foreach (var pickingList in FilteredPickingLists.Where(pl => pl.Status == PickingListStatus.Pending || pl.Status == PickingListStatus.InProgress))
+        {
+            <MudCard Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">@pickingList.SalesOrderNumber - Picking</MudText>
+                        <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudText>@GetPriorityText(pickingList.Priority)</MudText>
+                        <MudText>@pickingList.Status.ToString()</MudText>
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    @foreach (var item in pickingList.Items)
+                    {
+                        <MudPaper Class="d-flex align-center pa-2 mb-2">
+                            <div class="flex-grow-1">
+                                <MudText>@item.ItemDescription</MudText>
+                                <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight</MudText>
+                            </div>
+                            @if (item.Picked)
+                            {
+                                <MudText>Picked</MudText>
+                            }
+                            else
+                            {
+                                <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="@(() => StartPick(item))">Start Pick</MudButton>
+                            }
+                        </MudPaper>
+                    }
+                </MudCardContent>
+            </MudCard>
+        }
+    </MudTabPanel>
+    <MudTabPanel Text="Packing Process">
+        @foreach (var pickingList in FilteredPickingLists.Where(pl => pl.Items.Any(i => i.Picked)))
+        {
+            <MudCard Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">@pickingList.SalesOrderNumber - Packing</MudText>
+                        <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudText>@GetPriorityText(pickingList.Priority)</MudText>
+                        <MudText>@pickingList.Status.ToString()</MudText>
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    @foreach (var item in pickingList.Items.Where(i => i.Picked))
+                    {
+                        <MudPaper Class="d-flex align-center pa-2 mb-2">
+                            <div class="flex-grow-1">
+                                <MudText>@item.ItemDescription</MudText>
+                                <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight</MudText>
+                            </div>
+                            @if (item.Packed)
+                            {
+                                <MudText>Packed</MudText>
+                            }
+                            else
+                            {
+                                <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="@(() => StartPack(item))">Start Pack</MudButton>
+                            }
+                        </MudPaper>
+                    }
+                </MudCardContent>
+            </MudCard>
+        }
+    </MudTabPanel>
+    <MudTabPanel Text="By Destination">
+        <MudExpansionPanels>
+            @foreach (var group in FilteredPickingLists.GroupBy(pl => pl.Destination))
+            {
+                <MudExpansionPanel Text="@group.Key">
+                    @foreach (var pickingList in group)
+                    {
+                        <MudText>@pickingList.SalesOrderNumber - @pickingList.Customer?.CustomerName</MudText>
+                    }
+                </MudExpansionPanel>
+            }
+        </MudExpansionPanels>
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    private List<PickingList> _pickingLists = new();
+    private string? _userId;
+    private string _searchTerm = "";
+    private string _selectedDestination = "All";
+    private PickingListStatus? _selectedStatus;
+
+    private List<string> _destinations = new() { "All", "Main Warehouse", "Dock A - Local Delivery", "Dock B - LTL Shipping", "Dock C - Freight", "Quality Hold", "Customer Pickup" };
+
+    private List<PickingList> FilteredPickingLists
+    {
+        get
+        {
+            var lists = _pickingLists;
+
+            if (!string.IsNullOrWhiteSpace(_searchTerm))
+            {
+                lists = lists.Where(pl =>
+                    pl.SalesOrderNumber.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    (pl.Customer?.CustomerName?.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+                ).ToList();
+            }
+
+            if (_selectedDestination != "All")
+            {
+                lists = lists.Where(pl => pl.Destination == _selectedDestination).ToList();
+            }
+
+            if (_selectedStatus.HasValue)
+            {
+                lists = lists.Where(pl => pl.Status == _selectedStatus.Value).ToList();
+            }
+
+            return lists;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        await LoadData();
+    }
+
+    private MudBlazor.Color GetPriorityColor(int priority)
+    {
+        return priority switch
+        {
+            1 => MudBlazor.Color.Error,
+            2 => MudBlazor.Color.Warning,
+            3 => MudBlazor.Color.Info,
+            _ => MudBlazor.Color.Default
+        };
+    }
+
+    private string GetPriorityText(int priority)
+    {
+        return priority switch
+        {
+            1 => "Urgent",
+            2 => "High",
+            3 => "Normal",
+            _ => "Low"
+        };
+    }
+
+    private async Task LoadData()
+    {
+        _pickingLists = await PickingListService.GetAsync();
+        StateHasChanged();
+    }
+
+    private async Task StartPick(PickingListItem item)
+    {
+        var parameters = new DialogParameters { ["Item"] = item };
+        var dialog = await DialogService.ShowAsync<PickItemDialog>("Pick Item", parameters);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await PickingListService.ConfirmPickAsync(item.Id, _userId!);
+            await LoadData();
+        }
+    }
+
+    private async Task StartPack(PickingListItem item)
+    {
+        var parameters = new DialogParameters { ["Item"] = item };
+        var dialog = await DialogService.ShowAsync<PackItemDialog>("Pack Item", parameters);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is PackItemDialog.PackDialogResult packResult)
+        {
+            await PickingListService.ConfirmPackAsync(item.Id, _userId!, packResult.PackingMaterial, packResult.ActualWeight, packResult.Notes);
+            await LoadData();
+        }
+    }
+}

@@ -37,7 +37,11 @@ namespace CMetalsWS.Services
             var query = db.PickingLists
                 .Include(p => p.Branch)
                 .Include(p => p.Customer)
+                .Include(p => p.AssignedTo)
                 .Include(p => p.Items).ThenInclude(i => i.Machine)
+                .Include(p => p.Items).ThenInclude(i => i.PickedBy)
+                .Include(p => p.Items).ThenInclude(i => i.PackedBy)
+                .Include(p => p.Items).ThenInclude(i => i.QualityCheckedBy)
                 .AsNoTracking();
 
             if (branchId.HasValue)
@@ -76,7 +80,11 @@ namespace CMetalsWS.Services
             using var db = _dbContextFactory.CreateDbContext();
             return await db.PickingLists
                 .Include(p => p.Customer)
+                .Include(p => p.AssignedTo)
                 .Include(p => p.Items).ThenInclude(i => i.Machine)
+                .Include(p => p.Items).ThenInclude(i => i.PickedBy)
+                .Include(p => p.Items).ThenInclude(i => i.PackedBy)
+                .Include(p => p.Items).ThenInclude(i => i.QualityCheckedBy)
                 .Include(p => p.Branch)
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
@@ -480,6 +488,48 @@ namespace CMetalsWS.Services
             }
         }
 
+        public async Task ConfirmPickAsync(int itemId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.Picked = true;
+            item.PickedById = userId;
+            item.PickedAt = DateTime.UtcNow;
+
+            await db.SaveChangesAsync();
+        }
+
+        public async Task ConfirmPackAsync(int itemId, string userId, string packingMaterial, decimal actualWeight, string notes)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.Packed = true;
+            item.PackedById = userId;
+            item.PackedAt = DateTime.UtcNow;
+            item.PackingMaterial = packingMaterial;
+            item.ActualWeight = actualWeight;
+            item.PackingNotes = notes;
+
+            await db.SaveChangesAsync();
+        }
+
+        public async Task QualityCheckAsync(int itemId, string userId, bool passed, string? damageNotes)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.QualityChecked = passed;
+            item.QualityCheckedById = userId;
+            item.QualityCheckedAt = DateTime.UtcNow;
+            item.DamageNotes = damageNotes;
+
+            await db.SaveChangesAsync();
+        }
         public bool AreEqual(PickingList listA, PickingList listB)
         {
             if (listA == null || listB == null)
