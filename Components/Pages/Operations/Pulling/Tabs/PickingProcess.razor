@@ -37,7 +37,7 @@
                                     <div class="d-flex justify-space-between align-center" style="width: 100%">
                                         <div>
                                             <MudText>@item.ItemDescription</MudText>
-                                            <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight</MudText>
+                                            <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight, Size: @item.Width x @item.Length</MudText>
                                         </div>
                                         <div>
                                             @if (item.Status == PickingLineStatus.Pending)
@@ -89,8 +89,7 @@
     private async Task LoadDataAsync()
     {
         var sheetQueue = await PickingListService.GetSheetPullingQueueListsAsync(_user?.MachineId);
-        var coilQueue = (await PickingListService.GetCoilPullingQueueAsync(_user?.MachineId)).Select(i => i.PickingList).Where(pl => pl != null).ToList();
-        PickingLists = sheetQueue.Union(coilQueue).DistinctBy(p => p.Id).ToList();
+        PickingLists = sheetQueue.Where(p => p.Status != PickingListStatus.Picked && p.Status != PickingListStatus.Completed).ToList();
         StateHasChanged();
     }
 

@@ -33,7 +33,7 @@
                                         <MudCheckBox T="bool" Checked="@(item.Status == PickingLineStatus.Completed)" CheckedChanged="@((bool? _) => ToggleItemStatus(item))" />
                                         <div>
                                             <MudText>@item.ItemDescription</MudText>
-                                            <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight</MudText>
+                                                    <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight, Size: @item.Width x @item.Length</MudText>
                                         </div>
                                         <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="true">Scan</MudButton>
                                     </div>

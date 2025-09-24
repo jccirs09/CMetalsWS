@@ -1,0 +1,15 @@
+@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Pack Item</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="PackedQuantity" Label="Packed Quantity" Variant="Variant.Outlined" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Pack</MudButton>
+    </DialogActions>
+</MudDialog>

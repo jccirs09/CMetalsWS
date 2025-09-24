@@ -194,6 +194,22 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
             await UpdatePickingListStatusAsync(item.PickingListId);
         }
+
+        public async Task UpdatePackedQuantityAsync(int itemId, decimal packedQuantity)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            decimal packedWeight = 0;
+            if (item.Weight.HasValue && item.Quantity > 0)
+            {
+                packedWeight = packedQuantity * (item.Weight.Value / item.Quantity);
+            }
+
+            await UpdatePulledQuantitiesAsync(itemId, packedQuantity, packedWeight);
+        }
+
         //TODO: Refactor this method to work with the new data model
         //public async Task ScheduleListAsync(int pickingListId, DateTime shipStart)
         //{
