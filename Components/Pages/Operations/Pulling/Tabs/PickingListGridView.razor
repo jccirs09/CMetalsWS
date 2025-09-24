@@ -16,6 +16,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager
 @inject IAuthorizationService AuthorizationService
+@inject IServiceScopeFactory ServiceScopeFactory
 
 <MudPaper Class="p-4">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -154,8 +155,13 @@
         var principal = authState.User;
         isAdmin = principal.IsInRole("Admin");
 
-        var appUser = await UserManager.GetUserAsync(principal);
-        userBranchId = appUser?.BranchId;
+        using (var scope = ServiceScopeFactory.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var appUser = await userManager.GetUserAsync(principal);
+            userBranchId = appUser?.BranchId;
+        }
+
         if (userBranchId.HasValue)
         {
             var allBranches = await BranchService.GetBranchesAsync();
