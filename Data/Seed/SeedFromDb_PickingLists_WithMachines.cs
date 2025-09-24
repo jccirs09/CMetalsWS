@@ -10,9 +10,7 @@ public static class SeedFromDb_PickingLists_WithMachines
     private const int MinLines = 2;
     private const int MaxLines = 6;
     private const int ShipHorizonDays = 60;
-    private const int DefaultBranchId = 1; // Surrey
-
-    public static async Task RunAsync(ApplicationDbContext db)
+    public static async Task RunAsync(ApplicationDbContext db, int branchId)
     {
         // ----- Load sources from DB -----
         var customers = await db.Set<Customer>()
@@ -35,20 +33,20 @@ public static class SeedFromDb_PickingLists_WithMachines
 
         // Machines by category (don’t assume IDs → use Category)
         var coilMachines = await db.Set<Machine>().AsNoTracking()
-            .Where(m => m.BranchId == DefaultBranchId && m.Category == MachineCategory.Coil)
+            .Where(m => m.BranchId == branchId && m.Category == MachineCategory.Coil)
             .Select(m => m.Id).ToListAsync();
         var slitterMachines = await db.Set<Machine>().AsNoTracking()
-            .Where(m => m.BranchId == DefaultBranchId && m.Category == MachineCategory.Slitter)
+            .Where(m => m.BranchId == branchId && m.Category == MachineCategory.Slitter)
             .Select(m => m.Id).ToListAsync();
         var ctlMachines = await db.Set<Machine>().AsNoTracking()
-            .Where(m => m.BranchId == DefaultBranchId && m.Category == MachineCategory.CTL)
+            .Where(m => m.BranchId == branchId && m.Category == MachineCategory.CTL)
             .Select(m => m.Id).ToListAsync();
         var sheetMachines = await db.Set<Machine>().AsNoTracking()
-            .Where(m => m.BranchId == DefaultBranchId && m.Category == MachineCategory.Sheet)
+            .Where(m => m.BranchId == branchId && m.Category == MachineCategory.Sheet)
             .Select(m => m.Id).ToListAsync();
 
         // ----- Count and figure out how many to create -----
-        var existing = await db.PickingLists.CountAsync();
+        var existing = await db.PickingLists.Where(p => p.BranchId == branchId).CountAsync();
         var toMake = Math.Max(0, TargetPickingLists - existing);
         if (toMake == 0) return;
 
@@ -70,7 +68,7 @@ public static class SeedFromDb_PickingLists_WithMachines
 
             var pl = new PickingList
             {
-                BranchId = DefaultBranchId,
+                BranchId = branchId,
                 SalesOrderNumber = so,
                 OrderDate = orderDate,
                 ShipDate = shipDate,
@@ -250,7 +248,7 @@ public static class SeedFromDb_PickingLists_WithMachines
             return any[rng.Next(any.Count)];
         }
 
-        throw new InvalidOperationException("Could not route to a machine. No machines available for the default branch that match the required categories. Please upload machine data for the Surrey branch (ID 1).");
+        throw new InvalidOperationException("Could not route to a machine. No machines available for the current branch that match the required categories. Please upload machine data for your branch.");
     }
 
     private static decimal GuessThickness(string? desc)
