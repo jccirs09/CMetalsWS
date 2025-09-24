@@ -10,6 +10,7 @@
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IDialogService DialogService
+@inject DestinationRegionService DestinationRegionService
 
 <MudText Typo="Typo.h5" Class="mb-4">Picking & Packing</MudText>
 
@@ -21,11 +22,11 @@
                     <MudTextField @bind-Value="_searchTerm" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
                 <MudItem xs="12" sm="4">
-                    <MudSelect T="string" @bind-Value="_selectedDestination" Label="Destination" Variant="Variant.Outlined">
-                        <MudSelectItem Value="@("All")">All Destinations</MudSelectItem>
+                    <MudSelect T="int?" @bind-Value="_selectedDestinationRegionId" Label="Destination" Variant="Variant.Outlined">
+                        <MudSelectItem T="int?" Value="@(null)">All Destinations</MudSelectItem>
                         @foreach (var destination in _destinations)
                         {
-                            <MudSelectItem Value="@destination">@destination</MudSelectItem>
+                            <MudSelectItem T="int?" Value="@destination.Id">@destination.Name</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
@@ -49,12 +50,12 @@
                         <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
                     </CardHeaderContent>
                     <CardHeaderActions>
-                        <MudChip T="object" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
-                        <MudChip T="object" Color="@(MudBlazor.Color.Default)">@pickingList.Status.ToString()</MudChip>
+                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="string" Color="Color.Default">@pickingList.Status.ToString()</MudChip>
                     </CardHeaderActions>
                 </MudCardHeader>
                 <MudCardContent>
-                    <MudText>Destination: @pickingList.Destination</MudText>
+                    <MudText>Destination: @pickingList.DestinationRegion?.Name</MudText>
                     <MudText>Ship Date: @pickingList.ShipDate?.ToShortDateString()</MudText>
                 </MudCardContent>
             </MudCard>
@@ -70,8 +71,8 @@
                         <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
                     </CardHeaderContent>
                     <CardHeaderActions>
-                        <MudChip T="object" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
-                        <MudChip T="object" Color="@(MudBlazor.Color.Default)">@pickingList.Status.ToString()</MudChip>
+                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="string" Color="Color.Default">@pickingList.Status.ToString()</MudChip>
                     </CardHeaderActions>
                 </MudCardHeader>
                 <MudCardContent>
@@ -80,15 +81,16 @@
                         <MudPaper Class="d-flex align-center pa-2 mb-2">
                             <div class="flex-grow-1">
                                 <MudText>@item.ItemDescription</MudText>
+                                <MudText Typo="Typo.body2">@item.Width" x @item.Length"</MudText>
                                 <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight</MudText>
                             </div>
                             @if (item.Picked)
                             {
-                                <MudChip T="object" Icon="@Icons.Material.Filled.Check" Color="MudBlazor.Color.Success">Picked</MudChip>
+                                <MudChip T="string" Icon="@Icons.Material.Filled.Check" Color="Color.Success">Picked</MudChip>
                             }
                             else
                             {
-                                <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="@(() => StartPick(item))">Start Pick</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => StartPick(item))">Start Pick</MudButton>
                             }
                         </MudPaper>
                     }
@@ -106,8 +108,8 @@
                         <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
                     </CardHeaderContent>
                     <CardHeaderActions>
-                        <MudChip T="object" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
-                        <MudChip T="object" Color="@(MudBlazor.Color.Default)">@pickingList.Status.ToString()</MudChip>
+                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="string" Color="Color.Default">@pickingList.Status.ToString()</MudChip>
                     </CardHeaderActions>
                 </MudCardHeader>
                 <MudCardContent>
@@ -116,15 +118,16 @@
                         <MudPaper Class="d-flex align-center pa-2 mb-2">
                             <div class="flex-grow-1">
                                 <MudText>@item.ItemDescription</MudText>
+                                <MudText Typo="Typo.body2">@item.Width" x @item.Length"</MudText>
                                 <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight</MudText>
                             </div>
                             @if (item.Packed)
                             {
-                                <MudChip T="object" Icon="@Icons.Material.Filled.Check" Color="MudBlazor.Color.Success">Packed</MudChip>
+                                <MudChip T="string" Icon="@Icons.Material.Filled.Check" Color="Color.Success">Packed</MudChip>
                             }
                             else
                             {
-                                <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="@(() => StartPack(item))">Start Pack</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => StartPack(item))">Start Pack</MudButton>
                             }
                         </MudPaper>
                     }
@@ -134,7 +137,7 @@
     </MudTabPanel>
     <MudTabPanel Text="By Destination">
         <MudExpansionPanels>
-            @foreach (var group in FilteredPickingLists.GroupBy(pl => pl.Destination))
+            @foreach (var group in FilteredPickingLists.GroupBy(pl => pl.DestinationRegion?.Name))
             {
                 <MudExpansionPanel Text="@group.Key">
                     @foreach (var pickingList in group)
@@ -149,12 +152,11 @@
 
 @code {
     private List<PickingList> _pickingLists = new();
+    private List<DestinationRegion> _destinations = new();
     private string? _userId;
     private string _searchTerm = "";
-    private string _selectedDestination = "All";
+    private int? _selectedDestinationRegionId;
     private PickingListStatus? _selectedStatus;
-
-    private List<string> _destinations = new() { "All", "Main Warehouse", "Dock A - Local Delivery", "Dock B - LTL Shipping", "Dock C - Freight", "Quality Hold", "Customer Pickup" };
 
     private List<PickingList> FilteredPickingLists
     {
@@ -170,9 +172,9 @@
                 ).ToList();
             }
 
-            if (_selectedDestination != "All")
+            if (_selectedDestinationRegionId.HasValue)
             {
-                lists = lists.Where(pl => pl.Destination == _selectedDestination).ToList();
+                lists = lists.Where(pl => pl.DestinationRegionId == _selectedDestinationRegionId.Value).ToList();
             }
 
             if (_selectedStatus.HasValue)
@@ -189,6 +191,7 @@
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         await LoadData();
+        _destinations = await DestinationRegionService.GetDestinationRegionsAsync();
     }
 
     private MudBlazor.Color GetPriorityColor(int priority)
@@ -240,7 +243,7 @@
 
         if (result is not null && !result.Canceled && result.Data is PackItemDialog.PackDialogResult packResult)
         {
-            await PickingListService.ConfirmPackAsync(item.Id, _userId!, packResult.PackingMaterial, packResult.ActualWeight, packResult.Notes);
+            await PickingListService.ConfirmPackAsync(item.Id, _userId!, packResult.Quantity, packResult.ActualWeight, packResult.Notes);
             await LoadData();
         }
     }

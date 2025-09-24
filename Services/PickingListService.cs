@@ -501,7 +501,7 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
         }
 
-        public async Task ConfirmPackAsync(int itemId, string userId, string packingMaterial, decimal actualWeight, string notes)
+        public async Task ConfirmPackAsync(int itemId, string userId, decimal quantity, decimal actualWeight, string notes)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
             var item = await db.PickingListItems.FindAsync(itemId);
@@ -510,7 +510,11 @@ namespace CMetalsWS.Services
             item.Packed = true;
             item.PackedById = userId;
             item.PackedAt = DateTime.UtcNow;
-            item.PackingMaterial = packingMaterial;
+            item.PulledQuantity = (item.PulledQuantity ?? 0) + quantity;
+            if (item.Weight.HasValue && item.Quantity > 0)
+            {
+                item.PulledWeight += (item.Weight.Value / item.Quantity) * quantity;
+            }
             item.ActualWeight = actualWeight;
             item.PackingNotes = notes;
 
