@@ -58,8 +58,8 @@
                         <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
                     </CardHeaderContent>
                     <CardHeaderActions>
-                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
-                        <MudChip T="string" Color="Color.Default">@pickingList.Status.ToString()</MudChip>
+                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))" Value="@GetPriorityText(pickingList.Priority)">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="string" Color="Color.Default" Value="@pickingList.Status.ToString()">@pickingList.Status.ToString()</MudChip>
                     </CardHeaderActions>
                 </MudCardHeader>
                 <MudCardContent>
@@ -94,8 +94,8 @@
                         <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
                     </CardHeaderContent>
                     <CardHeaderActions>
-                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
-                        <MudChip T="string" Color="Color.Default">@pickingList.Status.ToString()</MudChip>
+                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))" Value="@GetPriorityText(pickingList.Priority)">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="string" Color="Color.Default" Value="@pickingList.Status.ToString()">@pickingList.Status.ToString()</MudChip>
                     </CardHeaderActions>
                 </MudCardHeader>
                 <MudCardContent>
@@ -123,7 +123,7 @@
                                 }
                                 else if (item.Status == PickingLineStatus.Picked || item.Picked)
                                 {
-                                    <MudChip Icon="@Icons.Material.Filled.Check" Color="Color.Success">Picked</MudChip>
+                                    <MudChip T="string" Icon="@Icons.Material.Filled.Check" Color="Color.Success">Picked</MudChip>
                                 }
                             </div>
                         </MudPaper>
@@ -142,8 +142,8 @@
                         <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
                     </CardHeaderContent>
                     <CardHeaderActions>
-                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
-                        <MudChip T="string" Color="Color.Default">@pickingList.Status.ToString()</MudChip>
+                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))" Value="@GetPriorityText(pickingList.Priority)">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="string" Color="Color.Default" Value="@pickingList.Status.ToString()">@pickingList.Status.ToString()</MudChip>
                     </CardHeaderActions>
                 </MudCardHeader>
                 <MudCardContent>
@@ -171,7 +171,7 @@
                                 }
                                 else if (item.Status == PickingLineStatus.Packed || item.Packed)
                                 {
-                                    <MudChip Icon="@Icons.Material.Filled.Check" Color="Color.Success">Packed</MudChip>
+                                    <MudChip T="string" Icon="@Icons.Material.Filled.Check" Color="Color.Success">Packed</MudChip>
                                 }
                             </div>
                         </MudPaper>
