@@ -173,36 +173,36 @@ public static class SeedFromDb_PickingLists_WithMachines
             pl.RemainingWeight = pl.TotalWeight;
 
             // Upsert on (BranchId, SO)
-            var existing = await db.PickingLists
+            var existingPickingList = await db.PickingLists
                 .Include(x => x.Items)
                 .FirstOrDefaultAsync(x => x.BranchId == pl.BranchId && x.SalesOrderNumber == pl.SalesOrderNumber);
 
-            if (existing is null)
+            if (existingPickingList is null)
             {
                 pl.Items = items;
                 db.PickingLists.Add(pl);
             }
             else
             {
-                existing.OrderDate = pl.OrderDate;
-                existing.ShipDate = pl.ShipDate;
-                existing.PrintDateTime = pl.PrintDateTime;
-                existing.CustomerId = pl.CustomerId;
-                existing.SoldTo = pl.SoldTo;
-                existing.ShipTo = pl.ShipTo;
-                existing.SalesRep = pl.SalesRep;
-                existing.Buyer = pl.Buyer;
-                existing.DestinationRegionId = pl.DestinationRegionId;
-                existing.Status = pl.Status;
-                existing.Priority = pl.Priority;
-                existing.TotalWeight = pl.TotalWeight;
-                existing.RemainingWeight = pl.TotalWeight;
-                existing.ModifiedDate = DateTime.UtcNow;
+                existingPickingList.OrderDate = pl.OrderDate;
+                existingPickingList.ShipDate = pl.ShipDate;
+                existingPickingList.PrintDateTime = pl.PrintDateTime;
+                existingPickingList.CustomerId = pl.CustomerId;
+                existingPickingList.SoldTo = pl.SoldTo;
+                existingPickingList.ShipTo = pl.ShipTo;
+                existingPickingList.SalesRep = pl.SalesRep;
+                existingPickingList.Buyer = pl.Buyer;
+                existingPickingList.DestinationRegionId = pl.DestinationRegionId;
+                existingPickingList.Status = pl.Status;
+                existingPickingList.Priority = pl.Priority;
+                existingPickingList.TotalWeight = pl.TotalWeight;
+                existingPickingList.RemainingWeight = pl.TotalWeight;
+                existingPickingList.ModifiedDate = DateTime.UtcNow;
 
-                db.PickingListItems.RemoveRange(existing.Items);
+                db.PickingListItems.RemoveRange(existingPickingList.Items);
                 foreach (var li in items)
                 {
-                    li.PickingListId = existing.Id;
+                    li.PickingListId = existingPickingList.Id;
                     db.PickingListItems.Add(li);
                 }
             }
