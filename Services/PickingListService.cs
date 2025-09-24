@@ -758,5 +758,52 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
             await UpdatePickingListStatusAsync(item.PickingListId);
         }
+
+        public async Task PauseListAsync(int pickingListId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var list = await db.PickingLists.FindAsync(pickingListId);
+            if (list == null) return;
+
+            list.Status = PickingListStatus.OnHold;
+            await _auditService.CreateAuditEventAsync(pickingListId, TaskType.Picking, AuditEventType.Pause, userId);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task CompletePickingAsync(int pickingListId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var list = await db.PickingLists
+                .Include(p => p.Items)
+                .FirstOrDefaultAsync(p => p.Id == pickingListId);
+            if (list == null) return;
+
+            if (list.Items.Any(i => !i.Picked))
+            {
+                return;
+            }
+
+            list.Status = PickingListStatus.Picked;
+            await _auditService.CreateAuditEventAsync(pickingListId, TaskType.Picking, AuditEventType.Complete, userId);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task CompletePackingAsync(int pickingListId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var list = await db.PickingLists
+                .Include(p => p.Items)
+                .FirstOrDefaultAsync(p => p.Id == pickingListId);
+            if (list == null) return;
+
+            if (list.Items.Any(i => !i.Packed))
+            {
+                return;
+            }
+
+            list.Status = PickingListStatus.Completed;
+            await _auditService.CreateAuditEventAsync(pickingListId, TaskType.Packing, AuditEventType.Complete, userId);
+            await db.SaveChangesAsync();
+        }
     }
 }
