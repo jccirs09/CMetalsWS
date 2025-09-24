@@ -1,4 +1,4 @@
-@page "/operations/pulling/sheet-queue"
+@page "/operations/picking"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using System.Security.Claims
@@ -21,7 +21,7 @@
 
 @implements IAsyncDisposable
 
-<MudText Typo="Typo.h5" Class="mb-4">Sheet Pulling Queue</MudText>
+<MudText Typo="Typo.h5" Class="mb-4">Picking & Packing</MudText>
 
 <MudTable Items="_pickingLists" Hover="true" Dense="true">
     <HeaderContent>
@@ -39,13 +39,13 @@
         <MudTd DataLabel="SO #">@context.SalesOrderNumber</MudTd>
         <MudTd DataLabel="Customer">@context.Customer?.CustomerName</MudTd>
         <MudTd DataLabel="Total Line Items">@context.Items.Count</MudTd>
-        <MudTd DataLabel="Total Weight">@context.Items.Where(i => i.Machine?.Category == MachineCategory.Sheet).Sum(i => i.Weight)</MudTd>
+        <MudTd DataLabel="Total Weight">@context.Items.Sum(i => i.Weight)</MudTd>
         <MudTd DataLabel="Actions">
             <MudButton Variant="Variant.Filled" Color="@GetButtonColor(context)" Size="Size.Small" OnClick="@(() => StartPickingList(context))">@GetButtonText(context)</MudButton>
         </MudTd>
     </RowTemplate>
     <NoRecordsContent>
-        <MudText>No sheet pulling tasks found.</MudText>
+        <MudText>No picking lists found.</MudText>
     </NoRecordsContent>
 </MudTable>
 
@@ -110,7 +110,7 @@
 
     private async Task LoadPickingLists()
     {
-        _pickingLists = await PickingListService.GetSheetPullingQueueListsAsync(_user?.MachineId);
+        _pickingLists = await PickingListService.GetPickingAndPackingListsAsync(_user?.BranchId);
         var itemIds = _pickingLists.SelectMany(pl => pl.Items).Select(i => i.Id).ToList();
         if (itemIds.Any())
         {

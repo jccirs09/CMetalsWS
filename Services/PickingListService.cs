@@ -549,34 +549,23 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
         }
 
-        public async Task<List<PickingList>> GetSheetPullingQueueListsAsync(int? machineId = null)
+        public async Task<List<PickingList>> GetPickingAndPackingListsAsync(int? branchId)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
-
-            var query = db.PickingListItems
-                .Where(i => i.Status == PickingLineStatus.AssignedPulling &&
-                            i.Machine != null &&
-                            i.Machine.Category == MachineCategory.Sheet);
-
-            if (machineId.HasValue)
-            {
-                query = query.Where(i => i.MachineId == machineId.Value);
-            }
-
-            var pickingListIds = await query
-                .Select(i => i.PickingListId)
-                .Distinct()
-                .ToListAsync();
-
-            return await db.PickingLists
+            var query = db.PickingLists
                 .Include(p => p.Customer)
                 .Include(p => p.Items)
                 .ThenInclude(i => i.Machine)
-                .Where(p => pickingListIds.Contains(p.Id))
-                .OrderBy(p => p.ShipDate)
-                .ThenBy(p => p.Priority)
-                .ToListAsync();
+                .Where(p => p.Status == PickingListStatus.Pending || p.Status == PickingListStatus.InProgress || p.Status == PickingListStatus.Awaiting);
+
+            if (branchId.HasValue)
+            {
+                query = query.Where(p => p.BranchId == branchId.Value);
+            }
+
+            return await query.OrderBy(p => p.ShipDate).ThenBy(p => p.Priority).ToListAsync();
         }
+
 
         public async Task UpdatePullingQueueOrderAsync(List<PickingList> orderedLists, int droppedListId, int newMachineId, DateTime newScheduledProcessingDate)
         {
