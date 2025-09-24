@@ -16,10 +16,6 @@ public static class SeedFromDb_PickingLists_WithMachines
     {
         await db.Database.EnsureCreatedAsync();
 
-        // ----- Ensure required lookup data exists -----
-        await EnsureMachinesAsync(db);
-        await EnsureRegionsAsync(db);
-
         // ----- Load sources from DB -----
         var customers = await db.Set<Customer>()
             .AsNoTracking()
@@ -288,50 +284,6 @@ public static class SeedFromDb_PickingLists_WithMachines
 
     private static string BuildItemDescription(InventoryItem inv, bool hasLen, int machineId)
     {
-        // Rough, PDF-like flavor lines
-        if (hasLen)
-        {
-            // SHEET/CTL → include size
-            var w = inv.Width ?? 48m;
-            var l = inv.Length ?? 120m;
-            return $"{(inv.Description ?? inv.ItemId)} — SHEET {w:0.#}\" x {l:0.#}\" (SOURCE: STOCK)";
-        }
-
-        if (inv.Width.HasValue)
-        {
-            return $"{(inv.Description ?? inv.ItemId)} — {(IsStdCoilWidth(inv.Width.Value) ? "COIL slit" : "SLITTER program")} @{inv.Width:0.###}\" (SOURCE: STOCK)";
-        }
-
-        return $"{(inv.Description ?? inv.ItemId)} — COIL (SOURCE: STOCK)";
-    }
-    private static async Task EnsureRegionsAsync(ApplicationDbContext db)
-    {
-        if (await db.Set<DestinationRegion>().AnyAsync()) return;
-
-        db.Set<DestinationRegion>().AddRange(
-            new() { Id = 1, Name = "GVRD" },
-            new() { Id = 2, Name = "Interior" },
-            new() { Id = 3, Name = "Vancouver Island" },
-            new() { Id = 4, Name = "Other" }
-        );
-        await db.SaveChangesAsync();
-    }
-
-    private static async Task EnsureMachinesAsync(ApplicationDbContext db)
-    {
-        if (await db.Set<Machine>().AnyAsync(m => m.BranchId == DefaultBranchId)) return;
-
-        db.Set<Machine>().AddRange(
-            // Slitters
-            new() { BranchId = DefaultBranchId, Code = "SL1", Name = "Slitter #1", Category = MachineCategory.Slitter },
-            new() { BranchId = DefaultBranchId, Code = "SL2", Name = "Slitter #2", Category = MachineCategory.Slitter },
-            // CTL
-            new() { BranchId = DefaultBranchId, Code = "CTL1", Name = "Cut-to-Length #1", Category = MachineCategory.CTL },
-            // Coil
-            new() { BranchId = DefaultBranchId, Code = "C1", Name = "Coil Line #1", Category = MachineCategory.Coil },
-            // Sheet
-            new() { BranchId = DefaultBranchId, Code = "SH1", Name = "Sheet Line #1", Category = MachineCategory.Sheet }
-        );
-        await db.SaveChangesAsync();
+        return inv.Description ?? inv.ItemId;
     }
 }
