@@ -501,7 +501,7 @@ namespace CMetalsWS.Services
             item.Picked = true;
             item.PickedById = userId;
             item.PickedAt = DateTime.UtcNow;
-            item.Status = PickingLineStatus.InProgress;
+            item.Status = PickingLineStatus.Picked;
             await _auditService.CreateAuditEventAsync(itemId, TaskType.Picking, AuditEventType.Complete, userId);
 
             await db.SaveChangesAsync();
@@ -524,7 +524,7 @@ namespace CMetalsWS.Services
             }
             item.ActualWeight = actualWeight;
             item.PackingNotes = notes;
-            item.Status = PickingLineStatus.Completed;
+            item.Status = PickingLineStatus.Packed;
             await _auditService.CreateAuditEventAsync(itemId, TaskType.Packing, AuditEventType.Complete, userId);
 
             await db.SaveChangesAsync();

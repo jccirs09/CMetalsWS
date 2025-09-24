@@ -178,32 +178,41 @@
     {
         get
         {
-            var lists = _pickingLists;
+            var lists = _pickingLists.Where(pl => pl.Status == PickingListStatus.Pending);
 
             if (!string.IsNullOrWhiteSpace(_searchTerm))
             {
                 lists = lists.Where(pl =>
                     pl.SalesOrderNumber.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ||
                     (pl.Customer?.CustomerName?.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
-                ).ToList();
+                );
             }
 
             if (_selectedDestinationRegionId.HasValue)
             {
-                lists = lists.Where(pl => pl.DestinationRegionId == _selectedDestinationRegionId.Value).ToList();
+                lists = lists.Where(pl => pl.DestinationRegionId == _selectedDestinationRegionId.Value);
             }
 
             if (_selectedStatus.HasValue)
             {
-                lists = lists.Where(pl => pl.Status == _selectedStatus.Value).ToList();
+                lists = lists.Where(pl => pl.Status == _selectedStatus.Value);
             }
+            else
+            {
+                // Permanent filter for Pending status unless another status is selected
+                lists = lists.Where(pl => pl.Status == PickingListStatus.Pending);
+            }
+
 
             if (_selectedMachineCategory.HasValue)
             {
-                lists = lists.Where(pl => pl.Items.Any(i => i.Machine?.Category == _selectedMachineCategory.Value)).ToList();
+                lists = lists.Where(pl => pl.Items.Any(i => i.Machine?.Category == _selectedMachineCategory.Value));
             }
 
-            return lists;
+            // Filter out lists where all items are assigned to Sheet or Coil machines
+            lists = lists.Where(pl => !pl.Items.All(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil)));
+
+            return lists.ToList();
         }
     }
 
