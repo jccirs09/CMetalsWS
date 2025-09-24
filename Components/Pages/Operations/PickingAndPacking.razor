@@ -180,22 +180,35 @@
         {
             var lists = _pickingLists.AsQueryable();
 
-            // Default to Pending status if no specific status is selected
-            if (!_selectedStatus.HasValue)
-            {
-                lists = lists.Where(pl => pl.Status == PickingListStatus.Pending);
-            }
-            else
-            {
-                lists = lists.Where(pl => pl.Status == _selectedStatus.Value);
-            }
-
             if (!string.IsNullOrWhiteSpace(_searchTerm))
             {
-                lists = lists.Where(pl =>
+                // If searching, first filter by search term across all lists
+                var searchFilteredLists = lists.Where(pl =>
                     pl.SalesOrderNumber.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ||
                     (pl.Customer != null && pl.Customer.CustomerName.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase)));
+
+                // If the search is for a sales order, return it regardless of status
+                if (int.TryParse(_searchTerm, out _) || _searchTerm.StartsWith("SO", StringComparison.OrdinalIgnoreCase))
+                {
+                     return searchFilteredLists.ToList();
+                }
+
+                lists = searchFilteredLists;
             }
+
+            // Apply status filter only if not searching for a specific sales order
+            if (string.IsNullOrWhiteSpace(_searchTerm) || !(int.TryParse(_searchTerm, out _) || _searchTerm.StartsWith("SO", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!_selectedStatus.HasValue)
+                {
+                    lists = lists.Where(pl => pl.Status == PickingListStatus.Pending);
+                }
+                else
+                {
+                    lists = lists.Where(pl => pl.Status == _selectedStatus.Value);
+                }
+            }
+
 
             if (_selectedDestinationRegionId.HasValue)
             {
