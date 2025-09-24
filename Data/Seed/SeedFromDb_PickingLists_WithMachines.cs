@@ -147,6 +147,12 @@ public static class SeedFromDb_PickingLists_WithMachines
                     coilMachines, slitterMachines, ctlMachines, sheetMachines,
                     rng);
 
+                var lineStatus = (pl.Status == PickingListStatus.Pending)
+                    ? (coilMachines.Contains(machineId) || sheetMachines.Contains(machineId)
+                        ? PickingLineStatus.AssignedPulling
+                        : PickingLineStatus.AssignedProduction)
+                    : PickingLineStatus.Pending;
+
                 var item = new PickingListItem
                 {
                     LineNumber = ln++,
@@ -159,7 +165,7 @@ public static class SeedFromDb_PickingLists_WithMachines
                     Weight = weight,
                     PulledQuantity = 0m,
                     PulledWeight = 0m,
-                    Status = PickingLineStatus.Pending,
+                    Status = lineStatus,
                     ScheduledShipDate = shipDate,
                     ScheduledProcessingDate = BusinessDayMinusOne(shipDate),
                     MachineId = machineId
