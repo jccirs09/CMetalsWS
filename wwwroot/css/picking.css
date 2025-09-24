@@ -1,0 +1,19 @@
+.priority-urgent {
+    background-color: #fde2e2 !important;
+    color: #7f1d1d !important;
+}
+
+.priority-high {
+    background-color: #ffedd5 !important;
+    color: #9a3412 !important;
+}
+
+.priority-normal {
+    background-color: #dbeafe !important;
+    color: #1e40af !important;
+}
+
+.priority-low {
+    background-color: #f3f4f6 !important;
+    color: #1f2937 !important;
+}

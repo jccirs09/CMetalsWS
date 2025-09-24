@@ -4,7 +4,6 @@
 @using System.Security.Claims
 @using CMetalsWS.Security
 @using Microsoft.AspNetCore.Components.Authorization
-@using CMetalsWS.Components.Pages.Operations.Pickinglist.Dialogs
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.SignalR.Client
 @attribute [Authorize(Policy = Permissions.PickingLists.Assign)]
@@ -49,7 +48,6 @@
             else if (_auditEvents[context.Id] == AuditEventType.Start || _auditEvents[context.Id] == AuditEventType.Resume)
             {
                 <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small" OnClick="@(() => HandleAuditEvent(context.Id, AuditEventType.Pause))">Pause</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="@(() => ProcessTask(context))">Process</MudButton>
             }
             else if (_auditEvents[context.Id] == AuditEventType.Pause)
             {
@@ -105,7 +103,7 @@
         if (_tasks.Any())
         {
             var taskIds = _tasks.Select(t => t.Id).ToList();
-            var lastEvents = await AuditService.GetLastEventTypesForTasksAsync(taskIds, TaskType.Pulling);
+            var lastEvents = await AuditService.GetLastEventTypesForTasksAsync(taskIds, TaskType.Picking);
 
             _auditEvents = _tasks.ToDictionary(
                 t => t.Id,
@@ -119,24 +117,6 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task ProcessTask(PickingListItem item)
-    {
-        var parameters = new DialogParameters { ["Item"] = item };
-        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
-        var dialog = await DialogService.ShowAsync<PullingTaskDetailDialog>("Process Task", parameters, options);
-        if (dialog is null) return;
-
-        var result = await dialog.Result;
-
-        if (result is not null && !result.Canceled && result.Data is ValueTuple<decimal?, decimal?> data)
-        {
-            await PickingListService.UpdatePulledQuantitiesAsync(item.Id, data.Item1, data.Item2 ?? 0);
-            await HandleAuditEvent(item.Id, AuditEventType.Complete, false); // Log completion
-            await PickingListService.SetLineStatusAsync(item.Id, PickingLineStatus.Completed);
-            await LoadTasks(); // Refresh the list
-        }
-    }
-
     private async Task HandleAuditEvent(int taskId, AuditEventType eventType, bool stateHasChanged = true)
     {
         if (_user is null)
@@ -145,7 +125,7 @@
             return;
         }
 
-        await AuditService.CreateAuditEventAsync(taskId, TaskType.Pulling, eventType, _user.Id);
+        await AuditService.CreateAuditEventAsync(taskId, TaskType.Picking, eventType, _user.Id);
         _auditEvents[taskId] = eventType;
         Snackbar.Add($"Task successfully {eventType.ToString().ToLower()}ed.", Severity.Success);
 

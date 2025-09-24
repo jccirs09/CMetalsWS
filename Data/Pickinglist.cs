@@ -59,6 +59,10 @@ namespace CMetalsWS.Data
         public DateTime? ModifiedDate { get; set; }
         public string? ModifiedById { get; set; }
         public virtual ApplicationUser? ModifiedBy { get; set; }
+        public string? AssignedToId { get; set; }
+        public virtual ApplicationUser? AssignedTo { get; set; }
+        [MaxLength(256)]
+        public string? Destination { get; set; }
 
         public virtual ICollection<PickingListItem> Items { get; set; } = new List<PickingListItem>();
     }
@@ -71,6 +75,9 @@ namespace CMetalsWS.Data
         public virtual PickingList? PickingList { get; set; }
 
         public int LineNumber { get; set; }
+
+        public int? InventoryItemId { get; set; }
+        public virtual InventoryItem? InventoryItem { get; set; }
 
         [Required, MaxLength(64)]
         public required string ItemId { get; set; }
@@ -109,7 +116,30 @@ namespace CMetalsWS.Data
 
         public int? MachineId { get; set; }
         public virtual Machine? Machine { get; set; }
-
+        [MaxLength(128)]
+        public string? Location { get; set; }
+        [MaxLength(128)]
+        public string? CoilId { get; set; }
+        public bool Picked { get; set; }
+        public string? PickedById { get; set; }
+        public virtual ApplicationUser? PickedBy { get; set; }
+        public DateTime? PickedAt { get; set; }
+        public bool Packed { get; set; }
+        public string? PackedById { get; set; }
+        public virtual ApplicationUser? PackedBy { get; set; }
+        public DateTime? PackedAt { get; set; }
+        [MaxLength(128)]
+        public string? PackingMaterial { get; set; }
+        [MaxLength(512)]
+        public string? PackingNotes { get; set; }
+        public bool QualityChecked { get; set; }
+        public string? QualityCheckedById { get; set; }
+        public virtual ApplicationUser? QualityCheckedBy { get; set; }
+        public DateTime? QualityCheckedAt { get; set; }
+        [Precision(18, 3)]
+        public decimal? ActualWeight { get; set; }
+        [MaxLength(512)]
+        public string? DamageNotes { get; set; }
         public bool Equals(PickingListItem? other)
         {
             if (other is null) return false;

@@ -17,18 +17,21 @@ namespace CMetalsWS.Services
         private readonly IConfiguration _configuration;
         private readonly IHubContext<ScheduleHub> _hubContext;
 
+        private readonly ITaskAuditEventService _auditService;
         public PickingListService(
             IDbContextFactory<ApplicationDbContext> dbContextFactory,
             IPickingListImportService importService,
             IPdfParsingService parsingService,
             IConfiguration configuration,
-            IHubContext<ScheduleHub> hubContext)
+            IHubContext<ScheduleHub> hubContext,
+            ITaskAuditEventService auditService)
         {
             _dbContextFactory = dbContextFactory;
             _importService = importService;
             _parsingService = parsingService;
             _configuration = configuration;
             _hubContext = hubContext;
+            _auditService = auditService;
         }
 
         public async Task<List<PickingList>> GetAsync(int? branchId = null)
@@ -37,7 +40,12 @@ namespace CMetalsWS.Services
             var query = db.PickingLists
                 .Include(p => p.Branch)
                 .Include(p => p.Customer)
+                .Include(p => p.AssignedTo)
                 .Include(p => p.Items).ThenInclude(i => i.Machine)
+                .Include(p => p.Items).ThenInclude(i => i.PickedBy)
+                .Include(p => p.Items).ThenInclude(i => i.PackedBy)
+                .Include(p => p.Items).ThenInclude(i => i.QualityCheckedBy)
+                .Where(p => p.Items.Any(i => i.Machine != null && (i.Machine.Category == MachineCategory.Coil || i.Machine.Category == MachineCategory.Sheet)))
                 .AsNoTracking();
 
             if (branchId.HasValue)
@@ -76,7 +84,11 @@ namespace CMetalsWS.Services
             using var db = _dbContextFactory.CreateDbContext();
             return await db.PickingLists
                 .Include(p => p.Customer)
+                .Include(p => p.AssignedTo)
                 .Include(p => p.Items).ThenInclude(i => i.Machine)
+                .Include(p => p.Items).ThenInclude(i => i.PickedBy)
+                .Include(p => p.Items).ThenInclude(i => i.PackedBy)
+                .Include(p => p.Items).ThenInclude(i => i.QualityCheckedBy)
                 .Include(p => p.Branch)
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
@@ -480,6 +492,58 @@ namespace CMetalsWS.Services
             }
         }
 
+        public async Task ConfirmPickAsync(int itemId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.Picked = true;
+            item.PickedById = userId;
+            item.PickedAt = DateTime.UtcNow;
+            item.Status = PickingLineStatus.InProgress;
+            await _auditService.CreateAuditEventAsync(itemId, TaskType.Picking, AuditEventType.Complete, userId);
+
+            await db.SaveChangesAsync();
+            await UpdatePickingListStatusAsync(item.PickingListId);
+        }
+
+        public async Task ConfirmPackAsync(int itemId, string userId, decimal quantity, decimal actualWeight, string notes)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.Packed = true;
+            item.PackedById = userId;
+            item.PackedAt = DateTime.UtcNow;
+            item.PulledQuantity = (item.PulledQuantity ?? 0) + quantity;
+            if (item.Weight.HasValue && item.Quantity > 0)
+            {
+                item.PulledWeight += (item.Weight.Value / item.Quantity) * quantity;
+            }
+            item.ActualWeight = actualWeight;
+            item.PackingNotes = notes;
+            item.Status = PickingLineStatus.Completed;
+            await _auditService.CreateAuditEventAsync(itemId, TaskType.Packing, AuditEventType.Complete, userId);
+
+            await db.SaveChangesAsync();
+            await UpdatePickingListStatusAsync(item.PickingListId);
+        }
+
+        public async Task QualityCheckAsync(int itemId, string userId, bool passed, string? damageNotes)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.QualityChecked = passed;
+            item.QualityCheckedById = userId;
+            item.QualityCheckedAt = DateTime.UtcNow;
+            item.DamageNotes = damageNotes;
+
+            await db.SaveChangesAsync();
+        }
         public bool AreEqual(PickingList listA, PickingList listB)
         {
             if (listA == null || listB == null)

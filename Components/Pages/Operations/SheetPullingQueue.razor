@@ -114,7 +114,7 @@
         var itemIds = _pickingLists.SelectMany(pl => pl.Items).Select(i => i.Id).ToList();
         if (itemIds.Any())
         {
-            _lastEvents = await TaskAuditEventService.GetLastEventTypesForTasksAsync(itemIds, TaskType.Pulling);
+            _lastEvents = await TaskAuditEventService.GetLastEventTypesForTasksAsync(itemIds, TaskType.Picking);
         }
         await InvokeAsync(StateHasChanged);
     }

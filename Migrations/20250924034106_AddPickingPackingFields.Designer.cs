@@ -4,6 +4,7 @@ using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250924034106_AddPickingPackingFields")]
+    partial class AddPickingPackingFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -933,9 +936,6 @@ namespace CMetalsWS.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
 
-                    b.Property<int?>("InventoryItemId")
-                        .HasColumnType("int");
-
                     b.Property<string>("ItemDescription")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -1035,8 +1035,6 @@ namespace CMetalsWS.Migrations
                         .HasColumnType("decimal(18,3)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("InventoryItemId");
 
                     b.HasIndex("MachineId");
 
@@ -1831,10 +1829,6 @@ namespace CMetalsWS.Migrations
 
             modelBuilder.Entity("CMetalsWS.Data.PickingListItem", b =>
                 {
-                    b.HasOne("CMetalsWS.Data.InventoryItem", "InventoryItem")
-                        .WithMany()
-                        .HasForeignKey("InventoryItemId");
-
                     b.HasOne("CMetalsWS.Data.Machine", "Machine")
                         .WithMany()
                         .HasForeignKey("MachineId")
@@ -1857,8 +1851,6 @@ namespace CMetalsWS.Migrations
                     b.HasOne("CMetalsWS.Data.ApplicationUser", "QualityCheckedBy")
                         .WithMany()
                         .HasForeignKey("QualityCheckedById");
-
-                    b.Navigation("InventoryItem");
 
                     b.Navigation("Machine");
 

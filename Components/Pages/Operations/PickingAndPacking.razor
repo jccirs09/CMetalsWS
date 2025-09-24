@@ -1,0 +1,291 @@
+@page "/operations/picking-packing"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using System.Security.Claims
+@using CMetalsWS.Security
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Policy = Permissions.PickingLists.View)]
+@inject PickingListService PickingListService
+@inject ITaskAuditEventService AuditService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IDialogService DialogService
+@inject DestinationRegionService DestinationRegionService
+
+<MudText Typo="Typo.h5" Class="mb-4">Picking & Packing</MudText>
+
+<MudTabs Elevation="2" Rounded="true" PanelClass="mt-4">
+    <MudTabPanel Text="Picking Lists">
+        <MudPaper Class="pa-4 mb-4">
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="3">
+                    <MudTextField @bind-Value="_searchTerm" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudSelect T="int?" @bind-Value="_selectedDestinationRegionId" Label="Destination" Variant="Variant.Outlined">
+                        <MudSelectItem T="int?" Value="@(null)">All Destinations</MudSelectItem>
+                        @foreach (var destination in _destinations)
+                        {
+                            <MudSelectItem T="int?" Value="@destination.Id">@destination.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudSelect T="PickingListStatus?" @bind-Value="_selectedStatus" Label="Status" Variant="Variant.Outlined">
+                        <MudSelectItem T="PickingListStatus?" Value="@(null)">All Statuses</MudSelectItem>
+                        @foreach (var status in Enum.GetValues<PickingListStatus>())
+                        {
+                            <MudSelectItem T="PickingListStatus?" Value="@status">@status.ToString()</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudSelect T="MachineCategory?" @bind-Value="_selectedMachineCategory" Label="Machine Category" Variant="Variant.Outlined">
+                        <MudSelectItem T="MachineCategory?" Value="@(null)">All</MudSelectItem>
+                        <MudSelectItem T="MachineCategory?" Value="@MachineCategory.Coil">Coil</MudSelectItem>
+                        <MudSelectItem T="MachineCategory?" Value="@MachineCategory.Sheet">Sheet</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+        @foreach (var pickingList in FilteredPickingLists)
+        {
+            <MudCard Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">@pickingList.SalesOrderNumber</MudText>
+                        <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="string" Color="Color.Default">@pickingList.Status.ToString()</MudChip>
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText>Destination: @pickingList.DestinationRegion?.Name</MudText>
+                    <MudText>Ship Date: @pickingList.ShipDate?.ToShortDateString()</MudText>
+                    <MudText Class="mt-2">Picking Progress</MudText>
+                    <MudProgressLinear Color="Color.Primary" Value="@GetPickingProgress(pickingList)" Class="my-1">
+                        <MudText Typo="Typo.caption" Style="color:white;">@($"{GetPickingProgress(pickingList):F0}%")</MudText>
+                    </MudProgressLinear>
+                    <MudText>Packing Progress</MudText>
+                    <MudProgressLinear Color="Color.Secondary" Value="@GetPackingProgress(pickingList)" Class="my-1">
+                        <MudText Typo="Typo.caption" Style="color:white;">@($"{GetPackingProgress(pickingList):F0}%")</MudText>
+                    </MudProgressLinear>
+                </MudCardContent>
+            </MudCard>
+        }
+    </MudTabPanel>
+    <MudTabPanel Text="Picking Process">
+        @foreach (var pickingList in FilteredPickingLists.Where(pl => pl.Status == PickingListStatus.Pending || pl.Status == PickingListStatus.InProgress))
+        {
+            <MudCard Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">@pickingList.SalesOrderNumber - Picking</MudText>
+                        <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="string" Color="Color.Default">@pickingList.Status.ToString()</MudChip>
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    @foreach (var item in pickingList.Items)
+                    {
+                        <MudPaper Class="d-flex align-center pa-2 mb-2">
+                            <div class="flex-grow-1">
+                                <MudText>@item.ItemDescription</MudText>
+                                <MudText Typo="Typo.body2">@item.Width" x @item.Length"</MudText>
+                                <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight</MudText>
+                            </div>
+                            @if (item.Picked)
+                            {
+                                <MudChip T="string" Icon="@Icons.Material.Filled.Check" Color="Color.Success">Picked</MudChip>
+                            }
+                            else
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => StartPick(item))">Start Pick</MudButton>
+                            }
+                        </MudPaper>
+                    }
+                </MudCardContent>
+            </MudCard>
+        }
+    </MudTabPanel>
+    <MudTabPanel Text="Packing Process">
+        @foreach (var pickingList in FilteredPickingLists.Where(pl => pl.Items.Any(i => i.Picked)))
+        {
+            <MudCard Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">@pickingList.SalesOrderNumber - Packing</MudText>
+                        <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="string" Color="Color.Default">@pickingList.Status.ToString()</MudChip>
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    @foreach (var item in pickingList.Items.Where(i => i.Picked))
+                    {
+                        <MudPaper Class="d-flex align-center pa-2 mb-2">
+                            <div class="flex-grow-1">
+                                <MudText>@item.ItemDescription</MudText>
+                                <MudText Typo="Typo.body2">@item.Width" x @item.Length"</MudText>
+                                <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight</MudText>
+                            </div>
+                            @if (item.Packed)
+                            {
+                                <MudChip T="string" Icon="@Icons.Material.Filled.Check" Color="Color.Success">Packed</MudChip>
+                            }
+                            else
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => StartPack(item))">Start Pack</MudButton>
+                            }
+                        </MudPaper>
+                    }
+                </MudCardContent>
+            </MudCard>
+        }
+    </MudTabPanel>
+    <MudTabPanel Text="By Destination">
+        <MudExpansionPanels>
+            @foreach (var group in FilteredPickingLists.GroupBy(pl => pl.DestinationRegion?.Name))
+            {
+                <MudExpansionPanel Text="@group.Key">
+                    @foreach (var pickingList in group)
+                    {
+                        <MudText>@pickingList.SalesOrderNumber - @pickingList.Customer?.CustomerName</MudText>
+                    }
+                </MudExpansionPanel>
+            }
+        </MudExpansionPanels>
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    private List<PickingList> _pickingLists = new();
+    private List<DestinationRegion> _destinations = new();
+    private string? _userId;
+    private string _searchTerm = "";
+    private int? _selectedDestinationRegionId;
+    private PickingListStatus? _selectedStatus;
+    private MachineCategory? _selectedMachineCategory;
+
+    private List<PickingList> FilteredPickingLists
+    {
+        get
+        {
+            var lists = _pickingLists;
+
+            if (!string.IsNullOrWhiteSpace(_searchTerm))
+            {
+                lists = lists.Where(pl =>
+                    pl.SalesOrderNumber.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    (pl.Customer?.CustomerName?.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+                ).ToList();
+            }
+
+            if (_selectedDestinationRegionId.HasValue)
+            {
+                lists = lists.Where(pl => pl.DestinationRegionId == _selectedDestinationRegionId.Value).ToList();
+            }
+
+            if (_selectedStatus.HasValue)
+            {
+                lists = lists.Where(pl => pl.Status == _selectedStatus.Value).ToList();
+            }
+
+            if (_selectedMachineCategory.HasValue)
+            {
+                lists = lists.Where(pl => pl.Items.Any(i => i.Machine?.Category == _selectedMachineCategory.Value)).ToList();
+            }
+
+            return lists;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        await LoadData();
+        _destinations = await DestinationRegionService.GetDestinationRegionsAsync();
+    }
+
+    private MudBlazor.Color GetPriorityColor(int priority)
+    {
+        return priority switch
+        {
+            1 => MudBlazor.Color.Error,
+            2 => MudBlazor.Color.Warning,
+            3 => MudBlazor.Color.Info,
+            _ => MudBlazor.Color.Default
+        };
+    }
+
+    private string GetPriorityText(int priority)
+    {
+        return priority switch
+        {
+            1 => "Urgent",
+            2 => "High",
+            3 => "Normal",
+            _ => "Low"
+        };
+    }
+
+    private async Task LoadData()
+    {
+        _pickingLists = await PickingListService.GetAsync();
+        StateHasChanged();
+    }
+
+    private async Task StartPick(PickingListItem item)
+    {
+        var parameters = new DialogParameters { ["Item"] = item };
+        var dialog = await DialogService.ShowAsync<PickItemDialog>("Pick Item", parameters);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await PickingListService.ConfirmPickAsync(item.Id, _userId!);
+            await LoadData();
+        }
+    }
+
+    private async Task StartPack(PickingListItem item)
+    {
+        var parameters = new DialogParameters { ["Item"] = item };
+        var dialog = await DialogService.ShowAsync<PackItemDialog>("Pack Item", parameters);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is PackItemDialog.PackDialogResult packResult)
+        {
+            await PickingListService.ConfirmPackAsync(item.Id, _userId!, packResult.Quantity, packResult.ActualWeight, packResult.Notes);
+            await LoadData();
+        }
+    }
+
+    private double GetPickingProgress(PickingList pickingList)
+    {
+        if (pickingList.Items == null || !pickingList.Items.Any())
+            return 0;
+
+        var totalItems = pickingList.Items.Count;
+        var pickedItems = pickingList.Items.Count(i => i.Picked);
+        return (double)pickedItems / totalItems * 100;
+    }
+
+    private double GetPackingProgress(PickingList pickingList)
+    {
+        if (pickingList.Items == null || !pickingList.Items.Any())
+            return 0;
+
+        var totalItems = pickingList.Items.Count;
+        var packedItems = pickingList.Items.Count(i => i.Packed);
+        return (double)packedItems / totalItems * 100;
+    }
+}
