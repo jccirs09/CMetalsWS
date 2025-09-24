@@ -1,0 +1,60 @@
+@page "/admin/seed-data"
+@using CMetalsWS.Data.Seed
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+
+<PageTitle>Seed Data</PageTitle>
+
+<h1>Seed Data</h1>
+
+<p>
+    Use this page to seed the database with sample data.
+</p>
+
+@if (IsSeeding)
+{
+    <div class="alert alert-info">
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        Seeding data...
+    </div>
+}
+else if (!string.IsNullOrWhiteSpace(ResultMessage))
+{
+    <div class="alert @ResultClass">
+        @ResultMessage
+    </div>
+}
+
+<button class="btn btn-primary" @onclick="SeedDataAsync" disabled="@IsSeeding">
+    Seed Picking Lists
+</button>
+
+@code {
+    private bool IsSeeding;
+    private string? ResultMessage;
+    private string ResultClass = "alert-info";
+
+    private async Task SeedDataAsync()
+    {
+        IsSeeding = true;
+        ResultMessage = null;
+
+        try
+        {
+            using var db = DbFactory.CreateDbContext();
+            await SeedFromDb_PickingLists_WithMachines.RunAsync(db);
+
+            ResultClass = "alert-success";
+            ResultMessage = "Seeding completed successfully.";
+        }
+        catch (Exception ex)
+        {
+            ResultClass = "alert-danger";
+            ResultMessage = $"An error occurred during seeding: {ex.Message}";
+        }
+        finally
+        {
+            IsSeeding = false;
+        }
+    }
+}
