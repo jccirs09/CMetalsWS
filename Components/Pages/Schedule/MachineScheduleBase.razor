@@ -30,6 +30,7 @@
                  DayStartTime="_branchWorkHours.Start"
                  DayEndTime="_branchWorkHours.End"
                  DayTimeInterval="CalendarTimeInterval.Minutes15"
+                 View="CalendarView.Week"
                  FirstDayOfWeek="_firstDayOfWeek"
                  Height="1080">
         <ToolbarContent>
@@ -135,9 +136,9 @@
     private async Task OnItemClicked(CalendarItem item)
     {
         if (item is not ScheduleEvent scheduleEvent) return;
-
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, BackdropClick = false, CloseButton = true };
         var detailsParams = new DialogParameters { ["WorkOrderId"] = scheduleEvent.WorkOrder.Id };
-        var detailsDialog = await DialogService.ShowAsync<Dialogs.WorkOrderDetailsDialog>("Work Order Details", detailsParams);
+        var detailsDialog = await DialogService.ShowAsync<Dialogs.WorkOrderDetailsDialog>("Work Order Details", detailsParams, options);
         var detailsResult = await detailsDialog.Result;
         if (detailsResult is null || detailsResult.Canceled) return;
 
@@ -195,7 +196,7 @@
             ["IsProcessing"] = isProcessing
         };
 
-        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, BackdropClick = false };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, BackdropClick = false, CloseButton = true };
         var dialog = await DialogService.ShowAsync<WorkOrderDialog>(isProcessing ? "Process Work Order" : "Edit Work Order", parameters, options);
         var result = await dialog.Result;
 
