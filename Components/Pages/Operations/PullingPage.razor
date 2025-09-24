@@ -1,0 +1,86 @@
+@page "/operations/pulling-page"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using CMetalsWS.Security
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using MudBlazor
+@using System.Security.Claims
+@using CMetalsWS.Components.Pages.Operations.Pulling.Tabs
+@using Microsoft.AspNetCore.SignalR.Client
+@attribute [Authorize(Policy = CMetalsWS.Security.Permissions.PickingLists.View)]
+
+@inject PickingListService PickingListService
+@inject BranchService BranchService
+@inject TruckService TruckService
+@inject MachineService MachineService
+@inject CustomerService CustomerService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject IAuthorizationService AuthorizationService
+@inject ITaskAuditEventService AuditService
+@inject UserService UserService
+@inject NavigationManager NavigationManager
+
+@implements IAsyncDisposable
+
+<MudTabs Elevation="2" Rounded="true" Centered="true">
+    <MudTabPanel Text="Picking List Grid View">
+        <PickingListGridView Lists="pl_lists" OnDataChanged="LoadAsync" />
+    </MudTabPanel>
+    <MudTabPanel Text="Picking List Card View">
+        <PickingListCardView Lists="pl_lists" OnDataChanged="LoadAsync" />
+    </MudTabPanel>
+    <MudTabPanel Text="Picking Process">
+        <PickingProcess />
+    </MudTabPanel>
+    <MudTabPanel Text="Packing Process">
+        <PackingProcess />
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    private List<PickingList> pl_lists = new();
+    private HubConnection? _hubConnection;
+    private bool isAdmin;
+    private int? userBranchId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        isAdmin = user.IsInRole("Admin");
+        var appUser = await UserManager.GetUserAsync(user);
+        userBranchId = appUser?.BranchId;
+
+        await LoadAsync();
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/hubs/schedule"))
+            .Build();
+
+        _hubConnection.On<int>("PickingListUpdated", async (id) =>
+        {
+            await LoadAsync();
+            await InvokeAsync(StateHasChanged);
+        });
+
+        await _hubConnection.StartAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        pl_lists = await PickingListService.GetAsync(isAdmin ? null : userBranchId);
+        StateHasChanged();
+    }
+}

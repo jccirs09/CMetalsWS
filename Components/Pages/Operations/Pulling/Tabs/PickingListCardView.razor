@@ -1,0 +1,110 @@
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using CMetalsWS.Security
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using MudBlazor
+
+@inject PickingListService PickingListService
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <MudGrid Spacing="3">
+        @foreach (var list in Lists)
+        {
+            <MudItem xs="12">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">@list.SalesOrderNumber</MudText>
+                            <MudText Typo="Typo.subtitle2">@list.Customer?.CustomerName</MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudChip T="string" Color="@(GetPriorityColor(list.Priority))" Size="Size.Small">@list.Priority.ToString()</MudChip>
+                            <MudChip T="string" Color="Color.Default" Size="Size.Small">@list.Status.ToString()</MudChip>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudList T="PickingListItem" Clickable="false">
+                            @foreach (var item in list.Items)
+                            {
+                                <MudListItem T="PickingListItem">
+                                    <div class="d-flex justify-space-between align-center" style="width: 100%">
+                                        <MudCheckBox T="bool" Checked="@(item.Status == PickingLineStatus.Completed)" CheckedChanged="@((bool? _) => ToggleItemStatus(item))" />
+                                        <div>
+                                            <MudText>@item.ItemDescription</MudText>
+                                            <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight</MudText>
+                                        </div>
+                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="true">Scan</MudButton>
+                                    </div>
+                                </MudListItem>
+                            }
+                        </MudList>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudProgressLinear Value="GetPickingProgress(list)" Color="Color.Primary" />
+                        <div class="d-flex justify-space-between align-center" style="width: 100%; padding: 8px">
+                            <MudText>Total Weight: @list.TotalWeight.ToString("N3")</MudText>
+                            <div>
+                                <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="@(() => ResetList(list))">Reset</MudButton>
+                                <MudButton Variant="Variant.Text" Color="Color.Success" OnClick="@(() => CompletePicking(list))">Complete Picking</MudButton>
+                            </div>
+                        </div>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
+
+@code {
+    [Parameter] public List<PickingList> Lists { get; set; } = new();
+    [Parameter] public EventCallback OnDataChanged { get; set; }
+
+    private Color GetPriorityColor(int priority)
+    {
+        return priority switch
+        {
+            1 => Color.Error,
+            2 => Color.Warning,
+            3 => Color.Info,
+            _ => Color.Default,
+        };
+    }
+
+    private double GetPickingProgress(PickingList list)
+    {
+        if (list.Items == null || !list.Items.Any())
+            return 0;
+
+        var pickedItems = list.Items.Count(i => i.Status == PickingLineStatus.Completed);
+        return (double)pickedItems / list.Items.Count() * 100;
+    }
+
+    private async Task ToggleItemStatus(PickingListItem item)
+    {
+        var newStatus = item.Status == PickingLineStatus.Completed ? PickingLineStatus.Pending : PickingLineStatus.Completed;
+        await PickingListService.SetLineStatusAsync(item.Id, newStatus);
+        await OnDataChanged.InvokeAsync();
+    }
+
+    private async Task ResetList(PickingList list)
+    {
+        foreach (var item in list.Items)
+        {
+            await PickingListService.SetLineStatusAsync(item.Id, PickingLineStatus.Pending);
+        }
+        await OnDataChanged.InvokeAsync();
+    }
+
+    private async Task CompletePicking(PickingList list)
+    {
+        var listToUpdate = await PickingListService.GetByIdAsync(list.Id);
+        if (listToUpdate != null)
+        {
+            listToUpdate.Status = PickingListStatus.Picked;
+            await PickingListService.UpdateAsync(listToUpdate);
+            await OnDataChanged.InvokeAsync();
+        }
+    }
+}

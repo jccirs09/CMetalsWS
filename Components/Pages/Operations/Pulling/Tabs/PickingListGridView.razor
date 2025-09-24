@@ -1,0 +1,377 @@
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using CMetalsWS.Security
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using MudBlazor
+
+@inject PickingListService PickingListService
+@inject BranchService BranchService
+@inject TruckService TruckService
+@inject MachineService MachineService
+@inject CustomerService CustomerService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject IAuthorizationService AuthorizationService
+
+<MudPaper Class="p-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h5">Picking Lists</MudText>
+        <AuthorizeView Policy="@Permissions.PickingLists.Add">
+            <Authorized Context="authAdd">
+                <MudStack Row="true">
+                    <MudButton Color="Color.Primary"
+                               Variant="Variant.Outlined"
+                               StartIcon="@Icons.Material.Filled.UploadFile"
+                               Href="/picking-lists/upload">
+                        Upload PDF
+                    </MudButton>
+                    <MudButton Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="Add">
+                        New
+                    </MudButton>
+                </MudStack>
+            </Authorized>
+        </AuthorizeView>
+    </MudStack>
+
+    <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-4"></MudTextField>
+
+    <MudTable Items="Lists" Hover="true" Dense="true" Context="pickingList" Filter="new Func<PickingList, bool>(FilterFunc)">
+        <HeaderContent>
+            <MudTh>SalesOrderNumber</MudTh>
+            <MudTh>Customer Name</MudTh>
+            <MudTh>Total Line Items</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Ship Date</MudTh>
+            <MudTh Class="text-right">Total Weight</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="SalesOrderNumber">
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Primary"
+                           Class="px-0"
+                           OnClick="@(async () => await View(pickingList))"
+                           title="View Picking List">
+                    @pickingList.SalesOrderNumber
+                </MudButton>
+            </MudTd>
+            <MudTd DataLabel="Customer Name">@pickingList.Customer?.CustomerName</MudTd>
+            <MudTd DataLabel="Total Line Items">@pickingList.Items.Count()</MudTd>
+            <MudTd DataLabel="Status">
+                @if (_canEditInline)
+                {
+                    <MudSelect T="PickingListStatus" Value="pickingList.Status" ValueChanged="@((PickingListStatus newStatus) => OnStatusChanged(pickingList, newStatus))" Dense="true" Margin="Margin.Dense">
+                        @foreach (var status in Enum.GetValues<PickingListStatus>())
+                        {
+                            <MudSelectItem T="PickingListStatus" Value="@status">@status.ToString()</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+                else
+                {
+                    @pickingList.Status
+                }
+            </MudTd>
+            <MudTd DataLabel="Ship Date">
+                @if (_canEditInline)
+                {
+                    <MudDatePicker Date="pickingList.ShipDate" DateChanged="@((DateTime? newDate) => OnShipDateChanged(pickingList, newDate))" Editable="true" Dense="true" Margin="Margin.Dense" />
+                }
+                else
+                {
+                    @pickingList.ShipDate?.ToString("yyyy-MM-dd")
+                }
+            </MudTd>
+            <MudTd DataLabel="Total Weight" Class="text-right">@pickingList.TotalWeight.ToString("N3")</MudTd>
+            <MudTd DataLabel="Actions">
+                @if (_canEdit)
+                {
+                    <MudIconButton Color="Color.Info" Icon="@Icons.Material.Filled.Edit" title="Edit" OnClick="@(async () => await Edit(pickingList))" />
+                }
+                @if (_canDelete)
+                {
+                    <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.Delete" title="Delete" OnClick="@(async () => await Delete(pickingList))" />
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No picking lists found.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    [Parameter] public List<PickingList> Lists { get; set; } = new();
+    [Parameter] public EventCallback OnDataChanged { get; set; }
+
+    private string searchString = "";
+    private bool isAdmin;
+    private int? userBranchId;
+    private Branch? userBranch;
+    private bool _canEdit;
+    private bool _canDelete;
+    private bool _canEditInline;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _canEdit = (await AuthorizationService.AuthorizeAsync(user, Permissions.PickingLists.Edit)).Succeeded;
+        _canDelete = (await AuthorizationService.AuthorizeAsync(user, Permissions.PickingLists.Delete)).Succeeded;
+
+        if (user.Identity is not null && user.Identity.IsAuthenticated)
+        {
+            _canEditInline = user.IsInRole("Planner") ||
+                             user.IsInRole("Supervisor") ||
+                             user.IsInRole("Manager") ||
+                             user.IsInRole("Admin");
+        }
+
+        await LoadUserContextAsync();
+    }
+
+    private bool FilterFunc(PickingList list)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (list.SalesOrderNumber.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (list.Customer?.CustomerName?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+        return false;
+    }
+
+    private async Task LoadUserContextAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var principal = authState.User;
+        isAdmin = principal.IsInRole("Admin");
+
+        var appUser = await UserManager.GetUserAsync(principal);
+        userBranchId = appUser?.BranchId;
+        if (userBranchId.HasValue)
+        {
+            var allBranches = await BranchService.GetBranchesAsync();
+            userBranch = allBranches.FirstOrDefault(b => b.Id == userBranchId.Value);
+        }
+    }
+
+    private async Task View(PickingList src)
+    {
+        var branches = await BranchService.GetBranchesAsync();
+        var trucks = await TruckService.GetTrucksAsync();
+        var machines = await MachineService.GetMachinesAsync();
+
+        if (!isAdmin && userBranchId.HasValue)
+        {
+            branches = branches.Where(b => b.Id == userBranchId.Value).ToList();
+            trucks = trucks.Where(t => t.BranchId == userBranchId.Value).ToList();
+            machines = machines.Where(m => m.BranchId == userBranchId.Value).ToList();
+        }
+
+        var model = Clone(src);
+
+        var parameters = new DialogParameters
+        {
+            ["Model"] = model,
+            ["Branches"] = branches,
+            ["Trucks"] = trucks,
+            ["Machines"] = machines,
+            ["IsEdit"] = true,
+            ["Title"] = "Picking List Details",
+            ["LockBranch"] = !isAdmin,
+            ["CurrentBranch"] = userBranch
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, FullScreen = true };
+        var dialogRef = await DialogService.ShowAsync<CMetalsWS.Components.Pages.Operations.Pickinglist.Dialogs.PickingListDialog>("Picking List Details", parameters, options);
+        await dialogRef.Result;
+    }
+
+    private async Task Add()
+    {
+        var branches = await BranchService.GetBranchesAsync();
+        var trucks = await TruckService.GetTrucksAsync();
+        var machines = await MachineService.GetMachinesAsync();
+
+        if (!isAdmin && userBranchId.HasValue)
+        {
+            branches = branches.Where(b => b.Id == userBranchId.Value).ToList();
+            trucks = trucks.Where(t => t.BranchId == userBranchId.Value).ToList();
+            machines = machines.Where(m => m.BranchId == userBranchId.Value).ToList();
+        }
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        if (user == null)
+        {
+            Snackbar.Add("You must be logged in to create a picking list.", Severity.Error);
+            return;
+        }
+
+        var model = new PickingList
+        {
+            SalesOrderNumber = string.Empty,
+            Status = PickingListStatus.Pending,
+            BranchId = (!isAdmin && userBranchId.HasValue) ? userBranchId.Value : (branches.FirstOrDefault()?.Id ?? 0),
+            ScannedById = user.Id,
+            ScannedDate = DateTime.UtcNow,
+            ModifiedById = user.Id,
+            ModifiedDate = DateTime.UtcNow
+        };
+
+        var parameters = new DialogParameters
+        {
+            ["Model"] = model,
+            ["Branches"] = branches,
+            ["Trucks"] = trucks,
+            ["Machines"] = machines,
+            ["IsEdit"] = false,
+            ["Title"] = "New Picking List",
+            ["LockBranch"] = !isAdmin,
+            ["CurrentBranch"] = userBranch
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, FullScreen = true };
+        var dialogRef = await DialogService.ShowAsync<CMetalsWS.Components.Pages.Operations.Pickinglist.Dialogs.PickingListDialog>("New Picking List", parameters, options);
+        if (dialogRef is null) return;
+
+        var result = await dialogRef.Result;
+        if (result is null || result.Canceled) return;
+
+        if (result.Data is PickingList saved)
+        {
+            await PickingListService.CreateAsync(saved);
+            Snackbar.Add("Picking list created.", Severity.Success);
+            await OnDataChanged.InvokeAsync();
+        }
+    }
+
+    private async Task Edit(PickingList src)
+    {
+        var branches = await BranchService.GetBranchesAsync();
+        var trucks = await TruckService.GetTrucksAsync();
+        var machines = await MachineService.GetMachinesAsync();
+
+        if (!isAdmin && userBranchId.HasValue)
+        {
+            branches = branches.Where(b => b.Id == userBranchId.Value).ToList();
+            trucks = trucks.Where(t => t.BranchId == userBranchId.Value).ToList();
+            machines = machines.Where(m => m.BranchId == userBranchId.Value).ToList();
+        }
+
+        if (!isAdmin && userBranchId.HasValue && src.BranchId != userBranchId.Value)
+        {
+            Snackbar.Add("You do not have access to this picking list.", Severity.Warning);
+            return;
+        }
+
+        var model = Clone(src);
+
+        var parameters = new DialogParameters
+        {
+            ["Model"] = model,
+            ["Branches"] = branches,
+            ["Trucks"] = trucks,
+            ["Machines"] = machines,
+            ["IsEdit"] = true,
+            ["Title"] = "Edit Picking List",
+            ["LockBranch"] = !isAdmin,
+            ["CurrentBranch"] = userBranch
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, FullScreen = true };
+        var dialogRef = await DialogService.ShowAsync<CMetalsWS.Components.Pages.Operations.Pickinglist.Dialogs.PickingListDialog>("Edit Picking List", parameters, options);
+        if (dialogRef is null) return;
+
+        var result = await dialogRef.Result;
+        if (result is null || result.Canceled) return;
+
+        if (result.Data is PickingList updated)
+        {
+            if (!isAdmin && userBranchId.HasValue)
+                updated.BranchId = userBranchId.Value;
+
+            await PickingListService.UpdateAsync(updated);
+            Snackbar.Add("Picking list updated.", Severity.Success);
+            await OnDataChanged.InvokeAsync();
+        }
+    }
+
+    private async Task Delete(PickingList pl)
+    {
+        if (!isAdmin && userBranchId.HasValue && pl.BranchId != userBranchId.Value)
+        {
+            Snackbar.Add("You do not have access to delete this picking list.", Severity.Warning);
+            return;
+        }
+
+        bool? confirm = await DialogService.ShowMessageBox("Delete Confirmation", $"Delete SO '{pl.SalesOrderNumber}'?", yesText: "Delete", cancelText: "Cancel");
+        if (confirm == true)
+        {
+            await PickingListService.DeleteAsync(pl.Id);
+            Snackbar.Add("Picking list deleted.", Severity.Success);
+            await OnDataChanged.InvokeAsync();
+        }
+    }
+
+    private static PickingList Clone(PickingList src) =>
+        new()
+        {
+            Id = src.Id,
+            SalesOrderNumber = src.SalesOrderNumber,
+            BranchId = src.BranchId,
+            CustomerId = src.CustomerId,
+            Customer = src.Customer,
+            Status = src.Status,
+            TotalWeight = src.TotalWeight,
+            RemainingWeight = src.RemainingWeight,
+            ScannedById = src.ScannedById,
+            ScannedDate = src.ScannedDate,
+            ModifiedById = src.ModifiedById,
+            ModifiedDate = src.ModifiedDate,
+            Items = src.Items.Select(i => new PickingListItem
+            {
+                Id = i.Id,
+                PickingListId = src.Id,
+                LineNumber = i.LineNumber,
+                ItemId = i.ItemId,
+                ItemDescription = i.ItemDescription,
+                Quantity = i.Quantity,
+                Unit = i.Unit,
+                Width = i.Width,
+                Length = i.Length,
+                Weight = i.Weight,
+                MachineId = i.MachineId,
+                Status = i.Status
+            }).OrderBy(i => i.LineNumber).ToList()
+        };
+
+    private async Task OnStatusChanged(PickingList list, PickingListStatus newStatus)
+    {
+        list.Status = newStatus;
+        await PickingListService.UpdateAsync(list);
+        Snackbar.Add($"Status for SO #{list.SalesOrderNumber} updated.", Severity.Success);
+    }
+
+    private async Task OnShipDateChanged(PickingList list, DateTime? newDate)
+    {
+        list.ShipDate = newDate;
+        await PickingListService.UpdateAsync(list);
+        Snackbar.Add($"Ship Date for SO #{list.SalesOrderNumber} updated.", Severity.Success);
+    }
+
+    private async Task OnPriorityChanged(PickingList list, int newPriority)
+    {
+        list.Priority = newPriority;
+        await PickingListService.UpdateAsync(list);
+        Snackbar.Add($"Priority for SO #{list.SalesOrderNumber} updated.", Severity.Success);
+        await OnDataChanged.InvokeAsync();
+    }
+}
