@@ -313,18 +313,18 @@ public static class SeedFromDb_PickingLists_WithMachines
 
     private static async Task EnsureMachinesAsync(ApplicationDbContext db)
     {
-        if (await db.Set<Machine>().AnyAsync()) return;
+        if (await db.Set<Machine>().AnyAsync(m => m.BranchId == DefaultBranchId)) return;
 
         db.Set<Machine>().AddRange(
             // Slitters
-            new() { BranchId = 1, Code = "SL1", Name = "Slitter #1", Category = MachineCategory.Slitter },
-            new() { BranchId = 1, Code = "SL2", Name = "Slitter #2", Category = MachineCategory.Slitter },
+            new() { BranchId = DefaultBranchId, Code = "SL1", Name = "Slitter #1", Category = MachineCategory.Slitter },
+            new() { BranchId = DefaultBranchId, Code = "SL2", Name = "Slitter #2", Category = MachineCategory.Slitter },
             // CTL
-            new() { BranchId = 1, Code = "CTL1", Name = "Cut-to-Length #1", Category = MachineCategory.CTL },
+            new() { BranchId = DefaultBranchId, Code = "CTL1", Name = "Cut-to-Length #1", Category = MachineCategory.CTL },
             // Coil
-            new() { BranchId = 1, Code = "C1", Name = "Coil Line #1", Category = MachineCategory.Coil },
+            new() { BranchId = DefaultBranchId, Code = "C1", Name = "Coil Line #1", Category = MachineCategory.Coil },
             // Sheet
-            new() { BranchId = 1, Code = "SH1", Name = "Sheet Line #1", Category = MachineCategory.Sheet }
+            new() { BranchId = DefaultBranchId, Code = "SH1", Name = "Sheet Line #1", Category = MachineCategory.Sheet }
         );
         await db.SaveChangesAsync();
     }
