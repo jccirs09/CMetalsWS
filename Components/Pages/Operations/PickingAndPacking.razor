@@ -76,6 +76,11 @@
                         <MudText Typo="Typo.caption" Style="color:white;">@($"{GetPackingProgress(pickingList):F0}%")</MudText>
                     </MudProgressLinear>
                 </MudCardContent>
+                <MudCardActions>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SetActivePickingList(pickingList))" Disabled="@(ActivePickingListId == pickingList.Id || pickingList.Status != PickingListStatus.Pending)">
+                        @(ActivePickingListId == pickingList.Id ? "In Progress" : "Initiate Process")
+                    </MudButton>
+                </MudCardActions>
             </MudCard>
         }
     </MudTabPanel>
@@ -102,14 +107,25 @@
                                 <MudText Typo="Typo.body2">@item.Width" x @item.Length"</MudText>
                                 <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight</MudText>
                             </div>
-                            @if (item.Picked)
-                            {
-                                <MudChip T="string" Icon="@Icons.Material.Filled.Check" Color="Color.Success">Picked</MudChip>
-                            }
-                            else
-                            {
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => StartPick(item))">Start Pick</MudButton>
-                            }
+                            <div>
+                                @if (item.Status == PickingLineStatus.Pending)
+                                {
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => StartPickTask(item))" Disabled="@(ActivePickingListId != pickingList.Id)">Start Pick</MudButton>
+                                }
+                                else if (item.Status == PickingLineStatus.InProgress)
+                                {
+                                    <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@(() => PausePick(item))">Pause</MudButton>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => CompletePick(item))" Class="ml-2">Complete</MudButton>
+                                }
+                                else if (item.Status == PickingLineStatus.Paused)
+                                {
+                                    <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="@(() => ResumePick(item))">Resume</MudButton>
+                                }
+                                else if (item.Status == PickingLineStatus.Picked || item.Picked)
+                                {
+                                    <MudChip Icon="@Icons.Material.Filled.Check" Color="Color.Success">Picked</MudChip>
+                                }
+                            </div>
                         </MudPaper>
                     }
                 </MudCardContent>
@@ -139,14 +155,25 @@
                                 <MudText Typo="Typo.body2">@item.Width" x @item.Length"</MudText>
                                 <MudText Typo="Typo.body2">Qty: @item.Quantity, Weight: @item.Weight</MudText>
                             </div>
-                            @if (item.Packed)
-                            {
-                                <MudChip T="string" Icon="@Icons.Material.Filled.Check" Color="Color.Success">Packed</MudChip>
-                            }
-                            else
-                            {
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => StartPack(item))">Start Pack</MudButton>
-                            }
+                            <div>
+                                @if (item.Status == PickingLineStatus.Picked && !item.Packed)
+                                {
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => StartPackTask(item))" Disabled="@(ActivePickingListId != pickingList.Id)">Start Pack</MudButton>
+                                }
+                                else if (item.Status == PickingLineStatus.InProgress)
+                                {
+                                    <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@(() => PausePack(item))">Pause</MudButton>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => CompletePack(item))" Class="ml-2">Complete</MudButton>
+                                }
+                                else if (item.Status == PickingLineStatus.Paused)
+                                {
+                                    <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="@(() => ResumePack(item))">Resume</MudButton>
+                                }
+                                else if (item.Status == PickingLineStatus.Packed || item.Packed)
+                                {
+                                    <MudChip Icon="@Icons.Material.Filled.Check" Color="Color.Success">Packed</MudChip>
+                                }
+                            </div>
                         </MudPaper>
                     }
                 </MudCardContent>
@@ -163,6 +190,7 @@
     private int? _selectedDestinationRegionId;
     private PickingListStatus? _selectedStatus;
     private MachineCategory? _selectedMachineCategory;
+    private int? ActivePickingListId;
 
     private List<PickingList> FilteredPickingLists
     {
@@ -257,21 +285,47 @@
         StateHasChanged();
     }
 
-    private async Task StartPick(PickingListItem item)
+    private async Task SetActivePickingList(PickingList pickingList)
     {
-        var parameters = new DialogParameters { ["Item"] = item };
-        var dialog = await DialogService.ShowAsync<PickItemDialog>("Pick Item", parameters);
-        var result = await dialog.Result;
-
-        if (result is not null && !result.Canceled)
-        {
-            await PickingListService.ConfirmPickAsync(item.Id, _userId!);
-            await LoadData();
-        }
+        ActivePickingListId = pickingList.Id;
+        await PickingListService.InitiatePickingListProcessAsync(pickingList.Id, _userId!);
+        await LoadData();
     }
 
-    private async Task StartPack(PickingListItem item)
+    private async Task StartPickTask(PickingListItem item)
     {
+        await PickingListService.StartPickTaskAsync(item.Id, _userId!);
+        await LoadData();
+    }
+
+    private async Task CompletePick(PickingListItem item)
+    {
+        // This now acts as the 'Complete' button's action
+        await PickingListService.ConfirmPickAsync(item.Id, _userId!);
+        await LoadData();
+    }
+
+    private async Task PausePick(PickingListItem item)
+    {
+        await PickingListService.PauseTaskAsync(item.Id, TaskType.Picking, _userId!);
+        await LoadData();
+    }
+
+    private async Task ResumePick(PickingListItem item)
+    {
+        await PickingListService.ResumeTaskAsync(item.Id, TaskType.Picking, _userId!);
+        await LoadData();
+    }
+
+    private async Task StartPackTask(PickingListItem item)
+    {
+        await PickingListService.StartPackTaskAsync(item.Id, _userId!);
+        await LoadData();
+    }
+
+    private async Task CompletePack(PickingListItem item)
+    {
+        // This now acts as the 'Complete' button's action
         var parameters = new DialogParameters { ["Item"] = item };
         var dialog = await DialogService.ShowAsync<PackItemDialog>("Pack Item", parameters);
         var result = await dialog.Result;
@@ -281,6 +335,18 @@
             await PickingListService.ConfirmPackAsync(item.Id, _userId!, packResult.Quantity, packResult.ActualWeight, packResult.Notes);
             await LoadData();
         }
+    }
+
+    private async Task PausePack(PickingListItem item)
+    {
+        await PickingListService.PauseTaskAsync(item.Id, TaskType.Packing, _userId!);
+        await LoadData();
+    }
+
+    private async Task ResumePack(PickingListItem item)
+    {
+        await PickingListService.ResumeTaskAsync(item.Id, TaskType.Packing, _userId!);
+        await LoadData();
     }
 
     private int GetTotalLineItems(PickingList pickingList)

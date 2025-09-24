@@ -492,6 +492,17 @@ namespace CMetalsWS.Services
             }
         }
 
+        public async Task StartPickTaskAsync(int itemId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.Status = PickingLineStatus.InProgress;
+            await _auditService.CreateAuditEventAsync(itemId, TaskType.Picking, AuditEventType.Start, userId);
+            await db.SaveChangesAsync();
+            await UpdatePickingListStatusAsync(item.PickingListId);
+        }
         public async Task ConfirmPickAsync(int itemId, string userId)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
@@ -508,6 +519,17 @@ namespace CMetalsWS.Services
             await UpdatePickingListStatusAsync(item.PickingListId);
         }
 
+        public async Task StartPackTaskAsync(int itemId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.Status = PickingLineStatus.InProgress;
+            await _auditService.CreateAuditEventAsync(itemId, TaskType.Packing, AuditEventType.Start, userId);
+            await db.SaveChangesAsync();
+            await UpdatePickingListStatusAsync(item.PickingListId);
+        }
         public async Task ConfirmPackAsync(int itemId, string userId, decimal quantity, decimal actualWeight, string notes)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
@@ -699,6 +721,42 @@ namespace CMetalsWS.Services
 
             await db.SaveChangesAsync();
             await _hubContext.Clients.All.SendAsync("PickingListUpdated", droppedListId);
+        }
+
+        public async Task InitiatePickingListProcessAsync(int pickingListId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var list = await db.PickingLists.FindAsync(pickingListId);
+            if (list == null) return;
+
+            list.Status = PickingListStatus.InProgress;
+            // Optionally, log an audit event for process initiation
+            // await _auditService.CreateAuditEventAsync(pickingListId, TaskType.Picking, AuditEventType.Start, userId);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task PauseTaskAsync(int itemId, TaskType taskType, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.Status = PickingLineStatus.Paused;
+            await _auditService.CreateAuditEventAsync(itemId, taskType, AuditEventType.Pause, userId);
+            await db.SaveChangesAsync();
+            await UpdatePickingListStatusAsync(item.PickingListId);
+        }
+
+        public async Task ResumeTaskAsync(int itemId, TaskType taskType, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.Status = PickingLineStatus.InProgress;
+            await _auditService.CreateAuditEventAsync(itemId, taskType, AuditEventType.Resume, userId);
+            await db.SaveChangesAsync();
+            await UpdatePickingListStatusAsync(item.PickingListId);
         }
     }
 }

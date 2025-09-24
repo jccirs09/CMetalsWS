@@ -32,7 +32,8 @@
         WorkOrder,
         Awaiting,
         Picked,
-        Packed
+        Packed,
+        Paused
     }
 
     public enum TaskType
