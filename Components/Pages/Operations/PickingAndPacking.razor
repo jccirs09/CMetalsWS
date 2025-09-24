@@ -49,8 +49,8 @@
                         <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
                     </CardHeaderContent>
                     <CardHeaderActions>
-                        <MudText>@GetPriorityText(pickingList.Priority)</MudText>
-                        <MudText>@pickingList.Status.ToString()</MudText>
+                        <MudChip T="object" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="object" Color="@(MudBlazor.Color.Default)">@pickingList.Status.ToString()</MudChip>
                     </CardHeaderActions>
                 </MudCardHeader>
                 <MudCardContent>
@@ -70,8 +70,8 @@
                         <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
                     </CardHeaderContent>
                     <CardHeaderActions>
-                        <MudText>@GetPriorityText(pickingList.Priority)</MudText>
-                        <MudText>@pickingList.Status.ToString()</MudText>
+                        <MudChip T="object" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="object" Color="@(MudBlazor.Color.Default)">@pickingList.Status.ToString()</MudChip>
                     </CardHeaderActions>
                 </MudCardHeader>
                 <MudCardContent>
@@ -84,7 +84,7 @@
                             </div>
                             @if (item.Picked)
                             {
-                                <MudText>Picked</MudText>
+                                <MudChip T="object" Icon="@Icons.Material.Filled.Check" Color="MudBlazor.Color.Success">Picked</MudChip>
                             }
                             else
                             {
@@ -106,8 +106,8 @@
                         <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
                     </CardHeaderContent>
                     <CardHeaderActions>
-                        <MudText>@GetPriorityText(pickingList.Priority)</MudText>
-                        <MudText>@pickingList.Status.ToString()</MudText>
+                        <MudChip T="object" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="object" Color="@(MudBlazor.Color.Default)">@pickingList.Status.ToString()</MudChip>
                     </CardHeaderActions>
                 </MudCardHeader>
                 <MudCardContent>
@@ -120,7 +120,7 @@
                             </div>
                             @if (item.Packed)
                             {
-                                <MudText>Packed</MudText>
+                                <MudChip T="object" Icon="@Icons.Material.Filled.Check" Color="MudBlazor.Color.Success">Packed</MudChip>
                             }
                             else
                             {

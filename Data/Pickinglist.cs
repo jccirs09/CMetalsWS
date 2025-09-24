@@ -76,6 +76,9 @@ namespace CMetalsWS.Data
 
         public int LineNumber { get; set; }
 
+        public int? InventoryItemId { get; set; }
+        public virtual InventoryItem? InventoryItem { get; set; }
+
         [Required, MaxLength(64)]
         public required string ItemId { get; set; }
 
