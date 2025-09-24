@@ -94,7 +94,7 @@
                     </CardHeaderActions>
                 </MudCardHeader>
                 <MudCardContent>
-                    @foreach (var item in pickingList.Items)
+                    @foreach (var item in pickingList.Items.Where(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil)))
                     {
                         <MudPaper Class="d-flex align-center pa-2 mb-2">
                             <div class="flex-grow-1">
@@ -131,7 +131,7 @@
                     </CardHeaderActions>
                 </MudCardHeader>
                 <MudCardContent>
-                    @foreach (var item in pickingList.Items.Where(i => i.Picked))
+                    @foreach (var item in pickingList.Items.Where(i => i.Picked && i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil)))
                     {
                         <MudPaper Class="d-flex align-center pa-2 mb-2">
                             <div class="flex-grow-1">
@@ -152,19 +152,6 @@
                 </MudCardContent>
             </MudCard>
         }
-    </MudTabPanel>
-    <MudTabPanel Text="By Destination">
-        <MudExpansionPanels>
-            @foreach (var group in FilteredPickingLists.GroupBy(pl => pl.DestinationRegion?.Name))
-            {
-                <MudExpansionPanel Text="@group.Key">
-                    @foreach (var pickingList in group)
-                    {
-                        <MudText>@pickingList.SalesOrderNumber - @pickingList.Customer?.CustomerName</MudText>
-                    }
-                </MudExpansionPanel>
-            }
-        </MudExpansionPanels>
     </MudTabPanel>
 </MudTabs>
 
