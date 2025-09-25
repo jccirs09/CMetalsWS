@@ -32,6 +32,7 @@ namespace CMetalsWS.Services
 
             await SeedBranchesAsync();
             await SeedCityCentroidsAsync();
+            await SeedMachinesAsync();
 
             // Create roles
             string[] roles = { "Admin", "Planner", "Supervisor", "Manager", "Operator", "Driver", "Viewer" };
@@ -154,6 +155,15 @@ namespace CMetalsWS.Services
                 _logger.LogError("Admin user could not be found or created. Aborting further seeding.");
                 return;
             }
+
+            admin.FirstName = "John";
+            admin.LastName = "Smith";
+            var surreyBranch = await _context.Branches.FirstOrDefaultAsync(b => b.Name == "SURREY");
+            if (surreyBranch != null)
+            {
+                admin.BranchId = surreyBranch.Id;
+            }
+            await _userManager.UpdateAsync(admin);
 
             await SeedUserClaimsAsync();
             await SeedChatDataAsync(admin);
@@ -304,6 +314,33 @@ namespace CMetalsWS.Services
             };
 
             _context.CityCentroids.AddRange(centroids);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task SeedMachinesAsync()
+        {
+            if (await _context.Machines.AnyAsync())
+            {
+                return; // Machines have already been seeded
+            }
+
+            var surreyBranch = await _context.Branches.FirstOrDefaultAsync(b => b.Name == "SURREY");
+            if (surreyBranch == null)
+            {
+                _logger.LogError("Surrey branch not found, cannot seed machines.");
+                return;
+            }
+
+            var machines = new List<Machine>
+            {
+                new Machine { Code = "CTL", Name = "CTL 1", BranchId = surreyBranch.Id, Category = MachineCategory.CTL },
+                new Machine { Code = "COIL", Name = "COIL", BranchId = surreyBranch.Id, Category = MachineCategory.Coil },
+                new Machine { Code = "SLITTER", Name = "SLITTER", BranchId = surreyBranch.Id, Category = MachineCategory.Slitter },
+                new Machine { Code = "SHEET1", Name = "TABLE 1", BranchId = surreyBranch.Id, Category = MachineCategory.Sheet },
+                new Machine { Code = "SHEET2", Name = "TABLE 2", BranchId = surreyBranch.Id, Category = MachineCategory.Sheet }
+            };
+
+            _context.Machines.AddRange(machines);
             await _context.SaveChangesAsync();
         }
     }
