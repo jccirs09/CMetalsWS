@@ -1,0 +1,75 @@
+@page "/admin/seed-data"
+@using System.Security.Claims
+@using CMetalsWS.Data
+@using CMetalsWS.Data.Seed
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>Seed Data</PageTitle>
+
+<h1>Seed Data</h1>
+
+<p>
+    Use this page to seed the database with sample data.
+</p>
+
+@if (IsSeeding)
+{
+    <div class="alert alert-info">
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        Seeding data...
+    </div>
+}
+else if (!string.IsNullOrWhiteSpace(ResultMessage))
+{
+    <div class="alert @ResultClass">
+        @ResultMessage
+    </div>
+}
+
+<button class="btn btn-primary" @onclick="SeedDataAsync" disabled="@IsSeeding">
+    Seed Picking Lists
+</button>
+
+@code {
+    private bool IsSeeding;
+    private string? ResultMessage;
+    private string ResultClass = "alert-info";
+
+    private async Task SeedDataAsync()
+    {
+        IsSeeding = true;
+        ResultMessage = null;
+
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = await UserManager.GetUserAsync(authState.User);
+            if (user?.BranchId is null)
+            {
+                ResultClass = "alert-warning";
+                ResultMessage = "Could not determine your branch. Please ensure you are assigned to a branch.";
+                return;
+            }
+
+            using var db = DbFactory.CreateDbContext();
+            await SeedFromDb_PickingLists_WithMachines.RunAsync(db, user.BranchId.Value);
+
+            ResultClass = "alert-success";
+            ResultMessage = "Seeding completed successfully.";
+        }
+        catch (Exception ex)
+        {
+            ResultClass = "alert-danger";
+            ResultMessage = $"An error occurred during seeding: {ex.Message}";
+        }
+        finally
+        {
+            IsSeeding = false;
+        }
+    }
+}
