@@ -558,11 +558,18 @@ namespace CMetalsWS.Migrations
                     ScannedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ScannedById = table.Column<string>(type: "nvarchar(450)", nullable: true),
                     ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ModifiedById = table.Column<string>(type: "nvarchar(450)", nullable: true)
+                    ModifiedById = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    AssignedToId = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    Destination = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_PickingLists", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PickingLists_AspNetUsers_AssignedToId",
+                        column: x => x.AssignedToId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_PickingLists_AspNetUsers_ModifiedById",
                         column: x => x.ModifiedById,
@@ -609,30 +616,6 @@ namespace CMetalsWS.Migrations
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "TaskAuditEvents",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    TaskId = table.Column<int>(type: "int", nullable: false),
-                    TaskType = table.Column<int>(type: "int", nullable: false),
-                    EventType = table.Column<int>(type: "int", nullable: false),
-                    Timestamp = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_TaskAuditEvents", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_TaskAuditEvents_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -764,6 +747,7 @@ namespace CMetalsWS.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     PickingListId = table.Column<int>(type: "int", nullable: false),
                     LineNumber = table.Column<int>(type: "int", nullable: false),
+                    InventoryItemId = table.Column<int>(type: "int", nullable: true),
                     ItemId = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
                     ItemDescription = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                     Quantity = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
@@ -776,11 +760,30 @@ namespace CMetalsWS.Migrations
                     Status = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
                     ScheduledProcessingDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ScheduledShipDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    MachineId = table.Column<int>(type: "int", nullable: true)
+                    MachineId = table.Column<int>(type: "int", nullable: true),
+                    Location = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    CoilId = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    PackingMaterial = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    PackingNotes = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
+                    QualityChecked = table.Column<bool>(type: "bit", nullable: false),
+                    QualityCheckedById = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    QualityCheckedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ActualWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
+                    DamageNotes = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_PickingListItems", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PickingListItems_AspNetUsers_QualityCheckedById",
+                        column: x => x.QualityCheckedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_PickingListItems_InventoryItems_InventoryItemId",
+                        column: x => x.InventoryItemId,
+                        principalTable: "InventoryItems",
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_PickingListItems_Machines_MachineId",
                         column: x => x.MachineId,
@@ -876,6 +879,35 @@ namespace CMetalsWS.Migrations
                         principalTable: "PickingListImports",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TaskAuditEvents",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PickingListItemId = table.Column<int>(type: "int", nullable: true),
+                    TaskType = table.Column<int>(type: "int", nullable: false),
+                    EventType = table.Column<int>(type: "int", nullable: false),
+                    Timestamp = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TaskAuditEvents", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TaskAuditEvents_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TaskAuditEvents_PickingListItems_PickingListItemId",
+                        column: x => x.PickingListItemId,
+                        principalTable: "PickingListItems",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -1207,6 +1239,11 @@ namespace CMetalsWS.Migrations
                 column: "PickingListId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_PickingListItems_InventoryItemId",
+                table: "PickingListItems",
+                column: "InventoryItemId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_PickingListItems_MachineId",
                 table: "PickingListItems",
                 column: "MachineId");
@@ -1217,9 +1254,19 @@ namespace CMetalsWS.Migrations
                 column: "PickingListId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_PickingListItems_QualityCheckedById",
+                table: "PickingListItems",
+                column: "QualityCheckedById");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_PickingListPageImages_PickingListImportId",
                 table: "PickingListPageImages",
                 column: "PickingListImportId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PickingLists_AssignedToId",
+                table: "PickingLists",
+                column: "AssignedToId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PickingLists_BranchId_SalesOrderNumber",
@@ -1263,6 +1310,11 @@ namespace CMetalsWS.Migrations
                 name: "IX_Shifts_BranchId",
                 table: "Shifts",
                 column: "BranchId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TaskAuditEvents_PickingListItemId",
+                table: "TaskAuditEvents",
+                column: "PickingListItemId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TaskAuditEvents_UserId",
@@ -1355,9 +1407,6 @@ namespace CMetalsWS.Migrations
                 name: "DestinationRegionBranch");
 
             migrationBuilder.DropTable(
-                name: "InventoryItems");
-
-            migrationBuilder.DropTable(
                 name: "ItemRelationship");
 
             migrationBuilder.DropTable(
@@ -1413,6 +1462,9 @@ namespace CMetalsWS.Migrations
 
             migrationBuilder.DropTable(
                 name: "Trucks");
+
+            migrationBuilder.DropTable(
+                name: "InventoryItems");
 
             migrationBuilder.DropTable(
                 name: "PickingLists");

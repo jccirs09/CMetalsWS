@@ -56,8 +56,6 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
         sql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(5), null);
     });
 });
-builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);

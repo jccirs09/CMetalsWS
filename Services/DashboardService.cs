@@ -119,8 +119,8 @@ public class DashboardService
             {
                 // Find the last completed task for this machine
                 var lastCompletedEvent = await _db.TaskAuditEvents
-                    .Where(e => e.TaskType == TaskType.Packing && e.EventType == AuditEventType.Complete)
-                    .Join(_db.PickingListItems, e => e.TaskId, i => i.Id, (e, i) => new { Event = e, Item = i })
+                    .Where(e => e.TaskType == TaskType.Packing && e.EventType == AuditEventType.Complete && e.PickingListItemId.HasValue)
+                    .Join(_db.PickingListItems, e => e.PickingListItemId.Value, i => i.Id, (e, i) => new { Event = e, Item = i })
                     .Where(x => x.Item.MachineId == machine.Id)
                     .OrderByDescending(x => x.Event.Timestamp)
                     .FirstOrDefaultAsync();
@@ -132,7 +132,7 @@ public class DashboardService
                         .Include(i => i.PickingList)
                         .ThenInclude(p => p.Items)
                         .Include(i => i.Machine)
-                        .FirstOrDefaultAsync(i => i.Id == lastCompletedEvent.Event.TaskId);
+                        .FirstOrDefaultAsync(i => i.Id == lastCompletedEvent.Event.PickingListItemId);
 
                     if (task != null)
                     {

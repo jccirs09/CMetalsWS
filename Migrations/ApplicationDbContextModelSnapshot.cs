@@ -960,15 +960,6 @@ namespace CMetalsWS.Migrations
                     b.Property<int?>("MachineId")
                         .HasColumnType("int");
 
-                    b.Property<bool>("Packed")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("PackedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("PackedById")
-                        .HasColumnType("nvarchar(450)");
-
                     b.Property<string>("PackingMaterial")
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
@@ -976,15 +967,6 @@ namespace CMetalsWS.Migrations
                     b.Property<string>("PackingNotes")
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
-
-                    b.Property<bool>("Picked")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("PickedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("PickedById")
-                        .HasColumnType("nvarchar(450)");
 
                     b.Property<int>("PickingListId")
                         .HasColumnType("int");
@@ -1039,10 +1021,6 @@ namespace CMetalsWS.Migrations
                     b.HasIndex("InventoryItemId");
 
                     b.HasIndex("MachineId");
-
-                    b.HasIndex("PackedById");
-
-                    b.HasIndex("PickedById");
 
                     b.HasIndex("PickingListId");
 
@@ -1118,7 +1096,7 @@ namespace CMetalsWS.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("TaskId")
+                    b.Property<int?>("PickingListItemId")
                         .HasColumnType("int");
 
                     b.Property<int>("TaskType")
@@ -1132,6 +1110,8 @@ namespace CMetalsWS.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PickingListItemId");
 
                     b.HasIndex("UserId");
 
@@ -1840,14 +1820,6 @@ namespace CMetalsWS.Migrations
                         .HasForeignKey("MachineId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("CMetalsWS.Data.ApplicationUser", "PackedBy")
-                        .WithMany()
-                        .HasForeignKey("PackedById");
-
-                    b.HasOne("CMetalsWS.Data.ApplicationUser", "PickedBy")
-                        .WithMany()
-                        .HasForeignKey("PickedById");
-
                     b.HasOne("CMetalsWS.Data.PickingList", "PickingList")
                         .WithMany("Items")
                         .HasForeignKey("PickingListId")
@@ -1861,10 +1833,6 @@ namespace CMetalsWS.Migrations
                     b.Navigation("InventoryItem");
 
                     b.Navigation("Machine");
-
-                    b.Navigation("PackedBy");
-
-                    b.Navigation("PickedBy");
 
                     b.Navigation("PickingList");
 
@@ -1895,11 +1863,17 @@ namespace CMetalsWS.Migrations
 
             modelBuilder.Entity("CMetalsWS.Data.TaskAuditEvent", b =>
                 {
+                    b.HasOne("CMetalsWS.Data.PickingListItem", "PickingListItem")
+                        .WithMany("Events")
+                        .HasForeignKey("PickingListItemId");
+
                     b.HasOne("CMetalsWS.Data.ApplicationUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("PickingListItem");
 
                     b.Navigation("User");
                 });
@@ -2076,6 +2050,11 @@ namespace CMetalsWS.Migrations
             modelBuilder.Entity("CMetalsWS.Data.PickingListImport", b =>
                 {
                     b.Navigation("PageImages");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.PickingListItem", b =>
+                {
+                    b.Navigation("Events");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.Shift", b =>

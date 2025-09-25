@@ -11,8 +11,8 @@ namespace CMetalsWS.Data
         [Key]
         public int Id { get; set; }
 
-        public int TaskId { get; set; }
-
+        public int? PickingListItemId { get; set; }
+        public virtual PickingListItem? PickingListItem { get; set; }
         [Required]
         public TaskType TaskType { get; set; }
 

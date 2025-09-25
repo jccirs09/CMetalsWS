@@ -120,14 +120,22 @@ namespace CMetalsWS.Data
         public string? Location { get; set; }
         [MaxLength(128)]
         public string? CoilId { get; set; }
-        public bool Picked { get; set; }
-        public string? PickedById { get; set; }
-        public virtual ApplicationUser? PickedBy { get; set; }
-        public DateTime? PickedAt { get; set; }
-        public bool Packed { get; set; }
-        public string? PackedById { get; set; }
-        public virtual ApplicationUser? PackedBy { get; set; }
-        public DateTime? PackedAt { get; set; }
+        [NotMapped]
+        public bool Picked => Events.Any(e => e.TaskType == TaskType.Picking && e.EventType == AuditEventType.Complete);
+        [NotMapped]
+        public string? PickedById => Events.FirstOrDefault(e => e.TaskType == TaskType.Picking && e.EventType == AuditEventType.Complete)?.UserId;
+        [NotMapped]
+        public virtual ApplicationUser? PickedBy => Events.FirstOrDefault(e => e.TaskType == TaskType.Picking && e.EventType == AuditEventType.Complete)?.User;
+        [NotMapped]
+        public DateTime? PickedAt => Events.FirstOrDefault(e => e.TaskType == TaskType.Picking && e.EventType == AuditEventType.Complete)?.Timestamp;
+        [NotMapped]
+        public bool Packed => Events.Any(e => e.TaskType == TaskType.Packing && e.EventType == AuditEventType.Complete);
+        [NotMapped]
+        public string? PackedById => Events.FirstOrDefault(e => e.TaskType == TaskType.Packing && e.EventType == AuditEventType.Complete)?.UserId;
+        [NotMapped]
+        public virtual ApplicationUser? PackedBy => Events.FirstOrDefault(e => e.TaskType == TaskType.Packing && e.EventType == AuditEventType.Complete)?.User;
+        [NotMapped]
+        public DateTime? PackedAt => Events.FirstOrDefault(e => e.TaskType == TaskType.Packing && e.EventType == AuditEventType.Complete)?.Timestamp;
         [MaxLength(128)]
         public string? PackingMaterial { get; set; }
         [MaxLength(512)]
@@ -140,6 +148,7 @@ namespace CMetalsWS.Data
         public decimal? ActualWeight { get; set; }
         [MaxLength(512)]
         public string? DamageNotes { get; set; }
+        public virtual ICollection<TaskAuditEvent> Events { get; set; } = new List<TaskAuditEvent>();
         public bool Equals(PickingListItem? other)
         {
             if (other is null) return false;

@@ -4,6 +4,7 @@
 @using System.Security.Claims
 @using CMetalsWS.Security
 @using Microsoft.AspNetCore.Components.Authorization
+@using CMetalsWS.Components.Pages.Operations.Pickinglist.Dialogs
 @attribute [Authorize(Policy = Permissions.PickingLists.View)]
 
 @inject PickingListService PickingListService
@@ -377,9 +378,22 @@
 
     private async Task CompletePick(PickingListItem item)
     {
-        // This now acts as the 'Complete' button's action
-        await PickingListService.ConfirmPickAsync(item.Id, _userId!);
-        await LoadData();
+        var parameters = new DialogParameters
+        {
+            ["ContentText"] = $"Do you want to confirm you have picked {item.ItemDescription}?",
+            ["ButtonText"] = "Confirm",
+            ["Color"] = Color.Success
+        };
+
+        var dialog = DialogService.Show<MudMessageBox>("Confirm Pick", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await PickingListService.ConfirmPickAsync(item.Id, _userId!);
+            await LoadData();
+            Snackbar.Add($"Item {item.ItemDescription} picked.", Severity.Success);
+        }
     }
 
     private async Task PausePick(PickingListItem item)
@@ -402,9 +416,23 @@
 
     private async Task CompletePack(PickingListItem item)
     {
-        // This now acts as the 'Complete' button's action, bypassing the dialog
-        await PickingListService.ConfirmPackAsync(item.Id, _userId!, item.Quantity, item.Weight ?? 0, "");
-        await LoadData();
+        var parameters = new DialogParameters { ["Item"] = item };
+        var dialog = DialogService.Show<ConfirmPackDialog>("Confirm Pack", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            if (result.Data is Dictionary<string, object> packData)
+            {
+                var quantity = (decimal)packData["Quantity"];
+                var weight = (decimal)packData["Weight"];
+                var notes = (string)packData["Notes"];
+
+                await PickingListService.ConfirmPackAsync(item.Id, _userId!, quantity, weight, notes);
+                await LoadData();
+                Snackbar.Add($"Item {item.ItemDescription} packed.", Severity.Success);
+            }
+        }
     }
 
     private async Task PausePack(PickingListItem item)
