@@ -58,8 +58,8 @@
                         <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
                     </CardHeaderContent>
                     <CardHeaderActions>
-                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))" Value="@GetPriorityText(pickingList.Priority)">@GetPriorityText(pickingList.Priority)</MudChip>
-                        <MudChip T="string" Color="Color.Default" Value="@pickingList.Status.ToString()">@pickingList.Status.ToString()</MudChip>
+                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="string" Color="Color.Default">@pickingList.Status.ToString()</MudChip>
                     </CardHeaderActions>
                 </MudCardHeader>
                 <MudCardContent>
@@ -97,8 +97,8 @@
                         <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName • @pickingList.Branch?.Name • @pickingList.DestinationRegion?.Name</MudText>
                     </div>
                     <div>
-                        <MudChip T="string" Color="Color.Warning" Value="'Picking'">Picking</MudChip>
-                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))" Class="ml-2" Value="@GetPriorityText(pickingList.Priority)">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="string" Color="@(GetStatusColor(pickingList.Status))">@pickingList.Status.ToString()</MudChip>
+                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))" Class="ml-2">@GetPriorityText(pickingList.Priority)</MudChip>
                     </div>
                 </div>
 
@@ -135,14 +135,23 @@
                             }
                         </div>
                         <div>
-                            @if (item.Picked)
-                            {
-                                <MudButton Variant="Variant.Outlined">Details</MudButton>
-                            }
-                            else
+                            @if (item.Status == PickingLineStatus.Pending && !item.Picked)
                             {
                                 <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.QrCodeScanner" Class="mr-2">Scan</MudButton>
-                                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => CompletePick(item))">Start Pick</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => StartPickTask(item))">Start Pick</MudButton>
+                            }
+                            else if (item.Status == PickingLineStatus.InProgress)
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@(() => PausePick(item))">Pause</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => CompletePick(item))" Class="ml-2">Complete</MudButton>
+                            }
+                            else if (item.Status == PickingLineStatus.Paused)
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="@(() => ResumePick(item))">Resume</MudButton>
+                            }
+                            else if (item.Status == PickingLineStatus.Picked || item.Picked)
+                            {
+                                <MudChip T="string" Icon="@Icons.Material.Filled.Check" Color="Color.Success">Picked</MudChip>
                             }
                         </div>
                     </MudPaper>
@@ -156,7 +165,7 @@
         }
     </MudTabPanel>
     <MudTabPanel Text="Packing Process">
-        @foreach (var pickingList in FilteredPickingLists.Where(pl => pl.Items.Any(i => i.Picked)))
+        @foreach (var pickingList in FilteredPickingLists.Where(pl => pl.Status == PickingListStatus.Picked || pl.Status == PickingListStatus.InProgress))
         {
             <MudPaper Class="pa-4 rounded-lg mb-4">
                 <div class="d-flex justify-space-between align-center">
@@ -168,8 +177,8 @@
                         <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName • @pickingList.Branch?.Name • @pickingList.DestinationRegion?.Name</MudText>
                     </div>
                     <div>
-                        <MudChip T="string" Color="Color.Info" Value="'Packing'">Packing</MudChip>
-                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))" Class="ml-2" Value="@GetPriorityText(pickingList.Priority)">@GetPriorityText(pickingList.Priority)</MudChip>
+                        <MudChip T="string" Color="@(GetStatusColor(pickingList.Status))">@pickingList.Status.ToString()</MudChip>
+                        <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))" Class="ml-2">@GetPriorityText(pickingList.Priority)</MudChip>
                     </div>
                 </div>
 
@@ -177,7 +186,7 @@
                     <div class="d-flex justify-space-between align-center">
                         <div>
                             <MudText Typo="Typo.h6">Packing Progress</MudText>
-                            <MudText Typo="Typo.body2">@GetPackedItemsCount(pickingList) of @pickingList.Items.Count(i => i.Picked) items packed</MudText>
+                            <MudText Typo="Typo.body2">@GetPackedItemsCount(pickingList) of @pickingList.Items.Count items packed</MudText>
                         </div>
                         <div style="width: 200px;">
                             <MudProgressLinear Color="Color.Info" Value="@GetPackingProgress(pickingList)" />
@@ -199,21 +208,30 @@
                             </div>
                             @if (item.Packed)
                             {
-                                <div class="d-flex align-center mt-2" style="color: #1976D2;">
+                                <div class="d-flex align-center mt-2" style="color: #0D47A1;">
                                     <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-1" />
                                     <MudText Typo="Typo.body2">Packed by @item.PackedBy?.UserName at @item.PackedAt?.ToShortTimeString()</MudText>
                                 </div>
                             }
                         </div>
                         <div>
-                            @if (item.Packed)
-                            {
-                                <MudButton Variant="Variant.Outlined">Details</MudButton>
-                            }
-                            else
+                            @if (item.Status == PickingLineStatus.Picked && !item.Packed)
                             {
                                 <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.QrCodeScanner" Class="mr-2">Scan</MudButton>
-                                <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="@(() => CompletePack(item))">Start Pack</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="@(() => StartPackTask(item))">Start Pack</MudButton>
+                            }
+                            else if (item.Status == PickingLineStatus.InProgress)
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@(() => PausePack(item))">Pause</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => CompletePack(item))" Class="ml-2">Complete</MudButton>
+                            }
+                            else if (item.Status == PickingLineStatus.Paused)
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="@(() => ResumePack(item))">Resume</MudButton>
+                            }
+                            else if (item.Status == PickingLineStatus.Packed || item.Packed)
+                            {
+                                <MudChip T="string" Icon="@Icons.Material.Filled.Check" Color="Color.Success">Packed</MudChip>
                             }
                         </div>
                     </MudPaper>
@@ -325,6 +343,19 @@
         };
     }
 
+    private MudBlazor.Color GetStatusColor(PickingListStatus status)
+    {
+        return status switch
+        {
+            PickingListStatus.Pending => MudBlazor.Color.Default,
+            PickingListStatus.InProgress => MudBlazor.Color.Warning,
+            PickingListStatus.OnHold => MudBlazor.Color.Info,
+            PickingListStatus.Picked => MudBlazor.Color.Success,
+            PickingListStatus.Completed => MudBlazor.Color.Primary,
+            _ => MudBlazor.Color.Default
+        };
+    }
+
     private async Task LoadData()
     {
         _pickingLists = await PickingListService.GetAsync();
@@ -371,16 +402,9 @@
 
     private async Task CompletePack(PickingListItem item)
     {
-        // This now acts as the 'Complete' button's action
-        var parameters = new DialogParameters { ["Item"] = item };
-        var dialog = await DialogService.ShowAsync<PackItemDialog>("Pack Item", parameters);
-        var result = await dialog.Result;
-
-        if (result is not null && !result.Canceled && result.Data is PackItemDialog.PackDialogResult packResult)
-        {
-            await PickingListService.ConfirmPackAsync(item.Id, _userId!, packResult.Quantity, packResult.ActualWeight, packResult.Notes);
-            await LoadData();
-        }
+        // This now acts as the 'Complete' button's action, bypassing the dialog
+        await PickingListService.ConfirmPackAsync(item.Id, _userId!, item.Quantity, item.Weight ?? 0, "");
+        await LoadData();
     }
 
     private async Task PausePack(PickingListItem item)
@@ -395,15 +419,27 @@
         await LoadData();
     }
 
-    private int GetPackedItemsCount(PickingList pickingList)
+    private async Task PauseList(PickingList pickingList)
     {
-        return pickingList.Items.Count(i => i.Packed);
+        await PickingListService.PauseListAsync(pickingList.Id, _userId!);
+        await LoadData();
+    }
+
+    private async Task CompletePicking(PickingList pickingList)
+    {
+        await PickingListService.CompletePickingAsync(pickingList.Id, _userId!);
+        await LoadData();
     }
 
     private async Task CompletePacking(PickingList pickingList)
     {
         await PickingListService.CompletePackingAsync(pickingList.Id, _userId!);
         await LoadData();
+    }
+
+    private int GetPackedItemsCount(PickingList pickingList)
+    {
+        return pickingList.Items.Count(i => i.Packed);
     }
 
     private int GetTotalLineItems(PickingList pickingList)
@@ -415,6 +451,7 @@
     {
         return pickingList.Items.Where(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil)).Sum(i => i.Weight ?? 0);
     }
+
     private double GetPickingProgress(PickingList pickingList)
     {
         if (pickingList.Items == null || !pickingList.Items.Any())
