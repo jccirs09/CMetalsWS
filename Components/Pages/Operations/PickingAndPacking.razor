@@ -442,6 +442,11 @@
         return pickingList.Items.Count(i => i.Packed);
     }
 
+    private int GetPickedItemsCount(PickingList pickingList)
+    {
+        return pickingList.Items.Count(i => i.Picked);
+    }
+
     private int GetTotalLineItems(PickingList pickingList)
     {
         return pickingList.Items.Count(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil));
