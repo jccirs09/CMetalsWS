@@ -30,7 +30,10 @@
         Completed,
         Canceled,
         WorkOrder,
-        Awaiting
+        Awaiting,
+        Picked,
+        Packed,
+        Paused
     }
 
     public enum TaskType

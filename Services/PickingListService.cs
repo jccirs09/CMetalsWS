@@ -492,6 +492,17 @@ namespace CMetalsWS.Services
             }
         }
 
+        public async Task StartPickTaskAsync(int itemId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.Status = PickingLineStatus.InProgress;
+            await _auditService.CreateAuditEventAsync(itemId, TaskType.Picking, AuditEventType.Start, userId);
+            await db.SaveChangesAsync();
+            await UpdatePickingListStatusAsync(item.PickingListId);
+        }
         public async Task ConfirmPickAsync(int itemId, string userId)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
@@ -501,13 +512,24 @@ namespace CMetalsWS.Services
             item.Picked = true;
             item.PickedById = userId;
             item.PickedAt = DateTime.UtcNow;
-            item.Status = PickingLineStatus.InProgress;
+            item.Status = PickingLineStatus.Picked;
             await _auditService.CreateAuditEventAsync(itemId, TaskType.Picking, AuditEventType.Complete, userId);
 
             await db.SaveChangesAsync();
             await UpdatePickingListStatusAsync(item.PickingListId);
         }
 
+        public async Task StartPackTaskAsync(int itemId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.Status = PickingLineStatus.InProgress;
+            await _auditService.CreateAuditEventAsync(itemId, TaskType.Packing, AuditEventType.Start, userId);
+            await db.SaveChangesAsync();
+            await UpdatePickingListStatusAsync(item.PickingListId);
+        }
         public async Task ConfirmPackAsync(int itemId, string userId, decimal quantity, decimal actualWeight, string notes)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
@@ -524,7 +546,7 @@ namespace CMetalsWS.Services
             }
             item.ActualWeight = actualWeight;
             item.PackingNotes = notes;
-            item.Status = PickingLineStatus.Completed;
+            item.Status = PickingLineStatus.Packed;
             await _auditService.CreateAuditEventAsync(itemId, TaskType.Packing, AuditEventType.Complete, userId);
 
             await db.SaveChangesAsync();
@@ -699,6 +721,86 @@ namespace CMetalsWS.Services
 
             await db.SaveChangesAsync();
             await _hubContext.Clients.All.SendAsync("PickingListUpdated", droppedListId);
+        }
+
+        public async Task InitiatePickingListProcessAsync(int pickingListId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var list = await db.PickingLists.FindAsync(pickingListId);
+            if (list == null) return;
+
+            list.Status = PickingListStatus.InProgress;
+            // Optionally, log an audit event for process initiation
+            // await _auditService.CreateAuditEventAsync(pickingListId, TaskType.Picking, AuditEventType.Start, userId);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task PauseTaskAsync(int itemId, TaskType taskType, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.Status = PickingLineStatus.Paused;
+            await _auditService.CreateAuditEventAsync(itemId, taskType, AuditEventType.Pause, userId);
+            await db.SaveChangesAsync();
+            await UpdatePickingListStatusAsync(item.PickingListId);
+        }
+
+        public async Task ResumeTaskAsync(int itemId, TaskType taskType, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var item = await db.PickingListItems.FindAsync(itemId);
+            if (item == null) return;
+
+            item.Status = PickingLineStatus.InProgress;
+            await _auditService.CreateAuditEventAsync(itemId, taskType, AuditEventType.Resume, userId);
+            await db.SaveChangesAsync();
+            await UpdatePickingListStatusAsync(item.PickingListId);
+        }
+
+        public async Task PauseListAsync(int pickingListId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var list = await db.PickingLists.FindAsync(pickingListId);
+            if (list == null) return;
+
+            list.Status = PickingListStatus.OnHold;
+            // Optionally, log an audit event for pausing the whole list
+            // await _auditService.CreateAuditEventAsync(pickingListId, TaskType.Picking, AuditEventType.Pause, userId);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task CompletePickingAsync(int pickingListId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var list = await db.PickingLists.Include(p => p.Items).FirstOrDefaultAsync(p => p.Id == pickingListId);
+            if (list == null) return;
+
+            list.Status = PickingListStatus.Picked;
+            foreach (var item in list.Items.Where(i => i.Status != PickingLineStatus.Packed))
+            {
+                item.Status = PickingLineStatus.Picked;
+            }
+            // Optionally, log an audit event for completing picking
+            // await _auditService.CreateAuditEventAsync(pickingListId, TaskType.Picking, AuditEventType.Complete, userId);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task CompletePackingAsync(int pickingListId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var list = await db.PickingLists.Include(p => p.Items).FirstOrDefaultAsync(p => p.Id == pickingListId);
+            if (list == null) return;
+
+            list.Status = PickingListStatus.Completed;
+            foreach (var item in list.Items.Where(i => i.Status == PickingLineStatus.Picked))
+            {
+                item.Status = PickingLineStatus.Packed;
+            }
+            // Optionally, log an audit event for completing packing
+            // await _auditService.CreateAuditEventAsync(pickingListId, TaskType.Packing, AuditEventType.Complete, userId);
+            await db.SaveChangesAsync();
         }
     }
 }
