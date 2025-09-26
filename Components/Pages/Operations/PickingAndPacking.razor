@@ -251,7 +251,7 @@
                     {
                         <MudButton Variant="Variant.Outlined" OnClick="@(() => PauseList(pickingList))" Class="mr-2">Pause List</MudButton>
                     }
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => CompletePacking(pickingList))" Disabled="@(GetPackedItemsCount(pickingList) == 0)">Complete Packing</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => CompletePacking(pickingList))" Disabled="@(GetPickedItemsCount(pickingList) == 0)">Complete Packing</MudButton>
                 </div>
             </MudPaper>
         }
@@ -532,14 +532,14 @@
 
     private async Task CompletePacking(PickingList pickingList)
     {
-        var packedItems = pickingList.Items.Where(i => i.Packed && i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil)).ToList();
-        if (!packedItems.Any())
+        var itemsToPack = pickingList.Items.Where(i => i.Picked && i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil)).ToList();
+        if (!itemsToPack.Any())
         {
-            Snackbar.Add("No items have been packed yet.", Severity.Warning);
+            Snackbar.Add("No items have been picked yet.", Severity.Warning);
             return;
         }
 
-        var parameters = new DialogParameters { ["ItemsToPack"] = packedItems };
+        var parameters = new DialogParameters { ["ItemsToPack"] = itemsToPack };
         var dialog = DialogService.Show<BulkPackConfirmationDialog>("Confirm All Packed Items", parameters);
         var result = await dialog.Result;
 
