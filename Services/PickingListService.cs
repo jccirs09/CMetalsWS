@@ -68,12 +68,15 @@ namespace CMetalsWS.Services
                 })
                 .ToDictionaryAsync(x => x.PickingListItemId);
 
-            // 2. Get potentially available picking lists
+            // Define statuses to exclude for forward planning
+            var excludedStatuses = new[] { PickingListStatus.Awaiting, PickingListStatus.Cancelled, PickingListStatus.Completed };
+
+            // 2. Get potentially available picking lists for forward planning
             var query = db.PickingLists
                 .Include(p => p.Customer).ThenInclude(c => c!.DestinationRegion)
                 .Include(p => p.Items)
                 .Include(p => p.Branch)
-                .Where(p => p.Status == PickingListStatus.Completed)
+                .Where(p => !excludedStatuses.Contains(p.Status))
                 .AsNoTracking();
 
             if (branchId.HasValue)
@@ -81,11 +84,11 @@ namespace CMetalsWS.Services
                 query = query.Where(p => p.BranchId == branchId.Value);
             }
 
-            var allCompletedLists = await query.ToListAsync();
+            var allPlannableLists = await query.ToListAsync();
 
             // 3. Calculate remaining quantities and filter lists/items
             var availableLists = new List<PickingList>();
-            foreach (var list in allCompletedLists)
+            foreach (var list in allPlannableLists)
             {
                 var availableItems = new List<PickingListItem>();
                 foreach (var item in list.Items)
@@ -99,8 +102,12 @@ namespace CMetalsWS.Services
                         totalShippedWeight = totals.TotalShippedWeight;
                     }
 
-                    item.RemainingQuantity = (item.PulledQuantity ?? 0) - totalShippedQuantity;
-                    item.RemainingWeight = item.PulledWeight - totalShippedWeight;
+                    // For forward planning, if an item hasn't been pulled, use its theoretical weight.
+                    var plannableWeight = item.PulledWeight > 0.001m ? item.PulledWeight : (item.Weight ?? 0) * item.Quantity;
+                    var plannableQuantity = item.PulledQuantity ?? item.Quantity;
+
+                    item.RemainingQuantity = plannableQuantity - totalShippedQuantity;
+                    item.RemainingWeight = plannableWeight - totalShippedWeight;
 
                     // An item is available if there's anything left to ship
                     if (item.RemainingQuantity > 0.001m || item.RemainingWeight > 0.001m)
