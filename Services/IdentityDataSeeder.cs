@@ -167,6 +167,15 @@ namespace CMetalsWS.Services
             }
             await _userManager.UpdateAsync(admin);
 
+            // Seed driver users
+            if (surreyBranch != null)
+            {
+                await CreateUserIfNotExists("driver1", "Driver", "One", "Driver", surreyBranch.Id);
+                await CreateUserIfNotExists("driver2", "Driver", "Two", "Driver", surreyBranch.Id);
+                await CreateUserIfNotExists("driver3", "Driver", "Three", "Driver", surreyBranch.Id);
+            }
+
+            await SeedTrucksAsync();
             await SeedUserClaimsAsync();
             await SeedChatDataAsync(admin);
         }
@@ -430,6 +439,87 @@ namespace CMetalsWS.Services
 
             _context.DestinationGroups.AddRange(destinationGroups);
             await _context.SaveChangesAsync();
+        }
+
+        private async Task SeedTrucksAsync()
+        {
+            if (await _context.Trucks.AnyAsync())
+            {
+                return; // Trucks have already been seeded
+            }
+
+            var surreyBranch = await _context.Branches.FirstOrDefaultAsync(b => b.Name == "SURREY");
+            if (surreyBranch == null)
+            {
+                _logger.LogError("Surrey branch not found, cannot seed trucks.");
+                return;
+            }
+
+            var driver1 = await _userManager.FindByNameAsync("driver1");
+            var driver2 = await _userManager.FindByNameAsync("driver2");
+            var driver3 = await _userManager.FindByNameAsync("driver3");
+
+            var trucks = new List<Truck>
+            {
+                new Truck
+                {
+                    Name = "TANDEM",
+                    Identifier = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
+                    BranchId = surreyBranch.Id,
+                    CapacityWeight = 34500,
+                    CapacityVolume = 24,
+                    IsActive = true,
+                    DriverId = driver1?.Id
+                },
+                new Truck
+                {
+                    Name = "SINGLE AXLE",
+                    Identifier = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
+                    BranchId = surreyBranch.Id,
+                    CapacityWeight = 20500,
+                    CapacityVolume = 24,
+                    IsActive = true,
+                    DriverId = driver2?.Id
+                },
+                new Truck
+                {
+                    Name = "3TON",
+                    Identifier = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
+                    BranchId = surreyBranch.Id,
+                    CapacityWeight = 14500,
+                    CapacityVolume = 14,
+                    IsActive = true,
+                    DriverId = driver3?.Id
+                }
+            };
+
+            _context.Trucks.AddRange(trucks);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task CreateUserIfNotExists(string userName, string firstName, string lastName, string role, int branchId)
+        {
+            if (await _userManager.FindByNameAsync(userName) == null)
+            {
+                var user = new ApplicationUser
+                {
+                    UserName = userName,
+                    Email = $"{userName}@example.com",
+                    EmailConfirmed = true,
+                    FirstName = firstName,
+                    LastName = lastName,
+                    BranchId = branchId
+                };
+                var result = await _userManager.CreateAsync(user, "User123!");
+                if (result.Succeeded)
+                {
+                    await _userManager.AddToRoleAsync(user, role);
+                }
+                else
+                {
+                    _logger.LogError($"Failed to create user '{userName}'. Errors: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                }
+            }
         }
     }
 }
