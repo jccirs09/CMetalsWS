@@ -87,7 +87,20 @@
         var result = await dlg.Result;
         if (result is not null && !result.Canceled && result.Data is Load saved)
         {
-            await LoadService.CreateAsync(saved);
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            if (user.Identity is null || !user.Identity.IsAuthenticated)
+            {
+                Snackbar.Add("User is not authenticated.", Severity.Error);
+                return;
+            }
+            var userId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                Snackbar.Add("Could not retrieve user ID.", Severity.Error);
+                return;
+            }
+            await LoadService.CreateAsync(saved, userId);
             Snackbar.Add("Load created.", Severity.Success);
             await LoadAsync();
         }
