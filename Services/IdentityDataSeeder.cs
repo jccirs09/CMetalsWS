@@ -35,6 +35,7 @@ namespace CMetalsWS.Services
             await SeedMachinesAsync();
             await SeedDestinationRegionsAsync();
             await SeedDestinationGroupsAsync();
+            await SeedTrucksAsync();
 
             // Create roles
             string[] roles = { "Admin", "Planner", "Supervisor", "Manager", "Operator", "Driver", "Viewer" };
@@ -176,6 +177,7 @@ namespace CMetalsWS.Services
             }
 
             await SeedTrucksAsync();
+
             await SeedUserClaimsAsync();
             await SeedChatDataAsync(admin);
         }
