@@ -175,6 +175,8 @@ namespace CMetalsWS.Services
         {
             if (await _context.ChatMessages.AnyAsync()) return;
 
+            var random = new Random();
+
             async Task<ApplicationUser?> CreateChatUser(string name, string role)
             {
                 if (await _userManager.FindByNameAsync(name) != null) return await _userManager.FindByNameAsync(name);
@@ -190,14 +192,46 @@ namespace CMetalsWS.Services
                 return await _userManager.FindByNameAsync(name);
             }
 
-            var user1 = await CreateChatUser("user1", "Viewer");
-            var user2 = await CreateChatUser("user2", "Viewer");
+            var user1 = await CreateChatUser("user1", "Operator");
+            var user2 = await CreateChatUser("user2", "Operator");
 
             if (admin == null || user1 == null || user2 == null)
             {
                 _logger.LogError("A required user for chat seeding was not found or created.");
                 return;
             }
+
+            // Set user details
+            var surreyBranch = await _context.Branches.FirstOrDefaultAsync(b => b.Name == "SURREY");
+            if (surreyBranch != null)
+            {
+                user1.BranchId = surreyBranch.Id;
+                user2.BranchId = surreyBranch.Id;
+            }
+
+            var table1 = await _context.Machines.FirstOrDefaultAsync(m => m.Name == "TABLE 1");
+            if (table1 != null)
+            {
+                user1.MachineId = table1.Id;
+            }
+
+            var table2 = await _context.Machines.FirstOrDefaultAsync(m => m.Name == "TABLE 2");
+            if (table2 != null)
+            {
+                user2.MachineId = table2.Id;
+            }
+
+            // Add random names
+            var firstNames = new[] { "Peter", "John", "James", "Andrew", "Philip", "Bartholomew", "Matthew", "Thomas" };
+            var lastNames = new[] { "Smith", "Jones", "Williams", "Brown", "Davis", "Miller", "Wilson", "Moore" };
+
+            user1.FirstName = firstNames[random.Next(firstNames.Length)];
+            user1.LastName = lastNames[random.Next(lastNames.Length)];
+            user2.FirstName = firstNames[random.Next(firstNames.Length)];
+            user2.LastName = lastNames[random.Next(lastNames.Length)];
+
+            await _userManager.UpdateAsync(user1);
+            await _userManager.UpdateAsync(user2);
 
             var group = await _context.ChatGroups.FirstOrDefaultAsync(g => g.Name == "General");
             if (group == null)
