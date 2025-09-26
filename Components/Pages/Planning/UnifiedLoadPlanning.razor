@@ -11,6 +11,7 @@
 @inject CMetalsWS.Services.DestinationRegionService DestinationRegionService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <MudText Typo="Typo.h4">Unified Load Planning</MudText>
 
@@ -277,10 +278,24 @@
     {
         if (_load is null) return;
 
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity is null || !user.Identity.IsAuthenticated)
+        {
+            Snackbar.Add("User is not authenticated.", Severity.Error);
+            return;
+        }
+        var userId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            Snackbar.Add("Could not retrieve user ID.", Severity.Error);
+            return;
+        }
+
         _load.Items = _itemsInLoad;
         try
         {
-            await LoadService.CreateAsync(_load);
+            await LoadService.CreateAsync(_load, userId);
             Snackbar.Add("Load saved successfully!", Severity.Success);
             await LoadData();
             ClearLoad();

@@ -77,6 +77,7 @@ namespace CMetalsWS.Services
                 .Include(p => p.Items)
                 .Include(p => p.Branch)
                 .Where(p => !excludedStatuses.Contains(p.Status))
+                .AsSplitQuery()
                 .AsNoTracking();
 
             if (branchId.HasValue)

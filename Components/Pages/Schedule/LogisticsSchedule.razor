@@ -13,6 +13,8 @@
 @inject LoadService LoadService
 @inject PickingListService PickingListService
 @inject TruckService TruckService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
 
 <MudPaper Class="pa-4">
     <MudDropContainer T="PickingList"
@@ -193,6 +195,20 @@
 
     private async Task OnValidLoadSubmit()
     {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity is null || !user.Identity.IsAuthenticated)
+        {
+            Snackbar.Add("User is not authenticated.", Severity.Error);
+            return;
+        }
+        var userId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            Snackbar.Add("Could not retrieve user ID.", Severity.Error);
+            return;
+        }
+
         var newLoad = new Load
         {
             LoadNumber = _newLoadModel.Name,
@@ -200,7 +216,7 @@
             OriginBranchId = 1 // TODO: bind to actual selected branch when available
         };
 
-        await LoadService.CreateAsync(newLoad);
+        await LoadService.CreateAsync(newLoad, userId);
         _newLoadModel = new();
         _addLoadOpen = false;
         await LoadData();

@@ -51,15 +51,27 @@ namespace CMetalsWS.Services
                 .FirstOrDefaultAsync(l => l.Id == id);
         }
 
-        public async Task CreateAsync(Load load)
+        public async Task CreateAsync(Load load, string userId)
         {
             using var db = _dbContextFactory.CreateDbContext();
             load.LoadNumber = await GenerateLoadNumber(db, load.OriginBranchId);
 
-            // if (load.ReadyDate == null)
-            //     load.ReadyDate = await DeriveReadyDateFromPickingListsAsync(db, load);
+            var pickingListIds = load.Items.Select(i => i.PickingListId).Distinct();
+            if (pickingListIds.Any())
+            {
+                var pickingLists = await db.PickingLists
+                    .Where(p => pickingListIds.Contains(p.Id))
+                    .ToListAsync();
 
-            // await RecalculateReadyDateFromWorkOrdersAsync(db, load);
+                foreach (var pl in pickingLists)
+                {
+                    if (pl.Status != PickingListStatus.Scheduled)
+                    {
+                        pl.Status = PickingListStatus.Scheduled;
+                    }
+                }
+            }
+
             db.Loads.Add(load);
             await db.SaveChangesAsync();
         }
