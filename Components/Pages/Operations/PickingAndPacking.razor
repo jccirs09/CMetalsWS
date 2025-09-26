@@ -113,7 +113,7 @@
                     </div>
                 </div>
 
-                @foreach (var item in pickingList.Items.Where(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil) && !i.Picked))
+                @foreach (var item in pickingList.Items.Where(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil)))
                 {
                     <MudPaper Class="d-flex align-center pa-4 mt-4 rounded-lg" Elevation="0" Style="@(item.Picked ? "border: 1px solid #C8E6C9;" : "border: 1px solid #FFECB3;")">
                         <MudCheckBox T="bool" Value="@(IsSelected(pickingList.Id, item.Id))" ValueChanged="@(isChecked => SetSelected(pickingList.Id, item.Id, isChecked))" Disabled="@(item.Picked || ActivePickingListId != pickingList.Id)"></MudCheckBox>
