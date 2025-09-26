@@ -24,8 +24,8 @@
                     <MudSelect T="DestinationRegionCategory"
                                Label="Filter by Region"
                                MultiSelection="true"
-                               @bind-SelectedValues="_selectedCategoryFilters"
-                               SelectedValuesChanged="@((_) => ApplyFilters())"
+                               SelectedValues="_selectedCategoryFilters"
+                               SelectedValuesChanged="@(values => { _selectedCategoryFilters = new HashSet<DestinationRegionCategory>(values); ApplyFilters(); })"
                                Clearable="true">
                         @foreach (DestinationRegionCategory category in Enum.GetValues(typeof(DestinationRegionCategory)))
                         {
