@@ -1,4 +1,4 @@
-@page "/planning/load/{DestinationRegionId:int}"
+@page "/planning/unified-load-planning"
 @using CMetalsWS.Data
 @using System.Linq
 @using CMetalsWS.Security
@@ -12,7 +12,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
-<MudText Typo="Typo.h4">Load Planning: @_region?.Name</MudText>
+<MudText Typo="Typo.h4">Unified Load Planning</MudText>
 
 <MudGrid>
     <MudItem xs="12" md="7">
@@ -20,41 +20,53 @@
             <MudText Typo="Typo.h6">Available Picking Lists</MudText>
 
             <MudExpansionPanels MultiExpansion="true">
-                @foreach (var group in _groupedPickingLists)
+                @foreach (var categoryGroup in _groupedPickingListsByCategory.OrderBy(kvp => kvp.Key.ToString()))
                 {
                     <MudExpansionPanel>
                         <TitleContent>
-                            <MudStack Row="true" AlignItems="AlignItems.Center">
-                                <MudCheckBox T="bool" Value="@(_selectedGroups.Contains(group))" ValueChanged="@((bool val) => OnGroupChecked(val, group))" />
-                                <MudText>SO: @group.Key</MudText>
-                                <MudText>Customer: @group.First().Customer?.CustomerName</MudText>
-                                <MudText>Weight: @group.SelectMany(pl => pl.Items).Sum(pli => pli.PulledWeight) lbs</MudText>
-                                <MudText>Status: @group.First().Status</MudText>
-                                <MudIconButton Icon="@Icons.Material.Filled.Splitscreen" Size="Size.Small" OnClick="@(() => OpenPartialLoadDialog(group.ToList()))" />
-                            </MudStack>
+                            <MudText Typo="Typo.h6">@categoryGroup.Key.ToString()</MudText>
                         </TitleContent>
                         <ChildContent>
-                            <MudSimpleTable Dense="true" Striped="true">
-                                <thead>
-                                    <tr>
-                                        <th>Item ID</th>
-                                        <th>Description</th>
-                                        <th>Pulled Wt.</th>
-                                        <th>Pulled Qty.</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var item in group.SelectMany(pl => pl.Items).OrderBy(i => i.Id))
-                                    {
-                                        <tr>
-                                            <td>@item.ItemId</td>
-                                            <td>@item.ItemDescription</td>
-                                            <td>@item.PulledWeight</td>
-                                            <td>@item.PulledQuantity</td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </MudSimpleTable>
+                            <MudExpansionPanels MultiExpansion="true">
+                                @foreach (var group in categoryGroup.Value)
+                                {
+                                    <MudExpansionPanel>
+                                        <TitleContent>
+                                            <MudStack Row="true" AlignItems="AlignItems.Center">
+                                                <MudCheckBox T="bool" Value="@(_selectedGroups.Contains(group))" ValueChanged="@((bool val) => OnGroupChecked(val, group))" />
+                                                <MudText>SO: @group.Key</MudText>
+                                                <MudText>Customer: @group.First().Customer?.CustomerName</MudText>
+                                                <MudText>Weight: @group.SelectMany(pl => pl.Items).Sum(pli => pli.PulledWeight) lbs</MudText>
+                                                <MudText>Status: @group.First().Status</MudText>
+                                                <MudIconButton Icon="@Icons.Material.Filled.Splitscreen" Size="Size.Small" OnClick="@(() => OpenPartialLoadDialog(group.ToList()))" />
+                                            </MudStack>
+                                        </TitleContent>
+                                        <ChildContent>
+                                            <MudSimpleTable Dense="true" Striped="true">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Item ID</th>
+                                                        <th>Description</th>
+                                                        <th>Pulled Wt.</th>
+                                                        <th>Pulled Qty.</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var item in group.SelectMany(pl => pl.Items).OrderBy(i => i.Id))
+                                                    {
+                                                        <tr>
+                                                            <td>@item.ItemId</td>
+                                                            <td>@item.ItemDescription</td>
+                                                            <td>@item.PulledWeight</td>
+                                                            <td>@item.PulledQuantity</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </MudSimpleTable>
+                                        </ChildContent>
+                                    </MudExpansionPanel>
+                                }
+                            </MudExpansionPanels>
                         </ChildContent>
                     </MudExpansionPanel>
                 }
@@ -122,43 +134,40 @@
 </MudGrid>
 
 @code {
-    [Parameter]
-    public int DestinationRegionId { get; set; }
-
-    private DestinationRegion? _region;
-    private List<IGrouping<string, PickingList>> _groupedPickingLists = new();
+    private Dictionary<DestinationRegionCategory, List<IGrouping<string, PickingList>>> _groupedPickingListsByCategory = new();
     private HashSet<IGrouping<string, PickingList>> _selectedGroups = new();
     private Load? _load;
     private List<LoadItem> _itemsInLoad = new();
     private List<Truck> _trucks = new();
-    private int _previousDestinationRegionId;
 
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnInitializedAsync()
     {
-        if (_previousDestinationRegionId != DestinationRegionId)
+        await LoadData();
+    }
+
+    private DestinationRegionCategory GetRegionCategory(PickingList p)
+    {
+        if (p.Customer?.DestinationRegion is null)
         {
-            await LoadData();
-            _previousDestinationRegionId = DestinationRegionId;
+            return DestinationRegionCategory.OUT_OF_TOWN;
         }
+        return DestinationRegionService.GetDestinationRegionCategory(p.Customer.DestinationRegion);
     }
 
     private async Task LoadData()
     {
         ClearLoad();
-        _groupedPickingLists.Clear();
-
-        _region = await DestinationRegionService.GetByIdAsync(DestinationRegionId);
-        if (_region == null)
-        {
-            Snackbar.Add("Destination region not found.", Severity.Error);
-            return;
-        }
+        _groupedPickingListsByCategory.Clear();
 
         var allPickingLists = await PickingListService.GetAvailableForLoadingAsync();
-        _groupedPickingLists = allPickingLists
-            .Where(p => p.Customer?.DestinationRegionId == DestinationRegionId)
-            .GroupBy(p => p.SalesOrderNumber)
-            .ToList();
+        _groupedPickingListsByCategory = allPickingLists
+            .OrderBy(p => p.ShipDate)
+            .GroupBy(GetRegionCategory)
+            .ToDictionary(
+                g => g.Key,
+                g => g.GroupBy(p => p.SalesOrderNumber).ToList()
+            );
+
         _trucks = await TruckService.GetTrucksAsync();
         StateHasChanged();
     }

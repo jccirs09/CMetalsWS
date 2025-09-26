@@ -59,5 +59,16 @@ namespace CMetalsWS.Services
                 await db.SaveChangesAsync();
             }
         }
+
+        public DestinationRegionCategory GetDestinationRegionCategory(DestinationRegion region)
+        {
+            return region.Name.ToUpper().Trim() switch
+            {
+                "LOCAL" => DestinationRegionCategory.LOCAL,
+                "ISLAND" => DestinationRegionCategory.ISLAND,
+                "OKANAGAN" => DestinationRegionCategory.OKANAGAN,
+                _ => DestinationRegionCategory.OUT_OF_TOWN,
+            };
+        }
     }
 }
