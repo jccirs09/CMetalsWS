@@ -36,7 +36,7 @@
                                                 <MudCheckBox T="bool" Value="@(_selectedGroups.Contains(group))" ValueChanged="@((bool val) => OnGroupChecked(val, group))" />
                                                 <MudText>SO: @group.Key</MudText>
                                                 <MudText>Customer: @group.First().Customer?.CustomerName</MudText>
-                                                <MudText>Weight: @group.SelectMany(pl => pl.Items).Sum(pli => pli.PulledWeight) lbs</MudText>
+                                                <MudText>Weight: @group.SelectMany(pl => pl.Items).Sum(pli => pli.RemainingWeight) lbs</MudText>
                                                 <MudText>Status: @group.First().Status</MudText>
                                                 <MudIconButton Icon="@Icons.Material.Filled.Splitscreen" Size="Size.Small" OnClick="@(() => OpenPartialLoadDialog(group.ToList()))" />
                                             </MudStack>
@@ -199,26 +199,34 @@
             {
                 PickingListItemId = item.Id,
                 PickingListItem = item,
-                ShippedWeight = item.PulledWeight
+                ShippedQuantity = item.RemainingQuantity,
+                ShippedWeight = item.RemainingWeight
             });
         }
         RecalculateStopSequence();
         UpdateLoadCapacity();
     }
 
-    private void AddToLoad(IEnumerable<PickingListItem> itemsToAdd)
+    private void AddToLoad(IEnumerable<PartialLoadDialog.PartialShipmentItem> itemsToAdd)
     {
         _load ??= new Load { ShippingDate = DateTime.Today };
 
-        foreach (var item in itemsToAdd)
+        var allPickingListItemsOnPage = _groupedPickingListsByCategory
+            .SelectMany(kvp => kvp.Value)
+            .SelectMany(g => g)
+            .SelectMany(p => p.Items)
+            .ToDictionary(i => i.Id);
+
+        foreach (var itemToAdd in itemsToAdd)
         {
-            if (!_itemsInLoad.Any(li => li.PickingListItemId == item.Id))
+            if (allPickingListItemsOnPage.TryGetValue(itemToAdd.PickingListItemId, out var originalItem))
             {
                 _itemsInLoad.Add(new LoadItem
                 {
-                    PickingListItemId = item.Id,
-                    PickingListItem = item,
-                    ShippedWeight = item.PulledWeight
+                    PickingListItemId = originalItem.Id,
+                    PickingListItem = originalItem,
+                    ShippedQuantity = itemToAdd.Quantity,
+                    ShippedWeight = itemToAdd.Weight
                 });
             }
         }
@@ -333,7 +341,7 @@
         var dialog = await DialogService.ShowAsync<PartialLoadDialog>("Partial Load Selection", parameters);
         var result = await dialog.Result;
 
-        if (result != null && !result.Canceled && result.Data is List<PickingListItem> selectedItems)
+        if (result != null && !result.Canceled && result.Data is List<PartialLoadDialog.PartialShipmentItem> selectedItems)
         {
             AddToLoad(selectedItems);
         }
