@@ -141,7 +141,7 @@
                             }
                             else if (item.Status == PickingLineStatus.InProgress)
                             {
-                                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@(() => PausePick(item))">Pause</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@(() => PauseList(pickingList))">Pause</MudButton>
                                 <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => CompletePick(item))" Class="ml-2">Complete</MudButton>
                             }
                             else if (item.Status == PickingLineStatus.Paused)
@@ -227,7 +227,7 @@
                             }
                             else if (item.Status == PickingLineStatus.InProgress)
                             {
-                                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@(() => PausePack(item))">Pause</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@(() => PauseList(pickingList))">Pause</MudButton>
                                 <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => CompletePack(item))" Class="ml-2">Complete</MudButton>
                             }
                             else if (item.Status == PickingLineStatus.Paused)
@@ -251,7 +251,7 @@
                     {
                         <MudButton Variant="Variant.Outlined" OnClick="@(() => PauseList(pickingList))" Class="mr-2">Pause List</MudButton>
                     }
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => CompletePacking(pickingList))" Disabled="@(GetPickedItemsCount(pickingList) == 0)">Complete Packing</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => CompletePacking(pickingList))" Disabled="@(pickingList.Status == PickingListStatus.OnHold)">Complete Packing</MudButton>
                 </div>
             </MudPaper>
         }
@@ -556,9 +556,23 @@
                 );
             }
 
-            await PickingListService.CompletePackingAsync(pickingList.Id, _userId!);
-            await LoadData();
-            Snackbar.Add("Packing completed for the list.", Severity.Success);
+            await LoadData(); // Reload data to get the latest item statuses
+
+            var updatedPickingList = _pickingLists.FirstOrDefault(p => p.Id == pickingList.Id);
+            if (updatedPickingList != null)
+            {
+                var allRelevantItems = updatedPickingList.Items.Where(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil));
+                if (allRelevantItems.All(i => i.Packed))
+                {
+                    await PickingListService.CompletePackingAsync(pickingList.Id, _userId!);
+                    await LoadData(); // Load again to reflect final status change
+                    Snackbar.Add("All items packed. Packing completed for the list.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add($"{editedItems.Count} item(s) packed. The list is still in progress.", Severity.Info);
+                }
+            }
         }
     }
 
