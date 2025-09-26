@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250925234404_InitialCreate")]
+    [Migration("20250926001010_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
