@@ -176,6 +176,8 @@ namespace CMetalsWS.Services
                 await CreateUserIfNotExists("driver3", "Driver", "Three", "Driver", surreyBranch.Id);
             }
 
+            await SeedTrucksAsync();
+
             await SeedUserClaimsAsync();
             await SeedChatDataAsync(admin);
         }
