@@ -94,7 +94,7 @@ namespace CMetalsWS.Data.Chat
         public async Task<MessageDto?> AddReactionAsync(int messageId, string emoji, string userId)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
-            var message = await context.ChatMessages.Include(m => m.Sender).Include(m => m.Reactions).Include(m => m.SeenBy).FirstOrDefaultAsync(m => m.Id == messageId);
+            var message = await context.ChatMessages.AsSplitQuery().Include(m => m.Sender).Include(m => m.Reactions).Include(m => m.SeenBy).FirstOrDefaultAsync(m => m.Id == messageId);
             if (message == null) return null;
             var existing = await context.MessageReactions.FirstOrDefaultAsync(r => r.MessageId == messageId && r.UserId == userId && r.Emoji == emoji);
             if (existing == null)
