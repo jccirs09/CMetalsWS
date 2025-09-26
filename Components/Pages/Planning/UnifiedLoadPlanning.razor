@@ -191,13 +191,18 @@
         StateHasChanged();
     }
 
-    private void OnFilterChanged(IEnumerable<DestinationRegionCategory> values)
+    private void ApplyFilters()
     {
-        _selectedCategoryFilters = new HashSet<DestinationRegionCategory>(values);
         _filteredSalesOrderGroups = _allSalesOrderGroups
             .Where(g => !_selectedCategoryFilters.Any() || _selectedCategoryFilters.Contains(GetRegionCategory(g.First())))
             .ToList();
         StateHasChanged();
+    }
+
+    private void OnFilterChanged(IEnumerable<DestinationRegionCategory> values)
+    {
+        _selectedCategoryFilters = new HashSet<DestinationRegionCategory>(values);
+        ApplyFilters();
     }
 
     private void OnGroupChecked(bool isChecked, IGrouping<string, PickingList> group)
