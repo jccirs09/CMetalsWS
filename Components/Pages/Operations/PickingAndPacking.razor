@@ -532,36 +532,33 @@
 
     private async Task CompletePacking(PickingList pickingList)
     {
-        var packedItems = pickingList.Items.Where(i => i.Packed && i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil));
+        var packedItems = pickingList.Items.Where(i => i.Packed && i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil)).ToList();
         if (!packedItems.Any())
         {
             Snackbar.Add("No items have been packed yet.", Severity.Warning);
             return;
         }
 
-        var content = new System.Text.StringBuilder();
-        content.AppendLine("<p>Please confirm that all items have been packed with the correct quantity and weight:</p>");
-        content.AppendLine("<ul>");
-        foreach (var item in packedItems)
-        {
-            content.AppendLine($"<li><strong>{item.ItemDescription}</strong> - Qty: {item.Quantity}, Weight: {item.Weight} lbs</li>");
-        }
-        content.AppendLine("</ul>");
-
-        var parameters = new DialogParameters
-        {
-            ["MarkupMessage"] = new MarkupString(content.ToString()),
-            ["ButtonText"] = "Confirm Complete Packing",
-            ["Color"] = Color.Success
-        };
-
-        var dialog = DialogService.Show<MudMessageBox>("Confirm Complete Packing", parameters);
+        var parameters = new DialogParameters { ["ItemsToPack"] = packedItems };
+        var dialog = DialogService.Show<BulkPackConfirmationDialog>("Confirm All Packed Items", parameters);
         var result = await dialog.Result;
 
-        if (!result.Canceled)
+        if (!result.Canceled && result.Data is List<BulkPackConfirmationDialog.PackedItemEditModel> editedItems)
         {
+            foreach (var editedItem in editedItems)
+            {
+                await PickingListService.ConfirmPackAsync(
+                    editedItem.OriginalItem.Id,
+                    _userId!,
+                    editedItem.Quantity,
+                    editedItem.Weight,
+                    "" // Notes are not part of the bulk dialog
+                );
+            }
+
             await PickingListService.CompletePackingAsync(pickingList.Id, _userId!);
             await LoadData();
+            Snackbar.Add("Packing completed for the list.", Severity.Success);
         }
     }
 

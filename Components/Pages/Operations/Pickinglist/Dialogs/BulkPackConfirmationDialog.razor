@@ -1,0 +1,72 @@
+@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Confirm Bulk Pack</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Class="mb-4">Please review and confirm the quantity and weight for each packed item.</MudText>
+        <div style="max-height: 400px; overflow-y: auto;">
+            @foreach (var item in _editableItems)
+            {
+                <MudPaper Class="pa-3 mb-2">
+                    <MudText><strong>@item.ItemDescription</strong></MudText>
+                    <MudGrid Spacing="2" Class="mt-2">
+                        <MudItem xs="6">
+                            <MudNumericField @bind-Value="item.Quantity" Label="Quantity" Variant="Variant.Outlined" For="@(() => item.Quantity)" Min="0" Max="item.OriginalQuantity" />
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudNumericField @bind-Value="item.Weight" Label="Weight (lbs)" Variant="Variant.Outlined" For="@(() => item.Weight)" Min="0" />
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Confirm All</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter]
+    public List<PickingListItem> ItemsToPack { get; set; } = new();
+
+    private List<PackedItemEditModel> _editableItems = new();
+
+    protected override void OnInitialized()
+    {
+        foreach (var item in ItemsToPack)
+        {
+            _editableItems.Add(new PackedItemEditModel
+            {
+                OriginalItem = item,
+                ItemDescription = item.ItemDescription,
+                OriginalQuantity = item.Quantity,
+                Quantity = item.Quantity,
+                Weight = item.Weight ?? 0
+            });
+        }
+    }
+
+    private void Submit()
+    {
+        Dialog.Close(DialogResult.Ok(_editableItems));
+    }
+
+    private void Cancel() => Dialog.Cancel();
+
+    public class PackedItemEditModel
+    {
+        public PickingListItem OriginalItem { get; set; } = null!;
+        public string ItemDescription { get; set; } = "";
+        public decimal OriginalQuantity { get; set; }
+        public decimal Quantity { get; set; }
+        public decimal Weight { get; set; }
+    }
+}
