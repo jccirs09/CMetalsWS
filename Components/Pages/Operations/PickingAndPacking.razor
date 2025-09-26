@@ -81,7 +81,7 @@
         }
     </MudTabPanel>
     <MudTabPanel Text="Picking Process">
-        @foreach (var pickingList in FilteredPickingLists.Where(pl => pl.Status == PickingListStatus.Pending || pl.Status == PickingListStatus.InProgress))
+        @foreach (var pickingList in FilteredPickingLists.Where(pl => pl.Status == PickingListStatus.Pending || pl.Status == PickingListStatus.InProgress || pl.Status == PickingListStatus.OnHold))
         {
             <MudPaper Class="pa-4 rounded-lg mb-4">
                 <div class="d-flex justify-space-between align-center">
@@ -163,7 +163,7 @@
         }
     </MudTabPanel>
     <MudTabPanel Text="Packing Process">
-        @foreach (var pickingList in FilteredPickingLists.Where(pl => pl.Status == PickingListStatus.Picked || pl.Status == PickingListStatus.InProgress))
+        @foreach (var pickingList in FilteredPickingLists.Where(pl => pl.Status == PickingListStatus.Picked || pl.Status == PickingListStatus.InProgress || pl.Status == PickingListStatus.OnHold))
         {
             <MudPaper Class="pa-4 rounded-lg mb-4">
                 <div class="d-flex justify-space-between align-center">
@@ -294,7 +294,7 @@
             {
                 if (!_selectedStatus.HasValue)
                 {
-                    lists = lists.Where(pl => pl.Status == PickingListStatus.Pending);
+                    lists = lists.Where(pl => pl.Status != PickingListStatus.Completed);
                 }
                 else
                 {
