@@ -436,20 +436,8 @@
 
     private async Task CompletePick(PickingListItem item)
     {
-        var content = new System.Text.StringBuilder();
-        content.AppendLine($"<p>Do you want to confirm you have picked the following item?</p>");
-        content.AppendLine("<ul>");
-        content.AppendLine($"<li>{item.ItemDescription}</li>");
-        content.AppendLine("</ul>");
-
-        var parameters = new DialogParameters
-        {
-            ["ContentText"] = new MarkupString(content.ToString()),
-            ["ButtonText"] = "Confirm",
-            ["Color"] = Color.Success
-        };
-
-        var dialog = DialogService.Show<MudMessageBox>("Confirm Pick", parameters);
+        var parameters = new DialogParameters { ["Items"] = new List<PickingListItem> { item } };
+        var dialog = DialogService.Show<PickItemDialog>("Confirm Pick", parameters);
         var result = await dialog.Result;
 
         if (!result.Canceled)
@@ -516,24 +504,10 @@
         var selectedItemIds = SelectedItems.ContainsKey(pickingList.Id) ? SelectedItems[pickingList.Id] : new HashSet<int>();
         if (selectedItemIds.Count == 0) return;
 
-        var selectedItems = pickingList.Items.Where(i => selectedItemIds.Contains(i.Id));
-        var content = new System.Text.StringBuilder();
-        content.AppendLine($"<p>Do you want to confirm you have picked the following {selectedItemIds.Count} items?</p>");
-        content.AppendLine("<ul>");
-        foreach (var item in selectedItems)
-        {
-            content.AppendLine($"<li>{item.ItemDescription}</li>");
-        }
-        content.AppendLine("</ul>");
+        var selectedItems = pickingList.Items.Where(i => selectedItemIds.Contains(i.Id)).ToList();
 
-        var parameters = new DialogParameters
-        {
-            ["ContentText"] = new MarkupString(content.ToString()),
-            ["ButtonText"] = "Confirm",
-            ["Color"] = Color.Success
-        };
-
-        var dialog = DialogService.Show<MudMessageBox>("Confirm Picks", parameters);
+        var parameters = new DialogParameters { ["Items"] = selectedItems };
+        var dialog = DialogService.Show<PickItemDialog>("Confirm Picks", parameters);
         var result = await dialog.Result;
 
         if (!result.Canceled)
