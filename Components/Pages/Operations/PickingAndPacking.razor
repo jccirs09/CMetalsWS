@@ -105,7 +105,7 @@
                     <div class="d-flex justify-space-between align-center">
                         <div>
                             <MudText Typo="Typo.h6">Picking Progress</MudText>
-                            <MudText Typo="Typo.body2">@GetPickedItemsCount(pickingList) of @pickingList.Items.Count items picked</MudText>
+                            <MudText Typo="Typo.body2">@GetPickedItemsCount(pickingList) of @GetTotalLineItems(pickingList) items picked</MudText>
                         </div>
                         <div style="width: 200px;">
                             <MudProgressLinear Color="Color.Success" Value="@GetPickingProgress(pickingList)" />
@@ -192,7 +192,7 @@
                     <div class="d-flex justify-space-between align-center">
                         <div>
                             <MudText Typo="Typo.h6">Packing Progress</MudText>
-                            <MudText Typo="Typo.body2">@GetPackedItemsCount(pickingList) of @pickingList.Items.Count items packed</MudText>
+                            <MudText Typo="Typo.body2">@GetPackedItemsCount(pickingList) of @GetTotalLineItems(pickingList) items packed</MudText>
                         </div>
                         <div style="width: 200px;">
                             <MudProgressLinear Color="Color.Info" Value="@GetPackingProgress(pickingList)" />
@@ -511,9 +511,19 @@
         var selectedItemIds = SelectedItems.ContainsKey(pickingList.Id) ? SelectedItems[pickingList.Id] : new HashSet<int>();
         if (selectedItemIds.Count == 0) return;
 
+        var selectedItems = pickingList.Items.Where(i => selectedItemIds.Contains(i.Id));
+        var content = new System.Text.StringBuilder();
+        content.AppendLine($"<p>Do you want to confirm you have picked the following {selectedItemIds.Count} items?</p>");
+        content.AppendLine("<ul>");
+        foreach (var item in selectedItems)
+        {
+            content.AppendLine($"<li>{item.ItemDescription}</li>");
+        }
+        content.AppendLine("</ul>");
+
         var parameters = new DialogParameters
         {
-            ["ContentText"] = $"Do you want to confirm you have picked {selectedItemIds.Count} items?",
+            ["ContentText"] = new MarkupString(content.ToString()),
             ["ButtonText"] = "Confirm",
             ["Color"] = Color.Success
         };
@@ -539,12 +549,12 @@
 
     private int GetPackedItemsCount(PickingList pickingList)
     {
-        return pickingList.Items.Count(i => i.Packed);
+        return pickingList.Items.Count(i => i.Packed && i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil));
     }
 
     private int GetPickedItemsCount(PickingList pickingList)
     {
-        return pickingList.Items.Count(i => i.Picked);
+        return pickingList.Items.Count(i => i.Picked && i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil));
     }
 
     private int GetTotalLineItems(PickingList pickingList)
@@ -562,8 +572,10 @@
         if (pickingList.Items == null || !pickingList.Items.Any())
             return 0;
 
-        var totalItems = pickingList.Items.Count;
-        var pickedItems = pickingList.Items.Count(i => i.Picked);
+        var totalItems = GetTotalLineItems(pickingList);
+        if (totalItems == 0) return 0;
+
+        var pickedItems = GetPickedItemsCount(pickingList);
         return (double)pickedItems / totalItems * 100;
     }
 
@@ -572,8 +584,10 @@
         if (pickingList.Items == null || !pickingList.Items.Any())
             return 0;
 
-        var totalItems = pickingList.Items.Count;
-        var packedItems = pickingList.Items.Count(i => i.Packed);
+        var totalItems = GetTotalLineItems(pickingList);
+        if (totalItems == 0) return 0;
+
+        var packedItems = GetPackedItemsCount(pickingList);
         return (double)packedItems / totalItems * 100;
     }
 }
