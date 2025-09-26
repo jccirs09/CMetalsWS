@@ -789,6 +789,16 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
         }
 
+        public async Task ResumeListAsync(int pickingListId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var list = await db.PickingLists.FindAsync(pickingListId);
+            if (list == null) return;
+
+            list.Status = PickingListStatus.InProgress;
+            await db.SaveChangesAsync();
+        }
+
         public async Task CompletePickingAsync(int pickingListId, string userId)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();

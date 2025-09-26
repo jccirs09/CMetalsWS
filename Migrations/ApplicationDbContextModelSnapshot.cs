@@ -921,6 +921,10 @@ namespace CMetalsWS.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal?>("ActualWeight")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
                     b.Property<string>("CoilId")
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
