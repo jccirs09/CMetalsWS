@@ -436,9 +436,15 @@
 
     private async Task CompletePick(PickingListItem item)
     {
+        var content = new System.Text.StringBuilder();
+        content.AppendLine($"<p>Do you want to confirm you have picked the following item?</p>");
+        content.AppendLine("<ul>");
+        content.AppendLine($"<li>{item.ItemDescription}</li>");
+        content.AppendLine("</ul>");
+
         var parameters = new DialogParameters
         {
-            ["ContentText"] = $"Do you want to confirm you have picked {item.ItemDescription}?",
+            ["ContentText"] = new MarkupString(content.ToString()),
             ["ButtonText"] = "Confirm",
             ["Color"] = Color.Success
         };
