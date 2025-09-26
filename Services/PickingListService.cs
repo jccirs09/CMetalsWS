@@ -45,6 +45,7 @@ namespace CMetalsWS.Services
                 .Include(p => p.Items).ThenInclude(i => i.Events).ThenInclude(e => e.User)
                 .Include(p => p.Items).ThenInclude(i => i.QualityCheckedBy)
                 .Where(p => p.Items.Any(i => i.Machine != null && (i.Machine.Category == MachineCategory.Coil || i.Machine.Category == MachineCategory.Sheet)))
+                .AsSplitQuery()
                 .AsNoTracking();
 
             if (branchId.HasValue)
@@ -138,6 +139,7 @@ namespace CMetalsWS.Services
                 .Include(p => p.Items).ThenInclude(i => i.Events).ThenInclude(e => e.User)
                 .Include(p => p.Items).ThenInclude(i => i.QualityCheckedBy)
                 .Include(p => p.Branch)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
 

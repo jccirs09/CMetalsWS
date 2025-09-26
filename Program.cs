@@ -8,6 +8,7 @@ using CMetalsWS.Services.SignalR;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using MudBlazor.Services;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
@@ -54,7 +55,13 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString, sql =>
     {
         sql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(5), null);
+        sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
     });
+
+    if (builder.Environment.IsDevelopment())
+    {
+        options.ConfigureWarnings(w => w.Throw(RelationalEventId.MultipleCollectionIncludeWarning));
+    }
 });
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
