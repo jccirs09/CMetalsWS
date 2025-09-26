@@ -223,7 +223,6 @@
                         <div>
                             @if (item.Status == PickingLineStatus.Picked && !item.Packed)
                             {
-                                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.QrCodeScanner" Class="mr-2">Scan</MudButton>
                                 <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="@(() => StartPackTask(item))">Start Pack</MudButton>
                             }
                             else if (item.Status == PickingLineStatus.InProgress)
