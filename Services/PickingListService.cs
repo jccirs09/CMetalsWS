@@ -514,6 +514,36 @@ namespace CMetalsWS.Services
             await UpdatePickingListStatusAsync(item.PickingListId);
         }
 
+        public async Task ConfirmPicksAsync(List<int> itemIds, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var itemsToUpdate = await db.PickingListItems
+                .Where(i => itemIds.Contains(i.Id))
+                .ToListAsync();
+
+            int? pickingListId = null;
+
+            foreach (var item in itemsToUpdate)
+            {
+                if (item.Status != PickingLineStatus.Picked)
+                {
+                    item.Status = PickingLineStatus.Picked;
+                    await _auditService.CreateAuditEventAsync(item.Id, TaskType.Picking, AuditEventType.Complete, userId);
+                    if (pickingListId == null)
+                    {
+                        pickingListId = item.PickingListId;
+                    }
+                }
+            }
+
+            await db.SaveChangesAsync();
+
+            if (pickingListId.HasValue)
+            {
+                await UpdatePickingListStatusAsync(pickingListId.Value);
+            }
+        }
+
         public async Task StartPackTaskAsync(int itemId, string userId)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
@@ -525,18 +555,14 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
             await UpdatePickingListStatusAsync(item.PickingListId);
         }
-        public async Task ConfirmPackAsync(int itemId, string userId, decimal quantity, decimal actualWeight, string notes)
+        public async Task ConfirmPackAsync(int itemId, string userId, decimal quantity, decimal weight, string notes)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
             var item = await db.PickingListItems.FindAsync(itemId);
             if (item == null) return;
 
-            item.PulledQuantity = (item.PulledQuantity ?? 0) + quantity;
-            if (item.Weight.HasValue && item.Quantity > 0)
-            {
-                item.PulledWeight += (item.Weight.Value / item.Quantity) * quantity;
-            }
-            item.ActualWeight = actualWeight;
+            item.PulledQuantity = quantity;
+            item.PulledWeight = weight;
             item.PackingNotes = notes;
             item.Status = PickingLineStatus.Packed;
             await _auditService.CreateAuditEventAsync(itemId, TaskType.Packing, AuditEventType.Complete, userId);
@@ -760,6 +786,16 @@ namespace CMetalsWS.Services
             list.Status = PickingListStatus.OnHold;
             // Optionally, log an audit event for pausing the whole list
             // await _auditService.CreateAuditEventAsync(pickingListId, TaskType.Picking, AuditEventType.Pause, userId);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task ResumeListAsync(int pickingListId, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var list = await db.PickingLists.FindAsync(pickingListId);
+            if (list == null) return;
+
+            list.Status = PickingListStatus.InProgress;
             await db.SaveChangesAsync();
         }
 
