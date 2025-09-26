@@ -135,7 +135,20 @@
                             }
                         </div>
                         <div>
-                            @if (item.Status == PickingLineStatus.Picked || item.Picked)
+                            @if (ActivePickingListId == pickingList.Id && item.Status == PickingLineStatus.Pending && !item.Picked)
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => StartPickTask(item))">Start Pick</MudButton>
+                            }
+                            else if (item.Status == PickingLineStatus.InProgress)
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@(() => PausePick(item))">Pause</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => CompletePick(item))" Class="ml-2">Complete</MudButton>
+                            }
+                            else if (item.Status == PickingLineStatus.Paused)
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="@(() => ResumePick(item))">Resume</MudButton>
+                            }
+                            else if (item.Status == PickingLineStatus.Picked || item.Picked)
                             {
                                 <MudChip T="string" Icon="@Icons.Material.Filled.Check" Color="Color.Success">Picked</MudChip>
                             }
@@ -388,6 +401,43 @@
         await LoadData();
     }
 
+    private async Task StartPickTask(PickingListItem item)
+    {
+        await PickingListService.StartPickTaskAsync(item.Id, _userId!);
+        await LoadData();
+    }
+
+    private async Task PausePick(PickingListItem item)
+    {
+        await PickingListService.PauseTaskAsync(item.Id, TaskType.Picking, _userId!);
+        await LoadData();
+    }
+
+    private async Task ResumePick(PickingListItem item)
+    {
+        await PickingListService.ResumeTaskAsync(item.Id, TaskType.Picking, _userId!);
+        await LoadData();
+    }
+
+    private async Task CompletePick(PickingListItem item)
+    {
+        var parameters = new DialogParameters
+        {
+            ["ContentText"] = $"Do you want to confirm you have picked {item.ItemDescription}?",
+            ["ButtonText"] = "Confirm",
+            ["Color"] = Color.Success
+        };
+
+        var dialog = DialogService.Show<MudMessageBox>("Confirm Pick", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await PickingListService.ConfirmPickAsync(item.Id, _userId!);
+            await LoadData();
+            Snackbar.Add($"Item {item.ItemDescription} picked.", Severity.Success);
+        }
+    }
 
     private async Task StartPackTask(PickingListItem item)
     {
