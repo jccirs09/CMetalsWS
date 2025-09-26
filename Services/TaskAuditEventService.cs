@@ -18,13 +18,13 @@ namespace CMetalsWS.Services
             _hubContext = hubContext;
         }
 
-        public async Task CreateAuditEventAsync(int taskId, TaskType taskType, AuditEventType eventType, string userId, string? notes = null)
+        public async Task CreateAuditEventAsync(int pickingListItemId, TaskType taskType, AuditEventType eventType, string userId, string? notes = null)
         {
             using var context = await _contextFactory.CreateDbContextAsync();
 
             var auditEvent = new TaskAuditEvent
             {
-                TaskId = taskId,
+                PickingListItemId = pickingListItemId,
                 TaskType = taskType,
                 EventType = eventType,
                 UserId = userId,
@@ -40,47 +40,47 @@ namespace CMetalsWS.Services
             }
         }
 
-        public async Task<AuditEventType?> GetLastEventTypeForTaskAsync(int taskId, TaskType taskType)
+        public async Task<AuditEventType?> GetLastEventTypeForTaskAsync(int pickingListItemId, TaskType taskType)
         {
             using var context = await _contextFactory.CreateDbContextAsync();
             var lastEvent = await context.TaskAuditEvents
-                .Where(e => e.TaskId == taskId && e.TaskType == taskType)
+                .Where(e => e.PickingListItemId == pickingListItemId && e.TaskType == taskType)
                 .OrderByDescending(e => e.Timestamp)
                 .FirstOrDefaultAsync();
 
             return lastEvent?.EventType;
         }
 
-        public async Task<Dictionary<int, AuditEventType>> GetLastEventTypesForTasksAsync(List<int> taskIds, TaskType taskType)
+        public async Task<Dictionary<int, AuditEventType>> GetLastEventTypesForTasksAsync(List<int> pickingListItemIds, TaskType taskType)
         {
             using var context = await _contextFactory.CreateDbContextAsync();
-            if (!taskIds.Any())
+            if (!pickingListItemIds.Any())
             {
                 return new Dictionary<int, AuditEventType>();
             }
 
             var lastEvents = await context.TaskAuditEvents
-                .Where(e => e.TaskType == taskType && taskIds.Contains(e.TaskId))
-                .GroupBy(e => e.TaskId)
+                .Where(e => e.TaskType == taskType && e.PickingListItemId.HasValue && pickingListItemIds.Contains(e.PickingListItemId.Value))
+                .GroupBy(e => e.PickingListItemId)
                 .Select(g => g.OrderByDescending(e => e.Timestamp).First())
-                .ToDictionaryAsync(k => k.TaskId, v => v.EventType);
+                .ToDictionaryAsync(k => k.PickingListItemId.Value, v => v.EventType);
 
             return lastEvents;
         }
 
-        public async Task<Dictionary<int, TaskAuditEvent>> GetLastEventsForTasksAsync(List<int> taskIds, TaskType taskType)
+        public async Task<Dictionary<int, TaskAuditEvent>> GetLastEventsForTasksAsync(List<int> pickingListItemIds, TaskType taskType)
         {
             using var context = await _contextFactory.CreateDbContextAsync();
-            if (!taskIds.Any())
+            if (!pickingListItemIds.Any())
             {
                 return new Dictionary<int, TaskAuditEvent>();
             }
 
             var lastEvents = await context.TaskAuditEvents
-                .Where(e => e.TaskType == taskType && taskIds.Contains(e.TaskId))
-                .GroupBy(e => e.TaskId)
+                .Where(e => e.TaskType == taskType && e.PickingListItemId.HasValue && pickingListItemIds.Contains(e.PickingListItemId.Value))
+                .GroupBy(e => e.PickingListItemId)
                 .Select(g => g.OrderByDescending(e => e.Timestamp).First())
-                .ToDictionaryAsync(k => k.TaskId, v => v);
+                .ToDictionaryAsync(k => k.PickingListItemId.Value, v => v);
 
             return lastEvents;
         }

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250922014426_InitialCreate")]
+    [Migration("20250925234404_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -768,6 +768,9 @@ namespace CMetalsWS.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AssignedToId")
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<int>("BranchId")
                         .HasColumnType("int");
 
@@ -777,6 +780,10 @@ namespace CMetalsWS.Migrations
 
                     b.Property<int?>("CustomerId")
                         .HasColumnType("int");
+
+                    b.Property<string>("Destination")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<int?>("DestinationRegionId")
                         .HasColumnType("int");
@@ -834,6 +841,8 @@ namespace CMetalsWS.Migrations
                         .HasColumnType("decimal(18,3)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AssignedToId");
 
                     b.HasIndex("CustomerId");
 
@@ -915,6 +924,21 @@ namespace CMetalsWS.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal?>("ActualWeight")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("CoilId")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("DamageNotes")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<int?>("InventoryItemId")
+                        .HasColumnType("int");
+
                     b.Property<string>("ItemDescription")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -932,8 +956,20 @@ namespace CMetalsWS.Migrations
                     b.Property<int>("LineNumber")
                         .HasColumnType("int");
 
+                    b.Property<string>("Location")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
                     b.Property<int?>("MachineId")
                         .HasColumnType("int");
+
+                    b.Property<string>("PackingMaterial")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("PackingNotes")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
 
                     b.Property<int>("PickingListId")
                         .HasColumnType("int");
@@ -945,6 +981,15 @@ namespace CMetalsWS.Migrations
                     b.Property<decimal>("PulledWeight")
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
+
+                    b.Property<bool>("QualityChecked")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("QualityCheckedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("QualityCheckedById")
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 3)
@@ -976,9 +1021,13 @@ namespace CMetalsWS.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("InventoryItemId");
+
                     b.HasIndex("MachineId");
 
                     b.HasIndex("PickingListId");
+
+                    b.HasIndex("QualityCheckedById");
 
                     b.ToTable("PickingListItems");
                 });
@@ -1050,7 +1099,7 @@ namespace CMetalsWS.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("TaskId")
+                    b.Property<int?>("PickingListItemId")
                         .HasColumnType("int");
 
                     b.Property<int>("TaskType")
@@ -1064,6 +1113,8 @@ namespace CMetalsWS.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PickingListItemId");
 
                     b.HasIndex("UserId");
 
@@ -1704,6 +1755,10 @@ namespace CMetalsWS.Migrations
 
             modelBuilder.Entity("CMetalsWS.Data.PickingList", b =>
                 {
+                    b.HasOne("CMetalsWS.Data.ApplicationUser", "AssignedTo")
+                        .WithMany()
+                        .HasForeignKey("AssignedToId");
+
                     b.HasOne("CMetalsWS.Data.Branch", "Branch")
                         .WithMany("PickingLists")
                         .HasForeignKey("BranchId")
@@ -1725,6 +1780,8 @@ namespace CMetalsWS.Migrations
                     b.HasOne("CMetalsWS.Data.ApplicationUser", "ScannedBy")
                         .WithMany()
                         .HasForeignKey("ScannedById");
+
+                    b.Navigation("AssignedTo");
 
                     b.Navigation("Branch");
 
@@ -1757,6 +1814,10 @@ namespace CMetalsWS.Migrations
 
             modelBuilder.Entity("CMetalsWS.Data.PickingListItem", b =>
                 {
+                    b.HasOne("CMetalsWS.Data.InventoryItem", "InventoryItem")
+                        .WithMany()
+                        .HasForeignKey("InventoryItemId");
+
                     b.HasOne("CMetalsWS.Data.Machine", "Machine")
                         .WithMany()
                         .HasForeignKey("MachineId")
@@ -1768,9 +1829,17 @@ namespace CMetalsWS.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("CMetalsWS.Data.ApplicationUser", "QualityCheckedBy")
+                        .WithMany()
+                        .HasForeignKey("QualityCheckedById");
+
+                    b.Navigation("InventoryItem");
+
                     b.Navigation("Machine");
 
                     b.Navigation("PickingList");
+
+                    b.Navigation("QualityCheckedBy");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.PickingListPageImage", b =>
@@ -1797,11 +1866,17 @@ namespace CMetalsWS.Migrations
 
             modelBuilder.Entity("CMetalsWS.Data.TaskAuditEvent", b =>
                 {
+                    b.HasOne("CMetalsWS.Data.PickingListItem", "PickingListItem")
+                        .WithMany("Events")
+                        .HasForeignKey("PickingListItemId");
+
                     b.HasOne("CMetalsWS.Data.ApplicationUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("PickingListItem");
 
                     b.Navigation("User");
                 });
@@ -1978,6 +2053,11 @@ namespace CMetalsWS.Migrations
             modelBuilder.Entity("CMetalsWS.Data.PickingListImport", b =>
                 {
                     b.Navigation("PageImages");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.PickingListItem", b =>
+                {
+                    b.Navigation("Events");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.Shift", b =>

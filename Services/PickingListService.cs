@@ -42,8 +42,7 @@ namespace CMetalsWS.Services
                 .Include(p => p.Customer)
                 .Include(p => p.AssignedTo)
                 .Include(p => p.Items).ThenInclude(i => i.Machine)
-                .Include(p => p.Items).ThenInclude(i => i.PickedBy)
-                .Include(p => p.Items).ThenInclude(i => i.PackedBy)
+                .Include(p => p.Items).ThenInclude(i => i.Events).ThenInclude(e => e.User)
                 .Include(p => p.Items).ThenInclude(i => i.QualityCheckedBy)
                 .Where(p => p.Items.Any(i => i.Machine != null && (i.Machine.Category == MachineCategory.Coil || i.Machine.Category == MachineCategory.Sheet)))
                 .AsNoTracking();
@@ -86,8 +85,7 @@ namespace CMetalsWS.Services
                 .Include(p => p.Customer)
                 .Include(p => p.AssignedTo)
                 .Include(p => p.Items).ThenInclude(i => i.Machine)
-                .Include(p => p.Items).ThenInclude(i => i.PickedBy)
-                .Include(p => p.Items).ThenInclude(i => i.PackedBy)
+                .Include(p => p.Items).ThenInclude(i => i.Events).ThenInclude(e => e.User)
                 .Include(p => p.Items).ThenInclude(i => i.QualityCheckedBy)
                 .Include(p => p.Branch)
                 .FirstOrDefaultAsync(p => p.Id == id);
@@ -509,9 +507,6 @@ namespace CMetalsWS.Services
             var item = await db.PickingListItems.FindAsync(itemId);
             if (item == null) return;
 
-            item.Picked = true;
-            item.PickedById = userId;
-            item.PickedAt = DateTime.UtcNow;
             item.Status = PickingLineStatus.Picked;
             await _auditService.CreateAuditEventAsync(itemId, TaskType.Picking, AuditEventType.Complete, userId);
 
@@ -536,9 +531,6 @@ namespace CMetalsWS.Services
             var item = await db.PickingListItems.FindAsync(itemId);
             if (item == null) return;
 
-            item.Packed = true;
-            item.PackedById = userId;
-            item.PackedAt = DateTime.UtcNow;
             item.PulledQuantity = (item.PulledQuantity ?? 0) + quantity;
             if (item.Weight.HasValue && item.Quantity > 0)
             {

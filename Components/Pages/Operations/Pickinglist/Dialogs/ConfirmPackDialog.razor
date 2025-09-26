@@ -1,0 +1,48 @@
+@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Confirm Pack for @Item.ItemDescription</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudNumericField @bind-Value="_quantity" Label="Quantity" Variant="Variant.Outlined" For="@(() => _quantity)" Min="0" Max="@Item.Quantity" />
+        <MudNumericField @bind-Value="_weight" Label="Weight (lbs)" Variant="Variant.Outlined" For="@(() => _weight)" Min="0" />
+        <MudTextField @bind-Value="_notes" Label="Notes" Variant="Variant.Outlined" Lines="3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Confirm</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter]
+    public PickingListItem Item { get; set; } = null!;
+
+    private decimal _quantity;
+    private decimal _weight;
+    private string _notes = "";
+
+    protected override void OnInitialized()
+    {
+        _quantity = Item.Quantity;
+        _weight = Item.Weight ?? 0;
+    }
+
+    private void Submit()
+    {
+        var packData = new Dictionary<string, object>
+        {
+            { "Quantity", _quantity },
+            { "Weight", _weight },
+            { "Notes", _notes }
+        };
+        Dialog.Close(DialogResult.Ok(packData));
+    }
+
+    private void Cancel() => Dialog.Cancel();
+}
