@@ -532,8 +532,37 @@
 
     private async Task CompletePacking(PickingList pickingList)
     {
-        await PickingListService.CompletePackingAsync(pickingList.Id, _userId!);
-        await LoadData();
+        var packedItems = pickingList.Items.Where(i => i.Packed && i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil));
+        if (!packedItems.Any())
+        {
+            Snackbar.Add("No items have been packed yet.", Severity.Warning);
+            return;
+        }
+
+        var content = new System.Text.StringBuilder();
+        content.AppendLine("<p>Please confirm that all items have been packed with the correct quantity and weight:</p>");
+        content.AppendLine("<ul>");
+        foreach (var item in packedItems)
+        {
+            content.AppendLine($"<li><strong>{item.ItemDescription}</strong> - Qty: {item.Quantity}, Weight: {item.Weight} lbs</li>");
+        }
+        content.AppendLine("</ul>");
+
+        var parameters = new DialogParameters
+        {
+            ["ContentText"] = new MarkupString(content.ToString()),
+            ["ButtonText"] = "Confirm Complete Packing",
+            ["Color"] = Color.Success
+        };
+
+        var dialog = DialogService.Show<MudMessageBox>("Confirm Complete Packing", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await PickingListService.CompletePackingAsync(pickingList.Id, _userId!);
+            await LoadData();
+        }
     }
 
     private int GetPackedItemsCount(PickingList pickingList)
