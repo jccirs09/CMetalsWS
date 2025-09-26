@@ -34,6 +34,7 @@ namespace CMetalsWS.Services
             await SeedCityCentroidsAsync();
             await SeedMachinesAsync();
             await SeedDestinationRegionsAsync();
+            await SeedDestinationGroupsAsync();
 
             // Create roles
             string[] roles = { "Admin", "Planner", "Supervisor", "Manager", "Operator", "Driver", "Viewer" };
@@ -374,6 +375,26 @@ namespace CMetalsWS.Services
             };
 
             _context.DestinationRegions.AddRange(destinationRegions);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task SeedDestinationGroupsAsync()
+        {
+            if (await _context.DestinationGroups.AnyAsync())
+            {
+                return; // Data has already been seeded
+            }
+
+            var lowerMainlandCities = new List<string>
+            {
+                "Vancouver", "Burnaby", "New Westminster", "Coquitlam", "Port Coquitlam",
+                "Port Moody", "Surrey", "Richmond", "Delta", "White Rock", "North Vancouver",
+                "West Vancouver", "Pitt Meadows", "Maple Ridge", "Langley"
+            };
+
+            var destinationGroups = lowerMainlandCities.Select(city => new DestinationGroup { Name = city }).ToList();
+
+            _context.DestinationGroups.AddRange(destinationGroups);
             await _context.SaveChangesAsync();
         }
     }
