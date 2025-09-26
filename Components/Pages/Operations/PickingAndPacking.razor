@@ -93,8 +93,8 @@
                         <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName • @pickingList.Branch?.Name • @pickingList.DestinationRegion?.Name</MudText>
                     </div>
                     <div>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SetActivePickingList(pickingList))" Disabled="@(ActivePickingListId == pickingList.Id || pickingList.Status != PickingListStatus.Pending)">
-                            @(ActivePickingListId == pickingList.Id ? "In Progress" : "Initiate Process")
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SetActivePickingList(pickingList))" Disabled="@(ActivePickingListId == pickingList.Id || (pickingList.Status != PickingListStatus.Pending && pickingList.Status != PickingListStatus.InProgress))">
+                            @(ActivePickingListId == pickingList.Id || pickingList.Status == PickingListStatus.InProgress ? "In Process" : "Initiate Process")
                         </MudButton>
                         <MudChip T="string" Color="@(GetStatusColor(pickingList.Status))">@pickingList.Status.ToString()</MudChip>
                         <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))" Class="ml-2">@GetPriorityText(pickingList.Priority)</MudChip>
@@ -397,8 +397,15 @@
     private async Task SetActivePickingList(PickingList pickingList)
     {
         ActivePickingListId = pickingList.Id;
-        await PickingListService.InitiatePickingListProcessAsync(pickingList.Id, _userId!);
-        await LoadData();
+        if (pickingList.Status == PickingListStatus.Pending)
+        {
+            await PickingListService.InitiatePickingListProcessAsync(pickingList.Id, _userId!);
+            await LoadData();
+        }
+        else
+        {
+            StateHasChanged();
+        }
     }
 
     private async Task StartPickTask(PickingListItem item)
