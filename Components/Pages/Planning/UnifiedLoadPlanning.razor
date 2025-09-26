@@ -24,8 +24,8 @@
                     <MudSelect T="DestinationRegionCategory"
                                Label="Filter by Region"
                                MultiSelection="true"
-                               SelectedValues="_selectedCategoryFilters"
-                               SelectedValuesChanged="@(values => { _selectedCategoryFilters = new HashSet<DestinationRegionCategory>(values); ApplyFilters(); })"
+                               @bind-SelectedValues="_selectedCategoryFilters"
+                               @bind-SelectedValues:after="ApplyFilters"
                                Clearable="true">
                         @foreach (DestinationRegionCategory category in Enum.GetValues(typeof(DestinationRegionCategory)))
                         {
@@ -191,12 +191,13 @@
         StateHasChanged();
     }
 
-    private void ApplyFilters()
+    private Task ApplyFilters()
     {
         _filteredSalesOrderGroups = _allSalesOrderGroups
             .Where(g => !_selectedCategoryFilters.Any() || _selectedCategoryFilters.Contains(GetRegionCategory(g.First())))
             .ToList();
         StateHasChanged();
+        return Task.CompletedTask;
     }
 
     private void OnGroupChecked(bool isChecked, IGrouping<string, PickingList> group)
