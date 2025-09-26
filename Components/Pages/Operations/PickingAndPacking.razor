@@ -81,7 +81,7 @@
         }
     </MudTabPanel>
     <MudTabPanel Text="Picking Process">
-        @foreach (var pickingList in FilteredPickingLists.Where(pl => pl.Status == PickingListStatus.Pending || pl.Status == PickingListStatus.InProgress || pl.Status == PickingListStatus.OnHold))
+        @foreach (var pickingList in FilteredPickingLists.Where(pl => (pl.Status == PickingListStatus.Pending || pl.Status == PickingListStatus.InProgress || pl.Status == PickingListStatus.OnHold) && pl.Items.Any(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil) && !i.Picked)))
         {
             <MudPaper Class="pa-4 rounded-lg mb-4">
                 <div class="d-flex justify-space-between align-center">
