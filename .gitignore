@@ -11,6 +11,7 @@
 
 # User-specific settings
 appsettings.json
+appsettings.Development.json
 appsettings.*.json
 
 # Environment variables
