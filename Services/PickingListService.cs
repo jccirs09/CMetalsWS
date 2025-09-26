@@ -514,6 +514,36 @@ namespace CMetalsWS.Services
             await UpdatePickingListStatusAsync(item.PickingListId);
         }
 
+        public async Task ConfirmPicksAsync(List<int> itemIds, string userId)
+        {
+            using var db = await _dbContextFactory.CreateDbContextAsync();
+            var itemsToUpdate = await db.PickingListItems
+                .Where(i => itemIds.Contains(i.Id))
+                .ToListAsync();
+
+            int? pickingListId = null;
+
+            foreach (var item in itemsToUpdate)
+            {
+                if (item.Status != PickingLineStatus.Picked)
+                {
+                    item.Status = PickingLineStatus.Picked;
+                    await _auditService.CreateAuditEventAsync(item.Id, TaskType.Picking, AuditEventType.Complete, userId);
+                    if (pickingListId == null)
+                    {
+                        pickingListId = item.PickingListId;
+                    }
+                }
+            }
+
+            await db.SaveChangesAsync();
+
+            if (pickingListId.HasValue)
+            {
+                await UpdatePickingListStatusAsync(pickingListId.Value);
+            }
+        }
+
         public async Task StartPackTaskAsync(int itemId, string userId)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
