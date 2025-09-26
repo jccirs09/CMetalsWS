@@ -116,7 +116,7 @@
                 @foreach (var item in pickingList.Items.Where(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil)))
                 {
                     <MudPaper Class="d-flex align-center pa-4 mt-4 rounded-lg" Elevation="0" Style="@(item.Picked ? "border: 1px solid #C8E6C9;" : "border: 1px solid #FFECB3;")">
-                        <MudCheckBox T="bool" Checked="@(SelectedItems.ContainsKey(pickingList.Id) && SelectedItems[pickingList.Id].Contains(item.Id))" CheckedChanged="@((bool isChecked) => OnItemSelected(pickingList.Id, item.Id, isChecked))" Disabled="@(item.Picked || ActivePickingListId != pickingList.Id)"></MudCheckBox>
+                        <MudCheckBox T="bool" @bind-Checked="@(IsSelected(pickingList.Id, item.Id))" CheckedChanged="@(isChecked => SetSelected(pickingList.Id, item.Id, isChecked))" Disabled="@(item.Picked || ActivePickingListId != pickingList.Id)"></MudCheckBox>
                         <div class="flex-grow-1 ml-4">
                             <MudText Typo="Typo.h6">@item.ItemDescription</MudText>
                             <MudText Typo="Typo.body2">@item.Width" x @item.Length" • Qty: @item.Quantity • @item.Weight lbs</MudText>
@@ -165,7 +165,7 @@
                     {
                         <MudButton Variant="Variant.Outlined" OnClick="@(() => PauseList(pickingList))" Class="mr-2">Pause List</MudButton>
                     }
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => CompletePicking(pickingList))" Disabled="@(!SelectedItems.ContainsKey(pickingList.Id) || SelectedItems[pickingList.Id].Count == 0)">Complete Picking</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => CompletePicking(pickingList))" Disabled="@(!HasSelections(pickingList.Id))">Complete Picking</MudButton>
                 </div>
             </MudPaper>
         }
@@ -270,22 +270,30 @@
     private int? ActivePickingListId;
     private Dictionary<int, HashSet<int>> SelectedItems = new();
 
-    private void OnItemSelected(int pickingListId, int itemId, bool isChecked)
+    private bool HasSelections(int pickingListId)
+        => SelectedItems.TryGetValue(pickingListId, out var set) && set.Count > 0;
+
+    private bool IsSelected(int pickingListId, int itemId)
+        => SelectedItems.TryGetValue(pickingListId, out var set) && set.Contains(itemId);
+
+    private void SetSelected(int pickingListId, int itemId, bool isChecked)
     {
-        if (!SelectedItems.ContainsKey(pickingListId))
+        if (!SelectedItems.TryGetValue(pickingListId, out var set))
         {
-            SelectedItems[pickingListId] = new HashSet<int>();
+            set = new HashSet<int>();
+            SelectedItems[pickingListId] = set;
         }
 
         if (isChecked)
         {
-            SelectedItems[pickingListId].Add(itemId);
+            set.Add(itemId);
         }
         else
         {
-            SelectedItems[pickingListId].Remove(itemId);
+            set.Remove(itemId);
         }
-        StateHasChanged();
+
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private List<PickingList> FilteredPickingLists
