@@ -33,6 +33,7 @@ namespace CMetalsWS.Services
             await SeedBranchesAsync();
             await SeedCityCentroidsAsync();
             await SeedMachinesAsync();
+            await SeedDestinationRegionsAsync();
 
             // Create roles
             string[] roles = { "Admin", "Planner", "Supervisor", "Manager", "Operator", "Driver", "Viewer" };
@@ -341,6 +342,38 @@ namespace CMetalsWS.Services
             };
 
             _context.Machines.AddRange(machines);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task SeedDestinationRegionsAsync()
+        {
+            if (await _context.DestinationRegions.AnyAsync())
+            {
+                return; // Data has already been seeded
+            }
+
+            var allBranches = await _context.Branches.ToListAsync();
+            var surreyBranch = allBranches.FirstOrDefault(b => b.Name == "SURREY");
+            var deltaBranch = allBranches.FirstOrDefault(b => b.Name == "DELTA");
+
+            var islandBranches = new List<Branch>();
+            if (surreyBranch != null) islandBranches.Add(surreyBranch);
+            if (deltaBranch != null) islandBranches.Add(deltaBranch);
+
+            var okanaganBranches = new List<Branch>();
+            if (surreyBranch != null) okanaganBranches.Add(surreyBranch);
+            if (deltaBranch != null) okanaganBranches.Add(deltaBranch);
+
+            var destinationRegions = new List<DestinationRegion>
+            {
+                new DestinationRegion { Name = "LOCAL", Branches = allBranches },
+                new DestinationRegion { Name = "OUT OF TOWN", Branches = allBranches },
+                new DestinationRegion { Name = "CUSTOMER PICKUP", Branches = allBranches },
+                new DestinationRegion { Name = "ISLAND", Branches = islandBranches },
+                new DestinationRegion { Name = "OKANAGAN", Branches = okanaganBranches }
+            };
+
+            _context.DestinationRegions.AddRange(destinationRegions);
             await _context.SaveChangesAsync();
         }
     }
