@@ -32,6 +32,9 @@ namespace CMetalsWS.Services
 
             await SeedBranchesAsync();
             await SeedCityCentroidsAsync();
+            await SeedMachinesAsync();
+            await SeedDestinationRegionsAsync();
+            await SeedDestinationGroupsAsync();
 
             // Create roles
             string[] roles = { "Admin", "Planner", "Supervisor", "Manager", "Operator", "Driver", "Viewer" };
@@ -154,6 +157,15 @@ namespace CMetalsWS.Services
                 _logger.LogError("Admin user could not be found or created. Aborting further seeding.");
                 return;
             }
+
+            admin.FirstName = "John";
+            admin.LastName = "Smith";
+            var surreyBranch = await _context.Branches.FirstOrDefaultAsync(b => b.Name == "SURREY");
+            if (surreyBranch != null)
+            {
+                admin.BranchId = surreyBranch.Id;
+            }
+            await _userManager.UpdateAsync(admin);
 
             await SeedUserClaimsAsync();
             await SeedChatDataAsync(admin);
@@ -304,6 +316,85 @@ namespace CMetalsWS.Services
             };
 
             _context.CityCentroids.AddRange(centroids);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task SeedMachinesAsync()
+        {
+            if (await _context.Machines.AnyAsync())
+            {
+                return; // Machines have already been seeded
+            }
+
+            var surreyBranch = await _context.Branches.FirstOrDefaultAsync(b => b.Name == "SURREY");
+            if (surreyBranch == null)
+            {
+                _logger.LogError("Surrey branch not found, cannot seed machines.");
+                return;
+            }
+
+            var machines = new List<Machine>
+            {
+                new Machine { Code = "CTL", Name = "CTL 1", BranchId = surreyBranch.Id, Category = MachineCategory.CTL },
+                new Machine { Code = "COIL", Name = "COIL", BranchId = surreyBranch.Id, Category = MachineCategory.Coil },
+                new Machine { Code = "SLITTER", Name = "SLITTER", BranchId = surreyBranch.Id, Category = MachineCategory.Slitter },
+                new Machine { Code = "SHEET1", Name = "TABLE 1", BranchId = surreyBranch.Id, Category = MachineCategory.Sheet },
+                new Machine { Code = "SHEET2", Name = "TABLE 2", BranchId = surreyBranch.Id, Category = MachineCategory.Sheet }
+            };
+
+            _context.Machines.AddRange(machines);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task SeedDestinationRegionsAsync()
+        {
+            if (await _context.DestinationRegions.AnyAsync())
+            {
+                return; // Data has already been seeded
+            }
+
+            var allBranches = await _context.Branches.ToListAsync();
+            var surreyBranch = allBranches.FirstOrDefault(b => b.Name == "SURREY");
+            var deltaBranch = allBranches.FirstOrDefault(b => b.Name == "DELTA");
+
+            var islandBranches = new List<Branch>();
+            if (surreyBranch != null) islandBranches.Add(surreyBranch);
+            if (deltaBranch != null) islandBranches.Add(deltaBranch);
+
+            var okanaganBranches = new List<Branch>();
+            if (surreyBranch != null) okanaganBranches.Add(surreyBranch);
+            if (deltaBranch != null) okanaganBranches.Add(deltaBranch);
+
+            var destinationRegions = new List<DestinationRegion>
+            {
+                new DestinationRegion { Name = "LOCAL", Branches = allBranches },
+                new DestinationRegion { Name = "OUT OF TOWN", Branches = allBranches },
+                new DestinationRegion { Name = "CUSTOMER PICKUP", Branches = allBranches },
+                new DestinationRegion { Name = "ISLAND", Branches = islandBranches },
+                new DestinationRegion { Name = "OKANAGAN", Branches = okanaganBranches }
+            };
+
+            _context.DestinationRegions.AddRange(destinationRegions);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task SeedDestinationGroupsAsync()
+        {
+            if (await _context.DestinationGroups.AnyAsync())
+            {
+                return; // Data has already been seeded
+            }
+
+            var lowerMainlandCities = new List<string>
+            {
+                "Vancouver", "Burnaby", "New Westminster", "Coquitlam", "Port Coquitlam",
+                "Port Moody", "Surrey", "Richmond", "Delta", "White Rock", "North Vancouver",
+                "West Vancouver", "Pitt Meadows", "Maple Ridge", "Langley"
+            };
+
+            var destinationGroups = lowerMainlandCities.Select(city => new DestinationGroup { Name = city }).ToList();
+
+            _context.DestinationGroups.AddRange(destinationGroups);
             await _context.SaveChangesAsync();
         }
     }
