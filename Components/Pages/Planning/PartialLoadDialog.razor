@@ -1,36 +1,62 @@
 @using CMetalsWS.Data
 @using MudBlazor
+@using System.ComponentModel.DataAnnotations
 
 <MudDialog>
     <TitleContent>
         <MudText Typo="Typo.h6">Partial Load Selection</MudText>
     </TitleContent>
     <DialogContent>
-        <MudSimpleTable Dense="true" Hover="true">
-            <thead>
-                <tr>
-                    <th></th>
-                    <th>Stock #</th>
-                    <th>Description</th>
-                    <th style="text-align:right">Weight</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in PickingListItems)
-                {
+        <EditForm Model="@_formModel" OnValidSubmit="Submit">
+            <DataAnnotationsValidator />
+            <MudSimpleTable Dense="true" Hover="true" Style="overflow-x: auto;">
+                <thead>
                     <tr>
-                        <td><MudCheckBox T="bool" Value="@(_selectedItems.Contains(item))" ValueChanged="@((bool val) => OnItemChecked(val, item))" /></td>
-                        <td>@item.ItemId</td>
-                        <td>@item.ItemDescription</td>
-                        <td style="text-align:right">@item.PulledWeight.ToString("N2")</td>
+                        <th></th>
+                        <th>Stock #</th>
+                        <th>Description</th>
+                        <th style="text-align:right">Remaining Qty</th>
+                        <th style="text-align:right">Remaining Wt.</th>
+                        <th style="text-align:right">Ship Qty</th>
+                        <th style="text-align:right">Ship Wt.</th>
                     </tr>
-                }
-            </tbody>
-        </MudSimpleTable>
+                </thead>
+                <tbody>
+                    @foreach (var row in _itemsToDisplay)
+                    {
+                        <tr>
+                            <td>
+                                <MudCheckBox T="bool" Value="@row.IsSelected" ValueChanged="@((bool val) => OnItemChecked(val, row))" />
+                            </td>
+                            <td>@row.Item.ItemId</td>
+                            <td>@row.Item.ItemDescription</td>
+                            <td style="text-align:right">@row.Item.RemainingQuantity.ToString("N2")</td>
+                            <td style="text-align:right">@row.Item.RemainingWeight.ToString("N2")</td>
+                            <td>
+                                <MudNumericField T="decimal"
+                                                 Value="row.ShipQuantity"
+                                                 ValueChanged="@((decimal val) => { row.ShipQuantity = val; })"
+                                                 Disabled="@(!row.IsSelected)"
+                                                 Margin="Margin.Dense"
+                                                 Validation="@((decimal q) => ValidateQuantity(q, row))" />
+                            </td>
+                            <td>
+                                <MudNumericField T="decimal"
+                                                 Value="row.ShipWeight"
+                                                 ValueChanged="@((decimal val) => { row.ShipWeight = val; })"
+                                                 Disabled="@(!row.IsSelected)"
+                                                 Margin="Margin.Dense"
+                                                 Validation="@((decimal w) => ValidateWeight(w, row))" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        </EditForm>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Cancel</MudButton>
-        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!_selectedItems.Any())">Add to Load</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!_itemsToDisplay.Any(i => i.IsSelected))">Add to Load</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -38,20 +64,90 @@
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public List<PickingListItem> PickingListItems { get; set; } = new();
 
-    private HashSet<PickingListItem> _selectedItems = new();
+    private List<DialogRow> _itemsToDisplay = new();
+    private object _formModel = new(); // Dummy model for EditForm
 
-    private void OnItemChecked(bool isChecked, PickingListItem item)
+    public class PartialShipmentItem
     {
+        public int PickingListItemId { get; set; }
+        public decimal Quantity { get; set; }
+        public decimal Weight { get; set; }
+    }
+
+    private class DialogRow
+    {
+        public required PickingListItem Item { get; set; }
+        public decimal ShipQuantity { get; set; }
+        public decimal ShipWeight { get; set; }
+        public bool IsSelected { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _itemsToDisplay = PickingListItems.Select(i => new DialogRow
+        {
+            Item = i,
+            ShipQuantity = 0,
+            ShipWeight = 0,
+            IsSelected = false
+        }).ToList();
+    }
+
+    private void OnItemChecked(bool isChecked, DialogRow row)
+    {
+        row.IsSelected = isChecked;
         if (isChecked)
         {
-            _selectedItems.Add(item);
+            // Default to full remaining quantity/weight.
+            row.ShipQuantity = row.Item.RemainingQuantity;
+            row.ShipWeight = row.Item.RemainingWeight;
         }
         else
         {
-            _selectedItems.Remove(item);
+            row.ShipQuantity = 0;
+            row.ShipWeight = 0;
+        }
+        StateHasChanged();
+    }
+
+    private IEnumerable<string> ValidateQuantity(decimal quantity, DialogRow row)
+    {
+        if (quantity < 0)
+        {
+            yield return "Quantity cannot be negative.";
+        }
+        if (quantity > row.Item.RemainingQuantity)
+        {
+            yield return "Cannot ship more than available quantity.";
         }
     }
 
-    private void Submit() => MudDialog.Close(DialogResult.Ok(_selectedItems.ToList()));
+    private IEnumerable<string> ValidateWeight(decimal weight, DialogRow row)
+    {
+        if (weight < 0)
+        {
+            yield return "Weight cannot be negative.";
+        }
+        if (weight > row.Item.RemainingWeight)
+        {
+            yield return "Cannot ship more than available weight.";
+        }
+    }
+
+    private void Submit()
+    {
+        var result = _itemsToDisplay
+            .Where(i => i.IsSelected && (i.ShipQuantity > 0 || i.ShipWeight > 0))
+            .Select(i => new PartialShipmentItem
+            {
+                PickingListItemId = i.Item.Id,
+                Quantity = i.ShipQuantity,
+                Weight = i.ShipWeight
+            })
+            .ToList();
+
+        MudDialog.Close(DialogResult.Ok(result));
+    }
     private void Cancel() => MudDialog.Cancel();
 }

@@ -114,6 +114,11 @@ namespace CMetalsWS.Data
         [NotMapped]
         public DateTime? EffectiveShipDate => ScheduledShipDate;
 
+        [NotMapped]
+        public decimal RemainingQuantity { get; set; }
+        [NotMapped]
+        public decimal RemainingWeight { get; set; }
+
         public int? MachineId { get; set; }
         public virtual Machine? Machine { get; set; }
         [MaxLength(128)]

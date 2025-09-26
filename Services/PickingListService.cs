@@ -57,17 +57,26 @@ namespace CMetalsWS.Services
         {
             using var db = _dbContextFactory.CreateDbContext();
 
-            var loadedItemIds = await db.LoadItems
-                .Select(li => li.PickingListItemId)
-                .Distinct()
-                .ToListAsync();
+            // 1. Get shipped totals for all items
+            var shippedTotals = await db.LoadItems
+                .GroupBy(li => li.PickingListItemId)
+                .Select(g => new
+                {
+                    PickingListItemId = g.Key,
+                    TotalShippedQuantity = g.Sum(li => li.ShippedQuantity),
+                    TotalShippedWeight = g.Sum(li => li.ShippedWeight)
+                })
+                .ToDictionaryAsync(x => x.PickingListItemId);
 
+            // Define statuses to exclude for forward planning
+            var excludedStatuses = new[] { PickingListStatus.Awaiting, PickingListStatus.Cancelled, PickingListStatus.Completed };
+
+            // 2. Get potentially available picking lists for forward planning
             var query = db.PickingLists
-                .Include(p => p.Customer)
+                .Include(p => p.Customer).ThenInclude(c => c!.DestinationRegion)
                 .Include(p => p.Items)
                 .Include(p => p.Branch)
-                .Where(p => p.Status == PickingListStatus.Completed &&
-                             p.Items.Any(i => !loadedItemIds.Contains(i.Id)))
+                .Where(p => !excludedStatuses.Contains(p.Status))
                 .AsNoTracking();
 
             if (branchId.HasValue)
@@ -75,7 +84,47 @@ namespace CMetalsWS.Services
                 query = query.Where(p => p.BranchId == branchId.Value);
             }
 
-            return await query.OrderByDescending(p => p.Id).ToListAsync();
+            var allPlannableLists = await query.ToListAsync();
+
+            // 3. Calculate remaining quantities and filter lists/items
+            var availableLists = new List<PickingList>();
+            foreach (var list in allPlannableLists)
+            {
+                var availableItems = new List<PickingListItem>();
+                foreach (var item in list.Items)
+                {
+                    decimal totalShippedQuantity = 0;
+                    decimal totalShippedWeight = 0;
+
+                    if (shippedTotals.TryGetValue(item.Id, out var totals))
+                    {
+                        totalShippedQuantity = totals.TotalShippedQuantity;
+                        totalShippedWeight = totals.TotalShippedWeight;
+                    }
+
+                    // For forward planning, if an item hasn't been pulled, use its theoretical weight.
+                    var plannableWeight = item.PulledWeight > 0.001m ? item.PulledWeight : (item.Weight ?? 0) * item.Quantity;
+                    var plannableQuantity = item.PulledQuantity ?? item.Quantity;
+
+                    item.RemainingQuantity = plannableQuantity - totalShippedQuantity;
+                    item.RemainingWeight = plannableWeight - totalShippedWeight;
+
+                    // An item is available if there's anything left to ship
+                    if (item.RemainingQuantity > 0.001m || item.RemainingWeight > 0.001m)
+                    {
+                        availableItems.Add(item);
+                    }
+                }
+
+                // A list is available if it has at least one available item
+                if (availableItems.Any())
+                {
+                    list.Items = availableItems;
+                    availableLists.Add(list);
+                }
+            }
+
+            return availableLists;
         }
 
         public async Task<PickingList?> GetByIdAsync(int id)

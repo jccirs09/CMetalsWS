@@ -73,10 +73,7 @@
     @if (canPickingLists)
     {
         <MudNavGroup text="Load Planning" Icon="@Icons.Material.Filled.LocalShipping" Title="Load Planning">
-            @foreach (var region in _destinationRegions)
-            {
-                <MudNavLink Href="@($"/planning/load/{region.Id}")" Icon="@Icons.Material.Filled.LocationOn">@region.Name</MudNavLink>
-            }
+            <MudNavLink Href="/planning/unified-load-planning" Icon="@Icons.Material.Filled.LocationOn">Unified Load Planning</MudNavLink>
         </MudNavGroup>
     }
 
@@ -109,7 +106,6 @@
 
 @code {
     private string? currentUrl;
-    private List<DestinationRegion> _destinationRegions = new();
 
     // permission flags
     private bool canWorkOrders;
@@ -121,7 +117,6 @@
         currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
         NavigationManager.LocationChanged += OnLocationChanged;
         await ComputePermissionsAsync();
-        await LoadDestinationRegionsAsync();
     }
 
     private async Task ComputePermissionsAsync()
@@ -133,16 +128,10 @@
         canAssignPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.Assign)).Succeeded;
     }
 
-    private async Task LoadDestinationRegionsAsync()
-    {
-        _destinationRegions = await DestinationRegionService.GetDestinationRegionsAsync();
-    }
-
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
         await ComputePermissionsAsync();
-        await LoadDestinationRegionsAsync();
         StateHasChanged();
     }
 

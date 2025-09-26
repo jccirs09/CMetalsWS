@@ -37,6 +37,8 @@ namespace CMetalsWS.Data
         public virtual PickingListItem PickingListItem { get; set; } = null!;
         public int StopSequence { get; set; }
         [Precision(18, 3)]
+        public decimal ShippedQuantity { get; set; }
+        [Precision(18, 3)]
         public decimal ShippedWeight { get; set; }
     }
 }
