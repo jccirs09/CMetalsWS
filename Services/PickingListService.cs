@@ -525,18 +525,14 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
             await UpdatePickingListStatusAsync(item.PickingListId);
         }
-        public async Task ConfirmPackAsync(int itemId, string userId, decimal quantity, decimal actualWeight, string notes)
+        public async Task ConfirmPackAsync(int itemId, string userId, decimal quantity, decimal weight, string notes)
         {
             using var db = await _dbContextFactory.CreateDbContextAsync();
             var item = await db.PickingListItems.FindAsync(itemId);
             if (item == null) return;
 
-            item.PulledQuantity = (item.PulledQuantity ?? 0) + quantity;
-            if (item.Weight.HasValue && item.Quantity > 0)
-            {
-                item.PulledWeight += (item.Weight.Value / item.Quantity) * quantity;
-            }
-            item.ActualWeight = actualWeight;
+            item.PulledQuantity = quantity;
+            item.PulledWeight = weight;
             item.PackingNotes = notes;
             item.Status = PickingLineStatus.Packed;
             await _auditService.CreateAuditEventAsync(itemId, TaskType.Packing, AuditEventType.Complete, userId);

@@ -144,8 +144,6 @@ namespace CMetalsWS.Data
         public string? QualityCheckedById { get; set; }
         public virtual ApplicationUser? QualityCheckedBy { get; set; }
         public DateTime? QualityCheckedAt { get; set; }
-        [Precision(18, 3)]
-        public decimal? ActualWeight { get; set; }
         [MaxLength(512)]
         public string? DamageNotes { get; set; }
         public virtual ICollection<TaskAuditEvent> Events { get; set; } = new List<TaskAuditEvent>();
