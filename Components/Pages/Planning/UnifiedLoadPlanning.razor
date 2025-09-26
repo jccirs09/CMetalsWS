@@ -24,8 +24,8 @@
                     <MudSelect T="DestinationRegionCategory"
                                Label="Filter by Region"
                                MultiSelection="true"
-                               @bind-SelectedValues="_selectedCategoryFilters"
-                               @bind-SelectedValues:after="ApplyFilters"
+                               SelectedValues="_selectedCategoryFilters"
+                               SelectedValuesChanged="OnFilterChanged"
                                Clearable="true">
                         @foreach (DestinationRegionCategory category in Enum.GetValues(typeof(DestinationRegionCategory)))
                         {
@@ -191,8 +191,9 @@
         StateHasChanged();
     }
 
-    private void ApplyFilters()
+    private void OnFilterChanged(IEnumerable<DestinationRegionCategory> values)
     {
+        _selectedCategoryFilters = new HashSet<DestinationRegionCategory>(values);
         _filteredSalesOrderGroups = _allSalesOrderGroups
             .Where(g => !_selectedCategoryFilters.Any() || _selectedCategoryFilters.Contains(GetRegionCategory(g.First())))
             .ToList();
