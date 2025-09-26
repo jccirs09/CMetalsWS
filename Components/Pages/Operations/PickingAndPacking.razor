@@ -81,7 +81,7 @@
         }
     </MudTabPanel>
     <MudTabPanel Text="Picking Process">
-        @foreach (var pickingList in FilteredPickingLists.Where(pl => pl.Status == PickingListStatus.Pending || pl.Status == PickingListStatus.InProgress || pl.Status == PickingListStatus.OnHold))
+        @foreach (var pickingList in FilteredPickingLists.Where(pl => (pl.Status == PickingListStatus.Pending || pl.Status == PickingListStatus.InProgress || pl.Status == PickingListStatus.OnHold) && pl.Items.Any(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil) && !i.Picked)))
         {
             <MudPaper Class="pa-4 rounded-lg mb-4">
                 <div class="d-flex justify-space-between align-center">
@@ -93,8 +93,8 @@
                         <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName • @pickingList.Branch?.Name • @pickingList.DestinationRegion?.Name</MudText>
                     </div>
                     <div>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SetActivePickingList(pickingList))" Disabled="@(ActivePickingListId == pickingList.Id || pickingList.Status != PickingListStatus.Pending)">
-                            @(ActivePickingListId == pickingList.Id ? "In Progress" : "Initiate Process")
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SetActivePickingList(pickingList))" Disabled="@(ActivePickingListId == pickingList.Id || (pickingList.Status != PickingListStatus.Pending && pickingList.Status != PickingListStatus.InProgress))">
+                            @(ActivePickingListId == pickingList.Id || pickingList.Status == PickingListStatus.InProgress ? "In Process" : "Initiate Process")
                         </MudButton>
                         <MudChip T="string" Color="@(GetStatusColor(pickingList.Status))">@pickingList.Status.ToString()</MudChip>
                         <MudChip T="string" Color="@(GetPriorityColor(pickingList.Priority))" Class="ml-2">@GetPriorityText(pickingList.Priority)</MudChip>
@@ -105,7 +105,7 @@
                     <div class="d-flex justify-space-between align-center">
                         <div>
                             <MudText Typo="Typo.h6">Picking Progress</MudText>
-                            <MudText Typo="Typo.body2">@GetPickedItemsCount(pickingList) of @pickingList.Items.Count items picked</MudText>
+                            <MudText Typo="Typo.body2">@GetPickedItemsCount(pickingList) of @GetTotalLineItems(pickingList) items picked</MudText>
                         </div>
                         <div style="width: 200px;">
                             <MudProgressLinear Color="Color.Success" Value="@GetPickingProgress(pickingList)" />
@@ -115,8 +115,8 @@
 
                 @foreach (var item in pickingList.Items.Where(i => i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil)))
                 {
-                    <MudPaper Class="d-flex align-center pa-4 mt-4 rounded-lg" Elevation="0" Style="@(item.Picked ? "border: 1px solid #C8E6C9;" : "border: 1px solid #FFECB3;")">
-                        <MudCheckBox T="bool" Checked="@(SelectedItems.ContainsKey(pickingList.Id) && SelectedItems[pickingList.Id].Contains(item.Id))" CheckedChanged="@((bool isChecked) => OnItemSelected(pickingList.Id, item.Id, isChecked))" Disabled="@(item.Picked || ActivePickingListId != pickingList.Id)"></MudCheckBox>
+                    <MudPaper @onclick="@(() => ToggleItemSelected(pickingList.Id, item))" Class="d-flex align-center pa-4 mt-4 rounded-lg" Elevation="0" Style="@(item.Picked ? "border: 1px solid #C8E6C9;" : "border: 1px solid #FFECB3;")">
+                        <MudCheckBox T="bool" Value="@(IsSelected(pickingList.Id, item.Id))" ValueChanged="@(isChecked => SetSelected(pickingList.Id, item.Id, isChecked))" Disabled="@(item.Picked || ActivePickingListId != pickingList.Id)"></MudCheckBox>
                         <div class="flex-grow-1 ml-4">
                             <MudText Typo="Typo.h6">@item.ItemDescription</MudText>
                             <MudText Typo="Typo.body2">@item.Width" x @item.Length" • Qty: @item.Quantity • @item.Weight lbs</MudText>
@@ -165,7 +165,7 @@
                     {
                         <MudButton Variant="Variant.Outlined" OnClick="@(() => PauseList(pickingList))" Class="mr-2">Pause List</MudButton>
                     }
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => CompletePicking(pickingList))" Disabled="@(!SelectedItems.ContainsKey(pickingList.Id) || SelectedItems[pickingList.Id].Count == 0)">Complete Picking</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => CompletePicking(pickingList))" Disabled="@(!HasSelections(pickingList.Id))">Complete Picking</MudButton>
                 </div>
             </MudPaper>
         }
@@ -192,7 +192,7 @@
                     <div class="d-flex justify-space-between align-center">
                         <div>
                             <MudText Typo="Typo.h6">Packing Progress</MudText>
-                            <MudText Typo="Typo.body2">@GetPackedItemsCount(pickingList) of @pickingList.Items.Count items packed</MudText>
+                            <MudText Typo="Typo.body2">@GetPackedItemsCount(pickingList) of @GetTotalLineItems(pickingList) items packed</MudText>
                         </div>
                         <div style="width: 200px;">
                             <MudProgressLinear Color="Color.Info" Value="@GetPackingProgress(pickingList)" />
@@ -223,7 +223,6 @@
                         <div>
                             @if (item.Status == PickingLineStatus.Picked && !item.Packed)
                             {
-                                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.QrCodeScanner" Class="mr-2">Scan</MudButton>
                                 <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="@(() => StartPackTask(item))">Start Pack</MudButton>
                             }
                             else if (item.Status == PickingLineStatus.InProgress)
@@ -252,7 +251,7 @@
                     {
                         <MudButton Variant="Variant.Outlined" OnClick="@(() => PauseList(pickingList))" Class="mr-2">Pause List</MudButton>
                     }
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => CompletePacking(pickingList))" Disabled="@(GetPackedItemsCount(pickingList) == 0)">Complete Packing</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => CompletePacking(pickingList))" Disabled="@(GetPickedItemsCount(pickingList) == 0)">Complete Packing</MudButton>
                 </div>
             </MudPaper>
         }
@@ -270,22 +269,41 @@
     private int? ActivePickingListId;
     private Dictionary<int, HashSet<int>> SelectedItems = new();
 
-    private void OnItemSelected(int pickingListId, int itemId, bool isChecked)
+    private bool HasSelections(int pickingListId)
+        => SelectedItems.TryGetValue(pickingListId, out var set) && set.Count > 0;
+
+    private bool IsSelected(int pickingListId, int itemId)
+        => SelectedItems.TryGetValue(pickingListId, out var set) && set.Contains(itemId);
+
+    private void SetSelected(int pickingListId, int itemId, bool isChecked)
     {
-        if (!SelectedItems.ContainsKey(pickingListId))
+        if (!SelectedItems.TryGetValue(pickingListId, out var set))
         {
-            SelectedItems[pickingListId] = new HashSet<int>();
+            set = new HashSet<int>();
+            SelectedItems[pickingListId] = set;
         }
 
         if (isChecked)
         {
-            SelectedItems[pickingListId].Add(itemId);
+            set.Add(itemId);
         }
         else
         {
-            SelectedItems[pickingListId].Remove(itemId);
+            set.Remove(itemId);
         }
-        StateHasChanged();
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void ToggleItemSelected(int pickingListId, PickingListItem item)
+    {
+        if (item.Picked || ActivePickingListId != pickingListId)
+        {
+            return;
+        }
+
+        var isCurrentlySelected = IsSelected(pickingListId, item.Id);
+        SetSelected(pickingListId, item.Id, !isCurrentlySelected);
     }
 
     private List<PickingList> FilteredPickingLists
@@ -397,8 +415,15 @@
     private async Task SetActivePickingList(PickingList pickingList)
     {
         ActivePickingListId = pickingList.Id;
-        await PickingListService.InitiatePickingListProcessAsync(pickingList.Id, _userId!);
-        await LoadData();
+        if (pickingList.Status == PickingListStatus.Pending)
+        {
+            await PickingListService.InitiatePickingListProcessAsync(pickingList.Id, _userId!);
+            await LoadData();
+        }
+        else
+        {
+            StateHasChanged();
+        }
     }
 
     private async Task StartPickTask(PickingListItem item)
@@ -421,14 +446,8 @@
 
     private async Task CompletePick(PickingListItem item)
     {
-        var parameters = new DialogParameters
-        {
-            ["ContentText"] = $"Do you want to confirm you have picked {item.ItemDescription}?",
-            ["ButtonText"] = "Confirm",
-            ["Color"] = Color.Success
-        };
-
-        var dialog = DialogService.Show<MudMessageBox>("Confirm Pick", parameters);
+        var parameters = new DialogParameters { ["Items"] = new List<PickingListItem> { item } };
+        var dialog = DialogService.Show<PickItemDialog>("Confirm Pick", parameters);
         var result = await dialog.Result;
 
         if (!result.Canceled)
@@ -495,14 +514,10 @@
         var selectedItemIds = SelectedItems.ContainsKey(pickingList.Id) ? SelectedItems[pickingList.Id] : new HashSet<int>();
         if (selectedItemIds.Count == 0) return;
 
-        var parameters = new DialogParameters
-        {
-            ["ContentText"] = $"Do you want to confirm you have picked {selectedItemIds.Count} items?",
-            ["ButtonText"] = "Confirm",
-            ["Color"] = Color.Success
-        };
+        var selectedItems = pickingList.Items.Where(i => selectedItemIds.Contains(i.Id)).ToList();
 
-        var dialog = DialogService.Show<MudMessageBox>("Confirm Picks", parameters);
+        var parameters = new DialogParameters { ["Items"] = selectedItems };
+        var dialog = DialogService.Show<PickItemDialog>("Confirm Picks", parameters);
         var result = await dialog.Result;
 
         if (!result.Canceled)
@@ -517,18 +532,44 @@
 
     private async Task CompletePacking(PickingList pickingList)
     {
-        await PickingListService.CompletePackingAsync(pickingList.Id, _userId!);
-        await LoadData();
+        var itemsToPack = pickingList.Items.Where(i => i.Picked && i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil)).ToList();
+        if (!itemsToPack.Any())
+        {
+            Snackbar.Add("No items have been picked yet.", Severity.Warning);
+            return;
+        }
+
+        var parameters = new DialogParameters { ["ItemsToPack"] = itemsToPack };
+        var dialog = DialogService.Show<BulkPackConfirmationDialog>("Confirm All Packed Items", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is List<BulkPackConfirmationDialog.PackedItemEditModel> editedItems)
+        {
+            foreach (var editedItem in editedItems)
+            {
+                await PickingListService.ConfirmPackAsync(
+                    editedItem.OriginalItem.Id,
+                    _userId!,
+                    editedItem.Quantity,
+                    editedItem.Weight,
+                    "" // Notes are not part of the bulk dialog
+                );
+            }
+
+            await PickingListService.CompletePackingAsync(pickingList.Id, _userId!);
+            await LoadData();
+            Snackbar.Add("Packing completed for the list.", Severity.Success);
+        }
     }
 
     private int GetPackedItemsCount(PickingList pickingList)
     {
-        return pickingList.Items.Count(i => i.Packed);
+        return pickingList.Items.Count(i => i.Packed && i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil));
     }
 
     private int GetPickedItemsCount(PickingList pickingList)
     {
-        return pickingList.Items.Count(i => i.Picked);
+        return pickingList.Items.Count(i => i.Picked && i.Machine != null && (i.Machine.Category == MachineCategory.Sheet || i.Machine.Category == MachineCategory.Coil));
     }
 
     private int GetTotalLineItems(PickingList pickingList)
@@ -546,8 +587,10 @@
         if (pickingList.Items == null || !pickingList.Items.Any())
             return 0;
 
-        var totalItems = pickingList.Items.Count;
-        var pickedItems = pickingList.Items.Count(i => i.Picked);
+        var totalItems = GetTotalLineItems(pickingList);
+        if (totalItems == 0) return 0;
+
+        var pickedItems = GetPickedItemsCount(pickingList);
         return (double)pickedItems / totalItems * 100;
     }
 
@@ -556,8 +599,10 @@
         if (pickingList.Items == null || !pickingList.Items.Any())
             return 0;
 
-        var totalItems = pickingList.Items.Count;
-        var packedItems = pickingList.Items.Count(i => i.Packed);
+        var totalItems = GetTotalLineItems(pickingList);
+        if (totalItems == 0) return 0;
+
+        var packedItems = GetPackedItemsCount(pickingList);
         return (double)packedItems / totalItems * 100;
     }
 }

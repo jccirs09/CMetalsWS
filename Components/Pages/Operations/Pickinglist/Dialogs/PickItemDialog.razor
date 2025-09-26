@@ -4,13 +4,19 @@
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">Pick Item</MudText>
+        <MudText Typo="Typo.h6">Confirm Pick</MudText>
     </TitleContent>
     <DialogContent>
-        <MudText><strong>Item:</strong> @Item.ItemDescription</MudText>
-        <MudText><strong>Quantity:</strong> @Item.Quantity</MudText>
-        <MudText><strong>Weight:</strong> @Item.Weight</MudText>
-        <MudText><strong>Location:</strong> @Item.Location</MudText>
+        <MudText>Do you want to confirm you have picked the following item(s)?</MudText>
+        <div style="max-height: 300px; overflow-y: auto;" class="mt-4">
+            @foreach (var item in Items)
+            {
+                <MudPaper Class="pa-2 mb-2">
+                    <MudText><strong>Item:</strong> @item.ItemDescription</MudText>
+                    <MudText Typo="Typo.caption"><strong>Qty:</strong> @item.Quantity, <strong>Weight:</strong> @item.Weight, <strong>Location:</strong> @item.Location</MudText>
+                </MudPaper>
+            }
+        </div>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Cancel</MudButton>
@@ -20,8 +26,8 @@
 
 @code {
     [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = null!;
-    [Parameter] public PickingListItem Item { get; set; } = null!;
+    [Parameter] public List<PickingListItem> Items { get; set; } = new();
 
-    void Confirm() => MudDialog.Close(MudBlazor.DialogResult.Ok(true));
+    void Confirm() => MudDialog.Close(DialogResult.Ok(true));
     void Cancel() => MudDialog.Cancel();
 }
