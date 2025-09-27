@@ -74,7 +74,7 @@
                             @foreach (var item in _availablePickingListItems)
                             {
                                 <tr>
-                                    <td><MudCheckBox T="bool" @bind-Checked="@_selectedPickingListItems[item.Id]" /></td>
+                                    <td><MudCheckBox T="bool" @bind-Checked="@_selectedPickingListItems[item.Id]" @bind-Checked:after="OnSelectionChanged" /></td>
                                     <td>@item.PickingList?.SalesOrderNumber</td>
                                     <td>@item.PickingList?.Customer?.CustomerName</td>
                                     <td>@item.ItemId</td>
@@ -137,7 +137,7 @@
                             <MudItem xs="6">Total Items:</MudItem><MudItem xs="6"><b>@Model.Items.Count</b></MudItem>
                             <MudItem xs="6">Total Weight:</MudItem><MudItem xs="6"><b>@Model.Items.Sum(i => i.OrderWeight ?? 0).ToString("N2") lbs</b></MudItem>
                         </MudGrid>
-                        <MudTextField @bind-Value="Model.ScheduledStartDate" Label="Scheduled Start Date" InputType="InputType.Date" Required="true" Class="mt-4" />
+                        <MudDatePicker @bind-Date="Model.ScheduledStartDate" Label="Scheduled Start Date" Required="true" Class="mt-4" />
                     </MudCardContent>
                 </MudCard>
             </StepContent>
@@ -190,8 +190,6 @@
         _machines = (await MachineService.GetMachinesAsync())
             .Where(m => m.IsActive && (m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter))
             .ToList();
-
-        Model.ScheduledStartDate = DateTime.Today;
     }
 
     private void SelectMachine(Machine machine)
@@ -255,6 +253,12 @@
         }
     }
 
+    private async Task OnSelectionChanged()
+    {
+        PopulateLineItems();
+        await InvokeAsync(StateHasChanged);
+    }
+
     private async Task HandleNextAsync()
     {
         // Manual validation before proceeding
@@ -268,8 +272,7 @@
                 if (_parentItem == null) { Snackbar.Add("You must fetch orders for the tag.", Severity.Warning); return; }
                 break;
             case 2: // Orders
-                if (!_selectedPickingListItems.Values.Any(selected => selected)) { Snackbar.Add("Please select at least one order line.", Severity.Warning); return; }
-                PopulateLineItems();
+                if (!Model.Items.Any()) { Snackbar.Add("Please select at least one order line.", Severity.Warning); return; }
                 break;
             case 4: // Line Items
                 if (!Model.Items.Any()) { Snackbar.Add("Cannot proceed without line items.", Severity.Warning); return; }
