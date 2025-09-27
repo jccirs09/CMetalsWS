@@ -211,19 +211,7 @@ namespace CMetalsWS.Services
 
         public async Task StartWorkOrderAsync(int workOrderId, string userId)
         {
-            using var db = _dbContextFactory.CreateDbContext();
-            var workOrder = await db.WorkOrders.FindAsync(workOrderId);
-            var user = await _userManager.FindByIdAsync(userId);
-
-            if (workOrder == null || user == null) return;
-
-            workOrder.Status = WorkOrderStatus.InProgress;
-            workOrder.ActualStartDate = DateTime.UtcNow;
-            workOrder.Operator = user.UserName;
-
-            await db.SaveChangesAsync();
-            await _auditEventService.CreateAuditEventAsync(workOrderId, TaskType.WorkOrder, AuditEventType.Start, userId);
-            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrderId);
+            await SetStatusInternalAsync(workOrderId, WorkOrderStatus.InProgress, userId, AuditEventType.Start);
         }
 
         public async Task PauseWorkOrderAsync(int workOrderId, string userId, string notes)
@@ -238,38 +226,83 @@ namespace CMetalsWS.Services
 
         public async Task CompleteWorkOrderAsync(int workOrderId, string userId, IEnumerable<WorkOrderItem> updatedItems)
         {
+            await SetStatusInternalAsync(workOrderId, WorkOrderStatus.Completed, userId, AuditEventType.Complete, updatedItems: updatedItems);
+        }
+
+        private async Task SetStatusInternalAsync(int workOrderId, WorkOrderStatus status, string userId, AuditEventType eventType, string? notes = null, IEnumerable<WorkOrderItem>? updatedItems = null)
+        {
             using var db = _dbContextFactory.CreateDbContext();
-            var workOrder = await db.WorkOrders.Include(wo => wo.Items).FirstOrDefaultAsync(wo => wo.Id == workOrderId);
-            if (workOrder == null) return;
+            var workOrder = await db.WorkOrders
+                .Include(w => w.Items)
+                .FirstOrDefaultAsync(w => w.Id == workOrderId);
 
-            workOrder.Status = WorkOrderStatus.Completed;
-            workOrder.ActualEndDate = DateTime.UtcNow;
+            if (workOrder is null) return;
 
-            foreach (var updatedItem in updatedItems)
+            var user = await _userManager.FindByIdAsync(userId);
+            if(user is null) throw new Exception("User not found for status update");
+
+            workOrder.Status = status;
+            workOrder.LastUpdatedBy = user.UserName;
+            workOrder.LastUpdatedDate = DateTime.UtcNow;
+
+            if (eventType == AuditEventType.Start)
             {
-                var item = workOrder.Items.FirstOrDefault(i => i.Id == updatedItem.Id);
-                if (item != null)
+                workOrder.ActualStartDate = DateTime.UtcNow;
+                workOrder.Operator = user.UserName;
+            }
+            else if (eventType == AuditEventType.Complete)
+            {
+                workOrder.ActualEndDate = DateTime.UtcNow;
+                if (updatedItems != null)
                 {
-                    item.ProducedQuantity = updatedItem.ProducedQuantity;
-                    item.ProducedWeight = updatedItem.ProducedWeight;
-                    item.Status = updatedItem.Status;
+                    foreach (var updatedItem in updatedItems)
+                    {
+                        var item = workOrder.Items.FirstOrDefault(i => i.Id == updatedItem.Id);
+                        if (item != null)
+                        {
+                            item.ProducedQuantity = updatedItem.ProducedQuantity;
+                            item.ProducedWeight = updatedItem.ProducedWeight;
+                            item.Status = updatedItem.Status;
+                        }
+                    }
+                }
+            }
+
+            var lineIds = workOrder.Items
+                .Where(i => i.PickingListItemId != null)
+                .Select(i => i.PickingListItemId!.Value)
+                .ToList();
+
+            if (lineIds.Any())
+            {
+                var plis = await db.PickingListItems
+                    .Where(p => lineIds.Contains(p.Id))
+                    .ToListAsync();
+
+                var newPickingStatus = status switch
+                {
+                    WorkOrderStatus.InProgress => PickingLineStatus.InProgress,
+                    WorkOrderStatus.Awaiting => PickingLineStatus.InProgress,
+                    WorkOrderStatus.Completed => PickingLineStatus.Completed,
+                    WorkOrderStatus.Canceled => PickingLineStatus.Canceled,
+                    _ => (PickingLineStatus?)null
+                };
+
+                if (newPickingStatus.HasValue)
+                {
+                    foreach (var p in plis)
+                    {
+                        p.Status = newPickingStatus.Value;
+                    }
+
+                    foreach (var grpId in plis.Select(p => p.PickingListId).Distinct())
+                    {
+                        await _pickingListService.UpdatePickingListStatusAsync(grpId);
+                    }
                 }
             }
 
             await db.SaveChangesAsync();
-            await _auditEventService.CreateAuditEventAsync(workOrderId, TaskType.WorkOrder, AuditEventType.Complete, userId);
-            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrderId);
-        }
-
-        private async Task SetStatusInternalAsync(int workOrderId, WorkOrderStatus status, string userId, AuditEventType eventType, string? notes = null)
-        {
-            using var db = _dbContextFactory.CreateDbContext();
-            var workOrder = await db.WorkOrders.FindAsync(workOrderId);
-            if (workOrder == null) return;
-
-            workOrder.Status = status;
-            await db.SaveChangesAsync();
-
             await _auditEventService.CreateAuditEventAsync(workOrderId, TaskType.WorkOrder, eventType, userId, notes);
             await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrderId);
         }
@@ -281,52 +314,6 @@ namespace CMetalsWS.Services
             var branchCode = branch?.Code ?? "00";
             var next = await db.WorkOrders.CountAsync(w => w.BranchId == branchId) + 1;
             return $"W{branchCode}{next:0000000}";
-        }
-
-        public async Task SetStatusAsync(int id, WorkOrderStatus status, string updatedBy)
-        {
-            using var db = _dbContextFactory.CreateDbContext();
-            var workOrder = await db.WorkOrders
-                .Include(w => w.Items)
-                .FirstOrDefaultAsync(w => w.Id == id);
-
-            if (workOrder is null) return;
-
-            var user = await _userManager.FindByNameAsync(updatedBy) ?? await _userManager.FindByEmailAsync(updatedBy);
-            if(user is null) throw new Exception("User not found for status update");
-
-            workOrder.Status = status;
-            workOrder.LastUpdatedBy = updatedBy;
-            workOrder.LastUpdatedDate = DateTime.UtcNow;
-
-            var lineIds = workOrder.Items
-                .Where(i => i.PickingListItemId != null)
-                .Select(i => i.PickingListItemId!.Value)
-                .ToList();
-
-            if (lineIds.Count > 0)
-            {
-                var plis = await db.PickingListItems
-                    .Where(p => lineIds.Contains(p.Id))
-                    .ToListAsync();
-
-                foreach (var p in plis)
-                {
-                    p.Status = status switch
-                    {
-                        WorkOrderStatus.InProgress => PickingLineStatus.InProgress,
-                        WorkOrderStatus.Completed => PickingLineStatus.Completed,
-                        WorkOrderStatus.Canceled => PickingLineStatus.Canceled,
-                        _ => p.Status
-                    };
-                }
-
-                foreach (var grpId in plis.Select(p => p.PickingListId).Distinct())
-                    await _pickingListService.UpdatePickingListStatusAsync(grpId);
-            }
-
-            await db.SaveChangesAsync();
-            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
         }
     }
 }
