@@ -161,7 +161,7 @@
                         <MudProgressLinear Value="utilization" Class="my-1" />
                         <div class="d-flex justify-space-between">
                             <MudText Typo="Typo.body2">@utilization% utilized</MudText>
-                            <MudText Typo="Typo.body2">@load.TotalWeight.ToString("N0") / @load.Truck?.CapacityWeight.ToString("N0") lbs</MudText>
+                            <MudText Typo="Typo.body2">@load.TotalWeight.ToString("N0") / @(load.Truck?.CapacityWeight.ToString("N0") ?? "0") lbs</MudText>
                         </div>
                         <MudGrid Class="mt-4">
                             <MudItem xs="6">
@@ -436,7 +436,7 @@
     private async Task SaveLoad(Load loadToSave)
     {
         if (loadToSave is null) return;
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         if (user.Identity is null || !user.Identity.IsAuthenticated)
         {
