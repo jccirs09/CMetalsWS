@@ -173,7 +173,7 @@
     private List<Machine> _machines = new();
     private Machine? _selectedMachine;
     private InventoryItem? _parentItem;
-    private List<PickingListItem> _availablePickingListItems = new();
+    private HashSet<PickingListItem> _availablePickingListItems = new();
     private Dictionary<int, bool> _selectedPickingListItems = new();
     private bool _isFetchingOrders = false;
     private bool _isSaving = false;
@@ -214,7 +214,7 @@
         {
             var result = await WorkOrderService.GetPickingListItemsForWorkOrderAsync(Model.MachineCategory, Model.TagNumber);
             _parentItem = result.ParentItem;
-            _availablePickingListItems = result.AvailableItems;
+            _availablePickingListItems = result.AvailableItems.ToHashSet();
             _selectedPickingListItems = _availablePickingListItems.ToDictionary(item => item.Id, item => false);
             Snackbar.Add($"Found {_availablePickingListItems.Count} available order line(s). Parent: {_parentItem?.ItemId}", Severity.Success);
             _tagStepCompleted = true;
