@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CMetalsWS.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class initialcreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -192,7 +192,9 @@ namespace CMetalsWS.Migrations
                     Model = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     BranchId = table.Column<int>(type: "int", nullable: false),
-                    Category = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false)
+                    Category = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    EstimatedLbsPerHour = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -315,6 +317,9 @@ namespace CMetalsWS.Migrations
                     MachineCategory = table.Column<int>(type: "int", nullable: false),
                     DueDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ParentItemId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ParentItemDescription = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ParentItemWeight = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    ParentItemLocation = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Instructions = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -322,8 +327,12 @@ namespace CMetalsWS.Migrations
                     LastUpdatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ScheduledStartDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ScheduledEndDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ActualStartDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ActualEndDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     Status = table.Column<int>(type: "int", nullable: false),
-                    Shift = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: true)
+                    Priority = table.Column<int>(type: "int", nullable: false),
+                    Shift = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: true),
+                    Operator = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -747,7 +756,6 @@ namespace CMetalsWS.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     PickingListId = table.Column<int>(type: "int", nullable: false),
                     LineNumber = table.Column<int>(type: "int", nullable: false),
-                    InventoryItemId = table.Column<int>(type: "int", nullable: true),
                     ItemId = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
                     ItemDescription = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                     Quantity = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
@@ -763,12 +771,10 @@ namespace CMetalsWS.Migrations
                     MachineId = table.Column<int>(type: "int", nullable: true),
                     Location = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
                     CoilId = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
-                    PackingMaterial = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
                     PackingNotes = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
                     QualityChecked = table.Column<bool>(type: "bit", nullable: false),
                     QualityCheckedById = table.Column<string>(type: "nvarchar(450)", nullable: true),
                     QualityCheckedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ActualWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
                     DamageNotes = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true)
                 },
                 constraints: table =>
@@ -778,11 +784,6 @@ namespace CMetalsWS.Migrations
                         name: "FK_PickingListItems_AspNetUsers_QualityCheckedById",
                         column: x => x.QualityCheckedById,
                         principalTable: "AspNetUsers",
-                        principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_PickingListItems_InventoryItems_InventoryItemId",
-                        column: x => x.InventoryItemId,
-                        principalTable: "InventoryItems",
                         principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_PickingListItems_Machines_MachineId",
@@ -930,7 +931,9 @@ namespace CMetalsWS.Migrations
                     ProducedWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
                     Unit = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
                     Location = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
-                    IsStockItem = table.Column<bool>(type: "bit", nullable: false)
+                    IsStockItem = table.Column<bool>(type: "bit", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    OriginalOrderLineItemId = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -958,6 +961,7 @@ namespace CMetalsWS.Migrations
                     PickingListId = table.Column<int>(type: "int", nullable: false),
                     PickingListItemId = table.Column<int>(type: "int", nullable: false),
                     StopSequence = table.Column<int>(type: "int", nullable: false),
+                    ShippedQuantity = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
                     ShippedWeight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false)
                 },
                 constraints: table =>
@@ -1239,11 +1243,6 @@ namespace CMetalsWS.Migrations
                 column: "PickingListId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PickingListItems_InventoryItemId",
-                table: "PickingListItems",
-                column: "InventoryItemId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_PickingListItems_MachineId",
                 table: "PickingListItems",
                 column: "MachineId");
@@ -1407,6 +1406,9 @@ namespace CMetalsWS.Migrations
                 name: "DestinationRegionBranch");
 
             migrationBuilder.DropTable(
+                name: "InventoryItems");
+
+            migrationBuilder.DropTable(
                 name: "ItemRelationship");
 
             migrationBuilder.DropTable(
@@ -1462,9 +1464,6 @@ namespace CMetalsWS.Migrations
 
             migrationBuilder.DropTable(
                 name: "Trucks");
-
-            migrationBuilder.DropTable(
-                name: "InventoryItems");
 
             migrationBuilder.DropTable(
                 name: "PickingLists");

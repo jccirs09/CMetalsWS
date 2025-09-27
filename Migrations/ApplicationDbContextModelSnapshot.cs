@@ -702,6 +702,10 @@ namespace CMetalsWS.Migrations
                     b.Property<int>("PickingListItemId")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("ShippedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
                     b.Property<decimal>("ShippedWeight")
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
@@ -742,6 +746,13 @@ namespace CMetalsWS.Migrations
 
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("EstimatedLbsPerHour")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Model")
                         .HasColumnType("nvarchar(max)");
@@ -921,10 +932,6 @@ namespace CMetalsWS.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<decimal?>("ActualWeight")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
-
                     b.Property<string>("CoilId")
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
@@ -932,9 +939,6 @@ namespace CMetalsWS.Migrations
                     b.Property<string>("DamageNotes")
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
-
-                    b.Property<int?>("InventoryItemId")
-                        .HasColumnType("int");
 
                     b.Property<string>("ItemDescription")
                         .IsRequired()
@@ -959,10 +963,6 @@ namespace CMetalsWS.Migrations
 
                     b.Property<int?>("MachineId")
                         .HasColumnType("int");
-
-                    b.Property<string>("PackingMaterial")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("PackingNotes")
                         .HasMaxLength(512)
@@ -1017,8 +1017,6 @@ namespace CMetalsWS.Migrations
                         .HasColumnType("decimal(18,3)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("InventoryItemId");
 
                     b.HasIndex("MachineId");
 
@@ -1287,6 +1285,12 @@ namespace CMetalsWS.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime?>("ActualEndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ActualStartDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("BranchId")
                         .HasColumnType("int");
 
@@ -1314,12 +1318,29 @@ namespace CMetalsWS.Migrations
                     b.Property<int?>("MachineId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Operator")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("ParentItemDescription")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ParentItemId")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ParentItemLocation")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("ParentItemWeight")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("PdfWorkOrderNumber")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("ScheduledEndDate")
                         .HasColumnType("datetime2");
@@ -1394,6 +1415,10 @@ namespace CMetalsWS.Migrations
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 
+                    b.Property<string>("OriginalOrderLineItemId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<int?>("PickingListItemId")
                         .HasColumnType("int");
 
@@ -1408,6 +1433,9 @@ namespace CMetalsWS.Migrations
                     b.Property<string>("SalesOrderNumber")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
 
                     b.Property<string>("Unit")
                         .HasMaxLength(64)
@@ -1811,10 +1839,6 @@ namespace CMetalsWS.Migrations
 
             modelBuilder.Entity("CMetalsWS.Data.PickingListItem", b =>
                 {
-                    b.HasOne("CMetalsWS.Data.InventoryItem", "InventoryItem")
-                        .WithMany()
-                        .HasForeignKey("InventoryItemId");
-
                     b.HasOne("CMetalsWS.Data.Machine", "Machine")
                         .WithMany()
                         .HasForeignKey("MachineId")
@@ -1829,8 +1853,6 @@ namespace CMetalsWS.Migrations
                     b.HasOne("CMetalsWS.Data.ApplicationUser", "QualityCheckedBy")
                         .WithMany()
                         .HasForeignKey("QualityCheckedById");
-
-                    b.Navigation("InventoryItem");
 
                     b.Navigation("Machine");
 
