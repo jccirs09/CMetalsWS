@@ -3,6 +3,7 @@
 @using System.Linq
 @using CMetalsWS.Security
 @using MudBlazor
+@using System.Security.Claims
 @attribute [Authorize(Policy = Permissions.PickingLists.ManageLoads)]
 
 @inject CMetalsWS.Services.PickingListService PickingListService
@@ -34,7 +35,7 @@
                             var regionOrders = _allPickingLists.Where(o => o.DestinationRegionId == region.Id).ToList();
                             var activeOrders = regionOrders.Count(o => o.Status == PickingListStatus.Ready || o.Status == PickingListStatus.ReadyToShip);
 
-                            <MudItem xs="12" sm="6" md>
+                            <MudItem xs="12" sm="6" md="2">
                                 <MudPaper Class="pa-4 rounded-lg" Style="height: 100%; cursor:pointer;" @onclick="@(() => NavigateToLoadManagement(region.Id))">
                                     <MudText Typo="Typo.subtitle1">@region.Name</MudText>
                                     <div class="d-flex justify-space-between mt-4">
@@ -110,17 +111,17 @@
 
         <MudPaper Class="pa-2 mb-4 d-flex align-center gap-2">
             <MudTextField @bind-Value="_loadSearchTerm" Placeholder="Search loads..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Class="flex-grow-1" DebounceInterval="300" OnDebouncedTextChanged="@OnLoadFilterChanged" />
-            <MudSelect T="LoadStatus?" @bind-Value="_loadStatusFilter" Label="Status" Clearable="true" Style="max-width: 150px;" ValueChanged="@((_) => OnLoadFilterChanged())">
+            <MudSelect T="LoadStatus?" @bind-Value="LoadStatusFilter" Label="Status" Clearable="true" Style="max-width: 150px;">
                 @foreach (LoadStatus status in Enum.GetValues(typeof(LoadStatus)))
                 {
                     <MudSelectItem Value="@status">@status.ToString()</MudSelectItem>
                 }
             </MudSelect>
-            <MudSelect T="string" @bind-Value="_loadTypeFilter" Label="Type" Clearable="true" Style="max-width: 150px;" ValueChanged="@((_) => OnLoadFilterChanged())">
+            <MudSelect T="string" @bind-Value="LoadTypeFilter" Label="Type" Clearable="true" Style="max-width: 150px;">
                 <MudSelectItem Value="@("flatbed")">Flatbed</MudSelectItem>
                 <MudSelectItem Value="@("enclosed")">Enclosed</MudSelectItem>
             </MudSelect>
-            <MudSelect T="int?" @bind-Value="_loadManagementRegionFilter" Label="Region" Clearable="true" Style="max-width: 150px;" ValueChanged="@((_) => OnLoadFilterChanged())">
+            <MudSelect T="int?" @bind-Value="LoadManagementRegionFilter" Label="Region" Clearable="true" Style="max-width: 150px;">
                 @foreach (var region in _regions)
                 {
                     <MudSelectItem Value="@region.Id">@region.Name</MudSelectItem>
@@ -287,7 +288,6 @@
 @code {
     // --- Tab and Navigation State ---
     private int _activeTab = 0;
-    private int? _loadManagementRegionFilter = null;
 
     // --- Shared State ---
     private List<Truck> _trucks = new();
@@ -300,16 +300,19 @@
     private IEnumerable<Load> _filteredLoads = new List<Load>();
     private string _loadSearchTerm = "";
     private LoadStatus? _loadStatusFilter;
+    public LoadStatus? LoadStatusFilter { get => _loadStatusFilter; set { _loadStatusFilter = value; OnLoadFilterChanged(); } }
     private string _loadTypeFilter = "";
+    public string LoadTypeFilter { get => _loadTypeFilter; set { _loadTypeFilter = value; OnLoadFilterChanged(); } }
+    private int? _loadManagementRegionFilter;
+    public int? LoadManagementRegionFilter { get => _loadManagementRegionFilter; set { _loadManagementRegionFilter = value; OnLoadFilterChanged(); } }
 
     // --- Simple Planning State ---
     private ILookup<DateTime, PickingList> _groupedOrdersByDate = null!;
     private DateTime? _selectedShipDate;
     private HashSet<PickingList> _selectedOrdersForLoad = new();
-    // A separate Load object for the Simple Planning tab to avoid conflicts with the legacy load builder's _load object.
     private Load _simplePlanningLoad = new();
 
-    // --- Legacy state for original load builder ---
+    // --- Legacy state for original load builder (still used by SaveLoad) ---
     private Load? _load;
     private List<LoadItem> _itemsInLoad = new();
 
@@ -324,21 +327,17 @@
     private IEnumerable<Truck> GetFilteredTrucksForSimplePlanning()
     {
         if (!_selectedOrdersForLoad.Any()) return Enumerable.Empty<Truck>();
-
         var firstOrderRegionId = _selectedOrdersForLoad.First().DestinationRegionId;
-
         if (GetRegionCategory(_selectedOrdersForLoad.First()) == DestinationRegionCategory.LOCAL)
         {
             return _trucks.Where(t => !t.IsContractor && t.DestinationRegionId == firstOrderRegionId);
         }
-
         return _trucks.Where(t => t.IsContractor || t.DestinationRegionId == firstOrderRegionId);
     }
 
     private async Task CreateLoadFromSimplePlanner()
     {
         if (_simplePlanningLoad.TruckId == null || !_selectedOrdersForLoad.Any()) return;
-
         var newLoad = new Load
         {
             TruckId = _simplePlanningLoad.TruckId,
@@ -352,13 +351,10 @@
                 ShippedWeight = item.RemainingQuantity * (item.Weight ?? 0)
             }).ToList()
         };
-
         _load = newLoad;
         _itemsInLoad = newLoad.Items.ToList();
-
         RecalculateStopSequence();
         await SaveLoad();
-
         _simplePlanningLoad = new();
         _selectedOrdersForLoad.Clear();
         _selectedShipDate = null;
@@ -387,7 +383,7 @@
 
     private void NavigateToLoadManagement(int regionId)
     {
-        _loadManagementRegionFilter = regionId;
+        LoadManagementRegionFilter = regionId;
         _activeTab = 1;
     }
 
@@ -440,7 +436,6 @@
     private void RecalculateStopSequence()
     {
         if(_load == null) return;
-
         var items = _load.Items.ToList();
         for (int i = 0; i < items.Count; i++)
         {
