@@ -186,7 +186,7 @@ public static class SeedFromDb_PickingLists_WithMachines
                     }
                     else if (item.Unit == "PCS" && perSheetMap.TryGetValue(item, out var perSheet))
                     {
-                        var newQty = Math.Max(1, Math.Round((item.Quantity ?? 0m) * factor));
+                        var newQty = Math.Max(1, Math.Round(item.Quantity * factor));
                         item.Quantity = newQty;
                         item.Weight = Math.Round(newQty * perSheet, 3);
                     }
