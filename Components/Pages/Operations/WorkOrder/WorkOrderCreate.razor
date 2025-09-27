@@ -11,6 +11,8 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ItemRelationshipService ItemRelationshipService
+@inject WorkOrderCreationStateService StateService
+@implements IDisposable
 
 <MudPaper Class="pa-4">
     <div class="d-flex justify-space-between align-center mb-4">
@@ -24,10 +26,10 @@
     <MudStepper @ref="_stepper" Linear="true" OnFinish="CreateWorkOrderAsync">
         <MudStep Title="Machine" Description="Select production machine" Completed="@_machineStepCompleted">
             <MudGrid Spacing="2">
-                @foreach (var machine in _machines)
+                @foreach (var machine in StateService.Machines)
                 {
                     <MudItem xs="12" sm="6" md="4">
-                        <MudCard Class="@(Model.MachineId == machine.Id ? "selected-card" : "")" @onclick="@(() => SelectMachine(machine))">
+                        <MudCard Class="@(StateService.Model.MachineId == machine.Id ? "selected-card" : "")" @onclick="@(() => SelectMachine(machine))">
                             <MudCardHeader>
                                 <CardHeaderContent>
                                     <MudStack Row="true" Justify="Justify.SpaceBetween">
@@ -45,8 +47,8 @@
             </MudGrid>
         </MudStep>
         <MudStep Title="Tag" Description="Enter work order tag" Completed="@_tagStepCompleted">
-            <MudTextField @bind-Value="Model.TagNumber" Label="Work Order Tag Number" Required="true" HelperText="Use a unique identifier that will be easily recognizable on the shop floor." For="@(() => Model.TagNumber)" />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="FetchPickingListItemsAsync" Disabled="@string.IsNullOrWhiteSpace(Model.TagNumber)" Class="mt-3">Fetch Available Orders</MudButton>
+            <MudTextField @bind-Value="StateService.Model.TagNumber" Label="Work Order Tag Number" Required="true" HelperText="Use a unique identifier that will be easily recognizable on the shop floor." For="@(() => StateService.Model.TagNumber)" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="FetchPickingListItemsAsync" Disabled="@string.IsNullOrWhiteSpace(StateService.Model.TagNumber)" Class="mt-3">Fetch Available Orders</MudButton>
         </MudStep>
         <MudStep Title="Orders" Description="Select sales orders" Completed="@_ordersStepCompleted">
             @if (_isFetchingOrders)
@@ -55,7 +57,7 @@
             }
             else
             {
-                <MudTable Items="@_availablePickingListItems" Hover="true">
+                <MudTable Items="@StateService.AvailablePickingListItems" Hover="true">
                     <HeaderContent>
                         <MudTh>Select</MudTh>
                         <MudTh>Picking List #</MudTh>
@@ -66,7 +68,7 @@
                         <MudTh>Weight</MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd DataLabel="Select"><MudCheckBox T="bool" @bind-Checked="@_selectedPickingListItems[context.Id]" @bind-Checked:after="OnSelectionChanged" /></MudTd>
+                        <MudTd DataLabel="Select"><MudCheckBox T="bool" @bind-Checked="@StateService.SelectedPickingListItems[context.Id]" @bind-Checked:after="OnSelectionChanged" /></MudTd>
                         <MudTd DataLabel="Picking List #">@context.PickingList?.SalesOrderNumber</MudTd>
                         <MudTd DataLabel="Customer">@context.PickingList?.Customer?.CustomerName</MudTd>
                         <MudTd DataLabel="Item Code">@context.ItemId</MudTd>
@@ -78,13 +80,13 @@
             }
         </MudStep>
         <MudStep Title="Instructions" Description="Add notes and priority" Completed="true">
-            <MudSelect @bind-Value="Model.Priority" Label="Priority" Required="true">
+            <MudSelect @bind-Value="StateService.Model.Priority" Label="Priority" Required="true">
                 @foreach (WorkOrderPriority prio in Enum.GetValues(typeof(WorkOrderPriority)))
                 {
                     <MudSelectItem Value="@prio">@prio.ToString()</MudSelectItem>
                 }
             </MudSelect>
-            <MudTextField @bind-Value="Model.Instructions" Label="Special Instructions" Lines="5" Class="mt-3" />
+            <MudTextField @bind-Value="StateService.Model.Instructions" Label="Special Instructions" Lines="5" Class="mt-3" />
         </MudStep>
         <MudStep Title="Line Items" Description="Confirm items to produce" Completed="@_lineItemsStepCompleted" OnActivate="PopulateLineItems">
             <MudCard Class="mb-4">
@@ -94,17 +96,17 @@
                     </CardHeaderContent>
                 </MudCardHeader>
                 <MudCardContent>
-                    @if (_selectedSourceItems.Any())
+                    @if (StateService.SelectedSourceItems.Any())
                     {
                         <MudGrid>
                             <MudItem xs="12">
                                 <MudText>Select a source order line and specify the quantity to produce.</MudText>
                             </MudItem>
                             <MudItem xs="12" sm="6">
-                                <MudSelect @bind-Value="_selectedSourceIdForNewLine" Label="Source Order" For="@(() => _selectedSourceIdForNewLine)" Required="true">
-                                    @foreach (var sourceItem in _selectedSourceItems)
+                                <MudSelect @bind-Value="StateService.SelectedSourceIdForNewLine" Label="Source Order" For="@(() => StateService.SelectedSourceIdForNewLine)" Required="true">
+                                    @foreach (var sourceItem in StateService.SelectedSourceItems)
                                     {
-                                        var remainingQty = sourceItem.Quantity - Model.Items.Where(i => i.OriginalOrderLineItemId == sourceItem.Id.ToString()).Sum(i => i.OrderQuantity ?? 0m);
+                                        var remainingQty = sourceItem.Quantity - StateService.Model.Items.Where(i => i.OriginalOrderLineItemId == sourceItem.Id.ToString()).Sum(i => i.OrderQuantity ?? 0m);
                                         if (remainingQty > 0)
                                         {
                                             <MudSelectItem Value="@sourceItem.Id">@($"{sourceItem.ItemId} ({remainingQty} of {sourceItem.Quantity} remaining)")</MudSelectItem>
@@ -113,10 +115,10 @@
                                 </MudSelect>
                             </MudItem>
                             <MudItem xs="12" sm="3">
-                                <MudNumericField @bind-Value="_newProductionLine.OrderQuantity" Label="Quantity" For="@(() => _newProductionLine.OrderQuantity)" Required="true" />
+                                <MudNumericField @bind-Value="StateService.NewProductionLine.OrderQuantity" Label="Quantity" For="@(() => StateService.NewProductionLine.OrderQuantity)" Required="true" />
                             </MudItem>
                             <MudItem xs="12" sm="3" Class="d-flex align-end">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddProductionLine" Disabled="@(_selectedSourceIdForNewLine == null)">Add Line</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddProductionLine" Disabled="@(StateService.SelectedSourceIdForNewLine == null)">Add Line</MudButton>
                             </MudItem>
                         </MudGrid>
                     }
@@ -127,7 +129,7 @@
                 </MudCardContent>
             </MudCard>
 
-            <MudTable Items="@Model.Items" Hover="true" Class="mb-4">
+            <MudTable Items="@StateService.Model.Items" Hover="true" Class="mb-4">
                 <HeaderContent>
                     <MudTh>Item Code</MudTh>
                     <MudTh>Description</MudTh>
@@ -160,27 +162,27 @@
                         <MudCardContent>
                             <MudGrid>
                                 <MudItem xs="12" sm="6">
-                                    <MudTextField @bind-Value="_newStockItem.ItemCode" Label="Item Code" Required="true" />
+                                    <MudTextField @bind-Value="StateService.NewStockItem.ItemCode" Label="Item Code" Required="true" />
                                 </MudItem>
                                 <MudItem xs="12" sm="6">
-                                    <MudTextField @bind-Value="_newStockItem.Description" Label="Description" Required="true" />
+                                    <MudTextField @bind-Value="StateService.NewStockItem.Description" Label="Description" Required="true" />
                                 </MudItem>
                                 <MudItem xs="12" sm="3">
-                                    <MudNumericField @bind-Value="_newStockItem.Width" Label="Width" />
+                                    <MudNumericField @bind-Value="StateService.NewStockItem.Width" Label="Width" />
                                 </MudItem>
                                 <MudItem xs="12" sm="3">
-                                    <MudNumericField @bind-Value="_newStockItem.Length" Label="Length" />
+                                    <MudNumericField @bind-Value="StateService.NewStockItem.Length" Label="Length" />
                                 </MudItem>
                                 <MudItem xs="12" sm="3">
-                                    <MudNumericField @bind-Value="_newStockItem.OrderQuantity" Label="Quantity" />
+                                    <MudNumericField @bind-Value="StateService.NewStockItem.OrderQuantity" Label="Quantity" />
                                 </MudItem>
                                 <MudItem xs="12" sm="3">
-                                    <MudNumericField @bind-Value="_newStockItem.OrderWeight" Label="Weight" />
+                                    <MudNumericField @bind-Value="StateService.NewStockItem.OrderWeight" Label="Weight" />
                                 </MudItem>
                             </MudGrid>
                         </MudCardContent>
                         <MudCardActions>
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddStockItem">@(_editingStockItem == null ? "Add Stock Item" : "Update Stock Item")</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddStockItem">@(StateService.EditingStockItem == null ? "Add Stock Item" : "Update Stock Item")</MudButton>
                         </MudCardActions>
                     </MudCard>
                 </MudExpansionPanel>
@@ -191,13 +193,13 @@
                 <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Work Order Summary</MudText></CardHeaderContent></MudCardHeader>
                 <MudCardContent>
                     <MudGrid>
-                        <MudItem xs="6">Machine:</MudItem><MudItem xs="6"><b>@_selectedMachine?.Name</b></MudItem>
-                        <MudItem xs="6">Tag Number:</MudItem><MudItem xs="6"><b>@Model.TagNumber</b></MudItem>
-                        <MudItem xs="6">Priority:</MudItem><MudItem xs="6"><b>@Model.Priority</b></MudItem>
-                        <MudItem xs="6">Total Items:</MudItem><MudItem xs="6"><b>@Model.Items.Count</b></MudItem>
-                        <MudItem xs="6">Total Weight:</MudItem><MudItem xs="6"><b>@Model.Items.Sum(i => i.OrderWeight ?? 0).ToString("N2") lbs</b></MudItem>
+                        <MudItem xs="6">Machine:</MudItem><MudItem xs="6"><b>@StateService.SelectedMachine?.Name</b></MudItem>
+                        <MudItem xs="6">Tag Number:</MudItem><MudItem xs="6"><b>@StateService.Model.TagNumber</b></MudItem>
+                        <MudItem xs="6">Priority:</MudItem><MudItem xs="6"><b>@StateService.Model.Priority</b></MudItem>
+                        <MudItem xs="6">Total Items:</MudItem><MudItem xs="6"><b>@StateService.Model.Items.Count</b></MudItem>
+                        <MudItem xs="6">Total Weight:</MudItem><MudItem xs="6"><b>@StateService.Model.Items.Sum(i => i.OrderWeight ?? 0).ToString("N2") lbs</b></MudItem>
                     </MudGrid>
-                    <MudDatePicker @bind-Date="Model.ScheduledStartDate" Label="Scheduled Start Date" Required="true" Class="mt-4" />
+                    <MudDatePicker @bind-Date="StateService.Model.ScheduledStartDate" Label="Scheduled Start Date" Required="true" Class="mt-4" />
                 </MudCardContent>
             </MudCard>
         </MudStep>
@@ -218,25 +220,21 @@
     private bool _ordersStepCompleted;
     private bool _lineItemsStepCompleted;
 
-    private WorkOrder Model { get; set; } = new();
-    private List<Machine> _machines = new();
-    private Machine? _selectedMachine;
-    private InventoryItem? _parentItem;
-    private List<PickingListItem> _availablePickingListItems = new();
-    private Dictionary<int, bool> _selectedPickingListItems = new();
+    // Local component state not suitable for the state service
     private bool _isFetchingOrders = false;
     private bool _isSaving = false;
     private string? _userId;
-    private WorkOrderItem _newStockItem = new() { IsStockItem = true };
-    private WorkOrderItem? _editingStockItem;
-    private List<PickingListItem> _selectedSourceItems = new();
-    private int? _selectedSourceIdForNewLine;
-    private WorkOrderItem _newProductionLine = new();
+
+    public void Dispose()
+    {
+        // On leaving the page, reset the shared state to avoid data leakage
+        StateService.Reset();
+    }
 
     private void EditStockItem(WorkOrderItem itemToEdit)
     {
-        _editingStockItem = itemToEdit;
-        _newStockItem = new WorkOrderItem
+        StateService.EditingStockItem = itemToEdit;
+        StateService.NewStockItem = new WorkOrderItem
         {
             ItemCode = itemToEdit.ItemCode,
             Description = itemToEdit.Description,
@@ -246,36 +244,36 @@
             OrderWeight = itemToEdit.OrderWeight,
             IsStockItem = true
         };
-        Model.Items.Remove(itemToEdit);
+        StateService.Model.Items.Remove(itemToEdit);
         StateHasChanged();
     }
 
     private void DeleteLineItem(WorkOrderItem itemToDelete)
     {
-        Model.Items.Remove(itemToDelete);
-        _lineItemsStepCompleted = Model.Items.Any();
+        StateService.Model.Items.Remove(itemToDelete);
+        _lineItemsStepCompleted = StateService.Model.Items.Any();
         StateHasChanged();
     }
 
     private void AddProductionLine()
     {
-        if (_selectedSourceIdForNewLine == null || _newProductionLine.OrderQuantity == null || _newProductionLine.OrderQuantity <= 0)
+        if (StateService.SelectedSourceIdForNewLine == null || StateService.NewProductionLine.OrderQuantity == null || StateService.NewProductionLine.OrderQuantity <= 0)
         {
             Snackbar.Add("Please select a source order and enter a valid quantity.", Severity.Warning);
             return;
         }
 
-        var sourceItem = _selectedSourceItems.FirstOrDefault(i => i.Id == _selectedSourceIdForNewLine);
+        var sourceItem = StateService.SelectedSourceItems.FirstOrDefault(i => i.Id == StateService.SelectedSourceIdForNewLine);
         if (sourceItem == null)
         {
             Snackbar.Add("Could not find the selected source item.", Severity.Error);
             return;
         }
 
-        var existingQty = Model.Items.Where(i => i.OriginalOrderLineItemId == sourceItem.Id.ToString()).Sum(i => i.OrderQuantity ?? 0m);
+        var existingQty = StateService.Model.Items.Where(i => i.OriginalOrderLineItemId == sourceItem.Id.ToString()).Sum(i => i.OrderQuantity ?? 0m);
         var remainingQty = sourceItem.Quantity - existingQty;
 
-        if (_newProductionLine.OrderQuantity > remainingQty)
+        if (StateService.NewProductionLine.OrderQuantity > remainingQty)
         {
             Snackbar.Add($"Quantity cannot exceed the remaining quantity of {remainingQty}.", Severity.Warning);
             return;
@@ -290,8 +288,8 @@
             Description = sourceItem.ItemDescription,
             SalesOrderNumber = sourceItem.PickingList?.SalesOrderNumber,
             CustomerName = sourceItem.PickingList?.Customer?.CustomerName,
-            OrderQuantity = _newProductionLine.OrderQuantity,
-            OrderWeight = _newProductionLine.OrderQuantity * weightPerPiece,
+            OrderQuantity = StateService.NewProductionLine.OrderQuantity,
+            OrderWeight = StateService.NewProductionLine.OrderQuantity * weightPerPiece,
             Width = sourceItem.Width,
             Length = sourceItem.Length,
             Unit = sourceItem.Unit,
@@ -299,35 +297,36 @@
             IsStockItem = false
         };
 
-        Model.Items.Add(newLine);
-        _newProductionLine = new(); // Reset for next entry
-        _lineItemsStepCompleted = Model.Items.Any();
+        StateService.Model.Items.Add(newLine);
+        StateService.NewProductionLine = new(); // Reset for next entry
+        _lineItemsStepCompleted = StateService.Model.Items.Any();
         StateHasChanged();
     }
 
     protected override async Task OnInitializedAsync()
     {
+        StateService.Reset();
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(authState.User);
         _userId = user?.Id;
 
-        _machines = (await MachineService.GetMachinesAsync())
+        StateService.Machines = (await MachineService.GetMachinesAsync())
             .Where(m => m.IsActive && (m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter))
             .ToList();
     }
 
     private void SelectMachine(Machine machine)
     {
-        _selectedMachine = machine;
-        Model.MachineId = machine.Id;
-        Model.MachineCategory = machine.Category;
+        StateService.SelectedMachine = machine;
+        StateService.Model.MachineId = machine.Id;
+        StateService.Model.MachineCategory = machine.Category;
         _machineStepCompleted = true;
         StateHasChanged();
     }
 
     private async Task FetchPickingListItemsAsync()
     {
-        if (Model.MachineId == null || string.IsNullOrWhiteSpace(Model.TagNumber))
+        if (StateService.Model.MachineId == null || string.IsNullOrWhiteSpace(StateService.Model.TagNumber))
         {
             Snackbar.Add("Please select a machine and enter a tag number first.", Severity.Warning);
             return;
@@ -337,21 +336,21 @@
         StateHasChanged();
         try
         {
-            var result = await WorkOrderService.GetPickingListItemsForWorkOrderAsync(Model.MachineCategory, Model.TagNumber);
-            _parentItem = result.ParentItem;
-            _availablePickingListItems = result.AvailableItems;
-            _selectedPickingListItems = _availablePickingListItems.ToDictionary(item => item.Id, item => false);
-            Snackbar.Add($"Found {_availablePickingListItems.Count} available order line(s). Parent: {_parentItem?.ItemId}", Severity.Success);
+            var result = await WorkOrderService.GetPickingListItemsForWorkOrderAsync(StateService.Model.MachineCategory, StateService.Model.TagNumber);
+            StateService.ParentItem = result.ParentItem;
+            StateService.AvailablePickingListItems = result.AvailableItems;
+            StateService.SelectedPickingListItems = StateService.AvailablePickingListItems.ToDictionary(item => item.Id, item => false);
+            Snackbar.Add($"Found {StateService.AvailablePickingListItems.Count} available order line(s). Parent: {StateService.ParentItem?.ItemId}", Severity.Success);
             _tagStepCompleted = true;
 
-            if (_parentItem != null)
+            if (StateService.ParentItem != null)
             {
-                var stockItemCode = _parentItem.ItemId;
-                var stockItemDescription = _parentItem.Description;
+                var stockItemCode = StateService.ParentItem.ItemId;
+                var stockItemDescription = StateService.ParentItem.Description;
 
-                if (Model.MachineCategory == MachineCategory.CTL)
+                if (StateService.Model.MachineCategory == MachineCategory.CTL)
                 {
-                    var children = await ItemRelationshipService.GetChildrenAsync(_parentItem.ItemId);
+                    var children = await ItemRelationshipService.GetChildrenAsync(StateService.ParentItem.ItemId);
                     if (children.Any())
                     {
                         var sheetItem = children.First();
@@ -360,16 +359,16 @@
                     }
                     else
                     {
-                        Snackbar.Add($"No sheet item mapping found for coil '{_parentItem.ItemId}'. Please check relationships.", Severity.Warning);
+                        Snackbar.Add($"No sheet item mapping found for coil '{StateService.ParentItem.ItemId}'. Please check relationships.", Severity.Warning);
                     }
                 }
 
-                _newStockItem = new()
+                StateService.NewStockItem = new()
                 {
                     IsStockItem = true,
                     ItemCode = stockItemCode,
                     Description = stockItemDescription,
-                    Width = _parentItem.Width
+                    Width = StateService.ParentItem.Width
                 };
             }
         }
@@ -386,24 +385,24 @@
 
     private void PopulateLineItems()
     {
-        var selectedIds = _selectedPickingListItems.Where(kvp => kvp.Value).Select(kvp => kvp.Key).ToHashSet();
-        _selectedSourceItems = _availablePickingListItems.Where(item => selectedIds.Contains(item.Id)).ToList();
+        var selectedIds = StateService.SelectedPickingListItems.Where(kvp => kvp.Value).Select(kvp => kvp.Key).ToHashSet();
+        StateService.SelectedSourceItems = StateService.AvailablePickingListItems.Where(item => selectedIds.Contains(item.Id)).ToList();
 
         // Remove production lines that are no longer selected in the previous step
-        var currentSourceIds = _selectedSourceItems.Select(i => i.Id.ToString()).ToHashSet();
-        var itemsToRemove = Model.Items.Where(item => !item.IsStockItem && item.OriginalOrderLineItemId != null && !currentSourceIds.Contains(item.OriginalOrderLineItemId)).ToList();
+        var currentSourceIds = StateService.SelectedSourceItems.Select(i => i.Id.ToString()).ToHashSet();
+        var itemsToRemove = StateService.Model.Items.Where(item => !item.IsStockItem && item.OriginalOrderLineItemId != null && !currentSourceIds.Contains(item.OriginalOrderLineItemId)).ToList();
         foreach (var item in itemsToRemove)
         {
-            Model.Items.Remove(item);
+            StateService.Model.Items.Remove(item);
         }
 
-        _ordersStepCompleted = _selectedSourceItems.Any();
-        _lineItemsStepCompleted = Model.Items.Any();
+        _ordersStepCompleted = StateService.SelectedSourceItems.Any();
+        _lineItemsStepCompleted = StateService.Model.Items.Any();
 
         // Reset the selection for the new line form if the source is no longer available
-        if (_selectedSourceIdForNewLine != null && !_selectedSourceItems.Any(i => i.Id == _selectedSourceIdForNewLine))
+        if (StateService.SelectedSourceIdForNewLine != null && !StateService.SelectedSourceItems.Any(i => i.Id == StateService.SelectedSourceIdForNewLine))
         {
-            _selectedSourceIdForNewLine = null;
+            StateService.SelectedSourceIdForNewLine = null;
         }
     }
 
@@ -415,24 +414,24 @@
 
     private void AddStockItem()
     {
-        if (string.IsNullOrWhiteSpace(_newStockItem.ItemCode) || string.IsNullOrWhiteSpace(_newStockItem.Description))
+        if (string.IsNullOrWhiteSpace(StateService.NewStockItem.ItemCode) || string.IsNullOrWhiteSpace(StateService.NewStockItem.Description))
         {
             Snackbar.Add("Item Code and Description are required for stock items.", Severity.Warning);
             return;
         }
 
-        Model.Items.Add(_newStockItem);
+        StateService.Model.Items.Add(StateService.NewStockItem);
 
         // Preserve ItemCode and Description for the next stock item
-        _newStockItem = new()
+        StateService.NewStockItem = new()
         {
             IsStockItem = true,
-            ItemCode = _newStockItem.ItemCode,
-            Description = _newStockItem.Description
+            ItemCode = StateService.NewStockItem.ItemCode,
+            Description = StateService.NewStockItem.Description
         };
 
-        _editingStockItem = null;
-        _lineItemsStepCompleted = Model.Items.Any();
+        StateService.EditingStockItem = null;
+        _lineItemsStepCompleted = StateService.Model.Items.Any();
         StateHasChanged();
     }
 
@@ -449,16 +448,17 @@
 
         try
         {
-            if (_parentItem != null)
+            if (StateService.ParentItem != null)
             {
-                Model.ParentItemId = _parentItem.ItemId;
-                Model.ParentItemDescription = _parentItem.Description;
-                Model.ParentItemWeight = _parentItem.Snapshot;
-                Model.ParentItemLocation = _parentItem.Location;
+                StateService.Model.ParentItemId = StateService.ParentItem.ItemId;
+                StateService.Model.ParentItemDescription = StateService.ParentItem.Description;
+                StateService.Model.ParentItemWeight = StateService.ParentItem.Snapshot;
+                StateService.Model.ParentItemLocation = StateService.ParentItem.Location;
             }
 
-            await WorkOrderService.CreateAsync(Model, _userId);
+            await WorkOrderService.CreateAsync(StateService.Model, _userId);
             Snackbar.Add("Work Order Created Successfully!", Severity.Success);
+            StateService.Reset();
             Navigation.NavigateTo("/operations/workorders");
         }
         catch (Exception ex)

@@ -127,6 +127,7 @@ builder.Services.AddScoped<ITaskAuditEventService, TaskAuditEventService>();
 builder.Services.AddScoped<DestinationGroupService>();
 builder.Services.AddScoped<DestinationRegionService>();
 builder.Services.AddScoped<WorkOrderService>();
+builder.Services.AddScoped<WorkOrderCreationStateService>();
 
 // Picking List PDF Parser
 builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();
