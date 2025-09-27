@@ -61,6 +61,7 @@
                         <MudTh>Customer</MudTh>
                         <MudTh>Item Code</MudTh>
                         <MudTh>Description</MudTh>
+                        <MudTh>Size</MudTh>
                         <MudTh>Weight</MudTh>
                     </HeaderContent>
                     <RowTemplate>
@@ -69,6 +70,7 @@
                         <MudTd DataLabel="Customer">@context.PickingList?.Customer?.CustomerName</MudTd>
                         <MudTd DataLabel="Item Code">@context.ItemId</MudTd>
                         <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
+                        <MudTd DataLabel="Size">@($"{context.Width?.ToString("N2")} x {context.Length?.ToString("N2")}")</MudTd>
                         <MudTd DataLabel="Weight">@context.Weight?.ToString("N2")</MudTd>
                     </RowTemplate>
                 </MudTable>
@@ -89,6 +91,7 @@
                     <MudTh>Item Code</MudTh>
                     <MudTh>Description</MudTh>
                     <MudTh>SO#</MudTh>
+                    <MudTh>Size</MudTh>
                     <MudTh>Qty</MudTh>
                     <MudTh>Weight</MudTh>
                 </HeaderContent>
@@ -96,10 +99,43 @@
                     <MudTd DataLabel="Item Code">@context.ItemCode</MudTd>
                     <MudTd DataLabel="Description">@context.Description</MudTd>
                     <MudTd DataLabel="SO#">@context.SalesOrderNumber</MudTd>
+                    <MudTd DataLabel="Size">@($"{context.Width?.ToString("N2")} x {context.Length?.ToString("N2")}")</MudTd>
                     <MudTd DataLabel="Qty">@context.OrderQuantity</MudTd>
                     <MudTd DataLabel="Weight">@context.OrderWeight?.ToString("N2")</MudTd>
                 </RowTemplate>
             </MudTable>
+            <MudCard Class="mt-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Add Stock Item</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_newStockItem.ItemCode" Label="Item Code" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_newStockItem.Description" Label="Description" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudNumericField @bind-Value="_newStockItem.Width" Label="Width" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudNumericField @bind-Value="_newStockItem.Length" Label="Length" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudNumericField @bind-Value="_newStockItem.OrderQuantity" Label="Quantity" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudNumericField @bind-Value="_newStockItem.OrderWeight" Label="Weight" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddStockItem">Add Stock Item</MudButton>
+                </MudCardActions>
+            </MudCard>
         </MudStep>
         <MudStep Title="Review" Description="Review and create">
             <MudCard>
@@ -142,6 +178,7 @@
     private bool _isFetchingOrders = false;
     private bool _isSaving = false;
     private string? _userId;
+    private WorkOrderItem _newStockItem = new() { IsStockItem = true };
 
     protected override async Task OnInitializedAsync()
     {
@@ -195,7 +232,14 @@
 
     private void PopulateLineItems()
     {
+        var stockItems = Model.Items.Where(i => i.IsStockItem).ToList();
         Model.Items.Clear();
+
+        foreach (var stockItem in stockItems)
+        {
+            Model.Items.Add(stockItem);
+        }
+
         var selectedIds = _selectedPickingListItems.Where(kvp => kvp.Value).Select(kvp => kvp.Key).ToHashSet();
         var selectedItems = _availablePickingListItems.Where(item => selectedIds.Contains(item.Id));
 
@@ -224,6 +268,20 @@
         _ordersStepCompleted = Model.Items.Any();
         _lineItemsStepCompleted = _ordersStepCompleted;
         await InvokeAsync(StateHasChanged);
+    }
+
+    private void AddStockItem()
+    {
+        if (string.IsNullOrWhiteSpace(_newStockItem.ItemCode) || string.IsNullOrWhiteSpace(_newStockItem.Description))
+        {
+            Snackbar.Add("Item Code and Description are required for stock items.", Severity.Warning);
+            return;
+        }
+
+        Model.Items.Add(_newStockItem);
+        _newStockItem = new() { IsStockItem = true }; // Reset for next entry
+        _lineItemsStepCompleted = Model.Items.Any();
+        StateHasChanged();
     }
 
     private async Task CreateWorkOrderAsync()
