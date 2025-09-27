@@ -106,7 +106,7 @@
                            HelperText="@(!_availableTrucks.Any() ? "No trucks available for this region, or orders span multiple regions." : "")">
                     @foreach (var truck in _availableTrucks)
                     {
-                        <MudSelectItem Value="@truck.Id">@truck.Name (@truck.CapacityWeight.ToString("N0") lbs)</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@truck.Id">@truck.Name (@truck.CapacityWeight.ToString("N0") lbs)</MudSelectItem>
                     }
                 </MudSelect>
 
