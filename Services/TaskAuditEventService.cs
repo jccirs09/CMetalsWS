@@ -84,5 +84,16 @@ namespace CMetalsWS.Services
 
             return lastEvents;
         }
+
+        public async Task<List<TaskAuditEvent>> GetEventsForTaskAsync(int taskId, TaskType taskType)
+        {
+            using var context = await _contextFactory.CreateDbContextAsync();
+            return await context.TaskAuditEvents
+                .Include(e => e.User)
+                .Where(e => e.PickingListItemId == taskId && e.TaskType == taskType)
+                .OrderBy(e => e.Timestamp)
+                .AsNoTracking()
+                .ToListAsync();
+        }
     }
 }

@@ -122,11 +122,11 @@ builder.Services.AddScoped<ItemRelationshipService>();
 builder.Services.AddTransient<IdentityDataSeeder>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<LoadService>();
-builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<ITaskAuditEventService, TaskAuditEventService>();
 builder.Services.AddScoped<DestinationGroupService>();
 builder.Services.AddScoped<DestinationRegionService>();
+builder.Services.AddScoped<WorkOrderService>();
 
 // Picking List PDF Parser
 builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();

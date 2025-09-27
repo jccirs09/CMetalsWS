@@ -1,0 +1,18 @@
+<MudDialog>
+    <DialogContent>
+        <MudText>Are you sure you want to mark this work order as complete?</MudText>
+        <MudText Typo="Typo.caption" Class="mt-2">This action cannot be undone.</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Complete Work Order</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(true));
+    void Cancel() => MudDialog.Cancel();
+}
