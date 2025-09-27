@@ -16,5 +16,7 @@ namespace CMetalsWS.Data
 
         [MaxLength(64)]
         public MachineCategory Category { get; set; }
+        public bool IsActive { get; set; } = true;
+        public decimal? EstimatedLbsPerHour { get; set; }
     }
 }
