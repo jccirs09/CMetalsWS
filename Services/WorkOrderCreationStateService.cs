@@ -16,7 +16,7 @@ namespace CMetalsWS.Services
         public List<PickingListItem> AvailablePickingListItems { get; set; } = new();
         public WorkOrderItem NewStockItem { get; set; } = new() { IsStockItem = true };
         public WorkOrderItem? EditingStockItem { get; set; }
-        public List<PickingListItem> SelectedSourceItems { get; set; } = new();
+        public HashSet<PickingListItem> SelectedSourceItems { get; set; } = new();
         public int? SelectedSourceIdForNewLine { get; set; }
         public WorkOrderItem NewProductionLine { get; set; } = new();
 
@@ -31,7 +31,7 @@ namespace CMetalsWS.Services
             AvailablePickingListItems = new List<PickingListItem>();
             NewStockItem = new WorkOrderItem { IsStockItem = true };
             EditingStockItem = null;
-            SelectedSourceItems = new List<PickingListItem>();
+            SelectedSourceItems = new HashSet<PickingListItem>();
             SelectedSourceIdForNewLine = null;
             NewProductionLine = new WorkOrderItem();
         }
