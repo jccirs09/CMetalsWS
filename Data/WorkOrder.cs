@@ -22,9 +22,6 @@ namespace CMetalsWS.Data
         public string WorkOrderNumber { get; set; } = default!;
 
         [MaxLength(64)]
-        public string? PdfWorkOrderNumber { get; set; }
-
-        [MaxLength(64)]
         public string TagNumber { get; set; } = default!;
 
         public int BranchId { get; set; }

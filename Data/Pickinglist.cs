@@ -76,9 +76,6 @@ namespace CMetalsWS.Data
 
         public int LineNumber { get; set; }
 
-        public int? InventoryItemId { get; set; }
-        public virtual InventoryItem? InventoryItem { get; set; }
-
         [Required, MaxLength(64)]
         public required string ItemId { get; set; }
 
@@ -141,8 +138,6 @@ namespace CMetalsWS.Data
         public virtual ApplicationUser? PackedBy => Events.FirstOrDefault(e => e.TaskType == TaskType.Packing && e.EventType == AuditEventType.Complete)?.User;
         [NotMapped]
         public DateTime? PackedAt => Events.FirstOrDefault(e => e.TaskType == TaskType.Packing && e.EventType == AuditEventType.Complete)?.Timestamp;
-        [MaxLength(128)]
-        public string? PackingMaterial { get; set; }
         [MaxLength(512)]
         public string? PackingNotes { get; set; }
         public bool QualityChecked { get; set; }
