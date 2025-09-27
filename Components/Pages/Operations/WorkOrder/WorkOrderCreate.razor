@@ -20,146 +20,139 @@
         <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/operations/workorders"))" StartIcon="@Icons.Material.Filled.ArrowBack">Back to Work Orders</MudButton>
     </div>
 
-    <MudStepper @bind-ActiveStep="_activeStep" Linear="true">
-        <MudStepPane Step="0" Name="Machine" Description="Select production machine" Icon="@Icons.Material.Filled.Settings">
-            <StepContent>
-                <MudGrid Spacing="2">
-                    @foreach (var machine in _machines)
-                    {
-                        <MudItem xs="12" sm="6" md="4">
-                            <MudCard Class="@(Model.MachineId == machine.Id ? "selected-card" : "")" @onclick="@(() => SelectMachine(machine))">
-                                <MudCardHeader>
-                                    <CardHeaderContent>
-                                        <MudStack Row="true" Justify="Justify.SpaceBetween">
-                                            <MudText Typo="Typo.h6">@machine.Name</MudText>
-                                            <MudChip T="string" Text="@machine.Category.ToString()" Color="Color.Secondary" />
-                                        </MudStack>
-                                    </CardHeaderContent>
-                                </MudCardHeader>
-                                <MudCardContent>
-                                    <MudText Typo="Typo.body2">Capacity: @(machine.EstimatedLbsPerHour?.ToString("N0")) lbs/hr</MudText>
-                                </MudCardContent>
-                            </MudCard>
+    <MudStepper @ref="_stepper" Linear="true" OnFinish="CreateWorkOrderAsync">
+        <MudStep Title="Machine" Description="Select production machine" Completed="@_machineStepCompleted">
+            <MudGrid Spacing="2">
+                @foreach (var machine in _machines)
+                {
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCard Class="@(Model.MachineId == machine.Id ? "selected-card" : "")" @onclick="@(() => SelectMachine(machine))">
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                        <MudText Typo="Typo.h6">@machine.Name</MudText>
+                                        <MudChip T="string" Text="@machine.Category.ToString()" Color="Color.Secondary" />
+                                    </MudStack>
+                                </CardHeaderContent>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <MudText Typo="Typo.body2">Capacity: @(machine.EstimatedLbsPerHour?.ToString("N0")) lbs/hr</MudText>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudStep>
+        <MudStep Title="Tag" Description="Enter work order tag" Completed="@_tagStepCompleted">
+            <MudTextField @bind-Value="Model.TagNumber" Label="Work Order Tag Number" Required="true" HelperText="Use a unique identifier that will be easily recognizable on the shop floor." For="@(() => Model.TagNumber)" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="FetchPickingListItemsAsync" Disabled="@string.IsNullOrWhiteSpace(Model.TagNumber)" Class="mt-3">Fetch Available Orders</MudButton>
+        </MudStep>
+        <MudStep Title="Orders" Description="Select sales orders" Completed="@_ordersStepCompleted">
+            @if (_isFetchingOrders)
+            {
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+            }
+            else
+            {
+                <MudTable Items="@_availablePickingListItems" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Select</MudTh>
+                        <MudTh>Picking List #</MudTh>
+                        <MudTh>Customer</MudTh>
+                        <MudTh>Item Code</MudTh>
+                        <MudTh>Description</MudTh>
+                        <MudTh>Size</MudTh>
+                        <MudTh>Weight</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Select"><MudCheckBox T="bool" @bind-Checked="@_selectedPickingListItems[context.Id]" @bind-Checked:after="OnSelectionChanged" /></MudTd>
+                        <MudTd DataLabel="Picking List #">@context.PickingList?.SalesOrderNumber</MudTd>
+                        <MudTd DataLabel="Customer">@context.PickingList?.Customer?.CustomerName</MudTd>
+                        <MudTd DataLabel="Item Code">@context.ItemId</MudTd>
+                        <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
+                        <MudTd DataLabel="Size">@($"{context.Width?.ToString("N2")} x {context.Length?.ToString("N2")}")</MudTd>
+                        <MudTd DataLabel="Weight">@context.Weight?.ToString("N2")</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudStep>
+        <MudStep Title="Instructions" Description="Add notes and priority" Completed="true">
+            <MudSelect @bind-Value="Model.Priority" Label="Priority" Required="true">
+                @foreach (WorkOrderPriority prio in Enum.GetValues(typeof(WorkOrderPriority)))
+                {
+                    <MudSelectItem Value="@prio">@prio.ToString()</MudSelectItem>
+                }
+            </MudSelect>
+            <MudTextField @bind-Value="Model.Instructions" Label="Special Instructions" Lines="5" Class="mt-3" />
+        </MudStep>
+        <MudStep Title="Line Items" Description="Confirm items to produce" Completed="@_lineItemsStepCompleted">
+            <MudTable Items="@Model.Items" Hover="true">
+                <HeaderContent>
+                    <MudTh>Item Code</MudTh>
+                    <MudTh>Description</MudTh>
+                    <MudTh>SO#</MudTh>
+                    <MudTh>Size</MudTh>
+                    <MudTh>Qty</MudTh>
+                    <MudTh>Weight</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Item Code">@context.ItemCode</MudTd>
+                    <MudTd DataLabel="Description">@context.Description</MudTd>
+                    <MudTd DataLabel="SO#">@context.SalesOrderNumber</MudTd>
+                    <MudTd DataLabel="Size">@($"{context.Width?.ToString("N2")} x {context.Length?.ToString("N2")}")</MudTd>
+                    <MudTd DataLabel="Qty">@context.OrderQuantity</MudTd>
+                    <MudTd DataLabel="Weight">@context.OrderWeight?.ToString("N2")</MudTd>
+                </RowTemplate>
+            </MudTable>
+            <MudCard Class="mt-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Add Stock Item</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_newStockItem.ItemCode" Label="Item Code" Required="true" />
                         </MudItem>
-                    }
-                </MudGrid>
-            </StepContent>
-        </MudStepPane>
-        <MudStepPane Step="1" Name="Tag" Description="Enter work order tag" Icon="@Icons.Material.Filled.Bookmark">
-            <StepContent>
-                <MudTextField @bind-Value="Model.TagNumber" Label="Work Order Tag Number" Required="true" HelperText="Use a unique identifier that will be easily recognizable on the shop floor." For="@(() => Model.TagNumber)" />
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="FetchPickingListItemsAsync" Disabled="@string.IsNullOrWhiteSpace(Model.TagNumber)" Class="mt-3">Fetch Available Orders</MudButton>
-            </StepContent>
-        </MudStepPane>
-        <MudStepPane Step="2" Name="Orders" Description="Select sales orders" Icon="@Icons.Material.Filled.ShoppingCart">
-            <StepContent>
-                @if (_isFetchingOrders)
-                {
-                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
-                }
-                else
-                {
-                    <MudSimpleTable Hover="true">
-                        <thead>
-                            <tr>
-                                <th>Select</th>
-                                <th>Picking List #</th>
-                                <th>Customer</th>
-                                <th>Item Code</th>
-                                <th>Description</th>
-                                <th>Weight</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var item in _availablePickingListItems)
-                            {
-                                <tr>
-                                    <td><MudCheckBox T="bool" @bind-Checked="@_selectedPickingListItems[item.Id]" /></td>
-                                    <td>@item.PickingList?.SalesOrderNumber</td>
-                                    <td>@item.PickingList?.Customer?.CustomerName</td>
-                                    <td>@item.ItemId</td>
-                                    <td>@item.ItemDescription</td>
-                                    <td>@item.Weight?.ToString("N2")</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </MudSimpleTable>
-                }
-            </StepContent>
-        </MudStepPane>
-        <MudStepPane Step="3" Name="Instructions" Description="Add notes and priority" Icon="@Icons.Material.Filled.Description">
-            <StepContent>
-                <MudSelect @bind-Value="Model.Priority" Label="Priority" Required="true">
-                    @foreach (WorkOrderPriority prio in Enum.GetValues(typeof(WorkOrderPriority)))
-                    {
-                        <MudSelectItem Value="@prio">@prio.ToString()</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudTextField @bind-Value="Model.Instructions" Label="Special Instructions" Lines="5" Class="mt-3" />
-            </StepContent>
-        </MudStepPane>
-        <MudStepPane Step="4" Name="Line Items" Description="Confirm items to produce" Icon="@Icons.Material.Filled.List">
-            <StepContent>
-                <MudSimpleTable Hover="true">
-                    <thead>
-                        <tr>
-                            <th>Item Code</th>
-                            <th>Description</th>
-                            <th>SO#</th>
-                            <th>Qty</th>
-                            <th>Weight</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in Model.Items)
-                        {
-                            <tr>
-                                <td>@item.ItemCode</td>
-                                <td>@item.Description</td>
-                                <td>@item.SalesOrderNumber</td>
-                                <td>@item.OrderQuantity</td>
-                                <td>@item.OrderWeight?.ToString("N2")</td>
-                            </tr>
-                        }
-                    </tbody>
-                </MudSimpleTable>
-            </StepContent>
-        </MudStepPane>
-        <MudStepPane Step="5" Name="Review" Description="Review and create" Icon="@Icons.Material.Filled.Visibility">
-            <StepContent>
-                <MudCard>
-                    <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Work Order Summary</MudText></CardHeaderContent></MudCardHeader>
-                    <MudCardContent>
-                        <MudGrid>
-                            <MudItem xs="6">Machine:</MudItem><MudItem xs="6"><b>@_selectedMachine?.Name</b></MudItem>
-                            <MudItem xs="6">Tag Number:</MudItem><MudItem xs="6"><b>@Model.TagNumber</b></MudItem>
-                            <MudItem xs="6">Priority:</MudItem><MudItem xs="6"><b>@Model.Priority</b></MudItem>
-                            <MudItem xs="6">Total Items:</MudItem><MudItem xs="6"><b>@Model.Items.Count</b></MudItem>
-                            <MudItem xs="6">Total Weight:</MudItem><MudItem xs="6"><b>@Model.Items.Sum(i => i.OrderWeight ?? 0).ToString("N2") lbs</b></MudItem>
-                        </MudGrid>
-                        <MudTextField @bind-Value="Model.ScheduledStartDate" Label="Scheduled Start Date" InputType="InputType.Date" Required="true" Class="mt-4" />
-                    </MudCardContent>
-                </MudCard>
-            </StepContent>
-        </MudStepPane>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_newStockItem.Description" Label="Description" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudNumericField @bind-Value="_newStockItem.Width" Label="Width" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudNumericField @bind-Value="_newStockItem.Length" Label="Length" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudNumericField @bind-Value="_newStockItem.OrderQuantity" Label="Quantity" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudNumericField @bind-Value="_newStockItem.OrderWeight" Label="Weight" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddStockItem">Add Stock Item</MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudStep>
+        <MudStep Title="Review" Description="Review and create">
+            <MudCard>
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Work Order Summary</MudText></CardHeaderContent></MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="6">Machine:</MudItem><MudItem xs="6"><b>@_selectedMachine?.Name</b></MudItem>
+                        <MudItem xs="6">Tag Number:</MudItem><MudItem xs="6"><b>@Model.TagNumber</b></MudItem>
+                        <MudItem xs="6">Priority:</MudItem><MudItem xs="6"><b>@Model.Priority</b></MudItem>
+                        <MudItem xs="6">Total Items:</MudItem><MudItem xs="6"><b>@Model.Items.Count</b></MudItem>
+                        <MudItem xs="6">Total Weight:</MudItem><MudItem xs="6"><b>@Model.Items.Sum(i => i.OrderWeight ?? 0).ToString("N2") lbs</b></MudItem>
+                    </MudGrid>
+                    <MudDatePicker @bind-Date="Model.ScheduledStartDate" Label="Scheduled Start Date" Required="true" Class="mt-4" />
+                </MudCardContent>
+            </MudCard>
+        </MudStep>
     </MudStepper>
-
-    <MudPaper Elevation="2" Class="pa-4 mt-4">
-        <MudStack Row="true" Justify="Justify.SpaceBetween">
-            <MudButton Variant="Variant.Text" OnClick="@(() => _activeStep--)" Disabled="@(_activeStep == 0)">Previous</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="HandleNextAsync" Disabled="@_isSaving">
-                @if (_isSaving)
-                {
-                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                    <MudText Class="ms-2">Saving...</MudText>
-                }
-                else
-                {
-                    <MudText>@(_activeStep == 5 ? "Create Work Order" : "Next")</MudText>
-                }
-            </MudButton>
-        </MudStack>
-    </MudPaper>
 </MudPaper>
 
 <style>
@@ -170,7 +163,12 @@
 </style>
 
 @code {
-    private int _activeStep = 0;
+    private MudStepper _stepper = default!;
+    private bool _machineStepCompleted;
+    private bool _tagStepCompleted;
+    private bool _ordersStepCompleted;
+    private bool _lineItemsStepCompleted;
+
     private WorkOrder Model { get; set; } = new();
     private List<Machine> _machines = new();
     private Machine? _selectedMachine;
@@ -180,6 +178,7 @@
     private bool _isFetchingOrders = false;
     private bool _isSaving = false;
     private string? _userId;
+    private WorkOrderItem _newStockItem = new() { IsStockItem = true };
 
     protected override async Task OnInitializedAsync()
     {
@@ -190,8 +189,6 @@
         _machines = (await MachineService.GetMachinesAsync())
             .Where(m => m.IsActive && (m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter))
             .ToList();
-
-        Model.ScheduledStartDate = DateTime.Today;
     }
 
     private void SelectMachine(Machine machine)
@@ -199,6 +196,8 @@
         _selectedMachine = machine;
         Model.MachineId = machine.Id;
         Model.MachineCategory = machine.Category;
+        _machineStepCompleted = true;
+        StateHasChanged();
     }
 
     private async Task FetchPickingListItemsAsync()
@@ -218,6 +217,18 @@
             _availablePickingListItems = result.AvailableItems;
             _selectedPickingListItems = _availablePickingListItems.ToDictionary(item => item.Id, item => false);
             Snackbar.Add($"Found {_availablePickingListItems.Count} available order line(s). Parent: {_parentItem?.ItemId}", Severity.Success);
+            _tagStepCompleted = true;
+
+            if (_parentItem != null)
+            {
+                _newStockItem = new()
+                {
+                    IsStockItem = true,
+                    ItemCode = $"{_parentItem.ItemId}-STOCK",
+                    Description = _parentItem.Description,
+                    Width = _parentItem.Width
+                };
+            }
         }
         catch (Exception ex)
         {
@@ -232,54 +243,57 @@
 
     private void PopulateLineItems()
     {
-        Model.Items.Clear();
-        var selectedIds = _selectedPickingListItems.Where(kvp => kvp.Value).Select(kvp => kvp.Key).ToHashSet();
-        var selectedItems = _availablePickingListItems.Where(item => selectedIds.Contains(item.Id));
+        var stockItems = Model.Items.Where(i => i.IsStockItem).ToList();
 
-        foreach (var plItem in selectedItems)
+        var selectedIds = _selectedPickingListItems.Where(kvp => kvp.Value).Select(kvp => kvp.Key).ToHashSet();
+        var selectedPickingListItems = _availablePickingListItems.Where(item => selectedIds.Contains(item.Id));
+
+        var newWorkOrderItems = selectedPickingListItems.Select(plItem => new WorkOrderItem
         {
-            Model.Items.Add(new WorkOrderItem
-            {
-                PickingListItemId = plItem.Id,
-                ItemCode = plItem.ItemId,
-                Description = plItem.ItemDescription,
-                SalesOrderNumber = plItem.PickingList?.SalesOrderNumber,
-                CustomerName = plItem.PickingList?.Customer?.CustomerName,
-                OrderQuantity = plItem.Quantity,
-                OrderWeight = plItem.Weight,
-                Width = plItem.Width,
-                Length = plItem.Length,
-                Unit = plItem.Unit,
-                OriginalOrderLineItemId = plItem.Id.ToString()
-            });
+            PickingListItemId = plItem.Id,
+            ItemCode = plItem.ItemId,
+            Description = plItem.ItemDescription,
+            SalesOrderNumber = plItem.PickingList?.SalesOrderNumber,
+            CustomerName = plItem.PickingList?.Customer?.CustomerName,
+            OrderQuantity = plItem.Quantity,
+            OrderWeight = plItem.Weight,
+            Width = plItem.Width,
+            Length = plItem.Length,
+            Unit = plItem.Unit,
+            OriginalOrderLineItemId = plItem.Id.ToString()
+        }).ToList();
+
+        Model.Items.Clear();
+        foreach (var item in stockItems)
+        {
+            Model.Items.Add(item);
+        }
+        foreach (var item in newWorkOrderItems)
+        {
+            Model.Items.Add(item);
         }
     }
 
-    private async Task HandleNextAsync()
+    private async Task OnSelectionChanged()
     {
-        // Manual validation before proceeding
-        switch (_activeStep)
+        PopulateLineItems();
+        _ordersStepCompleted = Model.Items.Any(i => !i.IsStockItem);
+        _lineItemsStepCompleted = Model.Items.Any();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void AddStockItem()
+    {
+        if (string.IsNullOrWhiteSpace(_newStockItem.ItemCode) || string.IsNullOrWhiteSpace(_newStockItem.Description))
         {
-            case 0: // Machine
-                if (Model.MachineId == null) { Snackbar.Add("Please select a machine.", Severity.Warning); return; }
-                break;
-            case 1: // Tag
-                if (string.IsNullOrWhiteSpace(Model.TagNumber)) { Snackbar.Add("Tag Number is required.", Severity.Warning); return; }
-                if (_parentItem == null) { Snackbar.Add("You must fetch orders for the tag.", Severity.Warning); return; }
-                break;
-            case 2: // Orders
-                if (!_selectedPickingListItems.Values.Any(selected => selected)) { Snackbar.Add("Please select at least one order line.", Severity.Warning); return; }
-                PopulateLineItems();
-                break;
-            case 4: // Line Items
-                if (!Model.Items.Any()) { Snackbar.Add("Cannot proceed without line items.", Severity.Warning); return; }
-                break;
-            case 5: // Review
-                await CreateWorkOrderAsync();
-                return; // Don't increment step, we are done or saving
+            Snackbar.Add("Item Code and Description are required for stock items.", Severity.Warning);
+            return;
         }
 
-        _activeStep++;
+        Model.Items.Add(_newStockItem);
+        _newStockItem = new() { IsStockItem = true }; // Reset for next entry
+        _lineItemsStepCompleted = Model.Items.Any();
+        StateHasChanged();
     }
 
     private async Task CreateWorkOrderAsync()
