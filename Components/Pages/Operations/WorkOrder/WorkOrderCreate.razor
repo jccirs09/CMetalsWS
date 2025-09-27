@@ -146,8 +146,8 @@
 
     <MudPaper Elevation="2" Class="pa-4 mt-4">
         <MudStack Row="true" Justify="Justify.SpaceBetween">
-            <MudButton Variant="Variant.Text" OnClick="@(() => _activeStep--)" Disabled="@(_activeStep == 0)">Previous</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="HandleNextAsync" Disabled="@_isSaving">
+            <MudButton Variant="Variant.Text" OnClick="HandlePrevious" Disabled="@(_activeStep == 0)">Previous</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="HandleNextAsync" Disabled="@IsNextButtonDisabled">
                 @if (_isSaving)
                 {
                     <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
@@ -180,6 +180,25 @@
     private bool _isFetchingOrders = false;
     private bool _isSaving = false;
     private string? _userId;
+
+    private bool IsNextButtonDisabled
+    {
+        get
+        {
+            if (_isSaving) return true;
+
+            return _activeStep switch
+            {
+                0 => Model.MachineId == null,
+                1 => string.IsNullOrWhiteSpace(Model.TagNumber) || _parentItem == null,
+                2 => !Model.Items.Any(),
+                3 => false, // Priority is always selected, and instructions are optional
+                4 => !Model.Items.Any(),
+                5 => Model.ScheduledStartDate == null,
+                _ => false
+            };
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -259,6 +278,15 @@
         await InvokeAsync(StateHasChanged);
     }
 
+    private void HandlePrevious()
+    {
+        if (_activeStep > 0)
+        {
+            _activeStep--;
+            StateHasChanged();
+        }
+    }
+
     private async Task HandleNextAsync()
     {
         // Manual validation before proceeding
@@ -283,6 +311,7 @@
         }
 
         _activeStep++;
+        StateHasChanged();
     }
 
     private async Task CreateWorkOrderAsync()
