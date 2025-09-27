@@ -43,7 +43,7 @@
                         var regionOrders = _allPickingLists.Where(o => o.DestinationRegionId == region.Id).ToList();
                         var activeOrders = regionOrders.Count(o => o.Status == PickingListStatus.Ready || o.Status == PickingListStatus.ReadyToShip);
 
-                        <MudItem xs="12" sm="6" md>
+                        <MudItem xs="12" sm="6" md="2">
                             <MudPaper Class="pa-4 rounded-lg" Style="height: 100%;">
                                 <MudText Typo="Typo.subtitle1">@region.Name</MudText>
                                 <div class="d-flex justify-space-between mt-4">
