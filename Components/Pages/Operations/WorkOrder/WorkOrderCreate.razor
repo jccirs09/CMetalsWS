@@ -305,14 +305,16 @@
 
     protected override async Task OnInitializedAsync()
     {
-        StateService.Reset();
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(authState.User);
         _userId = user?.Id;
 
-        StateService.Machines = (await MachineService.GetMachinesAsync())
-            .Where(m => m.IsActive && (m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter))
-            .ToList();
+        if (!StateService.Machines.Any())
+        {
+            StateService.Machines = (await MachineService.GetMachinesAsync())
+                .Where(m => m.IsActive && (m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter))
+                .ToList();
+        }
     }
 
     private void SelectMachine(Machine machine)
