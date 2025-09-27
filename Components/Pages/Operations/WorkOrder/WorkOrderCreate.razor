@@ -116,7 +116,7 @@
                                 <MudNumericField @bind-Value="StateService.NewProductionLine.OrderQuantity" Label="Quantity" For="@(() => StateService.NewProductionLine.OrderQuantity)" Required="true" />
                             </MudItem>
                             <MudItem xs="12" sm="3" Class="d-flex align-end">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddProductionLine" Disabled="@(StateService.SelectedSourceIdForNewLine == null)">Add Line</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddProductionLine" Disabled="@(StateService.SelectedSourceIdForNewLine == 0)">Add Line</MudButton>
                             </MudItem>
                         </MudGrid>
                     }
@@ -255,7 +255,7 @@
 
     private void AddProductionLine()
     {
-        if (StateService.SelectedSourceIdForNewLine == null || StateService.NewProductionLine.OrderQuantity == null || StateService.NewProductionLine.OrderQuantity <= 0)
+        if (StateService.SelectedSourceIdForNewLine == 0 || StateService.NewProductionLine.OrderQuantity == null || StateService.NewProductionLine.OrderQuantity <= 0)
         {
             Snackbar.Add("Please select a source order and enter a valid quantity.", Severity.Warning);
             return;
@@ -399,9 +399,9 @@
         _lineItemsStepCompleted = StateService.Model.Items.Any();
 
         // Reset the selection for the new line form if a source is deselected.
-        if (StateService.SelectedSourceIdForNewLine != null && !StateService.SelectedSourceItems.Any(i => i.Id == StateService.SelectedSourceIdForNewLine))
+        if (StateService.SelectedSourceIdForNewLine != 0 && !StateService.SelectedSourceItems.Any(i => i.Id == StateService.SelectedSourceIdForNewLine))
         {
-            StateService.SelectedSourceIdForNewLine = null;
+            StateService.SelectedSourceIdForNewLine = 0;
         }
     }
 
