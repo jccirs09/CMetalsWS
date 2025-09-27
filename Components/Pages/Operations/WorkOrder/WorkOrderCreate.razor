@@ -68,7 +68,7 @@
                         <MudTh>Weight</MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd DataLabel="Select"><MudCheckBox T="bool" Checked="@(StateService.SelectedPickingListItems.ContainsKey(context.Id) && StateService.SelectedPickingListItems[context.Id])" ValueChanged="@((bool val) => ToggleSelection(context.Id, val))" /></Td>
+                        <MudTd DataLabel="Select"><MudCheckBox T="bool" Checked="@IsItemSelected(context.Id)" ValueChanged="@((bool val) => ToggleSelection(context.Id, val))" /></Td>
                         <MudTd DataLabel="Picking List #">@context.PickingList?.SalesOrderNumber</MudTd>
                         <MudTd DataLabel="Customer">@context.PickingList?.Customer?.CustomerName</MudTd>
                         <MudTd DataLabel="Item Code">@context.ItemId</MudTd>
@@ -406,6 +406,11 @@
         {
             StateService.SelectedSourceIdForNewLine = null;
         }
+    }
+
+    private bool IsItemSelected(int id)
+    {
+        return StateService.SelectedPickingListItems.ContainsKey(id) && StateService.SelectedPickingListItems[id];
     }
 
     private async Task ToggleSelection(int id, bool value)
