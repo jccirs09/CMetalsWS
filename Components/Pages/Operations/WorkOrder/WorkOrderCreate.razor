@@ -102,13 +102,13 @@
                                 <MudText>Select a source order line and specify the quantity to produce.</MudText>
                             </MudItem>
                             <MudItem xs="12" sm="6">
-                                <MudList Clickable="true" @bind-SelectedItem="StateService.SelectedSourceItemForNewLine">
+                                <MudList T="PickingListItem" Clickable="true" @bind-SelectedItem="StateService.SelectedSourceItemForNewLine">
                                     @foreach (var sourceItem in StateService.SelectedSourceItems)
                                     {
                                         var remainingQty = sourceItem.Quantity - StateService.Model.Items.Where(i => i.OriginalOrderLineItemId == sourceItem.Id.ToString()).Sum(i => i.OrderQuantity ?? 0m);
                                         if (remainingQty > 0)
                                         {
-                                            <MudListItem Value="sourceItem">
+                                            <MudListItem T="PickingListItem" Value="@sourceItem">
                                                 @($"{sourceItem.ItemId} ({remainingQty} of {sourceItem.Quantity} remaining)")
                                             </MudListItem>
                                         }
