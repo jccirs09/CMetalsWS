@@ -391,7 +391,11 @@
 
         // Remove production lines that are no longer selected in the previous step
         var currentSourceIds = _selectedSourceItems.Select(i => i.Id.ToString()).ToHashSet();
-        Model.Items.RemoveAll(item => !item.IsStockItem && item.OriginalOrderLineItemId != null && !currentSourceIds.Contains(item.OriginalOrderLineItemId));
+        var itemsToRemove = Model.Items.Where(item => !item.IsStockItem && item.OriginalOrderLineItemId != null && !currentSourceIds.Contains(item.OriginalOrderLineItemId)).ToList();
+        foreach (var item in itemsToRemove)
+        {
+            Model.Items.Remove(item);
+        }
 
         _ordersStepCompleted = _selectedSourceItems.Any();
         _lineItemsStepCompleted = Model.Items.Any();
