@@ -68,7 +68,7 @@
                         <MudTh>Weight</MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd DataLabel="Select"><MudCheckBox T="bool" @bind-Checked="@StateService.SelectedPickingListItems[context.Id]" @bind-Checked:after="OnSelectionChanged" /></MudTd>
+                        <MudTd DataLabel="Select"><MudCheckBox T="bool" Checked="@(StateService.SelectedPickingListItems.ContainsKey(context.Id) && StateService.SelectedPickingListItems[context.Id])" ValueChanged="@((bool val) => ToggleSelection(context.Id, val))" /></Td>
                         <MudTd DataLabel="Picking List #">@context.PickingList?.SalesOrderNumber</MudTd>
                         <MudTd DataLabel="Customer">@context.PickingList?.Customer?.CustomerName</MudTd>
                         <MudTd DataLabel="Item Code">@context.ItemId</MudTd>
@@ -77,7 +77,6 @@
                         <MudTd DataLabel="Weight">@context.Weight?.ToString("N2")</MudTd>
                     </RowTemplate>
                 </MudTable>
-                <MudButton OnClick="TestSelections" Variant="Variant.Outlined" Class="mt-4">Test Selections</MudButton>
             }
         </MudStep>
         <MudStep Title="Instructions" Description="Add notes and priority" Completed="true">
@@ -409,16 +408,11 @@
         }
     }
 
-    private async Task OnSelectionChanged()
+    private async Task ToggleSelection(int id, bool value)
     {
+        StateService.SelectedPickingListItems[id] = value;
         PopulateLineItems();
         await InvokeAsync(StateHasChanged);
-    }
-
-    private void TestSelections()
-    {
-        var selectedCount = StateService.SelectedPickingListItems.Count(kvp => kvp.Value);
-        Snackbar.Add($"Total items currently selected: {selectedCount}", Severity.Success);
     }
 
     private void AddStockItem()
