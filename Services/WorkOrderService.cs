@@ -131,13 +131,15 @@ namespace CMetalsWS.Services
 
         private async Task AutoScheduleWorkOrder(ApplicationDbContext db, WorkOrder workOrder)
         {
+            if (!workOrder.ScheduledStartDate.HasValue) return;
+
             var machine = await db.Machines.FindAsync(workOrder.MachineId);
             if (machine == null) return;
 
             var totalWeight = workOrder.Items.Sum(i => i.OrderWeight ?? 0);
             if (totalWeight == 0 || machine.EstimatedLbsPerHour == 0)
             {
-                workOrder.ScheduledEndDate = workOrder.ScheduledStartDate.AddHours(1); // Default duration
+                workOrder.ScheduledEndDate = workOrder.ScheduledStartDate.Value.AddHours(1); // Default duration
                 return;
             }
 
@@ -146,12 +148,13 @@ namespace CMetalsWS.Services
 
             var lastScheduledEnd = await db.WorkOrders
                 .Where(wo => wo.MachineId == workOrder.MachineId &&
-                             wo.ScheduledStartDate.Date == workOrder.ScheduledStartDate.Date &&
+                             wo.ScheduledStartDate.HasValue &&
+                             wo.ScheduledStartDate.Value.Date == workOrder.ScheduledStartDate.Value.Date &&
                              wo.Id != workOrder.Id)
                 .MaxAsync(wo => (DateTime?)wo.ScheduledEndDate);
 
             workOrder.ScheduledStartDate = lastScheduledEnd ?? workOrder.ScheduledStartDate;
-            workOrder.ScheduledEndDate = workOrder.ScheduledStartDate.Add(duration);
+            workOrder.ScheduledEndDate = workOrder.ScheduledStartDate.Value.Add(duration);
         }
 
         public async Task UpdateAsync(WorkOrder workOrder, string userId)
@@ -341,7 +344,9 @@ namespace CMetalsWS.Services
                 .FirstOrDefaultAsync(w => w.Id == id);
             if (workOrder is null) return;
 
-            var originalDuration = workOrder.ScheduledEndDate - workOrder.ScheduledStartDate;
+            var originalDuration = (workOrder.ScheduledEndDate.HasValue && workOrder.ScheduledStartDate.HasValue)
+                ? workOrder.ScheduledEndDate.Value - workOrder.ScheduledStartDate.Value
+                : TimeSpan.FromHours(1); // Default duration
             workOrder.ScheduledStartDate = start;
             workOrder.ScheduledEndDate = end ?? (start + originalDuration);
 
