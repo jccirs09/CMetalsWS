@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 
 namespace CMetalsWS.Data
 {
@@ -14,12 +15,23 @@ namespace CMetalsWS.Data
         Awaiting
     }
 
+    public enum WorkOrderPriority
+    {
+        Low,
+        Normal,
+        High,
+        Urgent
+    }
+
     public class WorkOrder
     {
         public int Id { get; set; }
 
         [Required, MaxLength(64)]
         public string WorkOrderNumber { get; set; } = default!;
+
+        [MaxLength(64)]
+        public string? PdfWorkOrderNumber { get; set; }
 
         [MaxLength(64)]
         public string TagNumber { get; set; } = default!;
@@ -35,6 +47,10 @@ namespace CMetalsWS.Data
         public DateTime DueDate { get; set; }
 
         public string? ParentItemId { get; set; }
+        public string? ParentItemDescription { get; set; }
+        [Precision(18, 2)]
+        public decimal? ParentItemWeight { get; set; }
+        public string? ParentItemLocation { get; set; }
         public string? Instructions { get; set; }
 
         public string? CreatedBy { get; set; }
@@ -45,12 +61,27 @@ namespace CMetalsWS.Data
         public DateTime ScheduledStartDate { get; set; }
         public DateTime ScheduledEndDate { get; set; }
 
+        public DateTime? ActualStartDate { get; set; }
+        public DateTime? ActualEndDate { get; set; }
+
         public WorkOrderStatus Status { get; set; } = WorkOrderStatus.Draft;
+        public WorkOrderPriority Priority { get; set; } = WorkOrderPriority.Normal;
 
         [MaxLength(32)]
         public string? Shift { get; set; }
 
+        [MaxLength(128)]
+        public string? Operator { get; set; }
+
         public ICollection<WorkOrderItem> Items { get; set; } = new List<WorkOrderItem>();
+    }
+
+    public enum WorkOrderItemStatus
+    {
+        Pending,
+        InProgress,
+        Completed,
+        Error
     }
 
     public class WorkOrderItem
@@ -90,5 +121,10 @@ namespace CMetalsWS.Data
         public string? Location { get; set; }
 
         public bool IsStockItem { get; set; }
+
+        public WorkOrderItemStatus Status { get; set; } = WorkOrderItemStatus.Pending;
+
+        [MaxLength(64)]
+        public string? OriginalOrderLineItemId { get; set; }
     }
 }

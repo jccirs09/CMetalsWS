@@ -3,280 +3,222 @@
 @using CMetalsWS.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
-@using Microsoft.AspNetCore.SignalR.Client
-@using CMetalsWS.Security
 @attribute [Authorize(Policy = Permissions.WorkOrders.View)]
-@inject AuthenticationStateProvider AuthStateProvider
-@inject UserManager<ApplicationUser> UserManager
 @inject WorkOrderService WorkOrderService
 @inject MachineService MachineService
-@inject BranchService BranchService
-@inject IDialogService DialogService
-@inject ISnackbar Snackbar
 @inject NavigationManager Navigation
-@inject IAuthorizationService AuthorizationService
-@implements IAsyncDisposable
 
 <MudPaper Class="pa-4">
-    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-        <MudText Typo="Typo.h5">Work Orders</MudText>
-        <MudSpacer />
-        <MudTextField @bind-Value="_searchString" Label="Search by WO# or SO#" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" OnAdornmentClick="LoadAsync" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
-        <AuthorizeView Policy="@Permissions.WorkOrders.Add">
-            <Authorized>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateWorkOrderAsync">New</MudButton>
-            </Authorized>
-        </AuthorizeView>
-        <MudButton Variant="Variant.Outlined" OnClick="LoadAsync">Refresh</MudButton>
-    </MudStack>
+    <div class="d-flex justify-space-between align-center mb-4">
+        <div>
+            <MudText Typo="Typo.h5">Work Orders</MudText>
+            <MudText Color="Color.Dark">Manage production work orders across all machines</MudText>
+        </div>
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/operations/workorder/process-queue"))" StartIcon="@Icons.Material.Filled.PlayCircleOutline">Process Orders</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo("/operations/workorder/create"))" StartIcon="@Icons.Material.Filled.Add">Create Work Order</MudButton>
+        </MudStack>
+    </div>
 
-    <MudTable Items="@FilteredWorkOrders" Hover="true" Dense="true" Class="mt-4" Context="workOrder">
-        <HeaderContent>
-            <MudTh>WO #</MudTh>
-            <MudTh>Branch</MudTh>
-            <MudTh>Category</MudTh>
-            <MudTh>Machine</MudTh>
-            <MudTh>Tag</MudTh>
-            <MudTh>Due</MudTh>
-            <MudTh>Status</MudTh>
-            <MudTh>Start</MudTh>
-            <MudTh>End</MudTh>
-            <MudTh></MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@workOrder.WorkOrderNumber</MudTd>
-            <MudTd>@workOrder.Branch?.Code</MudTd>
-            <MudTd>@workOrder.MachineCategory</MudTd>
-            <MudTd>@workOrder.Machine?.Name</MudTd>
-            <MudTd>@workOrder.TagNumber</MudTd>
-            <MudTd>@workOrder.DueDate.ToString("yyyy-MM-dd")</MudTd>
-            <MudTd>@workOrder.Status</MudTd>
-            <MudTd>@(workOrder.ScheduledStartDate.ToString("yyyy-MM-dd HH:mm"))</MudTd>
-            <MudTd>@(workOrder.ScheduledEndDate.ToString("yyyy-MM-dd HH:mm"))</MudTd>
-            <MudTd>
-                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true">
-                    <MudMenuItem OnClick="@(() => ViewWorkOrderAsync(workOrder))">Details</MudMenuItem>
-                    @if (_canEdit)
-                    {
-                        <MudMenuItem OnClick="@(() => EditWorkOrderAsync(workOrder))">Edit</MudMenuItem>
-                    }
-                    @if (_canProcess)
-                    {
-                        <MudMenuItem OnClick="@(() => ProcessWorkOrderAsync(workOrder))">Process</MudMenuItem>
-                    }
-                </MudMenu>
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
+    <div class="d-flex ga-4 my-4">
+        <MudTextField @bind-Value="_searchString" Label="Search work orders..." Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" />
+        <MudSelect T="WorkOrderStatus?" @bind-Value="_selectedStatus" Label="Filter by status" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+            <MudSelectItem T="WorkOrderStatus?" Value="@(null)">All Statuses</MudSelectItem>
+            @foreach (WorkOrderStatus status in Enum.GetValues(typeof(WorkOrderStatus)))
+            {
+                <MudSelectItem T="WorkOrderStatus?" Value="@status">@status.ToString()</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect T="int?" @bind-Value="_selectedMachineId" Label="Filter by machine" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+            <MudSelectItem T="int?" Value="@(null)">All Machines</MudSelectItem>
+            @foreach (var machine in _machines)
+            {
+                <MudSelectItem T="int?" Value="@machine.Id">@machine.Name</MudSelectItem>
+            }
+        </MudSelect>
+    </div>
+
+    <MudTabs @bind-ActivePanelIndex="_activePanelIndex" Elevation="2" Rounded="true" PanelClass="pa-4">
+        <MudTabPanel Text="List View" Icon="@Icons.Material.Filled.List">
+            <MudStack Spacing="3">
+                @foreach (var order in FilteredWorkOrders)
+                {
+                    <MudCard>
+                        <MudCardContent>
+                            <div class="d-flex justify-space-between align-center">
+                                <div class="d-flex align-center ga-4">
+                                    <div>
+                                        <div class="d-flex align-center ga-2 mb-1">
+                                            <MudChip T="string" Text="@order.WorkOrderNumber" Color="Color.Primary" />
+                                            <MudChip T="string" Text="@order.TagNumber" Color="Color.Secondary" />
+                                            <MudChip T="string" Text="@order.Status.ToString()" Color="@GetStatusColor(order.Status)" />
+                                            <MudChip T="string" Text="@order.Priority.ToString()" Color="@GetPriorityColor(order.Priority)" />
+                                        </div>
+                                        <MudText Typo="Typo.h6">@GetMainCustomer(order)</MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Dark">@GetMainItemDescription(order)</MudText>
+                                        <div class="d-flex align-center ga-4 mt-1">
+                                            <MudText Typo="Typo.caption"><MudIcon Icon="@Icons.Material.Filled.Factory" Class="mr-1"/>@order.Branch?.Name</MudText>
+                                            <MudText Typo="Typo.caption"><MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-1"/>Created by @order.CreatedBy</MudText>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-center ga-4">
+                                    <div class="text-right">
+                                        <MudText Typo="Typo.body2" Color="Color.Dark">Machine</MudText>
+                                        <MudText Typo="Typo.body1"><b>@(order.Machine?.Name ?? order.MachineCategory.ToString())</b></MudText>
+                                    </div>
+                                    <div class="text-right">
+                                        <MudText Typo="Typo.body2" Color="Color.Dark">Total Weight</MudText>
+                                        <MudText Typo="Typo.body1"><b>@GetTotalWeight(order).ToString("N0") lbs</b></MudText>
+                                    </div>
+                                    <div class="text-right">
+                                        <MudText Typo="Typo.body2" Color="Color.Dark">Items</MudText>
+                                        <MudText Typo="Typo.body1"><b>@order.Items.Count</b></MudText>
+                                    </div>
+                                    <div class="text-right">
+                                        <MudText Typo="Typo.body2" Color="Color.Dark">Due Date</MudText>
+                                        <MudText Typo="Typo.body1"><b>@order.DueDate.ToString("yyyy-MM-dd")</b></MudText>
+                                    </div>
+                                    <div class="d-flex ga-2">
+                                        @if (order.Status == WorkOrderStatus.Pending)
+                                        {
+                                            <MudButton Variant="Variant.Filled" Size="Size.Small" Color="Color.Success" OnClick="@(() => ProcessOrder(order))">Start</MudButton>
+                                        }
+                                        else if (order.Status == WorkOrderStatus.InProgress)
+                                        {
+                                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning" OnClick="@(() => ProcessOrder(order))">Pause</MudButton>
+                                        }
+                                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Variant="Variant.Outlined" OnClick="@(() => ProcessOrder(order))" />
+                                    </div>
+                                </div>
+                            </div>
+                        </MudCardContent>
+                    </MudCard>
+                }
+            </MudStack>
+        </MudTabPanel>
+        <MudTabPanel Text="Kanban View" Icon="@Icons.Material.Filled.ViewKanban">
+            <div class="d-flex ga-4 overflow-x-auto">
+                @foreach (WorkOrderStatus status in Enum.GetValues(typeof(WorkOrderStatus)))
+                {
+                    <div class="kanban-column">
+                        <div class="d-flex justify-space-between align-center mb-4">
+                            <MudText Typo="Typo.h6">@status.ToString()</MudText>
+                            <MudChip T="string" Text="@FilteredWorkOrders.Count(o => o.Status == status).ToString()" Color="Color.Default" />
+                        </div>
+                        <MudStack Spacing="3">
+                            @foreach (var order in FilteredWorkOrders.Where(o => o.Status == status))
+                            {
+                                <MudCard Class="cursor-pointer" @onclick="@(() => ProcessOrder(order))">
+                                    <MudCardContent>
+                                        <div class="d-flex justify-space-between mb-2">
+                                            <MudChip T="string" Text="@order.WorkOrderNumber" Color="Color.Primary" Size="Size.Small" />
+                                            <MudChip T="string" Text="@order.Priority.ToString()" Color="@GetPriorityColor(order.Priority)" Size="Size.Small" />
+                                        </div>
+                                        <MudChip T="string" Text="@order.TagNumber" Color="Color.Secondary" Size="Size.Small" Class="mb-2" />
+                                        <MudText Typo="Typo.body1"><b>@GetMainCustomer(order)</b></MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Dark" Class="mb-2">@GetMainItemDescription(order)</MudText>
+
+                                        <div class="d-flex justify-space-between text-caption">
+                                            <span><MudIcon Icon="@Icons.Material.Filled.Settings" Class="mr-1" Style="font-size: 1rem;"/>@(order.Machine?.Name ?? order.MachineCategory.ToString())</span>
+                                            <span><MudIcon Icon="@Icons.Material.Filled.Scale" Class="mr-1" Style="font-size: 1rem;"/>@GetTotalWeight(order).ToString("N0") lbs</span>
+                                        </div>
+                                        <div class="d-flex justify-space-between text-caption mt-1">
+                                            <span><MudIcon Icon="@Icons.Material.Filled.Factory" Class="mr-1" Style="font-size: 1rem;"/>@order.Branch?.Code</span>
+                                            @if(!string.IsNullOrEmpty(order.Operator))
+                                            {
+                                                <span><MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-1" Style="font-size: 1rem;"/>@order.Operator</span>
+                                            }
+                                        </div>
+                                        <div class="d-flex justify-space-between align-center mt-2 pt-2 border-t-1">
+                                            <MudText Typo="Typo.caption">Due: @order.DueDate.ToString("d")</MudText>
+                                            <MudIconButton Icon="@Icons.Material.Filled.PlayCircleOutline" Size="Size.Small" OnClick="@(() => ProcessOrder(order))" OnClickStopPropagation="true" />
+                                        </div>
+                                    </MudCardContent>
+                                </MudCard>
+                            }
+                        </MudStack>
+                    </div>
+                }
+            </div>
+        </MudTabPanel>
+    </MudTabs>
 </MudPaper>
+
+<style>
+    .kanban-column {
+        min-width: 320px;
+        max-width: 320px;
+        background-color: var(--mud-palette-background-grey);
+        padding: 1rem;
+        border-radius: var(--mud-shape-rounded);
+    }
+    .border-t-1 {
+        border-top: 1px solid var(--mud-palette-divider);
+    }
+</style>
 
 @code {
     private List<WorkOrder> _workOrders = new();
-    private string _searchString = "";
     private List<Machine> _machines = new();
-    private List<Branch> _branches = new();
-    private int? _userBranchId;
-    private HubConnection? _hubConnection;
-    private bool _canEdit;
-    private bool _canProcess;
+    private int _activePanelIndex = 0;
 
-    private List<WorkOrder> FilteredWorkOrders =>
-        string.IsNullOrWhiteSpace(_searchString)
-            ? _workOrders
-            : _workOrders.Where(wo =>
-                wo.WorkOrderNumber.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
-                wo.Items.Any(i => i.SalesOrderNumber != null && i.SalesOrderNumber.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
-            ).ToList();
+    private string _searchString = "";
+    private WorkOrderStatus? _selectedStatus;
+    private int? _selectedMachineId;
+
+    private IEnumerable<WorkOrder> FilteredWorkOrders =>
+        _workOrders.Where(order =>
+        {
+            var searchMatch = string.IsNullOrWhiteSpace(_searchString) ||
+                              order.WorkOrderNumber.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                              order.TagNumber.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                              (order.Items != null && order.Items.Any(i => i.CustomerName != null && i.CustomerName.Contains(_searchString, StringComparison.OrdinalIgnoreCase))) ||
+                              (order.Items != null && order.Items.Any(i => i.SalesOrderNumber != null && i.SalesOrderNumber.Contains(_searchString, StringComparison.OrdinalIgnoreCase)));
+
+            var statusMatch = !_selectedStatus.HasValue || order.Status == _selectedStatus.Value;
+            var machineMatch = !_selectedMachineId.HasValue || order.MachineId == _selectedMachineId.Value;
+
+            return searchMatch && statusMatch && machineMatch;
+        }).ToList();
 
     protected override async Task OnInitializedAsync()
     {
-        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = await UserManager.GetUserAsync(auth.User);
-        _userBranchId = user?.BranchId;
-
-        _canEdit = (await AuthorizationService.AuthorizeAsync(auth.User, Permissions.WorkOrders.Edit)).Succeeded;
-        _canProcess = (await AuthorizationService.AuthorizeAsync(auth.User, Permissions.WorkOrders.Process)).Succeeded;
-
+        _workOrders = await WorkOrderService.GetAsync();
         _machines = await MachineService.GetMachinesAsync();
-        _branches = await BranchService.GetBranchesAsync();
-
-        await LoadAsync();
-
-        _hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/hubs/schedule"))
-            .Build();
-
-        _hubConnection.On<int>("WorkOrderUpdated", (workOrderId) =>
-        {
-            InvokeAsync(async () =>
-            {
-                await LoadAsync();
-                StateHasChanged();
-            });
-        });
-
-        await _hubConnection.StartAsync();
     }
 
-    private async Task LoadAsync()
+    private string GetMainCustomer(WorkOrder order) => order.Items?.FirstOrDefault()?.CustomerName ?? "N/A";
+
+    private string GetMainItemDescription(WorkOrder order) =>
+        order.Items?.Count == 1
+            ? order.Items.First().Description
+            : $"{order.Items?.Count ?? 0} items";
+
+    private decimal GetTotalWeight(WorkOrder order) => order.Items?.Sum(i => i.OrderWeight ?? 0) ?? 0;
+
+    private Color GetStatusColor(WorkOrderStatus status) => status switch
     {
-        var branchFilter = _userBranchId;
-        _workOrders = await WorkOrderService.GetAsync(branchFilter);
-        StateHasChanged();
-    }
+        WorkOrderStatus.Draft => Color.Default,
+        WorkOrderStatus.Pending => Color.Info,
+        WorkOrderStatus.InProgress => Color.Success,
+        WorkOrderStatus.Awaiting => Color.Warning,
+        WorkOrderStatus.Completed => Color.Primary,
+        WorkOrderStatus.Canceled => Color.Error,
+        _ => Color.Dark
+    };
 
-    private async Task CreateWorkOrderAsync()
+    private Color GetPriorityColor(WorkOrderPriority priority) => priority switch
     {
-        var newModel = new WorkOrder
-        {
-            Status = WorkOrderStatus.Pending,
-            DueDate = DateTime.UtcNow.Date.AddDays(1)
-        };
+        WorkOrderPriority.Low => Color.Info,
+        WorkOrderPriority.Normal => Color.Success,
+        WorkOrderPriority.High => Color.Warning,
+        WorkOrderPriority.Urgent => Color.Error,
+        _ => Color.Default
+    };
 
-        var parameters = new DialogParameters
-        {
-            ["Model"] = newModel,
-            ["Machines"] = _machines.Where(m => m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter).ToList(),
-            ["Branches"] = _branches,
-            ["Title"] = "New Work Order",
-            ["IsEdit"] = false
-        };
-
-        var dialog = await DialogService.ShowAsync<WorkOrderDialog>("New Work Order", parameters, new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, FullScreen = true });
-        if(dialog is not null)
-        {
-            var result = await dialog.Result;
-            if (result is not null && !result.Canceled && result.Data is WorkOrder model)
-            {
-                var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-                var user = await UserManager.GetUserAsync(auth.User);
-                if (user?.Id == null || !user.BranchId.HasValue)
-                {
-                    Snackbar.Add("Your account has no default branch. Contact admin.", Severity.Error);
-                    return;
-                }
-
-                await WorkOrderService.CreateAsync(model, user.Id);
-                Snackbar.Add("Work order created.", Severity.Success);
-                await LoadAsync();
-            }
-        }
-    }
-    private async Task ViewWorkOrderAsync(WorkOrder wo)
+    private void ProcessOrder(WorkOrder order)
     {
-        var parameters = new DialogParameters
-        {
-            ["Model"] = wo
-        };
-
-        var dialog = await DialogService.ShowAsync<WorkOrderDetailsDialog>("Work Order Details", parameters, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
-        var result = await dialog.Result;
-
-        if (result is not null && !result.Canceled && result.Data is bool shouldEdit && shouldEdit)
-        {
-            await EditWorkOrderAsync(wo);
-        }
-    }
-
-    private async Task EditWorkOrderAsync(WorkOrder wo)
-    {
-        var clone = new WorkOrder
-        {
-            Id = wo.Id,
-            WorkOrderNumber = wo.WorkOrderNumber,
-            TagNumber = wo.TagNumber,
-            BranchId = wo.BranchId,
-            MachineId = wo.MachineId,
-            MachineCategory = wo.MachineCategory,
-            DueDate = wo.DueDate,
-            Instructions = wo.Instructions,
-            Status = wo.Status,
-            ScheduledStartDate = wo.ScheduledStartDate,
-            ScheduledEndDate = wo.ScheduledEndDate,
-            Items = wo.Items.Select(i => new WorkOrderItem
-            {
-                Id = i.Id,
-                WorkOrderId = wo.Id,
-                PickingListItemId = i.PickingListItemId,
-                ItemCode = i.ItemCode,
-                Description = i.Description,
-                SalesOrderNumber = i.SalesOrderNumber,
-                CustomerName = i.CustomerName,
-                OrderQuantity = i.OrderQuantity,
-                OrderWeight = i.OrderWeight,
-                Width = i.Width,
-                Length = i.Length,
-                ProducedQuantity = i.ProducedQuantity,
-                ProducedWeight = i.ProducedWeight,
-                Unit = i.Unit,
-                Location = i.Location
-            }).ToList()
-        };
-
-        var parameters = new DialogParameters
-        {
-            ["Model"] = clone,
-            ["Machines"] = _machines.Where(m => m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter).ToList(),
-            ["Branches"] = _branches,
-            ["Title"] = $"Edit {wo.WorkOrderNumber}",
-            ["IsEdit"] = true
-        };
-
-        var dialog = await DialogService.ShowAsync<WorkOrderDialog>("Edit Work Order", parameters, new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
-        if(dialog is not null)
-        {
-            var result = await dialog.Result;
-            if (result is not null && !result.Canceled && result.Data is WorkOrder updated)
-            {
-                var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-                var user = await UserManager.GetUserAsync(auth.User);
-                var updatedBy = user?.UserName ?? user?.Email ?? "system";
-
-                await WorkOrderService.UpdateAsync(updated, updatedBy);
-                Snackbar.Add("Work order updated.", Severity.Success);
-                await LoadAsync();
-            }
-        }
-    }
-
-    private async Task SetStatusAsync(int id, WorkOrderStatus status)
-    {
-        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = await UserManager.GetUserAsync(auth.User);
-        var updatedBy = user?.UserName ?? user?.Email ?? "system";
-
-        await WorkOrderService.SetStatusAsync(id, status, updatedBy);
-        await LoadAsync();
-    }
-
-    private async Task ProcessWorkOrderAsync(WorkOrder wo)
-    {
-        var parameters = new DialogParameters
-        {
-            ["Model"] = wo,
-            ["Machines"] = _machines.Where(m => m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter).ToList(),
-            ["Branches"] = _branches,
-            ["Title"] = $"Process {wo.WorkOrderNumber}",
-            ["IsEdit"] = true, // Keep IsEdit to disable tag search
-            ["IsProcessing"] = true
-        };
-
-        var dialog = await DialogService.ShowAsync<WorkOrderDialog>("Process Work Order", parameters, new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
-        if(dialog is not null)
-        {
-            var result = await dialog.Result;
-            if (result is not null && !result.Canceled)
-            {
-                await LoadAsync();
-            }
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_hubConnection is not null)
-        {
-            await _hubConnection.DisposeAsync();
-        }
+        Navigation.NavigateTo($"/operations/workorder/process/{order.Id}");
     }
 }

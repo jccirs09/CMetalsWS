@@ -136,90 +136,10 @@
     private async Task OnItemClicked(CalendarItem item)
     {
         if (item is not ScheduleEvent scheduleEvent) return;
-        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, BackdropClick = false };
-        var detailsParams = new DialogParameters { ["WorkOrderId"] = scheduleEvent.WorkOrder.Id };
-        var detailsDialog = await DialogService.ShowAsync<Dialogs.WorkOrderDetailsDialog>("Work Order Details", detailsParams, options);
-        var detailsResult = await detailsDialog.Result;
-        if (detailsResult is null || detailsResult.Canceled) return;
 
-        if (detailsResult.Data is string action && (action == "edit" || action == "process"))
-        {
-            await ShowWorkOrderDialogAsync(scheduleEvent.WorkOrder, action);
-        }
-    }
-
-    private async Task ShowWorkOrderDialogAsync(WorkOrder wo, string mode)
-    {
-        var isProcessing = string.Equals(mode, "process", StringComparison.OrdinalIgnoreCase);
-
-        // Clone to avoid side-effects from two-way binding before save
-        var clone = new WorkOrder
-        {
-            Id = wo.Id,
-            WorkOrderNumber = wo.WorkOrderNumber,
-            TagNumber = wo.TagNumber,
-            BranchId = wo.BranchId,
-            MachineId = wo.MachineId,
-            MachineCategory = wo.MachineCategory,
-            DueDate = wo.DueDate,
-            Instructions = wo.Instructions,
-            Status = wo.Status,
-            ScheduledStartDate = wo.ScheduledStartDate,
-            ScheduledEndDate = wo.ScheduledEndDate,
-            Items = wo.Items.Select(i => new WorkOrderItem
-            {
-                Id = i.Id,
-                WorkOrderId = wo.Id,
-                PickingListItemId = i.PickingListItemId,
-                ItemCode = i.ItemCode,
-                Description = i.Description,
-                SalesOrderNumber = i.SalesOrderNumber,
-                CustomerName = i.CustomerName,
-                OrderQuantity = i.OrderQuantity,
-                OrderWeight = i.OrderWeight,
-                Width = i.Width,
-                Length = i.Length,
-                ProducedQuantity = i.ProducedQuantity,
-                ProducedWeight = i.ProducedWeight,
-                Unit = i.Unit,
-                Location = i.Location
-            }).ToList()
-        };
-
-        var parameters = new DialogParameters
-        {
-            ["Model"] = clone,
-            ["Machines"] = _machines,
-            ["Branches"] = await BranchService.GetBranchesAsync(),
-            ["Title"] = isProcessing ? $"Process {wo.WorkOrderNumber}" : $"Edit {wo.WorkOrderNumber}",
-            ["IsEdit"] = true,
-            ["IsProcessing"] = isProcessing
-        };
-
-        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraExtraLarge, BackdropClick = false };
-        var dialog = await DialogService.ShowAsync<WorkOrderDialog>(isProcessing ? "Process Work Order" : "Edit Work Order", parameters, options);
-        var result = await dialog.Result;
-
-        if (result is not null && !result.Canceled)
-        {
-            if (result.Data is WorkOrder updated)
-            {
-                try
-                {
-                    var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-                    var user = auth.User;
-                    var updatedBy = user?.Identity?.Name ?? "system";
-                    await WorkOrderService.UpdateAsync(updated, updatedBy);
-                    Snackbar.Add("Work order updated.", Severity.Success);
-                }
-                catch (Exception ex)
-                {
-                    Snackbar.Add($"Failed to update: {ex.Message}", Severity.Error);
-                }
-            }
-
-            await ReloadDataAndRefresh();
-        }
+        var parameters = new DialogParameters { ["Model"] = scheduleEvent.WorkOrder };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        await DialogService.ShowAsync<WorkOrderDetailsDialog>("Work Order Details", parameters, options);
     }
 
     private async Task OnItemChanged(CalendarItem item)

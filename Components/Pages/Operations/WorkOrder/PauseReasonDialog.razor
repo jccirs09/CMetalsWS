@@ -1,0 +1,42 @@
+@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudSelect @bind-Value="_reason" Label="Reason for Pause" Required="true">
+            <MudSelectItem Value="@("Break")">Break</MudSelectItem>
+            <MudSelectItem Value="@("Machine Maintenance")">Machine Maintenance</MudSelectItem>
+            <MudSelectItem Value="@("Material Issue")">Material Issue</MudSelectItem>
+            <MudSelectItem Value="@("Quality Check")">Quality Check</MudSelectItem>
+            <MudSelectItem Value="@("Other")">Other</MudSelectItem>
+        </MudSelect>
+        @if (_reason == "Other")
+        {
+            <MudTextField @bind-Value="_notes" Label="Notes" Class="mt-3" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(string.IsNullOrWhiteSpace(_reason))">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    IMudDialogInstance MudDialog { get; set; }
+
+    private string _reason = "";
+    private string _notes = "";
+
+    void Submit()
+    {
+        var result = _reason;
+        if (_reason == "Other" && !string.IsNullOrWhiteSpace(_notes))
+        {
+            result = $"Other: {_notes}";
+        }
+        MudDialog.Close(DialogResult.Ok(result));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

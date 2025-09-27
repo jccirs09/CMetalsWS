@@ -1,72 +1,59 @@
 @using CMetalsWS.Data
-@using CMetalsWS.Services
 @using MudBlazor
-@inject InventoryService InvService
+@inject NavigationManager Navigation
 
-<MudDialog Title="Work Order Details">
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Work Order: @Model.WorkOrderNumber</MudText>
+    </TitleContent>
     <DialogContent>
-        <MudForm>
-            <MudStack Spacing="3">
-                <MudCard>
-                    <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Pull Info</MudText></CardHeaderContent></MudCardHeader>
-                    <MudCardContent>
-                        <MudGrid>
-                            <MudItem xs="12" sm="6"><MudText><b>Tag Number:</b> @Model.TagNumber</MudText></MudItem>
-                            <MudItem xs="12" sm="6"><MudText><b>Weight:</b> @_parentItem?.Snapshot</MudText></MudItem>
-                            <MudItem xs="12" sm="6"><MudText><b>Location:</b> @_parentItem?.Location</MudText></MudItem>
-                            <MudItem xs="12" sm="6"><MudText><b>Description:</b> @_parentItem?.Description</MudText></MudItem>
-                        </MudGrid>
-                    </MudCardContent>
-                </MudCard>
-
-                <MudCard>
-                    <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Picking List</MudText></CardHeaderContent></MudCardHeader>
-                    <MudCardContent>
-                        <MudTable Items="Model.Items" Dense="true" Hover="true">
-                            <HeaderContent>
-                                <MudTh>Sales Order #</MudTh>
-                                <MudTh>Customer</MudTh>
-                                <MudTh>Order Quantity</MudTh>
-                                <MudTh>Length</MudTh>
-                                <MudTh>Width</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd DataLabel="Sales Order #">@context.SalesOrderNumber</MudTd>
-                                <MudTd DataLabel="Customer">@context.CustomerName</MudTd>
-                                <MudTd DataLabel="Order Quantity">@context.OrderQuantity</MudTd>
-                                <MudTd DataLabel="Length">@context.Length</MudTd>
-                                <MudTd DataLabel="Width">@context.Width</MudTd>
-                            </RowTemplate>
-                        </MudTable>
-                    </MudCardContent>
-                </MudCard>
-            </MudStack>
-        </MudForm>
+        <MudGrid Spacing="2">
+            <MudItem xs="6"><MudText><b>Machine:</b> @Model.Machine?.Name</MudText></MudItem>
+            <MudItem xs="6"><MudText><b>Status:</b> @Model.Status</MudText></MudItem>
+            <MudItem xs="6"><MudText><b>Tag:</b> @Model.TagNumber</MudText></MudItem>
+            <MudItem xs="6"><MudText><b>Due:</b> @Model.DueDate.ToString("d")</MudText></MudItem>
+        </MudGrid>
+        <MudText Typo="Typo.h6" Class="mt-4">Items</MudText>
+        <MudSimpleTable Dense="true" Hover="true">
+            <thead>
+                <tr>
+                    <th>Item Code</th>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Weight</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach(var item in Model.Items)
+                {
+                    <tr>
+                        <td>@item.ItemCode</td>
+                        <td>@item.Description</td>
+                        <td>@item.OrderQuantity</td>
+                        <td>@item.OrderWeight?.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
     </DialogContent>
     <DialogActions>
-        <MudButton Variant="Variant.Text" OnClick="Cancel">Close</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Edit">Edit</MudButton>
+        <MudButton OnClick="Cancel">Close</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="GoToProcessPage">Process Work Order</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
-    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
-    [Parameter] public WorkOrder Model { get; set; } = new();
+    [CascadingParameter]
+    IMudDialogInstance MudDialog { get; set; }
 
-    private InventoryItem? _parentItem;
+    [Parameter]
+    public WorkOrder Model { get; set; }
 
-    protected override async Task OnInitializedAsync()
+    void GoToProcessPage()
     {
-        if (!string.IsNullOrEmpty(Model.TagNumber))
-        {
-            _parentItem = await InvService.GetByTagNumberAsync(Model.TagNumber);
-        }
-    }
-
-    private void Cancel() => MudDialog.Cancel();
-
-    private void Edit()
-    {
+        Navigation.NavigateTo($"/operations/workorder/process/{Model.Id}");
         MudDialog.Close(DialogResult.Ok(true));
     }
+
+    void Cancel() => MudDialog.Cancel();
 }

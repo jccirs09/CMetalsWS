@@ -45,6 +45,8 @@
 
     public enum AuditEventType
     {
+        Create,
+        Update,
         Start,
         Pause,
         Resume,

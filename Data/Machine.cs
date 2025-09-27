@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 
 namespace CMetalsWS.Data
 
@@ -16,5 +17,8 @@ namespace CMetalsWS.Data
 
         [MaxLength(64)]
         public MachineCategory Category { get; set; }
+        public bool IsActive { get; set; } = true;
+        [Precision(18, 2)]
+        public decimal? EstimatedLbsPerHour { get; set; }
     }
 }
