@@ -15,7 +15,7 @@
     @foreach (var region in _regionStats)
     {
         <MudItem xs="12" sm="6" md="4">
-            <MudCard Action="@(() => NavigateToLoadManagement(region.RegionId))" Style="cursor:pointer">
+            <MudCard Action="@(() => NavigateToLoadPlanning(region.RegionId))" Style="cursor:pointer">
                 <MudCardHeader>
                     <CardHeaderContent>
                         <MudText Typo="Typo.h6">@region.RegionName</MudText>
@@ -34,6 +34,14 @@
                             <tr>
                                 <td>Pending Pickups</td>
                                 <td style="text-align:right">@region.PendingPickups</td>
+                            </tr>
+                            <tr>
+                                <td>Total Orders</td>
+                                <td style="text-align:right">@region.TotalOrders</td>
+                            </tr>
+                            <tr>
+                                <td>Total Weight</td>
+                                <td style="text-align:right">@region.TotalWeight.ToString("N0") lbs</td>
                             </tr>
                              <tr>
                                 <td>Avg. Cost</td>
@@ -67,8 +75,8 @@
         _regionStats = await DashboardService.GetRegionStatsAsync(branchId);
     }
 
-    private void NavigateToLoadManagement(int regionId)
+    private void NavigateToLoadPlanning(int regionId)
     {
-        NavigationManager.NavigateTo($"/planning/load-management/{regionId}");
+        NavigationManager.NavigateTo($"/planning/simplified-load-planning/{regionId}");
     }
 }

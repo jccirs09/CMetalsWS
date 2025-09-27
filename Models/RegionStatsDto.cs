@@ -5,6 +5,8 @@ namespace CMetalsWS.Models
         public int RegionId { get; set; }
         public string RegionName { get; set; } = string.Empty;
         public int ActiveOrders { get; set; }
+        public int TotalOrders { get; set; }
+        public decimal TotalWeight { get; set; }
         public int PendingPickups { get; set; }
         public decimal AverageCost { get; set; }
         public string AverageDeliveryTime { get; set; } = string.Empty;

@@ -35,7 +35,7 @@
                             <td>
                                 <MudNumericField T="decimal"
                                                  Value="row.ShipQuantity"
-                                                 ValueChanged="@((decimal val) => { row.ShipQuantity = val; })"
+                                                 ValueChanged="@((decimal val) => OnShipQuantityChanged(row, val))"
                                                  Disabled="@(!row.IsSelected)"
                                                  Margin="Margin.Dense"
                                                  Validation="@((decimal q) => ValidateQuantity(q, row))" />
@@ -43,7 +43,7 @@
                             <td>
                                 <MudNumericField T="decimal"
                                                  Value="row.ShipWeight"
-                                                 ValueChanged="@((decimal val) => { row.ShipWeight = val; })"
+                                                 ValueChanged="@((decimal val) => OnShipWeightChanged(row, val))"
                                                  Disabled="@(!row.IsSelected)"
                                                  Margin="Margin.Dense"
                                                  Validation="@((decimal w) => ValidateWeight(w, row))" />
@@ -107,6 +107,28 @@
         {
             row.ShipQuantity = 0;
             row.ShipWeight = 0;
+        }
+        StateHasChanged();
+    }
+
+    private void OnShipQuantityChanged(DialogRow row, decimal newValue)
+    {
+        row.ShipQuantity = newValue;
+        if (row.Item.RemainingQuantity > 0.001m)
+        {
+            var unitWeight = row.Item.RemainingWeight / row.Item.RemainingQuantity;
+            row.ShipWeight = newValue * unitWeight;
+        }
+        StateHasChanged();
+    }
+
+    private void OnShipWeightChanged(DialogRow row, decimal newValue)
+    {
+        row.ShipWeight = newValue;
+        if (row.Item.RemainingWeight > 0.001m)
+        {
+            var quantityPerLbs = row.Item.RemainingQuantity / row.Item.RemainingWeight;
+            row.ShipQuantity = newValue * quantityPerLbs;
         }
         StateHasChanged();
     }

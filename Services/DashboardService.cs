@@ -208,17 +208,22 @@ namespace CMetalsWS.Services
 
             // Get pending pickup statistics
             var allAvailableLists = await _pickingListService.GetAvailableForLoadingAsync(branchId);
-            var pendingPickupsByRegion = allAvailableLists
+            var ordersByRegion = allAvailableLists
                 .Where(p => p.Customer?.DestinationRegionId != null)
-                .GroupBy(p => p.Customer!.DestinationRegionId!.Value)
-                .ToDictionary(g => g.Key, g => g.Count());
+                .GroupBy(p => p.Customer!.DestinationRegionId!.Value);
+
+            foreach (var group in ordersByRegion)
+            {
+                if (stats.TryGetValue(group.Key, out var regionStat))
+                {
+                    regionStat.TotalOrders = group.Count();
+                    regionStat.PendingPickups = group.Count();
+                    regionStat.TotalWeight = group.Sum(pl => pl.Items.Sum(i => i.RemainingWeight));
+                }
+            }
 
             foreach (var regionStat in stats.Values)
             {
-                if (pendingPickupsByRegion.TryGetValue(regionStat.RegionId, out var count))
-                {
-                    regionStat.PendingPickups = count;
-                }
                 // Set other placeholders
                 regionStat.AverageCost = 0; // Placeholder
                 regionStat.AverageDeliveryTime = "N/A"; // Placeholder

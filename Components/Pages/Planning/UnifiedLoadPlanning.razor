@@ -1,4 +1,5 @@
 @page "/planning/simplified-load-planning"
+@page "/planning/simplified-load-planning/{RegionId:int}"
 @using CMetalsWS.Data
 @using CMetalsWS.Security
 @using System.Linq
@@ -135,6 +136,9 @@
 </style>
 
 @code {
+    [Parameter]
+    public int? RegionId { get; set; }
+
     private List<PickingList> _allPickingLists = new();
     private List<IGrouping<DateTime, PickingList>> _ordersGroupedByDate = new();
     private DateTime? _selectedShipDate;
@@ -154,6 +158,11 @@
     private async Task LoadData()
     {
         _allPickingLists = await PickingListService.GetAvailableForLoadingAsync();
+        if (RegionId.HasValue)
+        {
+            _allPickingLists = _allPickingLists.Where(p => p.Customer?.DestinationRegionId == RegionId.Value).ToList();
+        }
+
         _ordersGroupedByDate = _allPickingLists
             .Where(pl => pl.ShipDate.HasValue)
             .GroupBy(pl => pl.ShipDate!.Value.Date)
