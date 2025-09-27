@@ -97,14 +97,16 @@
             .Where(w => _selectedMachineId == 0 || w.MachineId == _selectedMachineId)
             .ToList();
 
-        _events = workOrders.Select(wo => new ScheduleEvent
-        {
-            WorkOrder = wo,
-            Start = wo.ScheduledStartDate,
-            End = wo.ScheduledEndDate,
-            Text = wo.WorkOrderNumber,
-            Color = this.Color
-        }).ToList();
+        _events = workOrders
+            .Where(wo => wo.ScheduledStartDate.HasValue)
+            .Select(wo => new ScheduleEvent
+            {
+                WorkOrder = wo,
+                Start = wo.ScheduledStartDate.Value,
+                End = wo.ScheduledEndDate,
+                Text = wo.WorkOrderNumber,
+                Color = this.Color
+            }).ToList();
     }
 
     private async Task SetupSignalRAsync(int? branchId)
