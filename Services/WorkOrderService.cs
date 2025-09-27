@@ -76,7 +76,12 @@ namespace CMetalsWS.Services
                 throw new Exception($"Tag '{tagNumber}' not found in inventory.");
             }
 
-            IQueryable<PickingListItem> query = db.PickingListItems.Include(p => p.PickingList).ThenInclude(p => p.Customer);
+            IQueryable<PickingListItem> query = db.PickingListItems
+                .Include(p => p.PickingList).ThenInclude(p => p.Customer)
+                .Include(p => p.Machine);
+
+            // Filter by the machine category selected in the first step.
+            query = query.Where(p => p.Machine != null && p.Machine.Category == machineCategory);
 
             if (machineCategory == MachineCategory.Slitter)
             {

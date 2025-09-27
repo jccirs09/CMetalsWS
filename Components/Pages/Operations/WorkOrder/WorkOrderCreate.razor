@@ -218,6 +218,17 @@
             _selectedPickingListItems = _availablePickingListItems.ToDictionary(item => item.Id, item => false);
             Snackbar.Add($"Found {_availablePickingListItems.Count} available order line(s). Parent: {_parentItem?.ItemId}", Severity.Success);
             _tagStepCompleted = true;
+
+            if (_parentItem != null)
+            {
+                _newStockItem = new()
+                {
+                    IsStockItem = true,
+                    ItemCode = $"{_parentItem.ItemId}-STOCK",
+                    Description = _parentItem.Description,
+                    Width = _parentItem.Width
+                };
+            }
         }
         catch (Exception ex)
         {
@@ -233,40 +244,35 @@
     private void PopulateLineItems()
     {
         var stockItems = Model.Items.Where(i => i.IsStockItem).ToList();
-        Model.Items.Clear();
-
-        foreach (var stockItem in stockItems)
-        {
-            Model.Items.Add(stockItem);
-        }
 
         var selectedIds = _selectedPickingListItems.Where(kvp => kvp.Value).Select(kvp => kvp.Key).ToHashSet();
-        var selectedItems = _availablePickingListItems.Where(item => selectedIds.Contains(item.Id));
+        var selectedPickingListItems = _availablePickingListItems.Where(item => selectedIds.Contains(item.Id));
 
-        foreach (var plItem in selectedItems)
+        var newWorkOrderItems = selectedPickingListItems.Select(plItem => new WorkOrderItem
         {
-            Model.Items.Add(new WorkOrderItem
-            {
-                PickingListItemId = plItem.Id,
-                ItemCode = plItem.ItemId,
-                Description = plItem.ItemDescription,
-                SalesOrderNumber = plItem.PickingList?.SalesOrderNumber,
-                CustomerName = plItem.PickingList?.Customer?.CustomerName,
-                OrderQuantity = plItem.Quantity,
-                OrderWeight = plItem.Weight,
-                Width = plItem.Width,
-                Length = plItem.Length,
-                Unit = plItem.Unit,
-                OriginalOrderLineItemId = plItem.Id.ToString()
-            });
-        }
+            PickingListItemId = plItem.Id,
+            ItemCode = plItem.ItemId,
+            Description = plItem.ItemDescription,
+            SalesOrderNumber = plItem.PickingList?.SalesOrderNumber,
+            CustomerName = plItem.PickingList?.Customer?.CustomerName,
+            OrderQuantity = plItem.Quantity,
+            OrderWeight = plItem.Weight,
+            Width = plItem.Width,
+            Length = plItem.Length,
+            Unit = plItem.Unit,
+            OriginalOrderLineItemId = plItem.Id.ToString()
+        }).ToList();
+
+        Model.Items.Clear();
+        Model.Items.AddRange(stockItems);
+        Model.Items.AddRange(newWorkOrderItems);
     }
 
     private async Task OnSelectionChanged()
     {
         PopulateLineItems();
-        _ordersStepCompleted = Model.Items.Any();
-        _lineItemsStepCompleted = _ordersStepCompleted;
+        _ordersStepCompleted = Model.Items.Any(i => !i.IsStockItem);
+        _lineItemsStepCompleted = Model.Items.Any();
         await InvokeAsync(StateHasChanged);
     }
 
