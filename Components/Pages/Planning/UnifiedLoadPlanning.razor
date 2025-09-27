@@ -157,7 +157,7 @@ else
                                     <MudCardContent Class="d-flex flex-row gap-4">
                                         <div>
                                             <MudText Typo="Typo.caption">Weight</MudText>
-                                            <MudText Typo="Typo.body1">@group.SelectMany(pl => pl.Items).Sum(pli => pli.RemainingWeight).ToString("N2") lbs</MudText>
+                                            <MudText Typo="Typo.body1">@group.SelectMany(pl => pl.Items).Sum(pli => pli.RemainingQuantity * (pli.Weight ?? 0)).ToString("N2") lbs</MudText>
                                         </div>
                                         <div>
                                             <MudText Typo="Typo.caption">Status</MudText>
@@ -340,7 +340,7 @@ else
                 PickingListItemId = item.Id,
                 PickingListItem = item,
                 ShippedQuantity = item.RemainingQuantity,
-                ShippedWeight = item.RemainingWeight
+                ShippedWeight = item.RemainingQuantity * (item.Weight ?? 0)
             });
         }
         RecalculateStopSequence();
