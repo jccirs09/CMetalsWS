@@ -264,8 +264,14 @@
         }).ToList();
 
         Model.Items.Clear();
-        Model.Items.AddRange(stockItems);
-        Model.Items.AddRange(newWorkOrderItems);
+        foreach (var item in stockItems)
+        {
+            Model.Items.Add(item);
+        }
+        foreach (var item in newWorkOrderItems)
+        {
+            Model.Items.Add(item);
+        }
     }
 
     private async Task OnSelectionChanged()
