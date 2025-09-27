@@ -87,6 +87,7 @@ public static class SeedFromDb_PickingLists_WithMachines
             var picked = PickRandom(inventory, lineCount, rng);
 
             var items = new List<PickingListItem>(lineCount);
+            var perSheetMap = new Dictionary<PickingListItem, decimal>();
             decimal totalWeight = 0m;
             int ln = 1;
 
@@ -98,6 +99,7 @@ public static class SeedFromDb_PickingLists_WithMachines
                 string unit;
                 decimal qty;
                 decimal weight;
+                decimal perSheet = 0;
 
                 if (hasLen)
                 {
@@ -111,7 +113,7 @@ public static class SeedFromDb_PickingLists_WithMachines
                     var density = 0.283m; // lb/in^3
                     var w = inv.Width ?? 48m;
                     var l = inv.Length ?? 120m;
-                    var perSheet = w * l * thickness * density;
+                    perSheet = w * l * thickness * density;
                     weight = Math.Max(1m, Math.Round(perSheet * qty, 3));
                 }
                 else
@@ -163,8 +165,33 @@ public static class SeedFromDb_PickingLists_WithMachines
                     MachineId = machineId
                 };
 
+                if (unit == "PCS") perSheetMap.Add(item, perSheet);
                 items.Add(item);
                 totalWeight += weight;
+            }
+
+            // Scale order to a realistic weight range
+            if (totalWeight > 0)
+            {
+                var targetWeight = (decimal)rng.Next(2000, 25001);
+                var factor = targetWeight / totalWeight;
+                decimal finalTotalWeight = 0;
+                foreach (var item in items)
+                {
+                    if (item.Unit == "LBS")
+                    {
+                        item.Weight = Math.Round(item.Weight * factor, 0);
+                        item.Quantity = item.Weight;
+                    }
+                    else if (item.Unit == "PCS" && perSheetMap.TryGetValue(item, out var perSheet))
+                    {
+                        var newQty = Math.Max(1, Math.Round(item.Quantity * factor));
+                        item.Quantity = newQty;
+                        item.Weight = Math.Round(newQty * perSheet, 3);
+                    }
+                    finalTotalWeight += item.Weight;
+                }
+                totalWeight = finalTotalWeight;
             }
 
             pl.TotalWeight = Math.Round(totalWeight, 3);
