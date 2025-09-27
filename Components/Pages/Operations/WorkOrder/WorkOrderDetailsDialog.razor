@@ -1,0 +1,59 @@
+@using CMetalsWS.Data
+@using MudBlazor
+@inject NavigationManager Navigation
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Work Order: @Model.WorkOrderNumber</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid Spacing="2">
+            <MudItem xs="6"><MudText><b>Machine:</b> @Model.Machine?.Name</MudText></MudItem>
+            <MudItem xs="6"><MudText><b>Status:</b> @Model.Status</MudText></MudItem>
+            <MudItem xs="6"><MudText><b>Tag:</b> @Model.TagNumber</MudText></MudItem>
+            <MudItem xs="6"><MudText><b>Due:</b> @Model.DueDate.ToString("d")</MudText></MudItem>
+        </MudGrid>
+        <MudText Typo="Typo.h6" Class="mt-4">Items</MudText>
+        <MudSimpleTable Dense="true" Hover="true">
+            <thead>
+                <tr>
+                    <th>Item Code</th>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Weight</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach(var item in Model.Items)
+                {
+                    <tr>
+                        <td>@item.ItemCode</td>
+                        <td>@item.Description</td>
+                        <td>@item.OrderQuantity</td>
+                        <td>@item.OrderWeight?.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Close</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="GoToProcessPage">Process Work Order</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public WorkOrder Model { get; set; }
+
+    void GoToProcessPage()
+    {
+        Navigation.NavigateTo($"/operations/workorder/process/{Model.Id}");
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

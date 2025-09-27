@@ -315,5 +315,56 @@ namespace CMetalsWS.Services
             var next = await db.WorkOrders.CountAsync(w => w.BranchId == branchId) + 1;
             return $"W{branchCode}{next:0000000}";
         }
+
+        public async Task<List<WorkOrder>> GetByCategoryAsync(MachineCategory category, int? branchId = null)
+        {
+            using var db = _dbContextFactory.CreateDbContext();
+            IQueryable<WorkOrder> query = db.WorkOrders
+                .Include(w => w.Items)
+                .Include(w => w.Machine)
+                .Where(w => w.MachineCategory == category)
+                .AsNoTracking();
+
+            if (branchId.HasValue)
+                query = query.Where(w => w.BranchId == branchId.Value);
+
+            return await query
+                .OrderByDescending(w => w.CreatedDate)
+                .ToListAsync();
+        }
+
+        public async Task ScheduleAsync(int id, DateTime start, DateTime? end)
+        {
+            using var db = _dbContextFactory.CreateDbContext();
+            var workOrder = await db.WorkOrders
+                .Include(w => w.Items)
+                .FirstOrDefaultAsync(w => w.Id == id);
+            if (workOrder is null) return;
+
+            var originalDuration = workOrder.ScheduledEndDate - workOrder.ScheduledStartDate;
+            workOrder.ScheduledStartDate = start;
+            workOrder.ScheduledEndDate = end ?? (start + originalDuration);
+
+            if (workOrder.Status == WorkOrderStatus.Draft)
+                workOrder.Status = WorkOrderStatus.Pending;
+
+            workOrder.LastUpdatedDate = DateTime.UtcNow;
+
+            var lineIds = workOrder.Items
+                .Where(i => i.PickingListItemId != null)
+                .Select(i => i.PickingListItemId!.Value)
+                .ToList();
+            var plis = await db.PickingListItems
+                .Where(p => lineIds.Contains(p.Id))
+                .ToListAsync();
+            foreach (var li in plis)
+                li.Status = PickingLineStatus.WorkOrder;
+
+            foreach (var grpId in plis.Select(p => p.PickingListId).Distinct())
+                await _pickingListService.UpdatePickingListStatusAsync(grpId);
+
+            await db.SaveChangesAsync();
+            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+        }
     }
 }
