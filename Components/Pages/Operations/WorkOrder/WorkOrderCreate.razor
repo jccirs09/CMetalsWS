@@ -87,7 +87,47 @@
             <MudTextField @bind-Value="Model.Instructions" Label="Special Instructions" Lines="5" Class="mt-3" />
         </MudStep>
         <MudStep Title="Line Items" Description="Confirm items to produce" Completed="@_lineItemsStepCompleted" OnActivate="PopulateLineItems">
-            <MudTable Items="@Model.Items" Hover="true">
+            <MudCard Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Create Production Line</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    @if (_selectedSourceItems.Any())
+                    {
+                        <MudGrid>
+                            <MudItem xs="12">
+                                <MudText>Select a source order line and specify the quantity to produce.</MudText>
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudSelect @bind-Value="_selectedSourceIdForNewLine" Label="Source Order" For="@(() => _selectedSourceIdForNewLine)" Required="true">
+                                    @foreach (var sourceItem in _selectedSourceItems)
+                                    {
+                                        var remainingQty = (sourceItem.Quantity ?? 0) - Model.Items.Where(i => i.OriginalOrderLineItemId == sourceItem.Id.ToString()).Sum(i => i.OrderQuantity ?? 0);
+                                        if (remainingQty > 0)
+                                        {
+                                            <MudSelectItem Value="@sourceItem.Id">@($"{sourceItem.ItemId} ({remainingQty} of {sourceItem.Quantity} remaining)")</MudSelectItem>
+                                        }
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="3">
+                                <MudNumericField @bind-Value="_newProductionLine.OrderQuantity" Label="Quantity" For="@(() => _newProductionLine.OrderQuantity)" Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" sm="3" Class="d-flex align-end">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddProductionLine" Disabled="@(_selectedSourceIdForNewLine == null)">Add Line</MudButton>
+                            </MudItem>
+                        </MudGrid>
+                    }
+                    else
+                    {
+                        <MudText>Select one or more orders in the previous step to create production lines.</MudText>
+                    }
+                </MudCardContent>
+            </MudCard>
+
+            <MudTable Items="@Model.Items" Hover="true" Class="mb-4">
                 <HeaderContent>
                     <MudTh>Item Code</MudTh>
                     <MudTh>Description</MudTh>
@@ -108,43 +148,43 @@
                         @if (context.IsStockItem)
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => EditStockItem(context))" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => DeleteStockItem(context))" />
                         }
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => DeleteLineItem(context))" />
                     </MudTd>
                 </RowTemplate>
             </MudTable>
-            <MudCard Class="mt-4">
-                <MudCardHeader>
-                    <CardHeaderContent>
-                        <MudText Typo="Typo.h6">Add Stock Item</MudText>
-                    </CardHeaderContent>
-                </MudCardHeader>
-                <MudCardContent>
-                    <MudGrid>
-                        <MudItem xs="12" sm="6">
-                            <MudTextField @bind-Value="_newStockItem.ItemCode" Label="Item Code" Required="true" />
-                        </MudItem>
-                        <MudItem xs="12" sm="6">
-                            <MudTextField @bind-Value="_newStockItem.Description" Label="Description" Required="true" />
-                        </MudItem>
-                        <MudItem xs="12" sm="3">
-                            <MudNumericField @bind-Value="_newStockItem.Width" Label="Width" />
-                        </MudItem>
-                        <MudItem xs="12" sm="3">
-                            <MudNumericField @bind-Value="_newStockItem.Length" Label="Length" />
-                        </MudItem>
-                        <MudItem xs="12" sm="3">
-                            <MudNumericField @bind-Value="_newStockItem.OrderQuantity" Label="Quantity" />
-                        </MudItem>
-                        <MudItem xs="12" sm="3">
-                            <MudNumericField @bind-Value="_newStockItem.OrderWeight" Label="Weight" />
-                        </MudItem>
-                    </MudGrid>
-                </MudCardContent>
-                <MudCardActions>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddStockItem">@(_editingStockItem == null ? "Add Stock Item" : "Update Stock Item")</MudButton>
-                </MudCardActions>
-            </MudCard>
+
+            <MudExpansionPanels>
+                <MudExpansionPanel Text="Add Stock Item">
+                    <MudCard Class="mt-4">
+                        <MudCardContent>
+                            <MudGrid>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField @bind-Value="_newStockItem.ItemCode" Label="Item Code" Required="true" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField @bind-Value="_newStockItem.Description" Label="Description" Required="true" />
+                                </MudItem>
+                                <MudItem xs="12" sm="3">
+                                    <MudNumericField @bind-Value="_newStockItem.Width" Label="Width" />
+                                </MudItem>
+                                <MudItem xs="12" sm="3">
+                                    <MudNumericField @bind-Value="_newStockItem.Length" Label="Length" />
+                                </MudItem>
+                                <MudItem xs="12" sm="3">
+                                    <MudNumericField @bind-Value="_newStockItem.OrderQuantity" Label="Quantity" />
+                                </MudItem>
+                                <MudItem xs="12" sm="3">
+                                    <MudNumericField @bind-Value="_newStockItem.OrderWeight" Label="Weight" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddStockItem">@(_editingStockItem == null ? "Add Stock Item" : "Update Stock Item")</MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
         </MudStep>
         <MudStep Title="Review" Description="Review and create">
             <MudCard>
@@ -189,6 +229,9 @@
     private string? _userId;
     private WorkOrderItem _newStockItem = new() { IsStockItem = true };
     private WorkOrderItem? _editingStockItem;
+    private List<PickingListItem> _selectedSourceItems = new();
+    private int? _selectedSourceIdForNewLine;
+    private WorkOrderItem _newProductionLine = new();
 
     private void EditStockItem(WorkOrderItem itemToEdit)
     {
@@ -207,9 +250,57 @@
         StateHasChanged();
     }
 
-    private void DeleteStockItem(WorkOrderItem itemToDelete)
+    private void DeleteLineItem(WorkOrderItem itemToDelete)
     {
         Model.Items.Remove(itemToDelete);
+        _lineItemsStepCompleted = Model.Items.Any();
+        StateHasChanged();
+    }
+
+    private void AddProductionLine()
+    {
+        if (_selectedSourceIdForNewLine == null || _newProductionLine.OrderQuantity == null || _newProductionLine.OrderQuantity <= 0)
+        {
+            Snackbar.Add("Please select a source order and enter a valid quantity.", Severity.Warning);
+            return;
+        }
+
+        var sourceItem = _selectedSourceItems.FirstOrDefault(i => i.Id == _selectedSourceIdForNewLine);
+        if (sourceItem == null)
+        {
+            Snackbar.Add("Could not find the selected source item.", Severity.Error);
+            return;
+        }
+
+        var existingQty = Model.Items.Where(i => i.OriginalOrderLineItemId == sourceItem.Id.ToString()).Sum(i => i.OrderQuantity ?? 0);
+        var remainingQty = (sourceItem.Quantity ?? 0) - existingQty;
+
+        if (_newProductionLine.OrderQuantity > remainingQty)
+        {
+            Snackbar.Add($"Quantity cannot exceed the remaining quantity of {remainingQty}.", Severity.Warning);
+            return;
+        }
+
+        var weightPerPiece = (sourceItem.Weight ?? 0) / (sourceItem.Quantity ?? 1);
+
+        var newLine = new WorkOrderItem
+        {
+            PickingListItemId = sourceItem.Id,
+            ItemCode = sourceItem.ItemId,
+            Description = sourceItem.ItemDescription,
+            SalesOrderNumber = sourceItem.PickingList?.SalesOrderNumber,
+            CustomerName = sourceItem.PickingList?.Customer?.CustomerName,
+            OrderQuantity = _newProductionLine.OrderQuantity,
+            OrderWeight = _newProductionLine.OrderQuantity * weightPerPiece,
+            Width = sourceItem.Width,
+            Length = sourceItem.Length,
+            Unit = sourceItem.Unit,
+            OriginalOrderLineItemId = sourceItem.Id.ToString(),
+            IsStockItem = false
+        };
+
+        Model.Items.Add(newLine);
+        _newProductionLine = new(); // Reset for next entry
         _lineItemsStepCompleted = Model.Items.Any();
         StateHasChanged();
     }
@@ -295,43 +386,26 @@
 
     private void PopulateLineItems()
     {
-        var stockItems = Model.Items.Where(i => i.IsStockItem).ToList();
-
         var selectedIds = _selectedPickingListItems.Where(kvp => kvp.Value).Select(kvp => kvp.Key).ToHashSet();
-        var selectedPickingListItems = _availablePickingListItems.Where(item => selectedIds.Contains(item.Id));
+        _selectedSourceItems = _availablePickingListItems.Where(item => selectedIds.Contains(item.Id)).ToList();
 
-        var newWorkOrderItems = selectedPickingListItems
-            .GroupBy(plItem => new { plItem.ItemId, plItem.ItemDescription, plItem.Width, plItem.Length, plItem.Unit })
-            .Select(g => new WorkOrderItem
-            {
-                ItemCode = g.Key.ItemId,
-                Description = g.Key.ItemDescription,
-                SalesOrderNumber = string.Join(", ", g.Select(i => i.PickingList?.SalesOrderNumber).Where(son => son != null).Distinct()),
-                CustomerName = string.Join(", ", g.Select(i => i.PickingList?.Customer?.CustomerName).Where(cn => cn != null).Distinct()),
-                OrderQuantity = g.Sum(i => i.Quantity),
-                OrderWeight = g.Sum(i => i.Weight),
-                Width = g.Key.Width,
-                Length = g.Key.Length,
-                Unit = g.Key.Unit,
-                OriginalOrderLineItemId = string.Join(",", g.Select(i => i.Id))
-            }).ToList();
+        // Remove production lines that are no longer selected in the previous step
+        var currentSourceIds = _selectedSourceItems.Select(i => i.Id.ToString()).ToHashSet();
+        Model.Items.RemoveAll(item => !item.IsStockItem && item.OriginalOrderLineItemId != null && !currentSourceIds.Contains(item.OriginalOrderLineItemId));
 
-        Model.Items.Clear();
-        foreach (var item in stockItems)
+        _ordersStepCompleted = _selectedSourceItems.Any();
+        _lineItemsStepCompleted = Model.Items.Any();
+
+        // Reset the selection for the new line form if the source is no longer available
+        if (_selectedSourceIdForNewLine != null && !_selectedSourceItems.Any(i => i.Id == _selectedSourceIdForNewLine))
         {
-            Model.Items.Add(item);
-        }
-        foreach (var item in newWorkOrderItems)
-        {
-            Model.Items.Add(item);
+            _selectedSourceIdForNewLine = null;
         }
     }
 
     private async Task OnSelectionChanged()
     {
         PopulateLineItems();
-        _ordersStepCompleted = Model.Items.Any(i => !i.IsStockItem);
-        _lineItemsStepCompleted = Model.Items.Any();
         await InvokeAsync(StateHasChanged);
     }
 
