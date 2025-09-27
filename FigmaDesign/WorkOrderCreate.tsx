@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
+import { Checkbox } from "./ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -12,222 +13,925 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Separator } from "./ui/separator";
+import { ScrollArea } from "./ui/scroll-area";
 import {
   Calendar,
   Save,
-  Send,
   ArrowLeft,
-  AlertCircle,
+  ArrowRight,
   CheckCircle,
   Package,
   Settings,
   Clock,
   User,
   Building2,
-  FileText
+  FileText,
+  Tag,
+  ShoppingCart,
+  ListChecks,
+  Eye,
+  MapPin,
+  Truck
 } from "lucide-react";
 import { toast } from "sonner@2.0.3";
-
-interface LineItem {
-  id: string;
-  product: string;
-  gauge: string;
-  width: string;
-  length: string;
-  quantity: number;
-  weight: number;
-  color?: string;
-  grade?: string;
-  coating?: string;
-}
-
-interface WorkOrderForm {
-  salesOrder: string;
-  customer: string;
-  customerPO: string;
-  machine: string;
-  priority: "low" | "normal" | "high" | "urgent";
-  dueDate: string;
-  plannedStart: string;
-  plannedEnd: string;
-  estimatedLbsPerHour: number;
-  assignedOperator: string;
-  notes: string;
-  lineItems: LineItem[];
-}
-
-const initialForm: WorkOrderForm = {
-  salesOrder: "",
-  customer: "",
-  customerPO: "",
-  machine: "",
-  priority: "normal",
-  dueDate: "",
-  plannedStart: "",
-  plannedEnd: "",
-  estimatedLbsPerHour: 1000,
-  assignedOperator: "",
-  notes: "",
-  lineItems: []
-};
-
-const initialLineItem: LineItem = {
-  id: "",
-  product: "",
-  gauge: "",
-  width: "",
-  length: "",
-  quantity: 1,
-  weight: 0,
-  color: "",
-  grade: "",
-  coating: ""
-};
-
-const machines = [
-  "CTL Line 1",
-  "CTL Line 2", 
-  "Slitter 1",
-  "Slitter 2",
-  "Coil Processing",
-  "Sheet Cutting",
-  "Picking",
-  "Packing"
-];
-
-const customers = [
-  "Industrial Metals Co",
-  "Precision Parts LLC",
-  "Metro Construction",
-  "Steel Solutions Inc",
-  "Advanced Manufacturing",
-  "BuildTech Industries"
-];
-
-const operators = [
-  "Mike Johnson",
-  "Sarah Chen",
-  "David Rodriguez",
-  "Lisa Thompson",
-  "James Wilson",
-  "Maria Garcia"
-];
-
-const gauges = ["10 GA", "12 GA", "14 GA", "16 GA", "18 GA", "20 GA", "22 GA", "24 GA"];
-const colors = ["Galvanized", "Mill Finish", "White", "Tan", "Brown", "Black", "Blue", "Red"];
-const grades = ["A36", "A572-50", "A588", "A709-50", "1008", "1010"];
-const coatings = ["None", "Galvanized", "Galvalume", "Painted", "Powder Coated"];
 
 interface WorkOrderCreateProps {
   onNavigate?: (page: string) => void;
 }
 
+// Enums matching C# entities
+enum WorkOrderStatus {
+  Draft = "Draft",
+  Pending = "Pending", 
+  InProgress = "InProgress",
+  Completed = "Completed",
+  Canceled = "Canceled",
+  Awaiting = "Awaiting"
+}
+
+enum MachineCategory {
+  CTL = "CTL",
+  Slitter = "Slitter", 
+  Picking = "Picking",
+  Packing = "Packing",
+  Crane = "Crane"
+}
+
+// Interfaces matching C# entities
+interface Branch {
+  id: number;
+  name: string;
+  code: string;
+}
+
+interface Machine {
+  id: number;
+  name: string;
+  category: MachineCategory;
+  isActive: boolean;
+  estimatedLbsPerHour: number;
+}
+
+interface SalesOrder {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  customerPO?: string;
+  dueDate: string;
+  totalWeight: number;
+  status: string;
+  priority: "low" | "normal" | "high" | "urgent";
+}
+
+interface OrderLineItem {
+  id: string;
+  salesOrderId: string;
+  itemCode: string;
+  description: string;
+  orderQuantity: number;
+  orderWeight: number;
+  width?: number;
+  length?: number;
+  unit: string;
+  location?: string;
+  isStockItem: boolean;
+  remainingQuantity: number;
+  remainingWeight: number;
+}
+
+interface WorkOrderItem {
+  id: number;
+  workOrderId: number;
+  pickingListItemId?: number;
+  itemCode: string;
+  description: string;
+  salesOrderNumber?: string;
+  customerName?: string;
+  orderQuantity?: number;
+  orderWeight?: number;
+  width?: number;
+  length?: number;
+  producedQuantity?: number;
+  producedWeight?: number;
+  unit?: string;
+  location?: string;
+  isStockItem: boolean;
+  originalOrderLineItemId: string;
+}
+
+interface WorkOrderForm {
+  // Step 1: Machine Selection
+  machineId?: number;
+  machine?: Machine;
+  
+  // Step 2: Tag Number
+  tagNumber: string;
+  
+  // Step 3: Order Selection
+  selectedSalesOrders: string[];
+  salesOrders: SalesOrder[];
+  
+  // Step 4: Notes/Instructions
+  instructions?: string;
+  priority: "low" | "normal" | "high" | "urgent";
+  
+  // Step 5: Line Items
+  availableLineItems: OrderLineItem[];
+  selectedLineItems: WorkOrderItem[];
+  
+  // Step 6: Scheduling (Smart)
+  scheduledDate: string;
+  scheduledStartTime?: string;
+  scheduledEndTime?: string;
+  estimatedDuration?: number;
+  
+  // Auto-generated
+  workOrderNumber?: string;
+  branchId: number;
+  machineCategory: MachineCategory;
+  status: WorkOrderStatus;
+  createdBy: string;
+}
+
+// Mock data
+const branches: Branch[] = [
+  { id: 1, name: "Main Facility", code: "MAIN" },
+  { id: 2, name: "East Warehouse", code: "EAST" }
+];
+
+const machines: Machine[] = [
+  { id: 1, name: "CTL Line 1", category: MachineCategory.CTL, isActive: true, estimatedLbsPerHour: 1200 },
+  { id: 2, name: "CTL Line 2", category: MachineCategory.CTL, isActive: true, estimatedLbsPerHour: 1100 },
+  { id: 3, name: "Slitter 1", category: MachineCategory.Slitter, isActive: true, estimatedLbsPerHour: 800 },
+  { id: 4, name: "Slitter 2", category: MachineCategory.Slitter, isActive: true, estimatedLbsPerHour: 900 },
+  { id: 5, name: "Picking Line 1", category: MachineCategory.Picking, isActive: true, estimatedLbsPerHour: 1500 },
+  { id: 6, name: "Packing Station 1", category: MachineCategory.Packing, isActive: true, estimatedLbsPerHour: 1000 }
+];
+
+const mockSalesOrders: SalesOrder[] = [
+  {
+    id: "SO-45621",
+    orderNumber: "SO-45621", 
+    customerName: "Industrial Metals Co",
+    customerPO: "PO-12345",
+    dueDate: "2024-12-15",
+    totalWeight: 2400,
+    status: "Confirmed",
+    priority: "normal"
+  },
+  {
+    id: "SO-45622",
+    orderNumber: "SO-45622",
+    customerName: "Precision Parts LLC", 
+    customerPO: "PO-67890",
+    dueDate: "2024-12-13",
+    totalWeight: 1800,
+    status: "Confirmed",
+    priority: "high"
+  },
+  {
+    id: "SO-45623",
+    orderNumber: "SO-45623",
+    customerName: "Metro Construction",
+    customerPO: "PO-98765",
+    dueDate: "2024-12-14",
+    totalWeight: 3200,
+    status: "Confirmed", 
+    priority: "normal"
+  },
+  {
+    id: "SO-45624",
+    orderNumber: "SO-45624",
+    customerName: "Steel Solutions Inc",
+    dueDate: "2024-12-16",
+    totalWeight: 2100,
+    status: "Confirmed",
+    priority: "low"
+  }
+];
+
+const mockOrderLineItems: OrderLineItem[] = [
+  {
+    id: "LI-001",
+    salesOrderId: "SO-45621",
+    itemCode: "HR-16-48-120",
+    description: "Hot Rolled Coil - 16 GA x 48\" x 120\"", 
+    orderQuantity: 1,
+    orderWeight: 2400,
+    width: 48,
+    length: 120,
+    unit: "PCS",
+    location: "A-12-03",
+    isStockItem: false,
+    remainingQuantity: 1,
+    remainingWeight: 2400
+  },
+  {
+    id: "LI-002", 
+    salesOrderId: "SO-45622",
+    itemCode: "CR-20-24-96",
+    description: "Cold Rolled Sheet - 20 GA x 24\" x 96\"",
+    orderQuantity: 5,
+    orderWeight: 1800,
+    width: 24,
+    length: 96,
+    unit: "PCS",
+    location: "B-05-12",
+    isStockItem: false,
+    remainingQuantity: 5,
+    remainingWeight: 1800
+  },
+  {
+    id: "LI-003",
+    salesOrderId: "SO-45623", 
+    itemCode: "HR-14-60-144",
+    description: "Hot Rolled Coil - 14 GA x 60\" x 144\"",
+    orderQuantity: 1,
+    orderWeight: 3200,
+    width: 60,
+    length: 144,
+    unit: "PCS",
+    location: "A-15-01",
+    isStockItem: false,
+    remainingQuantity: 1,
+    remainingWeight: 3200
+  },
+  {
+    id: "LI-004",
+    salesOrderId: "SO-45624",
+    itemCode: "MIXED-001", 
+    description: "Galvanized Sheet - 18 GA x 36\" x 72\"",
+    orderQuantity: 3,
+    orderWeight: 890,
+    width: 36,
+    length: 72,
+    unit: "PCS",
+    location: "C-08-15",
+    isStockItem: true,
+    remainingQuantity: 3,
+    remainingWeight: 890
+  },
+  {
+    id: "LI-005",
+    salesOrderId: "SO-45624",
+    itemCode: "MIXED-002",
+    description: "Aluminum Sheet - 16 GA x 48\" x 96\"",
+    orderQuantity: 2,
+    orderWeight: 1210,
+    width: 48,
+    length: 96,
+    unit: "PCS", 
+    location: "D-03-22",
+    isStockItem: true,
+    remainingQuantity: 2,
+    remainingWeight: 1210
+  }
+];
+
+const initialForm: WorkOrderForm = {
+  tagNumber: "",
+  selectedSalesOrders: [],
+  salesOrders: mockSalesOrders,
+  instructions: "",
+  priority: "normal",
+  availableLineItems: [],
+  selectedLineItems: [],
+  scheduledDate: "",
+  branchId: 1,
+  machineCategory: MachineCategory.CTL,
+  status: WorkOrderStatus.Draft,
+  createdBy: "Current User"
+};
+
+const steps = [
+  { id: 1, name: "Machine", icon: Settings, description: "Select production machine" },
+  { id: 2, name: "Tag Number", icon: Tag, description: "Enter work order tag" },
+  { id: 3, name: "Orders", icon: ShoppingCart, description: "Select sales orders" },
+  { id: 4, name: "Instructions", icon: FileText, description: "Add notes and priority" },
+  { id: 5, name: "Line Items", icon: ListChecks, description: "Select items to produce" },
+  { id: 6, name: "Review", icon: Eye, description: "Review and create" }
+];
+
 export function WorkOrderCreate({ onNavigate }: WorkOrderCreateProps = {}) {
+  const [currentStep, setCurrentStep] = useState(1);
   const [form, setForm] = useState<WorkOrderForm>(initialForm);
-  const [currentLineItem, setCurrentLineItem] = useState<LineItem>(initialLineItem);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState("basic");
 
   const updateForm = (field: keyof WorkOrderForm, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const updateLineItem = (field: keyof LineItem, value: any) => {
-    setCurrentLineItem(prev => ({ ...prev, [field]: value }));
-  };
+  // Smart scheduling function
+  const calculateSmartSchedule = (selectedDate: string, machineId: number, totalWeight: number) => {
+    if (!selectedDate || !machineId || !totalWeight) return null;
 
-  const calculateWeight = (gauge: string, width: string, length: string, quantity: number) => {
-    // Simplified weight calculation for demo
-    const gaugeNum = parseInt(gauge.replace(" GA", ""));
-    const widthNum = parseFloat(width.replace('"', ""));
-    const lengthNum = parseFloat(length.replace('"', ""));
+    const machine = machines.find(m => m.id === machineId);
+    if (!machine) return null;
+
+    // Calculate duration based on total weight and machine capacity
+    const estimatedHours = Math.ceil(totalWeight / machine.estimatedLbsPerHour);
     
-    if (gaugeNum && widthNum && lengthNum) {
-      // Steel weight calculation: thickness × width × length × density × quantity
-      const thickness = 0.135 - (gaugeNum * 0.005); // Approximate thickness in inches
-      const weightPerSqFt = thickness * 40.8; // Steel density approximation
-      const area = (widthNum * lengthNum) / 144; // Convert to sq ft
-      return Math.round(area * weightPerSqFt * quantity);
-    }
-    return 0;
+    // For demo: assume next available slot is 9:00 AM on selected date
+    const startTime = "09:00";
+    const startDateTime = new Date(`${selectedDate}T${startTime}:00`);
+    const endDateTime = new Date(startDateTime.getTime() + (estimatedHours * 60 * 60 * 1000));
+    
+    return {
+      startTime: startTime,
+      endTime: endDateTime.toTimeString().slice(0, 5),
+      duration: estimatedHours
+    };
   };
 
-  const addLineItem = () => {
-    if (!currentLineItem.product || !currentLineItem.gauge) {
-      toast.error("Please fill in required fields");
-      return;
-    }
+  // Update available line items when orders are selected
+  useEffect(() => {
+    const availableItems = mockOrderLineItems.filter(item => 
+      form.selectedSalesOrders.includes(item.salesOrderId)
+    );
+    updateForm("availableLineItems", availableItems);
+  }, [form.selectedSalesOrders]);
 
-    const weight = calculateWeight(currentLineItem.gauge, currentLineItem.width, currentLineItem.length, currentLineItem.quantity);
-    const newItem = {
-      ...currentLineItem,
-      id: `LI-${Date.now()}`,
-      weight
+  // Calculate smart schedule when date or machine changes
+  useEffect(() => {
+    if (form.scheduledDate && form.machineId && form.selectedLineItems.length > 0) {
+      const totalWeight = form.selectedLineItems.reduce((sum, item) => sum + (item.orderWeight || 0), 0);
+      const schedule = calculateSmartSchedule(form.scheduledDate, form.machineId, totalWeight);
+      if (schedule) {
+        updateForm("scheduledStartTime", schedule.startTime);
+        updateForm("scheduledEndTime", schedule.endTime);
+        updateForm("estimatedDuration", schedule.duration);
+      }
+    }
+  }, [form.scheduledDate, form.machineId, form.selectedLineItems]);
+
+  const canProceedToNext = () => {
+    switch (currentStep) {
+      case 1: return form.machineId !== undefined;
+      case 2: return form.tagNumber.trim() !== "";
+      case 3: return form.selectedSalesOrders.length > 0;
+      case 4: return true; // Instructions are optional
+      case 5: return form.selectedLineItems.length > 0;
+      case 6: return form.scheduledDate !== "";
+      default: return false;
+    }
+  };
+
+  const nextStep = () => {
+    if (canProceedToNext() && currentStep < steps.length) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const selectMachine = (machine: Machine) => {
+    updateForm("machineId", machine.id);
+    updateForm("machine", machine);
+    updateForm("machineCategory", machine.category);
+  };
+
+  const toggleSalesOrder = (orderId: string) => {
+    const selected = form.selectedSalesOrders.includes(orderId);
+    if (selected) {
+      updateForm("selectedSalesOrders", form.selectedSalesOrders.filter(id => id !== orderId));
+    } else {
+      updateForm("selectedSalesOrders", [...form.selectedSalesOrders, orderId]);
+    }
+  };
+
+  const toggleLineItem = (lineItem: OrderLineItem) => {
+    const existingIndex = form.selectedLineItems.findIndex(item => item.originalOrderLineItemId === lineItem.id);
+    
+    if (existingIndex >= 0) {
+      // Remove item
+      updateForm("selectedLineItems", form.selectedLineItems.filter((_, index) => index !== existingIndex));
+    } else {
+      // Add item
+      const salesOrder = form.salesOrders.find(so => so.id === lineItem.salesOrderId);
+      const newWorkOrderItem: WorkOrderItem = {
+        id: 0, // Will be set by backend
+        workOrderId: 0, // Will be set by backend
+        itemCode: lineItem.itemCode,
+        description: lineItem.description,
+        salesOrderNumber: lineItem.salesOrderId,
+        customerName: salesOrder?.customerName,
+        orderQuantity: lineItem.orderQuantity,
+        orderWeight: lineItem.orderWeight,
+        width: lineItem.width,
+        length: lineItem.length,
+        unit: lineItem.unit,
+        location: lineItem.location,
+        isStockItem: lineItem.isStockItem,
+        originalOrderLineItemId: lineItem.id
+      };
+      updateForm("selectedLineItems", [...form.selectedLineItems, newWorkOrderItem]);
+    }
+  };
+
+  const createWorkOrder = () => {
+    // Generate work order number
+    const woNumber = `WO-${Date.now()}`;
+    updateForm("workOrderNumber", woNumber);
+
+    const totalWeight = form.selectedLineItems.reduce((sum, item) => sum + (item.orderWeight || 0), 0);
+    
+    const workOrder = {
+      workOrderNumber: woNumber,
+      tagNumber: form.tagNumber,
+      branchId: form.branchId,
+      machineId: form.machineId,
+      machineCategory: form.machineCategory,
+      dueDate: form.scheduledDate,
+      instructions: form.instructions,
+      scheduledStartDate: `${form.scheduledDate}T${form.scheduledStartTime}:00`,
+      scheduledEndDate: `${form.scheduledDate}T${form.scheduledEndTime}:00`,
+      status: WorkOrderStatus.Draft,
+      createdBy: form.createdBy,
+      items: form.selectedLineItems,
+      priority: form.priority,
+      totalWeight
     };
 
-    if (editingIndex !== null) {
-      const updatedItems = [...form.lineItems];
-      updatedItems[editingIndex] = newItem;
-      updateForm("lineItems", updatedItems);
-      setEditingIndex(null);
-    } else {
-      updateForm("lineItems", [...form.lineItems, newItem]);
-    }
-
-    setCurrentLineItem(initialLineItem);
-    toast.success("Line item added successfully");
-  };
-
-  const editLineItem = (index: number) => {
-    setCurrentLineItem(form.lineItems[index]);
-    setEditingIndex(index);
-  };
-
-  const removeLineItem = (index: number) => {
-    const updatedItems = form.lineItems.filter((_, i) => i !== index);
-    updateForm("lineItems", updatedItems);
-    toast.success("Line item removed");
-  };
-
-  const validateForm = () => {
-    const required = ['salesOrder', 'customer', 'machine', 'dueDate', 'plannedStart', 'plannedEnd'];
-    const missing = required.filter(field => !form[field as keyof WorkOrderForm]);
+    console.log("Creating work order:", workOrder);
+    toast.success(`Work order ${woNumber} created successfully`);
     
-    if (missing.length > 0) {
-      toast.error(`Please fill in required fields: ${missing.join(', ')}`);
-      return false;
-    }
-    
-    if (form.lineItems.length === 0) {
-      toast.error("Please add at least one line item");
-      return false;
-    }
-    
-    return true;
-  };
-
-  const saveDraft = () => {
-    toast.success("Work order saved as draft");
-  };
-
-  const submitWorkOrder = () => {
-    if (!validateForm()) return;
-    
-    // Generate work order ID
-    const woId = `WO-${Date.now()}`;
-    console.log("Creating work order:", { ...form, id: woId });
-    
-    toast.success(`Work order ${woId} created successfully`);
-    
-    // Reset form
+    // Reset form and navigate back
     setForm(initialForm);
-    setCurrentLineItem(initialLineItem);
-    setActiveTab("basic");
+    setCurrentStep(1);
+    onNavigate?.("work-orders");
   };
 
-  const totalWeight = form.lineItems.reduce((sum, item) => sum + item.weight, 0);
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Select Production Machine
+              </CardTitle>
+              <CardDescription>
+                Choose the machine that will process this work order
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {machines.filter(m => m.isActive).map((machine) => (
+                  <Card 
+                    key={machine.id}
+                    className={`cursor-pointer transition-all hover:shadow-md ${
+                      form.machineId === machine.id ? 'ring-2 ring-teal-500 bg-teal-50' : ''
+                    }`}
+                    onClick={() => selectMachine(machine)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium">{machine.name}</h3>
+                          <Badge variant="outline">{machine.category}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Capacity: {machine.estimatedLbsPerHour.toLocaleString()} lbs/hr
+                        </p>
+                        {form.machineId === machine.id && (
+                          <div className="flex items-center gap-1 text-teal-600">
+                            <CheckCircle className="h-4 w-4" />
+                            <span className="text-sm">Selected</span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case 2:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                Work Order Tag Number
+              </CardTitle>
+              <CardDescription>
+                Enter a unique tag number for this work order
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="tagNumber">Tag Number *</Label>
+                <Input
+                  id="tagNumber"
+                  placeholder="TAG-001"
+                  value={form.tagNumber}
+                  onChange={(e) => updateForm("tagNumber", e.target.value)}
+                  className="text-lg"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Use a unique identifier that will be easily recognizable on the shop floor
+                </p>
+              </div>
+              
+              {form.machine && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Settings className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Selected Machine:</span>
+                  </div>
+                  <p className="font-medium">{form.machine.name}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+
+      case 3:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5" />
+                Select Sales Orders
+              </CardTitle>
+              <CardDescription>
+                Choose which sales orders to include in this work order
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {form.salesOrders.map((order) => (
+                  <Card 
+                    key={order.id}
+                    className={`cursor-pointer transition-all hover:shadow-md ${
+                      form.selectedSalesOrders.includes(order.id) ? 'ring-2 ring-teal-500 bg-teal-50' : ''
+                    }`}
+                    onClick={() => toggleSalesOrder(order.id)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium">{order.orderNumber}</h3>
+                            <Badge className={
+                              order.priority === "urgent" ? "bg-red-100 text-red-700" :
+                              order.priority === "high" ? "bg-orange-100 text-orange-700" :
+                              order.priority === "normal" ? "bg-blue-100 text-blue-700" :
+                              "bg-gray-100 text-gray-700"
+                            }>
+                              {order.priority}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{order.customerName}</p>
+                          {order.customerPO && (
+                            <p className="text-xs text-muted-foreground">PO: {order.customerPO}</p>
+                          )}
+                        </div>
+                        <div className="text-right space-y-1">
+                          <p className="text-sm font-medium">{order.totalWeight.toLocaleString()} lbs</p>
+                          <p className="text-xs text-muted-foreground">Due: {new Date(order.dueDate).toLocaleDateString()}</p>
+                          {form.selectedSalesOrders.includes(order.id) && (
+                            <div className="flex items-center gap-1 text-teal-600">
+                              <CheckCircle className="h-4 w-4" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {form.selectedSalesOrders.length > 0 && (
+                <div className="mt-6 p-4 bg-teal-50 rounded-lg">
+                  <h4 className="font-medium mb-2">Selected Orders Summary:</h4>
+                  <div className="text-sm text-muted-foreground">
+                    {form.selectedSalesOrders.length} order(s) selected • 
+                    Total Weight: {form.salesOrders
+                      .filter(order => form.selectedSalesOrders.includes(order.id))
+                      .reduce((sum, order) => sum + order.totalWeight, 0)
+                      .toLocaleString()} lbs
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+
+      case 4:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Instructions & Priority
+              </CardTitle>
+              <CardDescription>
+                Add special instructions and set work order priority
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="priority">Priority</Label>
+                <Select value={form.priority} onValueChange={(value) => updateForm("priority", value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="instructions">Special Instructions</Label>
+                <Textarea
+                  id="instructions"
+                  placeholder="Enter any special instructions for operators..."
+                  value={form.instructions || ""}
+                  onChange={(e) => updateForm("instructions", e.target.value)}
+                  rows={4}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Include setup requirements, quality specifications, safety notes, etc.
+                </p>
+              </div>
+
+              {form.selectedSalesOrders.length > 0 && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h4 className="font-medium mb-2">Order Context:</h4>
+                  <div className="space-y-1 text-sm">
+                    {form.salesOrders
+                      .filter(order => form.selectedSalesOrders.includes(order.id))
+                      .map(order => (
+                        <div key={order.id} className="flex justify-between">
+                          <span>{order.orderNumber} - {order.customerName}</span>
+                          <span>Due: {new Date(order.dueDate).toLocaleDateString()}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+
+      case 5:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ListChecks className="h-5 w-5" />
+                Select Line Items
+              </CardTitle>
+              <CardDescription>
+                Choose which items from the selected orders to include
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="max-h-96">
+                <div className="space-y-4">
+                  {form.availableLineItems.map((lineItem) => {
+                    const isSelected = form.selectedLineItems.some(
+                      item => item.originalOrderLineItemId === lineItem.id
+                    );
+                    const salesOrder = form.salesOrders.find(so => so.id === lineItem.salesOrderId);
+                    
+                    return (
+                      <Card 
+                        key={lineItem.id}
+                        className={`cursor-pointer transition-all hover:shadow-md ${
+                          isSelected ? 'ring-2 ring-teal-500 bg-teal-50' : ''
+                        }`}
+                        onClick={() => toggleLineItem(lineItem)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-2 flex-1">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs">{lineItem.itemCode}</Badge>
+                                {lineItem.isStockItem && (
+                                  <Badge variant="secondary" className="text-xs">Stock</Badge>
+                                )}
+                                <Badge variant="outline" className="text-xs">{salesOrder?.orderNumber}</Badge>
+                              </div>
+                              <h4 className="font-medium">{lineItem.description}</h4>
+                              <p className="text-sm text-muted-foreground">{salesOrder?.customerName}</p>
+                              
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground">Quantity:</span>
+                                  <p className="font-medium">{lineItem.orderQuantity} {lineItem.unit}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Weight:</span>
+                                  <p className="font-medium">{lineItem.orderWeight.toLocaleString()} lbs</p>
+                                </div>
+                                {lineItem.width && lineItem.length && (
+                                  <div>
+                                    <span className="text-muted-foreground">Dimensions:</span>
+                                    <p className="font-medium">{lineItem.width}\" x {lineItem.length}\"</p>
+                                  </div>
+                                )}
+                                {lineItem.location && (
+                                  <div>
+                                    <span className="text-muted-foreground">Location:</span>
+                                    <p className="font-medium flex items-center gap-1">
+                                      <MapPin className="h-3 w-3" />
+                                      {lineItem.location}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {isSelected && (
+                              <div className="ml-4">
+                                <CheckCircle className="h-5 w-5 text-teal-600" />
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+
+              {form.selectedLineItems.length > 0 && (
+                <div className="mt-6 p-4 bg-teal-50 rounded-lg">
+                  <h4 className="font-medium mb-2">Selected Items Summary:</h4>
+                  <div className="text-sm text-muted-foreground">
+                    {form.selectedLineItems.length} item(s) selected • 
+                    Total Weight: {form.selectedLineItems
+                      .reduce((sum, item) => sum + (item.orderWeight || 0), 0)
+                      .toLocaleString()} lbs
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+
+      case 6:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Review & Schedule
+              </CardTitle>
+              <CardDescription>
+                Review all details and set the production date
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Scheduling */}
+              <div className="space-y-4">
+                <h3>Smart Scheduling</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="scheduledDate">Production Date *</Label>
+                  <Input
+                    id="scheduledDate"
+                    type="date"
+                    value={form.scheduledDate}
+                    onChange={(e) => updateForm("scheduledDate", e.target.value)}
+                  />
+                </div>
+                
+                {form.scheduledStartTime && form.scheduledEndTime && (
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="h-4 w-4 text-blue-600" />
+                      <span className="font-medium text-blue-900">Smart Schedule Calculated</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Start Time:</span>
+                        <p className="font-medium">{form.scheduledStartTime}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">End Time:</span>
+                        <p className="font-medium">{form.scheduledEndTime}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Duration:</span>
+                        <p className="font-medium">{form.estimatedDuration} hours</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Review Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3>Work Order Details</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Machine:</span>
+                      <span>{form.machine?.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Tag Number:</span>
+                      <span>{form.tagNumber}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Priority:</span>
+                      <Badge className={
+                        form.priority === "urgent" ? "bg-red-100 text-red-700" :
+                        form.priority === "high" ? "bg-orange-100 text-orange-700" :
+                        form.priority === "normal" ? "bg-blue-100 text-blue-700" :
+                        "bg-gray-100 text-gray-700"
+                      }>
+                        {form.priority}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Orders:</span>
+                      <span>{form.selectedSalesOrders.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Line Items:</span>
+                      <span>{form.selectedLineItems.length}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3>Production Summary</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total Weight:</span>
+                      <span>{form.selectedLineItems
+                        .reduce((sum, item) => sum + (item.orderWeight || 0), 0)
+                        .toLocaleString()} lbs</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Machine Capacity:</span>
+                      <span>{form.machine?.estimatedLbsPerHour.toLocaleString()} lbs/hr</span>
+                    </div>
+                    {form.estimatedDuration && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Est. Duration:</span>
+                        <span>{form.estimatedDuration} hours</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {form.instructions && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <h3>Special Instructions</h3>
+                    <p className="text-sm text-muted-foreground p-3 bg-gray-50 rounded-lg">
+                      {form.instructions}
+                    </p>
+                  </div>
+                </>
+              )}
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3>Selected Line Items</h3>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {form.selectedLineItems.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                      <div>
+                        <p className="font-medium">{item.description}</p>
+                        <p className="text-muted-foreground">{item.itemCode} • {item.customerName}</p>
+                      </div>
+                      <div className="text-right">
+                        <p>{item.orderQuantity} {item.unit}</p>
+                        <p className="text-muted-foreground">{item.orderWeight?.toLocaleString()} lbs</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -244,489 +948,95 @@ export function WorkOrderCreate({ onNavigate }: WorkOrderCreateProps = {}) {
           <div>
             <h1>Create Work Order</h1>
             <p className="text-muted-foreground">
-              Create a new production work order with line items and scheduling
+              Step-by-step work order creation with smart scheduling
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={saveDraft}>
-            <Save className="h-4 w-4 mr-2" />
-            Save Draft
-          </Button>
-          <Button className="bg-teal-600 hover:bg-teal-700" onClick={submitWorkOrder}>
-            <Send className="h-4 w-4 mr-2" />
-            Create Work Order
-          </Button>
-        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Form */}
-        <div className="lg:col-span-2">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="scheduling">Scheduling</TabsTrigger>
-              <TabsTrigger value="line-items">Line Items</TabsTrigger>
-              <TabsTrigger value="review">Review</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="basic" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5" />
-                    Order Information
-                  </CardTitle>
-                  <CardDescription>Basic work order details and customer information</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="salesOrder">Sales Order *</Label>
-                      <Input
-                        id="salesOrder"
-                        placeholder="SO-12345"
-                        value={form.salesOrder}
-                        onChange={(e) => updateForm("salesOrder", e.target.value)}
-                      />
+      {/* Progress Steps */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            {steps.map((step, index) => {
+              const isActive = currentStep === step.id;
+              const isCompleted = currentStep > step.id;
+              const Icon = step.icon;
+              
+              return (
+                <div key={step.id} className="flex items-center">
+                  <div className={`flex items-center gap-3 ${
+                    index < steps.length - 1 ? 'flex-1' : ''
+                  }`}>
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                      isCompleted ? 'bg-teal-600 border-teal-600 text-white' :
+                      isActive ? 'border-teal-600 text-teal-600' :
+                      'border-gray-300 text-gray-400'
+                    }`}>
+                      {isCompleted ? (
+                        <CheckCircle className="h-5 w-5" />
+                      ) : (
+                        <Icon className="h-5 w-5" />
+                      )}
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="customerPO">Customer PO</Label>
-                      <Input
-                        id="customerPO"
-                        placeholder="PO-67890"
-                        value={form.customerPO}
-                        onChange={(e) => updateForm("customerPO", e.target.value)}
-                      />
+                    <div className="hidden sm:block">
+                      <p className={`font-medium ${
+                        isActive ? 'text-teal-600' : 
+                        isCompleted ? 'text-gray-900' : 'text-gray-400'
+                      }`}>
+                        {step.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{step.description}</p>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="customer">Customer *</Label>
-                      <Select value={form.customer} onValueChange={(value) => updateForm("customer", value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select customer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {customers.map((customer) => (
-                            <SelectItem key={customer} value={customer}>{customer}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="priority">Priority</Label>
-                      <Select value={form.priority} onValueChange={(value) => updateForm("priority", value)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="normal">Normal</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      placeholder="Additional notes or special instructions..."
-                      value={form.notes}
-                      onChange={(e) => updateForm("notes", e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="scheduling" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Production Scheduling
-                  </CardTitle>
-                  <CardDescription>Machine assignment and timing details</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="machine">Machine *</Label>
-                      <Select value={form.machine} onValueChange={(value) => updateForm("machine", value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select machine" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {machines.map((machine) => (
-                            <SelectItem key={machine} value={machine}>{machine}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="operator">Assigned Operator</Label>
-                      <Select value={form.assignedOperator} onValueChange={(value) => updateForm("assignedOperator", value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select operator" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {operators.map((operator) => (
-                            <SelectItem key={operator} value={operator}>{operator}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="plannedStart">Planned Start *</Label>
-                      <Input
-                        id="plannedStart"
-                        type="datetime-local"
-                        value={form.plannedStart}
-                        onChange={(e) => updateForm("plannedStart", e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="plannedEnd">Planned End *</Label>
-                      <Input
-                        id="plannedEnd"
-                        type="datetime-local"
-                        value={form.plannedEnd}
-                        onChange={(e) => updateForm("plannedEnd", e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="dueDate">Due Date *</Label>
-                      <Input
-                        id="dueDate"
-                        type="date"
-                        value={form.dueDate}
-                        onChange={(e) => updateForm("dueDate", e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="estimatedLbsPerHour">Estimated Lbs/Hour</Label>
-                    <Input
-                      id="estimatedLbsPerHour"
-                      type="number"
-                      value={form.estimatedLbsPerHour}
-                      onChange={(e) => updateForm("estimatedLbsPerHour", parseInt(e.target.value) || 0)}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="line-items" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="h-5 w-5" />
-                    Add Line Item
-                  </CardTitle>
-                  <CardDescription>Add products to this work order</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="product">Product Description *</Label>
-                      <Input
-                        id="product"
-                        placeholder="Hot Rolled Coil - 16 GA x 48..."
-                        value={currentLineItem.product}
-                        onChange={(e) => updateLineItem("product", e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="gauge">Gauge *</Label>
-                      <Select value={currentLineItem.gauge} onValueChange={(value) => updateLineItem("gauge", value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select gauge" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {gauges.map((gauge) => (
-                            <SelectItem key={gauge} value={gauge}>{gauge}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="quantity">Quantity</Label>
-                      <Input
-                        id="quantity"
-                        type="number"
-                        value={currentLineItem.quantity}
-                        onChange={(e) => updateLineItem("quantity", parseInt(e.target.value) || 1)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="width">Width</Label>
-                      <Input
-                        id="width"
-                        placeholder='48"'
-                        value={currentLineItem.width}
-                        onChange={(e) => updateLineItem("width", e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="length">Length</Label>
-                      <Input
-                        id="length"
-                        placeholder='120"'
-                        value={currentLineItem.length}
-                        onChange={(e) => updateLineItem("length", e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="color">Color/Finish</Label>
-                      <Select value={currentLineItem.color} onValueChange={(value) => updateLineItem("color", value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select color" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {colors.map((color) => (
-                            <SelectItem key={color} value={color}>{color}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="grade">Grade</Label>
-                      <Select value={currentLineItem.grade} onValueChange={(value) => updateLineItem("grade", value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select grade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {grades.map((grade) => (
-                            <SelectItem key={grade} value={grade}>{grade}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">
-                      Est. Weight: {calculateWeight(currentLineItem.gauge, currentLineItem.width, currentLineItem.length, currentLineItem.quantity).toLocaleString()} lbs
-                    </div>
-                    <Button onClick={addLineItem} className="bg-teal-600 hover:bg-teal-700">
-                      {editingIndex !== null ? "Update Item" : "Add Item"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {form.lineItems.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Line Items ({form.lineItems.length})</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {form.lineItems.map((item, index) => (
-                        <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="space-y-1">
-                            <p className="font-medium">{item.product}</p>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <span>{item.gauge}</span>
-                              <span>{item.width} x {item.length}</span>
-                              <span>Qty: {item.quantity}</span>
-                              <span>{item.weight.toLocaleString()} lbs</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => editLineItem(index)}>
-                              Edit
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => removeLineItem(index)}>
-                              Remove
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-
-            <TabsContent value="review" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5" />
-                    Review Work Order
-                  </CardTitle>
-                  <CardDescription>Review all details before creating the work order</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <h3>Order Information</h3>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Sales Order:</span>
-                          <span>{form.salesOrder || "Not specified"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Customer:</span>
-                          <span>{form.customer || "Not specified"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Customer PO:</span>
-                          <span>{form.customerPO || "Not specified"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Priority:</span>
-                          <Badge className={
-                            form.priority === "urgent" ? "bg-red-100 text-red-700" :
-                            form.priority === "high" ? "bg-orange-100 text-orange-700" :
-                            form.priority === "normal" ? "bg-blue-100 text-blue-700" :
-                            "bg-gray-100 text-gray-700"
-                          }>
-                            {form.priority}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h3>Scheduling</h3>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Machine:</span>
-                          <span>{form.machine || "Not specified"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Operator:</span>
-                          <span>{form.assignedOperator || "Not assigned"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Planned Start:</span>
-                          <span>{form.plannedStart ? new Date(form.plannedStart).toLocaleString() : "Not specified"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Due Date:</span>
-                          <span>{form.dueDate || "Not specified"}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3>Line Items Summary</h3>
-                      <div className="text-sm text-muted-foreground">
-                        Total Weight: {totalWeight.toLocaleString()} lbs
-                      </div>
-                    </div>
-                    {form.lineItems.length > 0 ? (
-                      <div className="space-y-2">
-                        {form.lineItems.map((item, index) => (
-                          <div key={item.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                            <div>
-                              <p className="font-medium text-sm">{item.product}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {item.gauge} • {item.width} x {item.length} • Qty: {item.quantity}
-                              </p>
-                            </div>
-                            <div className="text-sm">{item.weight.toLocaleString()} lbs</div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <AlertCircle className="h-4 w-4 text-yellow-600" />
-                        <span className="text-sm text-yellow-700">No line items added</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {form.notes && (
-                    <>
-                      <Separator />
-                      <div className="space-y-2">
-                        <h3>Notes</h3>
-                        <p className="text-sm text-muted-foreground">{form.notes}</p>
-                      </div>
-                    </>
+                  {index < steps.length - 1 && (
+                    <div className={`flex-1 h-px mx-4 ${
+                      isCompleted ? 'bg-teal-600' : 'bg-gray-300'
+                    }`} />
                   )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Work Order Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Status:</span>
-                  <Badge variant="outline">Draft</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Line Items:</span>
-                  <span>{form.lineItems.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Weight:</span>
-                  <span>{totalWeight.toLocaleString()} lbs</span>
-                </div>
-                {form.plannedStart && form.plannedEnd && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Duration:</span>
-                    <span>
-                      {Math.round((new Date(form.plannedEnd).getTime() - new Date(form.plannedStart).getTime()) / (1000 * 60 * 60))}h
-                    </span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+      {/* Step Content */}
+      <div className="min-h-96">
+        {renderStepContent()}
+      </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Quick Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                Copy from SO
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                Load Template
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                Check Inventory
-              </Button>
-            </CardContent>
-          </Card>
+      {/* Navigation */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          onClick={prevStep}
+          disabled={currentStep === 1}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Previous
+        </Button>
+
+        <div className="flex items-center gap-2">
+          {currentStep < steps.length ? (
+            <Button
+              onClick={nextStep}
+              disabled={!canProceedToNext()}
+              className="bg-teal-600 hover:bg-teal-700"
+            >
+              Next
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          ) : (
+            <Button
+              onClick={createWorkOrder}
+              disabled={!canProceedToNext()}
+              className="bg-teal-600 hover:bg-teal-700"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Create Work Order
+            </Button>
+          )}
         </div>
       </div>
     </div>
