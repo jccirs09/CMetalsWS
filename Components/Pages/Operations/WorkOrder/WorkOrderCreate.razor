@@ -300,20 +300,21 @@
         var selectedIds = _selectedPickingListItems.Where(kvp => kvp.Value).Select(kvp => kvp.Key).ToHashSet();
         var selectedPickingListItems = _availablePickingListItems.Where(item => selectedIds.Contains(item.Id));
 
-        var newWorkOrderItems = selectedPickingListItems.Select(plItem => new WorkOrderItem
-        {
-            PickingListItemId = plItem.Id,
-            ItemCode = plItem.ItemId,
-            Description = plItem.ItemDescription,
-            SalesOrderNumber = plItem.PickingList?.SalesOrderNumber,
-            CustomerName = plItem.PickingList?.Customer?.CustomerName,
-            OrderQuantity = plItem.Quantity,
-            OrderWeight = plItem.Weight,
-            Width = plItem.Width,
-            Length = plItem.Length,
-            Unit = plItem.Unit,
-            OriginalOrderLineItemId = plItem.Id.ToString()
-        }).ToList();
+        var newWorkOrderItems = selectedPickingListItems
+            .GroupBy(plItem => new { plItem.ItemId, plItem.ItemDescription, plItem.Width, plItem.Length, plItem.Unit })
+            .Select(g => new WorkOrderItem
+            {
+                ItemCode = g.Key.ItemId,
+                Description = g.Key.ItemDescription,
+                SalesOrderNumber = string.Join(", ", g.Select(i => i.PickingList?.SalesOrderNumber).Where(son => son != null).Distinct()),
+                CustomerName = string.Join(", ", g.Select(i => i.PickingList?.Customer?.CustomerName).Where(cn => cn != null).Distinct()),
+                OrderQuantity = g.Sum(i => i.Quantity),
+                OrderWeight = g.Sum(i => i.Weight),
+                Width = g.Key.Width,
+                Length = g.Key.Length,
+                Unit = g.Key.Unit,
+                OriginalOrderLineItemId = string.Join(",", g.Select(i => i.Id))
+            }).ToList();
 
         Model.Items.Clear();
         foreach (var item in stockItems)
