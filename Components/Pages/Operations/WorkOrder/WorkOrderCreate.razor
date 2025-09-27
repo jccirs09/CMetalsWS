@@ -104,7 +104,7 @@
                                 <MudSelect @bind-Value="_selectedSourceIdForNewLine" Label="Source Order" For="@(() => _selectedSourceIdForNewLine)" Required="true">
                                     @foreach (var sourceItem in _selectedSourceItems)
                                     {
-                                        var remainingQty = (sourceItem.Quantity ?? 0) - Model.Items.Where(i => i.OriginalOrderLineItemId == sourceItem.Id.ToString()).Sum(i => i.OrderQuantity ?? 0);
+                                        var remainingQty = (sourceItem.Quantity ?? 0m) - Model.Items.Where(i => i.OriginalOrderLineItemId == sourceItem.Id.ToString()).Sum(i => i.OrderQuantity ?? 0m);
                                         if (remainingQty > 0)
                                         {
                                             <MudSelectItem Value="@sourceItem.Id">@($"{sourceItem.ItemId} ({remainingQty} of {sourceItem.Quantity} remaining)")</MudSelectItem>
@@ -272,8 +272,8 @@
             return;
         }
 
-        var existingQty = Model.Items.Where(i => i.OriginalOrderLineItemId == sourceItem.Id.ToString()).Sum(i => i.OrderQuantity ?? 0);
-        var remainingQty = (sourceItem.Quantity ?? 0) - existingQty;
+        var existingQty = Model.Items.Where(i => i.OriginalOrderLineItemId == sourceItem.Id.ToString()).Sum(i => i.OrderQuantity ?? 0m);
+        var remainingQty = (sourceItem.Quantity ?? 0m) - existingQty;
 
         if (_newProductionLine.OrderQuantity > remainingQty)
         {
@@ -281,7 +281,7 @@
             return;
         }
 
-        var weightPerPiece = (sourceItem.Weight ?? 0) / (sourceItem.Quantity ?? 1);
+        var weightPerPiece = (sourceItem.Quantity ?? 0m) == 0m ? 0m : (sourceItem.Weight ?? 0m) / (sourceItem.Quantity ?? 1m);
 
         var newLine = new WorkOrderItem
         {
