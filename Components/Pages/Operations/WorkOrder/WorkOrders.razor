@@ -49,10 +49,10 @@
                                 <div class="d-flex align-center ga-4">
                                     <div>
                                         <div class="d-flex align-center ga-2 mb-1">
-                                            <MudChip Label="true" Color="Color.Primary">@order.WorkOrderNumber</MudChip>
-                                            <MudChip Label="true" Color="Color.Secondary">@order.TagNumber</MudChip>
-                                            <MudChip Label="true" Color="@GetStatusColor(order.Status)">@order.Status.ToString()</MudChip>
-                                            <MudChip Label="true" Color="@GetPriorityColor(order.Priority)">@order.Priority.ToString()</MudChip>
+                                            <MudChip Text="@order.WorkOrderNumber" Color="Color.Primary" />
+                                            <MudChip Text="@order.TagNumber" Color="Color.Secondary" />
+                                            <MudChip Text="@order.Status.ToString()" Color="@GetStatusColor(order.Status)" />
+                                            <MudChip Text="@order.Priority.ToString()" Color="@GetPriorityColor(order.Priority)" />
                                         </div>
                                         <MudText Typo="Typo.h6">@GetMainCustomer(order)</MudText>
                                         <MudText Typo="Typo.body2" Color="Color.Dark">@GetMainItemDescription(order)</MudText>
@@ -104,7 +104,7 @@
                     <div class="kanban-column">
                         <div class="d-flex justify-space-between align-center mb-4">
                             <MudText Typo="Typo.h6">@status.ToString()</MudText>
-                            <MudChip Label="true" Color="Color.Default">@FilteredWorkOrders.Count(o => o.Status == status)</MudChip>
+                            <MudChip Text="@FilteredWorkOrders.Count(o => o.Status == status).ToString()" Color="Color.Default" />
                         </div>
                         <MudStack Spacing="3">
                             @foreach (var order in FilteredWorkOrders.Where(o => o.Status == status))
@@ -112,10 +112,10 @@
                                 <MudCard Class="cursor-pointer" @onclick="@(() => ProcessOrder(order))">
                                     <MudCardContent>
                                         <div class="d-flex justify-space-between mb-2">
-                                            <MudChip Label="true" Color="Color.Primary" Size="Size.Small">@order.WorkOrderNumber</MudChip>
-                                            <MudChip Label="true" Color="@GetPriorityColor(order.Priority)" Size="Size.Small">@order.Priority.ToString()</MudChip>
+                                            <MudChip Text="@order.WorkOrderNumber" Color="Color.Primary" Size="Size.Small" />
+                                            <MudChip Text="@order.Priority.ToString()" Color="@GetPriorityColor(order.Priority)" Size="Size.Small" />
                                         </div>
-                                        <MudChip Label="true" Color="Color.Secondary" Size="Size.Small" Class="mb-2">@order.TagNumber</MudChip>
+                                        <MudChip Text="@order.TagNumber" Color="Color.Secondary" Size="Size.Small" Class="mb-2" />
                                         <MudText Typo="Typo.body1"><b>@GetMainCustomer(order)</b></MudText>
                                         <MudText Typo="Typo.body2" Color="Color.Dark" Class="mb-2">@GetMainItemDescription(order)</MudText>
 

@@ -30,8 +30,8 @@
                 <div class="d-flex align-center ga-2 mb-1">
                     <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/operations/workorders"))" StartIcon="@Icons.Material.Filled.ArrowBack">Back</MudButton>
                     <MudText Typo="Typo.h5">@_workOrder.WorkOrderNumber</MudText>
-                    <MudChip Label="true" Color="@GetStatusColor(_workOrder.Status)">@_workOrder.Status.ToString()</MudChip>
-                    <MudChip Label="true" Color="@GetPriorityColor(_workOrder.Priority)">@_workOrder.Priority.ToString()</MudChip>
+                    <MudChip Text="@_workOrder.Status.ToString()" Color="@GetStatusColor(_workOrder.Status)" />
+                    <MudChip Text="@_workOrder.Priority.ToString()" Color="@GetPriorityColor(_workOrder.Priority)" />
                 </div>
                 <MudText Class="ml-12">@GetMainCustomer(_workOrder) • @_workOrder.Machine?.Name • @GetTotalWeight(_workOrder).ToString("N0") lbs</MudText>
             </div>
@@ -97,7 +97,7 @@
                                                 <MudText Typo="Typo.body1"><b>@item.Description</b></MudText>
                                                 <MudText Typo="Typo.body2" Color="Color.Dark">@item.ItemCode • @item.Width?.ToString("F2") x @item.Length?.ToString("F2")</MudText>
                                             </div>
-                                            <MudChip Label="true" Color="@GetStatusColor(item.Status)">@item.Status.ToString()</MudChip>
+                                            <MudChip Text="@item.Status.ToString()" Color="@GetStatusColor(item.Status)" />
                                         </div>
                                         <div class="d-flex justify-space-between mt-2">
                                             <MudText>Progress: @(item.ProducedQuantity ?? 0) / @(item.OrderQuantity ?? 0) @item.Unit</MudText>

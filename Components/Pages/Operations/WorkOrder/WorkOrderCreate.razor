@@ -32,7 +32,7 @@
                                     <CardHeaderContent>
                                         <MudStack Row="true" Justify="Justify.SpaceBetween">
                                             <MudText Typo="Typo.h6">@machine.Name</MudText>
-                                            <MudChip Label="true" Color="Color.Secondary">@machine.Category</MudChip>
+                                            <MudChip Text="@machine.Category.ToString()" Color="Color.Secondary" />
                                         </MudStack>
                                     </CardHeaderContent>
                                 </MudCardHeader>
@@ -74,12 +74,12 @@
                             @foreach (var item in _availablePickingListItems)
                             {
                                 <tr>
-                                    <td><MudCheckBox @bind-Checked="@_selectedPickingListItems[item.Id]" /></td>
+                                    <td><MudCheckBox T="bool" @bind-Checked="@_selectedPickingListItems[item.Id]" /></td>
                                     <td>@item.PickingList?.SalesOrderNumber</td>
                                     <td>@item.PickingList?.Customer?.CustomerName</td>
                                     <td>@item.ItemId</td>
                                     <td>@item.ItemDescription</td>
-                                    <td>@item.Weight.ToString("N2")</td>
+                                    <td>@item.Weight?.ToString("N2")</td>
                                 </tr>
                             }
                         </tbody>
