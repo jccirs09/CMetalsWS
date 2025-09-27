@@ -14,7 +14,6 @@ namespace CMetalsWS.Services
         public Machine? SelectedMachine { get; set; }
         public InventoryItem? ParentItem { get; set; }
         public List<PickingListItem> AvailablePickingListItems { get; set; } = new();
-        public Dictionary<int, bool> SelectedPickingListItems { get; set; } = new();
         public WorkOrderItem NewStockItem { get; set; } = new() { IsStockItem = true };
         public WorkOrderItem? EditingStockItem { get; set; }
         public List<PickingListItem> SelectedSourceItems { get; set; } = new();
@@ -30,7 +29,6 @@ namespace CMetalsWS.Services
             SelectedMachine = null;
             ParentItem = null;
             AvailablePickingListItems = new List<PickingListItem>();
-            SelectedPickingListItems = new Dictionary<int, bool>();
             NewStockItem = new WorkOrderItem { IsStockItem = true };
             EditingStockItem = null;
             SelectedSourceItems = new List<PickingListItem>();

@@ -57,9 +57,8 @@
             }
             else
             {
-                <MudTable Items="@StateService.AvailablePickingListItems" Hover="true">
+                <MudTable Items="@StateService.AvailablePickingListItems" Hover="true" MultiSelection="true" @bind-SelectedItems="StateService.SelectedSourceItems">
                     <HeaderContent>
-                        <MudTh>Select</MudTh>
                         <MudTh>Picking List #</MudTh>
                         <MudTh>Customer</MudTh>
                         <MudTh>Item Code</MudTh>
@@ -68,7 +67,6 @@
                         <MudTh>Weight</MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd DataLabel="Select"><MudCheckBox T="bool" Checked="@IsItemSelected(context.Id)" ValueChanged="@((bool val) => ToggleSelection(context.Id, val))" /></Td>
                         <MudTd DataLabel="Picking List #">@context.PickingList?.SalesOrderNumber</MudTd>
                         <MudTd DataLabel="Customer">@context.PickingList?.Customer?.CustomerName</MudTd>
                         <MudTd DataLabel="Item Code">@context.ItemId</MudTd>
@@ -341,7 +339,6 @@
             var result = await WorkOrderService.GetPickingListItemsForWorkOrderAsync(StateService.Model.MachineCategory, StateService.Model.TagNumber);
             StateService.ParentItem = result.ParentItem;
             StateService.AvailablePickingListItems = result.AvailableItems;
-            StateService.SelectedPickingListItems = StateService.AvailablePickingListItems.ToDictionary(item => item.Id, item => false);
             Snackbar.Add($"Found {StateService.AvailablePickingListItems.Count} available order line(s). Parent: {StateService.ParentItem?.ItemId}", Severity.Success);
             _tagStepCompleted = true;
 
@@ -387,8 +384,8 @@
 
     private void PopulateLineItems()
     {
-        var selectedIds = StateService.SelectedPickingListItems.Where(kvp => kvp.Value).Select(kvp => kvp.Key).ToHashSet();
-        StateService.SelectedSourceItems = StateService.AvailablePickingListItems.Where(item => selectedIds.Contains(item.Id)).ToList();
+        // StateService.SelectedSourceItems is now populated directly by the MudTable's @bind-SelectedItems.
+        // This method's purpose is now to sync the created production lines with the selection.
 
         // Remove production lines that are no longer selected in the previous step
         var currentSourceIds = StateService.SelectedSourceItems.Select(i => i.Id.ToString()).ToHashSet();
@@ -401,24 +398,13 @@
         _ordersStepCompleted = StateService.SelectedSourceItems.Any();
         _lineItemsStepCompleted = StateService.Model.Items.Any();
 
-        // Reset the selection for the new line form if the source is no longer available
+        // Reset the selection for the new line form if a source is deselected.
         if (StateService.SelectedSourceIdForNewLine != null && !StateService.SelectedSourceItems.Any(i => i.Id == StateService.SelectedSourceIdForNewLine))
         {
             StateService.SelectedSourceIdForNewLine = null;
         }
     }
 
-    private bool IsItemSelected(int id)
-    {
-        return StateService.SelectedPickingListItems.ContainsKey(id) && StateService.SelectedPickingListItems[id];
-    }
-
-    private async Task ToggleSelection(int id, bool value)
-    {
-        StateService.SelectedPickingListItems[id] = value;
-        PopulateLineItems();
-        await InvokeAsync(StateHasChanged);
-    }
 
     private void AddStockItem()
     {
