@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 
 namespace CMetalsWS.Data
 {
@@ -47,6 +48,7 @@ namespace CMetalsWS.Data
 
         public string? ParentItemId { get; set; }
         public string? ParentItemDescription { get; set; }
+        [Precision(18, 2)]
         public decimal? ParentItemWeight { get; set; }
         public string? ParentItemLocation { get; set; }
         public string? Instructions { get; set; }
