@@ -173,7 +173,7 @@
     private List<Machine> _machines = new();
     private Machine? _selectedMachine;
     private InventoryItem? _parentItem;
-    private HashSet<PickingListItem> _availablePickingListItems = new();
+    private List<PickingListItem> _availablePickingListItems = new();
     private Dictionary<int, bool> _selectedPickingListItems = new();
     private bool _isFetchingOrders = false;
     private bool _isSaving = false;
