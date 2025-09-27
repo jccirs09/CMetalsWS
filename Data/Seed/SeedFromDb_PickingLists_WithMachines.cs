@@ -180,16 +180,23 @@ public static class SeedFromDb_PickingLists_WithMachines
                 {
                     if (item.Unit == "LBS")
                     {
-                        item.Weight = Math.Round(item.Weight * factor, 0);
-                        item.Quantity = item.Weight;
+                        if (item.Weight.HasValue)
+                        {
+                            var newWeight = Math.Round(item.Weight.Value * factor, 0);
+                            item.Weight = newWeight;
+                            item.Quantity = newWeight;
+                        }
                     }
                     else if (item.Unit == "PCS" && perSheetMap.TryGetValue(item, out var perSheet))
                     {
-                        var newQty = Math.Max(1, Math.Round(item.Quantity * factor));
-                        item.Quantity = newQty;
-                        item.Weight = Math.Round(newQty * perSheet, 3);
+                        if (item.Quantity.HasValue)
+                        {
+                            var newQty = Math.Max(1, Math.Round(item.Quantity.Value * factor));
+                            item.Quantity = newQty;
+                            item.Weight = Math.Round(newQty * perSheet, 3);
+                        }
                     }
-                    finalTotalWeight += item.Weight;
+                    finalTotalWeight += item.Weight ?? 0m;
                 }
                 totalWeight = finalTotalWeight;
             }
