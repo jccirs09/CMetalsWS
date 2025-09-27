@@ -1,0 +1,74 @@
+@page "/dashboard/regional-overview"
+@using CMetalsWS.Data
+@using CMetalsWS.Models
+@using CMetalsWS.Services
+@using System.Security.Claims
+
+@inject DashboardService DashboardService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudText Typo="Typo.h4" GutterBottom="true">Regional Delivery Management</MudText>
+<MudText Typo="Typo.subtitle1" Class="mb-4">Manage deliveries across different geographical regions and service types</MudText>
+
+<MudGrid Spacing="3">
+    @foreach (var region in _regionStats)
+    {
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard Action="@(() => NavigateToLoadManagement(region.RegionId))" Style="cursor:pointer">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">@region.RegionName</MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudProgressCircular Value="@region.CompletionPercentage" Color="Color.Primary" Size="Size.Small">@region.CompletionPercentage%</MudProgressCircular>
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudSimpleTable Dense="true">
+                        <tbody>
+                            <tr>
+                                <td>Active Orders</td>
+                                <td style="text-align:right">@region.ActiveOrders</td>
+                            </tr>
+                            <tr>
+                                <td>Pending Pickups</td>
+                                <td style="text-align:right">@region.PendingPickups</td>
+                            </tr>
+                             <tr>
+                                <td>Avg. Cost</td>
+                                <td style="text-align:right">@region.AverageCost.ToString("C")</td>
+                            </tr>
+                            <tr>
+                                <td>Avg. Delivery Time</td>
+                                <td style="text-align:right">@region.AverageDeliveryTime</td>
+                            </tr>
+                        </tbody>
+                    </MudSimpleTable>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    private List<RegionStatsDto> _regionStats = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var branchIdClaim = user.FindFirst(c => c.Type == "BranchId");
+        int? branchId = null;
+        if (branchIdClaim != null && int.TryParse(branchIdClaim.Value, out var id))
+        {
+            branchId = id;
+        }
+        _regionStats = await DashboardService.GetRegionStatsAsync(branchId);
+    }
+
+    private void NavigateToLoadManagement(int regionId)
+    {
+        NavigationManager.NavigateTo($"/planning/load-management/{regionId}");
+    }
+}

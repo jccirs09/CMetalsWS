@@ -30,5 +30,8 @@ namespace CMetalsWS.Data
 
         public string? DriverId { get; set; } // FK to AspNetUsers
         public ApplicationUser? Driver { get; set; }
+
+        public int? DestinationRegionId { get; set; }
+        public DestinationRegion? DestinationRegion { get; set; }
     }
 }

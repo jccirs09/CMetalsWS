@@ -1,7 +1,7 @@
-@page "/planning/unified-load-planning"
+@page "/planning/simplified-load-planning"
 @using CMetalsWS.Data
-@using System.Linq
 @using CMetalsWS.Security
+@using System.Linq
 @using MudBlazor
 @attribute [Authorize(Policy = Permissions.PickingLists.ManageLoads)]
 
@@ -13,384 +13,327 @@
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
-<MudText Typo="Typo.h4">Unified Load Planning</MudText>
+<MudText Typo="Typo.h4" GutterBottom="true">Simplified Load Creation</MudText>
+<MudText Typo="Typo.subtitle1" Class="mb-4">Create loads by selecting ship dates and orders.</MudText>
 
-<MudGrid>
-    <MudItem xs="12" md="7">
-        <MudPaper Class="pa-4" Style="height: 100%;">
-            <MudText Typo="Typo.h6">Available Picking Lists</MudText>
-
-            <MudPaper Class="pa-2 mb-4">
-                <MudToolBar>
-                    <MudSelect T="DestinationRegionCategory"
-                               Label="Filter by Region"
-                               MultiSelection="true"
-                               SelectedValues="_selectedCategoryFilters"
-                               SelectedValuesChanged="OnFilterChanged"
-                               Clearable="true">
-                        @foreach (DestinationRegionCategory category in Enum.GetValues(typeof(DestinationRegionCategory)))
-                        {
-                            <MudSelectItem T="DestinationRegionCategory" Value="@category">@category.ToString()</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudToolBar>
-            </MudPaper>
-
-            <div class="d-flex flex-column gap-4">
-                @foreach (var group in _filteredSalesOrderGroups)
+<MudGrid Spacing="3">
+    @* Step 1: Choose a Ship Date *@
+    <MudItem xs="12" md="3">
+        <MudPaper Class="pa-3" Style="height: 100%;">
+            <MudText Typo="Typo.h6" GutterBottom="true">Step 1: Choose a Ship Date</MudText>
+            <MudText Typo="Typo.body2" Class="mb-4">Choose a ship date to see available orders.</MudText>
+            <div class="d-flex flex-column gap-3">
+                @foreach (var dateGroup in _ordersGroupedByDate)
                 {
-                    <MudExpansionPanel>
-                        <TitleContent>
-                            <div class="d-flex align-center pa-1" style="width:100%">
-                                <MudCheckBox T="bool" Value="@(_selectedGroups.Contains(group))" ValueChanged="@((bool val) => OnGroupChecked(val, group))" Class="mr-2" />
-                                <MudCard Outlined="true" Class="flex-grow-1">
-                                    <MudCardHeader>
-                                        <CardHeaderContent>
-                                            <MudText Typo="Typo.h6">SO: @group.Key</MudText>
-                                            <MudText Typo="Typo.body1">@group.First().Customer?.CustomerName</MudText>
-                                        </CardHeaderContent>
-                                        <CardHeaderActions>
-                                            <MudTooltip Text="Create a load with a partial list of items from this SO">
-                                                <MudIconButton Icon="@Icons.Material.Filled.Splitscreen" Size="Size.Small" OnClick="@(() => OpenPartialLoadDialog(group.ToList()))" />
-                                            </MudTooltip>
-                                        </CardHeaderActions>
-                                    </MudCardHeader>
-                                    <MudCardContent Class="d-flex flex-row gap-4">
-                                        <div>
-                                            <MudText Typo="Typo.caption">Weight</MudText>
-                                            <MudText Typo="Typo.body1">@group.SelectMany(pl => pl.Items).Sum(pli => pli.RemainingWeight).ToString("N2") lbs</MudText>
-                                        </div>
-                                        <div>
-                                            <MudText Typo="Typo.caption">Status</MudText>
-                                            <MudText Typo="Typo.body1">@group.First().Status</MudText>
-                                        </div>
-                                    </MudCardContent>
-                                </MudCard>
-                            </div>
-                        </TitleContent>
-                        <ChildContent>
-                            <MudTable Items="@(group.SelectMany(pl => pl.Items).ToList())" Dense="true" Striped="true" Hover="true" SortLabel="Sort By">
-                                <HeaderContent>
-                                    <MudTh><MudTableSortLabel SortBy="new Func<PickingListItem, object>(x => x.ItemId)">Item ID</MudTableSortLabel></MudTh>
-                                    <MudTh><MudTableSortLabel SortBy="new Func<PickingListItem, object>(x => x.ItemDescription)">Description</MudTableSortLabel></MudTh>
-                                    <MudTh><MudTableSortLabel SortBy="new Func<PickingListItem, object>(x => x.PulledWeight)">Pulled Wt.</MudTableSortLabel></MudTh>
-                                    <MudTh><MudTableSortLabel SortBy="new Func<PickingListItem, object>(x => x.PulledQuantity ?? 0)">Pulled Qty.</MudTableSortLabel></MudTh>
-                                </HeaderContent>
-                                <RowTemplate>
-                                    <MudTd DataLabel="Item ID">@context.ItemId</MudTd>
-                                    <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
-                                    <MudTd DataLabel="Pulled Wt.">@context.PulledWeight</MudTd>
-                                    <MudTd DataLabel="Pulled Qty.">@context.PulledQuantity</MudTd>
-                                </RowTemplate>
-                                <PagerContent>
-                                    <MudTablePager />
-                                </PagerContent>
-                            </MudTable>
-                        </ChildContent>
-                    </MudExpansionPanel>
+                    <MudCard Outlined="true" Class="@(_selectedShipDate == dateGroup.Key ? "selected-card" : "")" @onclick="() => SelectShipDate(dateGroup.Key)">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">@dateGroup.Key.ToString("ddd, MMM dd")</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudText Typo="Typo.body2"><strong>@dateGroup.Count()</strong> orders</MudText>
+                            <MudText Typo="Typo.body2"><strong>@dateGroup.Sum(pl => pl.TotalWeight).ToString("N0")</strong> lbs</MudText>
+                        </MudCardContent>
+                    </MudCard>
                 }
             </div>
-
-            <AuthorizeView>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!_selectedGroups.Any())" OnClick="CreateLoadFromSelected" Class="mt-4">Create Load with Selected</MudButton>
-            </AuthorizeView>
         </MudPaper>
     </MudItem>
+
+    @* Step 2: Select Orders *@
     <MudItem xs="12" md="5">
-        <MudPaper Class="pa-4" Style="height: 100%;">
-            <MudText Typo="Typo.h6">Load Builder</MudText>
-            @if (_load != null)
+        <MudPaper Class="pa-3" Style="height: 100%;">
+            <MudText Typo="Typo.h6" GutterBottom="true">Step 2: Select Orders</MudText>
+            @if (_selectedShipDate.HasValue)
             {
-                <MudSelect T="int?" Label="Truck" Value="_load.TruckId" ValueChanged="@OnTruckChanged" For="@(() => _load.TruckId)">
-                    @foreach (var truck in _trucks)
+                <MudText Typo="Typo.body2" Class="mb-4">Orders for <strong>@_selectedShipDate.Value.ToShortDateString()</strong></MudText>
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var cityGroup in _ordersGroupedByCity)
                     {
-                        <MudSelectItem Value="@truck.Id">@truck.Name (@truck.CapacityWeight lbs)</MudSelectItem>
+                        <MudPaper Outlined="true" Class="pa-2">
+                            <div class="d-flex align-center">
+                                <MudCheckBox T="bool" Label="@cityGroup.Key" Value="@AreAllInCityGroupSelected(cityGroup)" ValueChanged="@((bool val) => OnCityGroupChecked(val, cityGroup))" />
+                                <MudSpacer />
+                                <MudText Typo="Typo.caption">@cityGroup.Count() orders</MudText>
+                            </div>
+                            <div class="d-flex flex-column gap-2 pl-4">
+                                @foreach (var order in cityGroup)
+                                {
+                                    <MudCard Outlined="true">
+                                        <div class="d-flex align-center pa-2">
+                                            <MudCheckBox T="bool" Value="@_selectedOrders.Contains(order)" ValueChanged="@((bool val) => OnOrderChecked(val, order))" />
+                                            <div class="ml-2">
+                                                <MudText Typo="Typo.body1">@order.Customer?.CustomerName</MudText>
+                                                <MudText Typo="Typo.caption">SO: @order.SalesOrderNumber</MudText>
+                                            </div>
+                                            <MudSpacer />
+                                            <div class="text-right">
+                                                <MudText Typo="Typo.body2">@order.TotalWeight.ToString("N0") lbs</MudText>
+                                                <MudIconButton Icon="@Icons.Material.Filled.Splitscreen" Size="Size.Small" OnClick="@(() => OpenPartialLoadDialog(order))" />
+                                            </div>
+                                        </div>
+                                    </MudCard>
+                                }
+                            </div>
+                        </MudPaper>
                     }
-                </MudSelect>
-                <MudDatePicker Label="Shipping Date" @bind-Date="_load.ShippingDate" />
-                <MudTextField Label="Notes" @bind-Value="_load.Notes" Lines="2" />
-                <MudText Typo="Typo.caption" Class="mt-2">Load Capacity:</MudText>
-                <MudProgressLinear Color="@_loadCapacityColor" Value="@((double)_loadCapacity)" Class="my-1" />
-                <MudText Typo="Typo.body2"><strong>Total Weight:</strong> @_load.TotalWeight lbs</MudText>
-
-                <MudPaper Class="mt-4" Outlined="true">
-                    <MudToolBar>
-                        <MudText Typo="Typo.subtitle1">Items in Load</MudText>
-                    </MudToolBar>
-                    <MudContainer Style="max-height: 300px; overflow-y: auto">
-                        @foreach (var item in _itemsInLoad)
-                        {
-                            <MudDropZone T="LoadItem" OnItemDropped="ItemDropped" Identifier="@(item.PickingListItemId.ToString())">
-                                <MudPaper Elevation="2" Class="pa-2 ma-1">
-                                    <MudGrid>
-                                        <MudItem xs="1">@item.StopSequence</MudItem>
-                                        <MudItem xs="3">@item.PickingListItem.PickingList.SalesOrderNumber</MudItem>
-                                        <MudItem xs="4">@item.PickingListItem.PickingList.Customer.CustomerName</MudItem>
-                                        <MudItem xs="2" Style="text-align:right">@item.ShippedWeight.ToString("N2")</MudItem>
-                                        <MudItem xs="1">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => RemoveItemFromLoad(item))" />
-                                        </MudItem>
-                                    </MudGrid>
-                                </MudPaper>
-                            </MudDropZone>
-                        }
-                    </MudContainer>
-                </MudPaper>
-
-                <MudStack Row="true" Class="mt-4">
-                    <AuthorizeView>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveLoad" Disabled="@(_load.TruckId == null)">Save Load</MudButton>
-                    </AuthorizeView>
-                    <MudButton Variant="Variant.Outlined" OnClick="ClearLoad">Clear</MudButton>
-                </MudStack>
+                </div>
             }
             else
             {
-                <MudText>Select picking lists or use the partial load action to start building a load.</MudText>
+                <MudText>Select a ship date to see orders.</MudText>
+            }
+        </MudPaper>
+    </MudItem>
+
+    @* Step 3: Load Summary *@
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-3" Style="height: 100%;">
+            <MudText Typo="Typo.h6" GutterBottom="true">Step 3: Load Summary</MudText>
+            @if (_currentLoad != null && _selectedOrders.Any())
+            {
+                <MudText><strong>Ship Date:</strong> @_currentLoad.ShippingDate?.ToShortDateString()</MudText>
+                <MudText><strong>Orders:</strong> @_selectedOrders.Count</MudText>
+                <MudText><strong>Total Weight:</strong> @_currentLoad.TotalWeight.ToString("N0") lbs</MudText>
+
+                <MudSelect T="int?"
+                           Label="Truck"
+                           @bind-Value="_currentLoad.TruckId"
+                           For="@(() => _currentLoad.TruckId)"
+                           Class="mt-4"
+                           Disabled="@(!_availableTrucks.Any())"
+                           HelperText="@(!_availableTrucks.Any() ? "No trucks available for this region, or orders span multiple regions." : "")">
+                    @foreach (var truck in _availableTrucks)
+                    {
+                        <MudSelectItem Value="@truck.Id">@truck.Name (@truck.CapacityWeight.ToString("N0") lbs)</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudTextField Label="Load Notes (Optional)" @bind-Value="_currentLoad.Notes" Lines="3" Class="mt-4" />
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Class="mt-4"
+                           OnClick="CreateLoad"
+                           Disabled="@(_currentLoad?.TruckId == null)">
+                    Create Load
+                </MudButton>
+            }
+            else
+            {
+                <MudText>Select orders to build a load.</MudText>
             }
         </MudPaper>
     </MudItem>
 </MudGrid>
 
-@code {
-    private List<IGrouping<string, PickingList>> _allSalesOrderGroups = new();
-    private IEnumerable<IGrouping<string, PickingList>> _filteredSalesOrderGroups = new List<IGrouping<string, PickingList>>();
-    private HashSet<DestinationRegionCategory> _selectedCategoryFilters = new();
+<style>
+    .selected-card {
+        border: 2px solid var(--mud-palette-primary) !important;
+    }
+</style>
 
-    private HashSet<IGrouping<string, PickingList>> _selectedGroups = new();
-    private Load? _load;
-    private List<LoadItem> _itemsInLoad = new();
-    private List<Truck> _trucks = new();
+@code {
+    private List<PickingList> _allPickingLists = new();
+    private List<IGrouping<DateTime, PickingList>> _ordersGroupedByDate = new();
+    private DateTime? _selectedShipDate;
+
+    private List<PickingList> _ordersForSelectedDate = new();
+    private List<IGrouping<string, PickingList>> _ordersGroupedByCity = new();
+
+    private HashSet<PickingList> _selectedOrders = new();
+    private Load? _currentLoad;
+    private List<Truck> _availableTrucks = new();
 
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
     }
 
-    private DestinationRegionCategory GetRegionCategory(PickingList p)
-    {
-        if (p.Customer?.DestinationRegion is null)
-        {
-            return DestinationRegionCategory.OUT_OF_TOWN;
-        }
-        return DestinationRegionService.GetDestinationRegionCategory(p.Customer.DestinationRegion);
-    }
-
     private async Task LoadData()
     {
-        ClearLoad();
-        _allSalesOrderGroups.Clear();
-
-        var allPickingLists = await PickingListService.GetAvailableForLoadingAsync();
-        _allSalesOrderGroups = allPickingLists
-            .OrderBy(p => p.ShipDate)
-            .GroupBy(p => p.SalesOrderNumber)
+        _allPickingLists = await PickingListService.GetAvailableForLoadingAsync();
+        _ordersGroupedByDate = _allPickingLists
+            .Where(pl => pl.ShipDate.HasValue)
+            .GroupBy(pl => pl.ShipDate!.Value.Date)
+            .OrderBy(g => g.Key)
             .ToList();
 
-        ApplyFilters();
-        _trucks = await TruckService.GetTrucksAsync();
         StateHasChanged();
     }
 
-    private void ApplyFilters()
+    private void SelectShipDate(DateTime date)
     {
-        _filteredSalesOrderGroups = _allSalesOrderGroups
-            .Where(g => !_selectedCategoryFilters.Any() || _selectedCategoryFilters.Contains(GetRegionCategory(g.First())))
+        _selectedShipDate = date;
+        _ordersForSelectedDate = _allPickingLists
+            .Where(pl => pl.ShipDate.HasValue && pl.ShipDate.Value.Date == date.Date)
             .ToList();
+
+        _ordersGroupedByCity = _ordersForSelectedDate
+            .GroupBy(pl => pl.Customer?.City ?? "Unknown")
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        // Reset selections
+        _selectedOrders.Clear();
+        _currentLoad = null;
+
         StateHasChanged();
     }
 
-    private void OnFilterChanged(IEnumerable<DestinationRegionCategory> values)
+    private void OnOrderCheckedInternal(bool isChecked, PickingList order)
     {
-        _selectedCategoryFilters = new HashSet<DestinationRegionCategory>(values);
-        ApplyFilters();
-    }
-
-    private void OnGroupChecked(bool isChecked, IGrouping<string, PickingList> group)
-    {
+        _currentLoad ??= new Load { ShippingDate = _selectedShipDate, Items = new List<LoadItem>() };
         if (isChecked)
         {
-            _selectedGroups.Add(group);
+            if (_selectedOrders.Add(order))
+            {
+                var itemsToAdd = order.Items.Select(i => new LoadItem
+                {
+                    PickingListItemId = i.Id,
+                    PickingListItem = i,
+                    ShippedQuantity = i.RemainingQuantity,
+                    ShippedWeight = i.RemainingWeight
+                });
+                ((List<LoadItem>)_currentLoad.Items).AddRange(itemsToAdd);
+            }
         }
         else
         {
-            _selectedGroups.Remove(group);
+            if (_selectedOrders.Remove(order))
+            {
+                var itemIdsToRemove = order.Items.Select(i => i.Id).ToHashSet();
+                ((List<LoadItem>)_currentLoad.Items).RemoveAll(i => itemIdsToRemove.Contains(i.PickingListItemId));
+            }
         }
+    }
+
+    private async Task OnOrderChecked(bool isChecked, PickingList order)
+    {
+        OnOrderCheckedInternal(isChecked, order);
+        await UpdateLoadSummaryAndTrucks();
+    }
+
+    private async Task OnCityGroupChecked(bool isChecked, IGrouping<string, PickingList> cityGroup)
+    {
+        foreach (var order in cityGroup)
+        {
+            OnOrderCheckedInternal(isChecked, order);
+        }
+        await UpdateLoadSummaryAndTrucks();
+    }
+
+    private bool AreAllInCityGroupSelected(IGrouping<string, PickingList> cityGroup)
+    {
+        return cityGroup.All(order => _selectedOrders.Contains(order));
+    }
+
+    private async Task UpdateLoadSummaryAndTrucks()
+    {
+        if (_currentLoad == null || !_currentLoad.Items.Any())
+        {
+            _currentLoad = null;
+            _availableTrucks.Clear();
+            StateHasChanged();
+            return;
+        }
+
+        _currentLoad.TotalWeight = _currentLoad.Items.Sum(i => i.ShippedWeight);
+
+        var pickingListIds = _currentLoad.Items.Select(i => i.PickingListItem.PickingListId).Distinct();
+        var pickingListsInLoad = _allPickingLists.Where(p => pickingListIds.Contains(p.Id)).ToList();
+
+        var regionId = pickingListsInLoad.FirstOrDefault()?.Customer?.DestinationRegionId;
+        var allInSameRegion = pickingListsInLoad.All(p => p.Customer?.DestinationRegionId == regionId);
+
+        if (!allInSameRegion)
+        {
+            Snackbar.Add("All orders in a load must belong to the same destination region.", Severity.Warning);
+            _availableTrucks.Clear();
+        }
+        else
+        {
+            _currentLoad.DestinationRegionId = regionId;
+            _availableTrucks = await TruckService.GetTrucksAsync(destinationRegionId: regionId);
+        }
+
         StateHasChanged();
     }
 
-    private void CreateLoadFromSelected()
+    private async Task CreateLoad()
     {
-        if (!_selectedGroups.Any()) return;
-
-        _load = new Load { ShippingDate = DateTime.Today };
-        _itemsInLoad.Clear();
-
-        var allItems = _selectedGroups.SelectMany(g => g).SelectMany(pl => pl.Items);
-        foreach (var item in allItems)
-        {
-            _itemsInLoad.Add(new LoadItem
-            {
-                PickingListItemId = item.Id,
-                PickingListItem = item,
-                ShippedQuantity = item.RemainingQuantity,
-                ShippedWeight = item.RemainingWeight
-            });
-        }
-        RecalculateStopSequence();
-        UpdateLoadCapacity();
-    }
-
-    private void AddToLoad(IEnumerable<PartialLoadDialog.PartialShipmentItem> itemsToAdd)
-    {
-        _load ??= new Load { ShippingDate = DateTime.Today };
-
-        var allPickingListItemsOnPage = _allSalesOrderGroups
-            .SelectMany(g => g)
-            .SelectMany(p => p.Items)
-            .ToDictionary(i => i.Id);
-
-        foreach (var itemToAdd in itemsToAdd)
-        {
-            if (allPickingListItemsOnPage.TryGetValue(itemToAdd.PickingListItemId, out var originalItem))
-            {
-                _itemsInLoad.Add(new LoadItem
-                {
-                    PickingListItemId = originalItem.Id,
-                    PickingListItem = originalItem,
-                    ShippedQuantity = itemToAdd.Quantity,
-                    ShippedWeight = itemToAdd.Weight
-                });
-            }
-        }
-        RecalculateStopSequence();
-        UpdateLoadCapacity();
-    }
-
-    private void RemoveItemFromLoad(LoadItem item)
-    {
-        _itemsInLoad.Remove(item);
-        RecalculateStopSequence();
-        UpdateLoadCapacity();
-    }
-
-    private async Task SaveLoad()
-    {
-        if (_load is null) return;
+        if (_currentLoad is null || !_currentLoad.Items.Any() || _currentLoad.TruckId is null) return;
 
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
-        if (user.Identity is null || !user.Identity.IsAuthenticated)
-        {
-            Snackbar.Add("User is not authenticated.", Severity.Error);
-            return;
-        }
-        var userId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+        var userId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
         {
             Snackbar.Add("Could not retrieve user ID.", Severity.Error);
             return;
         }
 
-        _load.Items = _itemsInLoad;
+        var firstLoadItem = _currentLoad.Items.FirstOrDefault();
+        if (firstLoadItem?.PickingListItem == null)
+        {
+            Snackbar.Add("Could not determine origin branch for the load.", Severity.Error);
+            return;
+        }
+        var pickingList = _allPickingLists.FirstOrDefault(p => p.Id == firstLoadItem.PickingListItem.PickingListId);
+        if (pickingList == null)
+        {
+            Snackbar.Add("Could not determine origin branch for the load.", Severity.Error);
+            return;
+        }
+        _currentLoad.OriginBranchId = pickingList.BranchId;
+
         try
         {
-            await LoadService.CreateAsync(_load, userId);
-            Snackbar.Add("Load saved successfully!", Severity.Success);
+            await LoadService.CreateAsync(_currentLoad, userId);
+            Snackbar.Add("Load created successfully!", Severity.Success);
+
             await LoadData();
-            ClearLoad();
+            _selectedShipDate = null;
+            _ordersForSelectedDate.Clear();
+            _ordersGroupedByCity.Clear();
+            _selectedOrders.Clear();
+            _currentLoad = null;
+            _availableTrucks.Clear();
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to save load: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Failed to create load: {ex.Message}", Severity.Error);
         }
-    }
-
-    private void ClearLoad()
-    {
-        _load = null;
-        _itemsInLoad.Clear();
-        _selectedGroups.Clear();
-        _loadCapacity = 0;
         StateHasChanged();
     }
 
-    private void ItemDropped(MudItemDropInfo<LoadItem> dropItem)
+    private async Task OpenPartialLoadDialog(PickingList order)
     {
-        if (dropItem.Item == null || dropItem.DropzoneIdentifier == null) return;
-
-        var itemToMove = dropItem.Item;
-        var targetIdentifier = dropItem.DropzoneIdentifier;
-        var targetItem = _itemsInLoad.FirstOrDefault(x => x.PickingListItemId.ToString() == targetIdentifier);
-
-        if (targetItem == null) return;
-
-        _itemsInLoad.Remove(itemToMove);
-        var targetIndex = _itemsInLoad.IndexOf(targetItem);
-        _itemsInLoad.Insert(targetIndex, itemToMove);
-
-        RecalculateStopSequence();
-        StateHasChanged();
-    }
-
-    private void RecalculateStopSequence()
-    {
-        for (int i = 0; i < _itemsInLoad.Count; i++)
-        {
-            _itemsInLoad[i].StopSequence = i + 1;
-        }
-    }
-
-    private decimal _loadCapacity;
-    private Color _loadCapacityColor = Color.Success;
-
-    private void OnTruckChanged(int? truckId)
-    {
-        if (_load != null)
-        {
-            _load.TruckId = truckId;
-            UpdateLoadCapacity();
-        }
-    }
-
-    private void UpdateLoadCapacity()
-    {
-        if (_load == null)
-        {
-            _loadCapacity = 0;
-            return;
-        }
-
-        _load.TotalWeight = _itemsInLoad.Sum(i => i.ShippedWeight);
-        var truck = _trucks.FirstOrDefault(t => t.Id == _load.TruckId);
-
-        if (truck == null || truck.CapacityWeight == 0)
-        {
-            _loadCapacity = _load.TotalWeight > 0 ? 100 : 0;
-        }
-        else
-        {
-            _loadCapacity = (_load.TotalWeight / truck.CapacityWeight) * 100;
-        }
-
-        if (_loadCapacity > 100) _loadCapacityColor = Color.Error;
-        else if (_loadCapacity > 85) _loadCapacityColor = Color.Warning;
-        else _loadCapacityColor = Color.Success;
-    }
-
-    private async Task OpenPartialLoadDialog(List<PickingList> pickingLists)
-    {
-        var parameters = new DialogParameters
-        {
-            ["PickingListItems"] = pickingLists.SelectMany(g => g.Items).ToList()
-        };
-
+        var parameters = new DialogParameters { ["PickingListItems"] = order.Items.ToList() };
         var dialog = await DialogService.ShowAsync<PartialLoadDialog>("Partial Load Selection", parameters);
         var result = await dialog.Result;
 
         if (result != null && !result.Canceled && result.Data is List<PartialLoadDialog.PartialShipmentItem> selectedItems)
         {
-            AddToLoad(selectedItems);
+            _currentLoad ??= new Load { ShippingDate = _selectedShipDate, Items = new List<LoadItem>() };
+
+            var itemIdsToRemove = order.Items.Select(i => i.Id).ToHashSet();
+            ((List<LoadItem>)_currentLoad.Items).RemoveAll(i => itemIdsToRemove.Contains(i.PickingListItemId));
+            _selectedOrders.Remove(order);
+
+            var allItemsInOrder = order.Items.ToDictionary(i => i.Id);
+            var itemsToAdd = selectedItems.Select(si => new LoadItem
+            {
+                PickingListItemId = si.PickingListItemId,
+                PickingListItem = allItemsInOrder[si.PickingListItemId],
+                ShippedQuantity = si.Quantity,
+                ShippedWeight = si.Weight
+            }).ToList();
+
+            ((List<LoadItem>)_currentLoad.Items).AddRange(itemsToAdd);
+
+            await UpdateLoadSummaryAndTrucks();
         }
     }
 }

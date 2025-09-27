@@ -18,10 +18,12 @@ namespace CMetalsWS.Data
         public LoadStatus Status { get; set; }
         public int OriginBranchId { get; set; }
         public int? DestinationBranchId { get; set; }
+        public int? DestinationRegionId { get; set; }
         [MaxLength(512)]
         public string? Notes { get; set; }
         public virtual Branch OriginBranch { get; set; } = null!;
         public virtual Branch? DestinationBranch { get; set; }
+        public virtual DestinationRegion? DestinationRegion { get; set; }
         public virtual ICollection<LoadItem> Items { get; set; } = new List<LoadItem>();
     }
 

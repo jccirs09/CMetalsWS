@@ -12,16 +12,20 @@ namespace CMetalsWS.Services
             _dbContextFactory = dbContextFactory;
         }
 
-        public async Task<List<Truck>> GetTrucksAsync(int? branchId = null)
+        public async Task<List<Truck>> GetTrucksAsync(int? branchId = null, int? destinationRegionId = null)
         {
             using var db = _dbContextFactory.CreateDbContext();
             IQueryable<Truck> query = db.Trucks
                 .Include(t => t.Branch)
                 .Include(t => t.Driver)
+                .Include(t => t.DestinationRegion)
                 .AsNoTracking();
 
             if (branchId.HasValue)
                 query = query.Where(t => t.BranchId == branchId.Value);
+
+            if (destinationRegionId.HasValue)
+                query = query.Where(t => t.DestinationRegionId == destinationRegionId.Value);
 
             return await query.OrderBy(t => t.Name).ToListAsync();
         }
@@ -33,6 +37,7 @@ namespace CMetalsWS.Services
             return await db.Trucks
                 .Include(t => t.Branch)
                 .Include(t => t.Driver)
+                .Include(t => t.DestinationRegion)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(t => t.Id == id);
         }
@@ -59,6 +64,7 @@ namespace CMetalsWS.Services
             existing.IsActive = model.IsActive;
             existing.BranchId = model.BranchId;
             existing.DriverId = model.DriverId;
+            existing.DestinationRegionId = model.DestinationRegionId;
 
             await db.SaveChangesAsync();
         }

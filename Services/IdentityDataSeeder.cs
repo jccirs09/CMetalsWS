@@ -457,6 +457,9 @@ namespace CMetalsWS.Services
                 return;
             }
 
+            var localRegion = await _context.DestinationRegions.FirstOrDefaultAsync(dr => dr.Name == "LOCAL");
+            var islandRegion = await _context.DestinationRegions.FirstOrDefaultAsync(dr => dr.Name == "ISLAND");
+
             var driver1 = await _userManager.FindByNameAsync("driver1");
             var driver2 = await _userManager.FindByNameAsync("driver2");
             var driver3 = await _userManager.FindByNameAsync("driver3");
@@ -481,7 +484,8 @@ namespace CMetalsWS.Services
                     CapacityWeight = 20500,
                     CapacityVolume = 24,
                     IsActive = true,
-                    DriverId = driver2?.Id
+                    DriverId = driver2?.Id,
+                    DestinationRegionId = islandRegion?.Id
                 },
                 new Truck
                 {
@@ -491,7 +495,8 @@ namespace CMetalsWS.Services
                     CapacityWeight = 14500,
                     CapacityVolume = 14,
                     IsActive = true,
-                    DriverId = driver3?.Id
+                    DriverId = driver3?.Id,
+                    DestinationRegionId = localRegion?.Id
                 }
             };
 

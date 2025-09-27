@@ -15,7 +15,7 @@ namespace CMetalsWS.Services
             _dbContextFactory = dbContextFactory;
         }
 
-        public async Task<List<Load>> GetLoadsAsync(int? branchId = null, DateTime? onlyDate = null)
+        public async Task<List<Load>> GetLoadsAsync(int? branchId = null, DateTime? onlyDate = null, int? destinationRegionId = null)
         {
             using var db = _dbContextFactory.CreateDbContext();
             IQueryable<Load> query = db.Loads
@@ -23,10 +23,14 @@ namespace CMetalsWS.Services
                 .Include(l => l.Items)
                     .ThenInclude(i => i.PickingList)
                         .ThenInclude(p => p!.Customer)
-                            .ThenInclude(c => c!.DestinationGroup);
+                            .ThenInclude(c => c!.DestinationGroup)
+                .Include(l => l.DestinationRegion);
 
             if (branchId.HasValue)
                 query = query.Where(l => l.OriginBranchId == branchId.Value);
+
+            if (destinationRegionId.HasValue)
+                query = query.Where(l => l.DestinationRegionId == destinationRegionId.Value);
 
             if (onlyDate.HasValue)
             {
@@ -35,6 +39,16 @@ namespace CMetalsWS.Services
             }
 
             return await query
+                .OrderByDescending(l => l.ShippingDate)
+                .ToListAsync();
+        }
+
+        public async Task<List<Load>> GetLoadsByRegionAsync(int regionId)
+        {
+            using var db = _dbContextFactory.CreateDbContext();
+            return await db.Loads
+                .Include(l => l.Truck)
+                .Where(l => l.DestinationRegionId == regionId)
                 .OrderByDescending(l => l.ShippingDate)
                 .ToListAsync();
         }
@@ -60,8 +74,19 @@ namespace CMetalsWS.Services
             if (pickingListIds.Any())
             {
                 var pickingLists = await db.PickingLists
+                    .Include(p => p.Customer)
                     .Where(p => pickingListIds.Contains(p.Id))
                     .ToListAsync();
+
+                var regionIds = pickingLists.Select(p => p.Customer?.DestinationRegionId)
+                    .Where(id => id.HasValue)
+                    .Distinct()
+                    .ToList();
+
+                if (regionIds.Count == 1)
+                {
+                    load.DestinationRegionId = regionIds.First();
+                }
 
                 foreach (var pl in pickingLists)
                 {
@@ -89,6 +114,7 @@ namespace CMetalsWS.Services
             existing.TruckId = load.TruckId;
             existing.Notes = load.Notes;
             existing.DestinationBranchId = load.DestinationBranchId;
+            existing.DestinationRegionId = load.DestinationRegionId;
 
             existing.Items.Clear();
             foreach (var item in load.Items)
