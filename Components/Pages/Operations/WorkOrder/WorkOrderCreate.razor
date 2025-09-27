@@ -84,6 +84,7 @@
                     <MudSelectItem Value="@prio">@prio.ToString()</MudSelectItem>
                 }
             </MudSelect>
+            <MudDatePicker @bind-Date="StateService.Model.DueDate" Label="Due Date" Required="true" Class="mt-3" />
             <MudTextField @bind-Value="StateService.Model.Instructions" Label="Special Instructions" Lines="5" Class="mt-3" />
         </MudStep>
         <MudStep Title="Line Items" Description="Confirm items to produce" Completed="@_lineItemsStepCompleted" OnActivate="PopulateLineItems">
@@ -101,22 +102,24 @@
                                 <MudText>Select a source order line and specify the quantity to produce.</MudText>
                             </MudItem>
                             <MudItem xs="12" sm="6">
-                                <MudSelect @bind-Value="StateService.SelectedSourceIdForNewLine" Label="Source Order" For="@(() => StateService.SelectedSourceIdForNewLine)" Required="true">
+                                <MudList Clickable="true" @bind-SelectedItem="StateService.SelectedSourceItemForNewLine">
                                     @foreach (var sourceItem in StateService.SelectedSourceItems)
                                     {
                                         var remainingQty = sourceItem.Quantity - StateService.Model.Items.Where(i => i.OriginalOrderLineItemId == sourceItem.Id.ToString()).Sum(i => i.OrderQuantity ?? 0m);
                                         if (remainingQty > 0)
                                         {
-                                            <MudSelectItem Value="@sourceItem.Id">@($"{sourceItem.ItemId} ({remainingQty} of {sourceItem.Quantity} remaining)")</MudSelectItem>
+                                            <MudListItem Value="sourceItem">
+                                                @($"{sourceItem.ItemId} ({remainingQty} of {sourceItem.Quantity} remaining)")
+                                            </MudListItem>
                                         }
                                     }
-                                </MudSelect>
+                                </MudList>
                             </MudItem>
                             <MudItem xs="12" sm="3">
-                                <MudNumericField @bind-Value="StateService.NewProductionLine.OrderQuantity" Label="Quantity" For="@(() => StateService.NewProductionLine.OrderQuantity)" Required="true" />
+                                <MudNumericField @bind-Value="StateService.NewProductionLine.OrderQuantity" Label="Quantity to Produce" For="@(() => StateService.NewProductionLine.OrderQuantity)" Required="true" />
                             </MudItem>
                             <MudItem xs="12" sm="3" Class="d-flex align-end">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddProductionLine" Disabled="@(StateService.SelectedSourceIdForNewLine == 0)">Add Line</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddProductionLine" Disabled="@(StateService.SelectedSourceItemForNewLine == null)">Add Line</MudButton>
                             </MudItem>
                         </MudGrid>
                     }
@@ -154,37 +157,38 @@
                 </RowTemplate>
             </MudTable>
 
-            <MudExpansionPanels>
-                <MudExpansionPanel Text="Add Stock Item">
-                    <MudCard Class="mt-4">
-                        <MudCardContent>
-                            <MudGrid>
-                                <MudItem xs="12" sm="6">
-                                    <MudTextField @bind-Value="StateService.NewStockItem.ItemCode" Label="Item Code" Required="true" />
-                                </MudItem>
-                                <MudItem xs="12" sm="6">
-                                    <MudTextField @bind-Value="StateService.NewStockItem.Description" Label="Description" Required="true" />
-                                </MudItem>
-                                <MudItem xs="12" sm="3">
-                                    <MudNumericField @bind-Value="StateService.NewStockItem.Width" Label="Width" />
-                                </MudItem>
-                                <MudItem xs="12" sm="3">
-                                    <MudNumericField @bind-Value="StateService.NewStockItem.Length" Label="Length" />
-                                </MudItem>
-                                <MudItem xs="12" sm="3">
-                                    <MudNumericField @bind-Value="StateService.NewStockItem.OrderQuantity" Label="Quantity" />
-                                </MudItem>
-                                <MudItem xs="12" sm="3">
-                                    <MudNumericField @bind-Value="StateService.NewStockItem.OrderWeight" Label="Weight" />
-                                </MudItem>
-                            </MudGrid>
-                        </MudCardContent>
-                        <MudCardActions>
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddStockItem">@(StateService.EditingStockItem == null ? "Add Stock Item" : "Update Stock Item")</MudButton>
-                        </MudCardActions>
-                    </MudCard>
-                </MudExpansionPanel>
-            </MudExpansionPanels>
+            <MudCard Class="mt-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Add Stock Item</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="StateService.NewStockItem.ItemCode" Label="Item Code" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="StateService.NewStockItem.Description" Label="Description" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudNumericField @bind-Value="StateService.NewStockItem.Width" Label="Width" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudNumericField @bind-Value="StateService.NewStockItem.Length" Label="Length" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudNumericField @bind-Value="StateService.NewStockItem.OrderQuantity" Label="Quantity" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudNumericField @bind-Value="StateService.NewStockItem.OrderWeight" Label="Weight" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddStockItem">@(StateService.EditingStockItem == null ? "Add Stock Item" : "Update Stock Item")</MudButton>
+                </MudCardActions>
+            </MudCard>
         </MudStep>
         <MudStep Title="Review" Description="Review and create">
             <MudCard>
@@ -255,16 +259,11 @@
 
     private void AddProductionLine()
     {
-        if (StateService.SelectedSourceIdForNewLine == 0 || StateService.NewProductionLine.OrderQuantity == null || StateService.NewProductionLine.OrderQuantity <= 0)
+        var sourceItem = StateService.SelectedSourceItemForNewLine;
+
+        if (sourceItem == null || StateService.NewProductionLine.OrderQuantity == null || StateService.NewProductionLine.OrderQuantity <= 0)
         {
             Snackbar.Add("Please select a source order and enter a valid quantity.", Severity.Warning);
-            return;
-        }
-
-        var sourceItem = StateService.SelectedSourceItems.FirstOrDefault(i => i.Id == StateService.SelectedSourceIdForNewLine);
-        if (sourceItem == null)
-        {
-            Snackbar.Add("Could not find the selected source item.", Severity.Error);
             return;
         }
 
@@ -399,9 +398,9 @@
         _lineItemsStepCompleted = StateService.Model.Items.Any();
 
         // Reset the selection for the new line form if a source is deselected.
-        if (StateService.SelectedSourceIdForNewLine != 0 && !StateService.SelectedSourceItems.Any(i => i.Id == StateService.SelectedSourceIdForNewLine))
+        if (StateService.SelectedSourceItemForNewLine != null && !StateService.SelectedSourceItems.Contains(StateService.SelectedSourceItemForNewLine))
         {
-            StateService.SelectedSourceIdForNewLine = 0;
+            StateService.SelectedSourceItemForNewLine = null;
         }
     }
 
