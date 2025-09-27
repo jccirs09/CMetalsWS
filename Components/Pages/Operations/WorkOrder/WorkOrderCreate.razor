@@ -54,31 +54,24 @@
             }
             else
             {
-                <MudSimpleTable Hover="true">
-                    <thead>
-                        <tr>
-                            <th>Select</th>
-                            <th>Picking List #</th>
-                            <th>Customer</th>
-                            <th>Item Code</th>
-                            <th>Description</th>
-                            <th>Weight</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in _availablePickingListItems)
-                        {
-                            <tr>
-                                <td><MudCheckBox T="bool" @bind-Checked="@_selectedPickingListItems[item.Id]" @bind-Checked:after="OnSelectionChanged" /></td>
-                                <td>@item.PickingList?.SalesOrderNumber</td>
-                                <td>@item.PickingList?.Customer?.CustomerName</td>
-                                <td>@item.ItemId</td>
-                                <td>@item.ItemDescription</td>
-                                <td>@item.Weight?.ToString("N2")</td>
-                            </tr>
-                        }
-                    </tbody>
-                </MudSimpleTable>
+                <MudTable Items="@_availablePickingListItems" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Select</MudTh>
+                        <MudTh>Picking List #</MudTh>
+                        <MudTh>Customer</MudTh>
+                        <MudTh>Item Code</MudTh>
+                        <MudTh>Description</MudTh>
+                        <MudTh>Weight</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Select"><MudCheckBox T="bool" @bind-Checked="@_selectedPickingListItems[context.Id]" @bind-Checked:after="OnSelectionChanged" /></MudTd>
+                        <MudTd DataLabel="Picking List #">@context.PickingList?.SalesOrderNumber</MudTd>
+                        <MudTd DataLabel="Customer">@context.PickingList?.Customer?.CustomerName</MudTd>
+                        <MudTd DataLabel="Item Code">@context.ItemId</MudTd>
+                        <MudTd DataLabel="Description">@context.ItemDescription</MudTd>
+                        <MudTd DataLabel="Weight">@context.Weight?.ToString("N2")</MudTd>
+                    </RowTemplate>
+                </MudTable>
             }
         </MudStep>
         <MudStep Title="Instructions" Description="Add notes and priority" Completed="true">
@@ -91,29 +84,22 @@
             <MudTextField @bind-Value="Model.Instructions" Label="Special Instructions" Lines="5" Class="mt-3" />
         </MudStep>
         <MudStep Title="Line Items" Description="Confirm items to produce" Completed="@_lineItemsStepCompleted">
-            <MudSimpleTable Hover="true">
-                <thead>
-                    <tr>
-                        <th>Item Code</th>
-                        <th>Description</th>
-                        <th>SO#</th>
-                        <th>Qty</th>
-                        <th>Weight</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in Model.Items)
-                    {
-                        <tr>
-                            <td>@item.ItemCode</td>
-                            <td>@item.Description</td>
-                            <td>@item.SalesOrderNumber</td>
-                            <td>@item.OrderQuantity</td>
-                            <td>@item.OrderWeight?.ToString("N2")</td>
-                        </tr>
-                    }
-                </tbody>
-            </MudSimpleTable>
+            <MudTable Items="@Model.Items" Hover="true">
+                <HeaderContent>
+                    <MudTh>Item Code</MudTh>
+                    <MudTh>Description</MudTh>
+                    <MudTh>SO#</MudTh>
+                    <MudTh>Qty</MudTh>
+                    <MudTh>Weight</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Item Code">@context.ItemCode</MudTd>
+                    <MudTd DataLabel="Description">@context.Description</MudTd>
+                    <MudTd DataLabel="SO#">@context.SalesOrderNumber</MudTd>
+                    <MudTd DataLabel="Qty">@context.OrderQuantity</MudTd>
+                    <MudTd DataLabel="Weight">@context.OrderWeight?.ToString("N2")</MudTd>
+                </RowTemplate>
+            </MudTable>
         </MudStep>
         <MudStep Title="Review" Description="Review and create">
             <MudCard>
