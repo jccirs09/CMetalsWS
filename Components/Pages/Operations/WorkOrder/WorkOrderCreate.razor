@@ -10,6 +10,7 @@
 @inject ISnackbar Snackbar
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthStateProvider
+@inject ItemRelationshipService ItemRelationshipService
 
 <MudPaper Class="pa-4">
     <div class="d-flex justify-space-between align-center mb-4">
@@ -85,7 +86,7 @@
             </MudSelect>
             <MudTextField @bind-Value="Model.Instructions" Label="Special Instructions" Lines="5" Class="mt-3" />
         </MudStep>
-        <MudStep Title="Line Items" Description="Confirm items to produce" Completed="@_lineItemsStepCompleted">
+        <MudStep Title="Line Items" Description="Confirm items to produce" Completed="@_lineItemsStepCompleted" OnActivate="PopulateLineItems">
             <MudTable Items="@Model.Items" Hover="true">
                 <HeaderContent>
                     <MudTh>Item Code</MudTh>
@@ -94,6 +95,7 @@
                     <MudTh>Size</MudTh>
                     <MudTh>Qty</MudTh>
                     <MudTh>Weight</MudTh>
+                    <MudTh>Actions</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Item Code">@context.ItemCode</MudTd>
@@ -102,6 +104,13 @@
                     <MudTd DataLabel="Size">@($"{context.Width?.ToString("N2")} x {context.Length?.ToString("N2")}")</MudTd>
                     <MudTd DataLabel="Qty">@context.OrderQuantity</MudTd>
                     <MudTd DataLabel="Weight">@context.OrderWeight?.ToString("N2")</MudTd>
+                    <MudTd DataLabel="Actions">
+                        @if (context.IsStockItem)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => EditStockItem(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => DeleteStockItem(context))" />
+                        }
+                    </MudTd>
                 </RowTemplate>
             </MudTable>
             <MudCard Class="mt-4">
@@ -133,7 +142,7 @@
                     </MudGrid>
                 </MudCardContent>
                 <MudCardActions>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddStockItem">Add Stock Item</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddStockItem">@(_editingStockItem == null ? "Add Stock Item" : "Update Stock Item")</MudButton>
                 </MudCardActions>
             </MudCard>
         </MudStep>
@@ -179,6 +188,31 @@
     private bool _isSaving = false;
     private string? _userId;
     private WorkOrderItem _newStockItem = new() { IsStockItem = true };
+    private WorkOrderItem? _editingStockItem;
+
+    private void EditStockItem(WorkOrderItem itemToEdit)
+    {
+        _editingStockItem = itemToEdit;
+        _newStockItem = new WorkOrderItem
+        {
+            ItemCode = itemToEdit.ItemCode,
+            Description = itemToEdit.Description,
+            Width = itemToEdit.Width,
+            Length = itemToEdit.Length,
+            OrderQuantity = itemToEdit.OrderQuantity,
+            OrderWeight = itemToEdit.OrderWeight,
+            IsStockItem = true
+        };
+        Model.Items.Remove(itemToEdit);
+        StateHasChanged();
+    }
+
+    private void DeleteStockItem(WorkOrderItem itemToDelete)
+    {
+        Model.Items.Remove(itemToDelete);
+        _lineItemsStepCompleted = Model.Items.Any();
+        StateHasChanged();
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -221,11 +255,29 @@
 
             if (_parentItem != null)
             {
+                var stockItemCode = _parentItem.ItemId;
+                var stockItemDescription = _parentItem.Description;
+
+                if (Model.MachineCategory == MachineCategory.CTL)
+                {
+                    var children = await ItemRelationshipService.GetChildrenAsync(_parentItem.ItemId);
+                    if (children.Any())
+                    {
+                        var sheetItem = children.First();
+                        stockItemCode = sheetItem.ItemCode;
+                        stockItemDescription = sheetItem.Description;
+                    }
+                    else
+                    {
+                        Snackbar.Add($"No sheet item mapping found for coil '{_parentItem.ItemId}'. Please check relationships.", Severity.Warning);
+                    }
+                }
+
                 _newStockItem = new()
                 {
                     IsStockItem = true,
-                    ItemCode = $"{_parentItem.ItemId}-STOCK",
-                    Description = _parentItem.Description,
+                    ItemCode = stockItemCode,
+                    Description = stockItemDescription,
                     Width = _parentItem.Width
                 };
             }
@@ -291,7 +343,16 @@
         }
 
         Model.Items.Add(_newStockItem);
-        _newStockItem = new() { IsStockItem = true }; // Reset for next entry
+
+        // Preserve ItemCode and Description for the next stock item
+        _newStockItem = new()
+        {
+            IsStockItem = true,
+            ItemCode = _newStockItem.ItemCode,
+            Description = _newStockItem.Description
+        };
+
+        _editingStockItem = null;
         _lineItemsStepCompleted = Model.Items.Any();
         StateHasChanged();
     }
