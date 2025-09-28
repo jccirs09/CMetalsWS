@@ -1,20 +1,22 @@
 @using MudBlazor
 
 <MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Complete Work Order</MudText>
+    </TitleContent>
     <DialogContent>
-        <MudText>Are you sure you want to mark this work order as complete?</MudText>
-        <MudText Typo="Typo.caption" Class="mt-2">This action cannot be undone.</MudText>
+        <MudText>Are you sure you want to mark this work order as complete? This action cannot be undone.</MudText>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Cancel</MudButton>
-        <MudButton Color="Color.Primary" OnClick="Submit">Complete Work Order</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Complete</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter]
-    IMudDialogInstance MudDialog { get; set; }
+    public IMudDialogInstance MudDialog { get; set; }
 
-    void Submit() => MudDialog.Close(DialogResult.Ok(true));
-    void Cancel() => MudDialog.Cancel();
+    private void Submit() => MudDialog.Close(DialogResult.Ok(true));
+    private void Cancel() => MudDialog.Cancel();
 }

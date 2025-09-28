@@ -111,19 +111,19 @@ namespace CMetalsWS.Services
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == pickingListItemId);
 
-            if (pickingListItem == null || !pickingListItem.Quantity.HasValue)
+            if (pickingListItem == null)
             {
                 return 0;
             }
 
-            var totalQuantity = pickingListItem.Quantity.Value;
+            var totalQuantity = pickingListItem.Quantity;
 
             var plannedQuantity = await db.WorkOrderItems
                 .AsNoTracking()
                 .Where(wi => wi.PickingListItemId == pickingListItemId)
-                .SumAsync(wi => wi.OrderQuantity ?? 0);
+                .SumAsync(wi => wi.OrderQuantity);
 
-            var remainingQuantity = totalQuantity - plannedQuantity;
+            var remainingQuantity = totalQuantity - (plannedQuantity ?? 0);
 
             return remainingQuantity > 0 ? remainingQuantity : 0;
         }
@@ -140,14 +140,14 @@ namespace CMetalsWS.Services
             var pickingListItems = await db.PickingListItems
                 .AsNoTracking()
                 .Where(p => pickingListItemIds.Contains(p.Id))
-                .ToDictionaryAsync(p => p.Id, p => p.Quantity ?? 0);
+                .ToDictionaryAsync(p => p.Id, p => p.Quantity);
 
             var plannedQuantities = await db.WorkOrderItems
                 .AsNoTracking()
                 .Where(wi => wi.PickingListItemId.HasValue && pickingListItemIds.Contains(wi.PickingListItemId.Value))
                 .GroupBy(wi => wi.PickingListItemId.Value)
-                .Select(g => new { PickingListItemId = g.Key, TotalPlanned = g.Sum(wi => wi.OrderQuantity ?? 0) })
-                .ToDictionaryAsync(g => g.PickingListItemId, g => g.TotalPlanned);
+                .Select(g => new { PickingListItemId = g.Key, TotalPlanned = g.Sum(wi => wi.OrderQuantity) })
+                .ToDictionaryAsync(g => g.PickingListItemId, g => g.TotalPlanned ?? 0);
 
             var remainingQuantities = new Dictionary<int, decimal>();
             foreach (var id in pickingListItemIds)

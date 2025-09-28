@@ -4,6 +4,7 @@
 @using CMetalsWS.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
+@implements IDisposable
 @attribute [Authorize(Policy = Permissions.WorkOrders.View)]
 
 @inject WorkOrderService WorkOrderService
@@ -192,7 +193,7 @@
                                     </MudSelect>
                                 </MudItem>
                                 <MudItem xs="12" md="6">
-                                    <MudDatePicker Date="Model.DueDate" DateChanged="SetDueDate" Label="Scheduled Date" Variant="Variant.Outlined" />
+                                    <MudDatePicker @bind-Date="_nullableDueDate" Label="Scheduled Date" Variant="Variant.Outlined" />
                                 </MudItem>
                             </MudGrid>
                         </MudPaper>
@@ -379,6 +380,7 @@
     private bool IsCreateMode => Id == null;
     private WorkOrder Model { get; set; } = new();
     private string? _userId;
+    private DateTime? _nullableDueDate;
 
     // Create Mode specific properties
     private List<Machine> _machines = new();
@@ -416,6 +418,7 @@
         {
             // Create Mode
             Model = new WorkOrder { DueDate = DateTime.Today.AddDays(7) };
+            _nullableDueDate = Model.DueDate;
             _machines = (await MachineService.GetMachinesAsync())
                 .Where(m => m.IsActive && (m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter))
                 .ToList();
@@ -450,13 +453,6 @@
         }
     }
 
-private void SetDueDate(DateTime? newDate)
-{
-    if (newDate.HasValue)
-    {
-        Model.DueDate = newDate.Value;
-    }
-}
 
     private async Task FetchPickingListItemsAsync()
     {
@@ -512,7 +508,7 @@ private void SetDueDate(DateTime? newDate)
 
         if (!result.Canceled && result.Data is decimal quantityToAdd && quantityToAdd > 0)
         {
-            var unitWeight = (plItem.Quantity ?? 0) > 0 ? (plItem.Weight ?? 0) / plItem.Quantity.Value : 0;
+            var unitWeight = plItem.Quantity > 0 ? plItem.Weight / plItem.Quantity : 0;
 
             var workOrderItem = new WorkOrderItem
             {
@@ -544,6 +540,16 @@ private void SetDueDate(DateTime? newDate)
         if (string.IsNullOrEmpty(_userId))
         {
             Snackbar.Add("Cannot identify current user. Please log in again.", Severity.Error);
+            return;
+        }
+
+        if (_nullableDueDate.HasValue)
+        {
+            Model.DueDate = _nullableDueDate.Value;
+        }
+        else
+        {
+            Snackbar.Add("Due date is required.", Severity.Error);
             return;
         }
 
