@@ -27,7 +27,7 @@
                 <MudText Typo="Typo.h6" GutterBottom="true">Machine Setup</MudText>
                 <MudText Color="Color.Dark" GutterBottom="true">Select production machine and enter coil tag number for automatic order matching</MudText>
 
-                <MudSelect T="int?" Label="Production Machine *" Value="Model.MachineId" ValueChanged="OnMachineChanged" For="@(() => Model.MachineId)" Class="mt-4">
+                <MudSelect T="int?" Label="Production Machine *" @bind-Value="SelectedMachineId" For="@(() => SelectedMachineId)" Class="mt-4">
                     @foreach (var group in _groupedMachines)
                     {
                         <MudListSubheader>@group.Key</MudListSubheader>
@@ -40,8 +40,8 @@
 
                 <MudTextField @bind-Value="Model.TagNumber"
                               Label="Coil Tag Number *"
-                              OnDebounceInterval="500"
-                              OnDebounce="OnCoilTagChanged"
+                              DebounceInterval="500"
+                              OnDebounceIntervalElapsed="OnCoilTagChanged"
                               HelperText="Enter master coil tag number to find matching orders."
                               Class="mt-4"
                               Disabled="@(Model.MachineId == null)" />
@@ -175,6 +175,34 @@
     private WorkOrderItem _newStockItem = new() { IsStockItem = true };
     private bool _isSaving = false;
 
+    private int? _selectedMachineId;
+    private int? SelectedMachineId
+    {
+        get => _selectedMachineId;
+        set
+        {
+            if (_selectedMachineId == value) return;
+
+            _selectedMachineId = value;
+            Model.MachineId = value;
+
+            if (value.HasValue)
+            {
+                var machine = _productionMachines.FirstOrDefault(m => m.Id == value.Value);
+                if (machine != null)
+                {
+                    Model.MachineCategory = machine.Category;
+                }
+            }
+            else
+            {
+                Model.TagNumber = string.Empty;
+                _parentItem = null;
+                _availablePickingListItems.Clear();
+            }
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -185,58 +213,26 @@
         _groupedMachines = _productionMachines.GroupBy(m => m.Category).ToArray();
     }
 
-    private void OnMachineChanged(int? machineId)
+    private async Task OnCoilTagChanged(string text)
     {
-        Model.MachineId = machineId;
-        if (machineId.HasValue)
-        {
-            var machine = _productionMachines.FirstOrDefault(m => m.Id == machineId.Value);
-            if (machine != null)
-            {
-                Model.MachineCategory = machine.Category;
-            }
-        }
-        else
-        {
-            Model.TagNumber = string.Empty;
-            _parentItem = null;
-            _availablePickingListItems.Clear();
-        }
-        StateHasChanged();
-    }
-
-    private async Task OnCoilTagChanged()
-    {
-        if (string.IsNullOrWhiteSpace(Model.TagNumber) || Model.MachineId == null)
+        if (string.IsNullOrWhiteSpace(text) || Model.MachineId == null)
         {
             _parentItem = null;
             _availablePickingListItems.Clear();
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
             return;
         }
 
         _isFetchingCoil = true;
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
 
         try
         {
-            var result = await WorkOrderService.GetPickingListItemsForWorkOrderAsync(Model.MachineCategory, Model.TagNumber);
+            var result = await WorkOrderService.GetPickingListItemsForWorkOrderAsync(Model.MachineCategory, text);
             _parentItem = result.ParentItem;
             _originalPickingListItems = result.AvailableItems;
 
-            if (Model.MachineCategory == MachineCategory.Slitter)
-            {
-                _availablePickingListItems = result.AvailableItems
-                    .OrderBy(i => i.PickingList?.Priority)
-                    .ThenBy(i => i.PickingList?.ShipDate)
-                    .ToList();
-            }
-            else
-            {
-                _availablePickingListItems = result.AvailableItems
-                    .OrderBy(i => i.ItemDescription)
-                    .ToList();
-            }
+            SortAvailableItems();
 
             if (_parentItem == null)
             {
@@ -252,7 +248,7 @@
         finally
         {
             _isFetchingCoil = false;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
         }
     }
 
