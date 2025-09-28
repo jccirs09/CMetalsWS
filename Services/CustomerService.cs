@@ -196,8 +196,13 @@ namespace CMetalsWS.Services
                     customer.ContactNumber = row.Dto.ContactNumber;
 
                     // Update address info from the spreadsheet
-                    customer.FullAddress = row.Dto.Address;
-                    ParseFullAddress(customer);
+                    customer.Street1 = row.Dto.Street1;
+                    customer.Street2 = row.Dto.Street2;
+                    customer.City = row.Dto.City;
+                    customer.Province = row.Dto.Province;
+                    customer.PostalCode = row.Dto.PostalCode;
+                    customer.Country = row.Dto.Country;
+                    customer.FullAddress = string.Join(", ", new[] { customer.Street1, customer.Street2, customer.City, customer.Province, customer.PostalCode, customer.Country }.Where(s => !string.IsNullOrWhiteSpace(s)));
 
                     customer.ModifiedUtc = DateTime.UtcNow;
                     await db.SaveChangesAsync(); // Commit each record individually for robustness
