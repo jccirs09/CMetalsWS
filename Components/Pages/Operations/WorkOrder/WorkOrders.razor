@@ -16,7 +16,7 @@
         </div>
         <MudStack Row="true" Spacing="2">
             <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/operations/workorder/process-queue"))" StartIcon="@Icons.Material.Filled.PlayCircleOutline">Process Orders</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo("/operations/workorder/create"))" StartIcon="@Icons.Material.Filled.Add">Create Work Order</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo("/operations/workorder/manage"))" StartIcon="@Icons.Material.Filled.Add">Create Work Order</MudButton>
         </MudStack>
     </div>
 
@@ -219,6 +219,6 @@
 
     private void ProcessOrder(WorkOrder order)
     {
-        Navigation.NavigateTo($"/operations/workorder/process/{order.Id}");
+        Navigation.NavigateTo($"/operations/workorder/manage/{order.Id}");
     }
 }
