@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CMetalsWS.Migrations
 {
     /// <inheritdoc />
-    public partial class initialcreate : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -249,6 +249,8 @@ namespace CMetalsWS.Migrations
                     Country = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
                     DestinationRegionId = table.Column<int>(type: "int", nullable: true),
                     DestinationGroupId = table.Column<int>(type: "int", nullable: true),
+                    MaxSkidCapacity = table.Column<int>(type: "int", nullable: true),
+                    MaxSlitCoilWeight = table.Column<int>(type: "int", nullable: true),
                     ReceivingHourStart = table.Column<TimeSpan>(type: "time", nullable: true),
                     ReceivingHourEnd = table.Column<TimeSpan>(type: "time", nullable: true),
                     ServiceTimeMinutes = table.Column<int>(type: "int", nullable: false),
@@ -325,8 +327,8 @@ namespace CMetalsWS.Migrations
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     LastUpdatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     LastUpdatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ScheduledStartDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ScheduledEndDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ScheduledStartDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ScheduledEndDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ActualStartDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ActualEndDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     Status = table.Column<int>(type: "int", nullable: false),

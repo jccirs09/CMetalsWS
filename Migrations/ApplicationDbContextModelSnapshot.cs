@@ -1348,10 +1348,10 @@ namespace CMetalsWS.Migrations
                     b.Property<int>("Priority")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("ScheduledEndDate")
+                    b.Property<DateTime?>("ScheduledEndDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime>("ScheduledStartDate")
+                    b.Property<DateTime?>("ScheduledStartDate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Shift")
