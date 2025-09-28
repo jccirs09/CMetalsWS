@@ -1,0 +1,91 @@
+@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Add Stock Item</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudSelect T="WorkOrderItem" Label="Use Template (Optional)" ValueChanged="OnTemplateChanged">
+            <MudSelectItem T="WorkOrderItem" Value="null">No Template</MudSelectItem>
+            @foreach(var item in WorkOrderItems)
+            {
+                <MudSelectItem T="WorkOrderItem" Value="item">@item.Description</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudGrid Class="mt-4">
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="StockItem.ItemCode" Label="Item Code" Required="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="StockItem.Description" Label="Description" Required="true" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudNumericField @bind-Value="StockItem.OrderQuantity" Label="Quantity" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudNumericField @bind-Value="StockItem.OrderWeight" Label="Weight" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudNumericField @bind-Value="StockItem.Width" Label="Width" />
+            </MudItem>
+             <MudItem xs="12" sm="4">
+                <MudNumericField @bind-Value="StockItem.Length" Label="Length" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Add Item</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public List<WorkOrderItem> WorkOrderItems { get; set; } = new();
+
+    [Parameter]
+    public InventoryItem ParentCoil { get; set; }
+
+    private WorkOrderItem StockItem { get; set; } = new();
+
+    protected override void OnInitialized()
+    {
+        StockItem = new WorkOrderItem
+        {
+            IsStockItem = true,
+            Status = WorkOrderItemStatus.Pending,
+            ItemCode = ParentCoil != null ? $"{ParentCoil.ItemId}-STOCK" : ""
+        };
+    }
+
+    private void OnTemplateChanged(WorkOrderItem template)
+    {
+        if (template != null)
+        {
+            StockItem.Description = template.Description;
+            StockItem.Width = template.Width;
+            StockItem.Length = template.Length;
+        }
+        else
+        {
+            StockItem.Description = "";
+            StockItem.Width = null;
+            StockItem.Length = null;
+        }
+    }
+
+    private void Submit()
+    {
+        if (!string.IsNullOrWhiteSpace(StockItem.ItemCode) && !string.IsNullOrWhiteSpace(StockItem.Description))
+        {
+            MudDialog.Close(DialogResult.Ok(StockItem));
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

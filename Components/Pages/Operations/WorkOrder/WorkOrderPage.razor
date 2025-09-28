@@ -149,7 +149,10 @@
                         </MudPaper>
 
                         <MudPaper Outlined="true" Class="pa-4">
-                            <MudText Typo="Typo.h6" GutterBottom="true">Work Order Line Items</MudText>
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.h6">Work Order Line Items</MudText>
+                                <MudButton Variant="Variant.Outlined" OnClick="OpenAddStockItemDialogAsync" StartIcon="@Icons.Material.Filled.Add">Add Stock Item</MudButton>
+                            </div>
                             @if (Model.Items.Any())
                             {
                                 <MudStack Spacing="2">
@@ -525,6 +528,7 @@
                 OriginalOrderLineItemId = plItem.Id.ToString()
             };
             Model.Items.Add(workOrderItem);
+            _remainingQuantities[plItem.Id] -= quantityToAdd;
             StateHasChanged();
         }
     }
@@ -532,7 +536,29 @@
     private void RemoveLineItem(WorkOrderItem item)
     {
         Model.Items.Remove(item);
+        if (item.PickingListItemId.HasValue)
+        {
+            _remainingQuantities[item.PickingListItemId.Value] += item.OrderQuantity ?? 0;
+        }
         StateHasChanged();
+    }
+
+    private async Task OpenAddStockItemDialogAsync()
+    {
+        var parameters = new DialogParameters
+        {
+            ["WorkOrderItems"] = Model.Items.Where(i => !i.IsStockItem).ToList(),
+            ["ParentCoil"] = _parentItem
+        };
+
+        var dialog = await DialogService.ShowAsync<AddStockItemDialog>("Add Stock Item", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is WorkOrderItem newStockItem)
+        {
+            Model.Items.Add(newStockItem);
+            StateHasChanged();
+        }
     }
 
     private async Task CreateWorkOrderAsync()
