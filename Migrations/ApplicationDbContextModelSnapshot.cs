@@ -464,6 +464,12 @@ namespace CMetalsWS.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<int?>("MaxSkidCapacity")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MaxSlitCoilWeight")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("ModifiedUtc")
                         .HasColumnType("datetime2");
 
