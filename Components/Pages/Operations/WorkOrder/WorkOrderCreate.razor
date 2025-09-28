@@ -189,7 +189,7 @@
                     Model.MachineCategory = machine.Category;
                     if (!string.IsNullOrWhiteSpace(Model.TagNumber))
                     {
-                        InvokeAsync(OnCoilTagChanged);
+                        InvokeAsync(() => OnCoilTagChanged(Model.TagNumber));
                     }
                 }
             }
@@ -199,7 +199,6 @@
                 _parentItem = null;
                 _availablePickingListItems.Clear();
             }
-            StateHasChanged();
         }
     }
 
@@ -214,7 +213,8 @@
 
     private async Task OnCoilTagChanged(string text)
     {
-        if (string.IsNullOrWhiteSpace(text) || Model.MachineId == null)
+        Model.TagNumber = text;
+        if (string.IsNullOrWhiteSpace(Model.TagNumber) || Model.MachineId == null)
         {
             _parentItem = null;
             _availablePickingListItems.Clear();
@@ -227,7 +227,7 @@
 
         try
         {
-            var result = await WorkOrderService.GetPickingListItemsForWorkOrderAsync(Model.MachineCategory, text);
+            var result = await WorkOrderService.GetPickingListItemsForWorkOrderAsync(Model.MachineCategory, Model.TagNumber);
             _parentItem = result.ParentItem;
             _originalPickingListItems = result.AvailableItems;
 
