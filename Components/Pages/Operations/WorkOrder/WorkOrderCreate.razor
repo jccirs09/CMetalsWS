@@ -103,7 +103,7 @@
                         <MudTd DataLabel="Item">@context.ItemDescription</MudTd>
                         <MudTd DataLabel="Dimensions">@($"{context.Width:N4} x {context.Length:N4}")</MudTd>
                         <MudTd DataLabel="Order Wt.">@($"{context.Weight:N0} lbs")</MudTd>
-                        <MudTd DataLabel="Due Date">@context.PickingList?.ShipDate.ToShortDateString()</MudTd>
+                        <MudTd DataLabel="Due Date">@(context.PickingList is not null ? context.PickingList.ShipDate.ToShortDateString() : string.Empty)</MudTd>
                         <MudTd DataLabel="Action">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => AddPickingListItemToWorkOrder(context))">Add</MudButton>
                         </MudTd>
@@ -219,7 +219,7 @@
                        Color="Color.Primary"
                        FullWidth="true"
                        OnClick="CreateWorkOrderAsync"
-                       Disabled="@(!Model.Items.Any() || Model.MachineId == null)">
+                       Disabled="@(!Model.Items.Any() || Model.MachineId == null || _isSaving)">
                 Create Work Order
             </MudButton>
         </MudPaper>
@@ -235,6 +235,7 @@
     private bool _isFetchingCoil = false;
     private string? _userId;
     private WorkOrderItem _newStockItem = new() { IsStockItem = true };
+    private bool _isSaving = false;
 
     private MachineCategory? _selectedMachineCategory;
     private MachineCategory? SelectedMachineCategory
@@ -289,8 +290,8 @@
             {
                 // For Slitter, order by priority then due date
                 _availablePickingListItems = result.AvailableItems
-                    .OrderBy(i => i.PickingList.Priority)
-                    .ThenBy(i => i.PickingList.ShipDate)
+                    .OrderBy(i => i.PickingList?.Priority)
+                    .ThenBy(i => i.PickingList?.ShipDate)
                     .ToList();
             }
             else
@@ -386,6 +387,9 @@
             return;
         }
 
+        _isSaving = true;
+        StateHasChanged();
+
         try
         {
             if (_parentItem != null)
@@ -403,6 +407,11 @@
         catch (Exception ex)
         {
             Snackbar.Add($"Error creating work order: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            StateHasChanged();
         }
     }
 }
