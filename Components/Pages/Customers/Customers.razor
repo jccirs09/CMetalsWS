@@ -53,9 +53,7 @@
             <MudTh><MudTableSortLabel SortLabel="CustomerName" T="Customer">Name</MudTableSortLabel></MudTh>
             <MudTh>Receiving Hours</MudTh>
             <MudTh><MudTableSortLabel SortLabel="ContactNumber" T="Customer">Contact Number</MudTableSortLabel></MudTh>
-            <MudTh>Street</MudTh>
-            <MudTh><MudTableSortLabel SortLabel="City" T="Customer">City</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortLabel="Province" T="Customer">Province</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="FullAddress" T="Customer">Address</MudTableSortLabel></MudTh>
             <MudTh><MudTableSortLabel SortLabel="DestinationGroup.Name" T="Customer">Group</MudTableSortLabel></MudTh>
             <MudTh><MudTableSortLabel SortLabel="DestinationRegion.Name" T="Customer">Region</MudTableSortLabel></MudTh>
             <MudTh><MudTableSortLabel SortLabel="Active" T="Customer">Status</MudTableSortLabel></MudTh>
@@ -68,9 +66,7 @@
             </MudTd>
             <MudTd DataLabel="Receiving Hours">@context.ReceivingHourStart?.ToString("hh\\:mm") - @context.ReceivingHourEnd?.ToString("hh\\:mm")</MudTd>
             <MudTd DataLabel="Contact Number">@context.ContactNumber</MudTd>
-            <MudTd DataLabel="Street">@context.Street1</MudTd>
-            <MudTd DataLabel="City">@context.City</MudTd>
-            <MudTd DataLabel="Province">@context.Province</MudTd>
+            <MudTd DataLabel="Address">@context.FullAddress</MudTd>
             <MudTd DataLabel="Group">@context.DestinationGroup?.Name</MudTd>
             <MudTd DataLabel="Region">@context.DestinationRegion?.Name</MudTd>
             <MudTd DataLabel="Status">
