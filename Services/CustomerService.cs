@@ -196,13 +196,8 @@ namespace CMetalsWS.Services
                     customer.ContactNumber = row.Dto.ContactNumber;
 
                     // Update address info from the spreadsheet
-                    customer.Street1 = row.Dto.Street1;
-                    customer.Street2 = row.Dto.Street2;
-                    customer.City = row.Dto.City;
-                    customer.Province = row.Dto.Province;
-                    customer.PostalCode = row.Dto.PostalCode;
-                    customer.Country = row.Dto.Country;
-                    customer.FullAddress = string.Join(", ", new[] { customer.Street1, customer.Street2, customer.City, customer.Province, customer.PostalCode, customer.Country }.Where(s => !string.IsNullOrWhiteSpace(s)));
+                    customer.FullAddress = row.Dto.Address;
+                    ParseFullAddress(customer);
 
                     customer.ModifiedUtc = DateTime.UtcNow;
                     await db.SaveChangesAsync(); // Commit each record individually for robustness
@@ -221,8 +216,6 @@ namespace CMetalsWS.Services
         {
             if (string.IsNullOrWhiteSpace(customer.FullAddress)) return;
 
-            var addressParts = customer.FullAddress.Split(',').Select(p => p.Trim()).ToList();
-
             // Reset fields
             customer.Street1 = null;
             customer.Street2 = null;
@@ -231,44 +224,51 @@ namespace CMetalsWS.Services
             customer.PostalCode = null;
             customer.Country = null;
 
+            var address = customer.FullAddress;
+
+            // 1. Extract Country from the end of the string
+            var countryRegex = new Regex(@"(,?\s*(?<country>USA|Canada))$", RegexOptions.IgnoreCase);
+            var countryMatch = countryRegex.Match(address);
+            if (countryMatch.Success)
+            {
+                customer.Country = countryMatch.Groups["country"].Value.ToUpper();
+                address = address.Substring(0, countryMatch.Index).Trim();
+            }
+
+            // 2. Extract Postal Code from the end of the remaining string
+            var postalCodeRegex = new Regex(@"(,?\s*(?<postal_code>(?<zip>\d{5}(?:-\d{4})?)|(?<postal>[A-Z]\d[A-Z]\s?\d[A-Z]\d)))$", RegexOptions.IgnoreCase | RegexOptions.RightToLeft);
+            var postalMatch = postalCodeRegex.Match(address);
+            if (postalMatch.Success)
+            {
+                customer.PostalCode = postalMatch.Groups["postal_code"].Value;
+                address = address.Substring(0, postalMatch.Index).Trim();
+            }
+
+            // 3. Split the rest by comma
+            var addressParts = address.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                      .Select(p => p.Trim())
+                                      .Where(p => !string.IsNullOrEmpty(p))
+                                      .ToList();
+
+            if (addressParts.Count == 0) return;
+
+            // 4. Province/State is likely the last part.
+            customer.Province = addressParts.Last();
+            addressParts.RemoveAt(addressParts.Count - 1);
+
+            if (addressParts.Count == 0) return;
+
+            // 5. City is now the last part.
+            customer.City = addressParts.Last();
+            addressParts.RemoveAt(addressParts.Count - 1);
+
             if (addressParts.Count > 0)
             {
+                // 6. The rest is street address.
                 customer.Street1 = addressParts[0];
-                addressParts.RemoveAt(0);
-            }
-
-            if (addressParts.Count > 0)
-            {
-                customer.City = addressParts[0];
-                addressParts.RemoveAt(0);
-            }
-
-            foreach(var part in addressParts)
-            {
-                // Canadian postal code
-                var postalCodeRegex = new Regex(@"\b[A-Z]\d[A-Z] ?\d[A-Z]\d\b", RegexOptions.IgnoreCase);
-                var match = postalCodeRegex.Match(part);
-                if (match.Success)
+                if (addressParts.Count > 1)
                 {
-                    customer.PostalCode = match.Value;
-                    var province = part.Replace(match.Value, "").Trim();
-                    if(!string.IsNullOrWhiteSpace(province))
-                    {
-                        customer.Province = province;
-                    }
-                    continue;
-                }
-
-                if (part.Equals("Canada", StringComparison.OrdinalIgnoreCase) || part.Equals("USA", StringComparison.OrdinalIgnoreCase))
-                {
-                    customer.Country = part;
-                    continue;
-                }
-
-                // If not postal code or country, it must be province.
-                if(string.IsNullOrWhiteSpace(customer.Province))
-                {
-                    customer.Province = part;
+                    customer.Street2 = string.Join(", ", addressParts.Skip(1));
                 }
             }
         }
