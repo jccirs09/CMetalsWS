@@ -18,5 +18,11 @@ namespace CMetalsWS.Models
 
         [ExcelColumnName("ContactNumber")]
         public string? ContactNumber { get; set; }
+
+        [ExcelColumnName("Latitude")]
+        public double? Latitude { get; set; }
+
+        [ExcelColumnName("Longitude")]
+        public double? Longitude { get; set; }
     }
 }

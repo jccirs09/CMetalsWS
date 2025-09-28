@@ -17,6 +17,9 @@ namespace CMetalsWS.Data
         [MaxLength(512)]
         public string? FullAddress { get; set; }
 
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+
         [MaxLength(100)]
         public string? BusinessHours { get; set; }
 

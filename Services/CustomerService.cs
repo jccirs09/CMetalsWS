@@ -151,7 +151,9 @@ namespace CMetalsWS.Services
                     CustomerName  = r.CustomerName?.Trim(),
                     FullAddress   = CleanAddress(r.FullAddress),
                     BusinessHours = r.BusinessHours?.Trim(),
-                    ContactNumber = r.ContactNumber?.Trim()
+                    ContactNumber = r.ContactNumber?.Trim(),
+                    Latitude = r.Latitude,
+                    Longitude = r.Longitude
                 })
                 .ToList();
 
@@ -205,6 +207,8 @@ namespace CMetalsWS.Services
                     customer!.CustomerName = row.Dto.CustomerName;
                     customer.BusinessHours = row.Dto.BusinessHours;
                     customer.ContactNumber = row.Dto.ContactNumber;
+                    customer.Latitude = row.Dto.Latitude;
+                    customer.Longitude = row.Dto.Longitude;
 
                     // Update address info from the spreadsheet
                     customer.FullAddress = row.Dto.FullAddress; // Already cleaned in PreviewImportAsync
