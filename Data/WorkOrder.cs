@@ -72,7 +72,10 @@ namespace CMetalsWS.Data
 
         [MaxLength(128)]
         public string? Operator { get; set; }
-
+        public decimal? ActualLbs { get; set; }
+        public bool IsMultiWorkOrder { get; set; }
+        public int TotalWorkOrders { get; set; } = 1;
+        public int WorkOrderSequence { get; set; } = 1;
         public ICollection<WorkOrderItem> Items { get; set; } = new List<WorkOrderItem>();
     }
 
@@ -81,7 +84,8 @@ namespace CMetalsWS.Data
         Pending,
         InProgress,
         Completed,
-        Error
+        Error,
+        Split
     }
 
     public class WorkOrderItem
@@ -93,6 +97,10 @@ namespace CMetalsWS.Data
 
         public int? PickingListItemId { get; set; }
         public PickingListItem? PickingListItem { get; set; }
+
+        public int CustomerId { get; set; }
+        [Precision(18, 2)]
+        public decimal CustomerMaxSkidCapacity { get; set; }
 
         [MaxLength(64)]
         public string ItemCode { get; set; } = default!;
@@ -106,8 +114,8 @@ namespace CMetalsWS.Data
         [MaxLength(128)]
         public string? CustomerName { get; set; }
 
-        public decimal? OrderQuantity { get; set; }
-        public decimal? OrderWeight { get; set; }
+        public decimal? PlannedQuantity { get; set; }
+        public decimal? PlannedWeight { get; set; }
 
         public decimal? Width { get; set; }
         public decimal? Length { get; set; }
@@ -126,5 +134,9 @@ namespace CMetalsWS.Data
 
         [MaxLength(64)]
         public string? OriginalOrderLineItemId { get; set; }
+
+        [MaxLength(64)]
+        public string? SplitReason { get; set; }
+        public bool ManuallyAdjusted { get; set; }
     }
 }

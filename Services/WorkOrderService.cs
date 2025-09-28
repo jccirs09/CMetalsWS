@@ -67,88 +67,164 @@ namespace CMetalsWS.Services
                 .FirstOrDefaultAsync(w => w.Id == id);
         }
 
-        public async Task<(InventoryItem? ParentItem, List<PickingListItem> AvailableItems)> GetPickingListItemsForWorkOrderAsync(MachineCategory machineCategory, string tagNumber)
+        public async Task<List<WorkOrder>> GenerateWorkOrdersForCreationAsync(WorkOrder masterWorkOrder, decimal coilWeight)
         {
             using var db = _dbContextFactory.CreateDbContext();
-            var taggedItem = await _inventoryService.GetByTagNumberAsync(tagNumber);
-            if (taggedItem == null)
-            {
-                throw new Exception($"Tag '{tagNumber}' not found in inventory.");
-            }
+            var generatedWorkOrders = new List<WorkOrder>();
+            var coilRemainingWeight = coilWeight;
+
+            var machine = await db.Machines.FindAsync(masterWorkOrder.MachineId) ?? throw new Exception("Machine not found");
+            var customers = await db.Customers.AsNoTracking().ToListAsync();
+            var taggedItem = await _inventoryService.GetByTagNumberAsync(masterWorkOrder.TagNumber) ?? throw new Exception("Tagged item not found");
 
             IQueryable<PickingListItem> query = db.PickingListItems
                 .Include(p => p.PickingList).ThenInclude(p => p.Customer)
-                .Include(p => p.Machine);
+                .Where(p => p.Status == PickingLineStatus.Pending || p.Status == PickingLineStatus.InProgress);
 
-            // Filter by the machine category selected in the first step.
-            query = query.Where(p => p.Machine != null && p.Machine.Category == machineCategory);
-
-            if (machineCategory == MachineCategory.Slitter)
+            if (machine.Category == MachineCategory.Slitter)
             {
                 query = query.Where(p => p.ItemId == taggedItem.ItemId);
             }
-            else // CTL
+            else
             {
-                // For CTL, the tagged item IS the parent coil. Find its children.
-                var childItems = await _itemRelationshipService.GetChildrenAsync(taggedItem.ItemId);
-                if (!childItems.Any())
-                {
-                    return (taggedItem, new List<PickingListItem>()); // No children, no items
-                }
-                var childItemIds = childItems.Select(c => c.ItemCode).ToList();
-
+                var childItemIds = (await _itemRelationshipService.GetChildrenAsync(taggedItem.ItemId)).Select(c => c.ItemCode).ToList();
+                if (!childItemIds.Any()) return generatedWorkOrders;
                 query = query.Where(p => childItemIds.Contains(p.ItemId));
             }
 
-            return (taggedItem, await query.AsNoTracking().ToListAsync());
+            var availableItems = await query.OrderBy(p => p.PickingList.CustomerId).ThenBy(p => p.Id).ToListAsync();
+            WorkOrder currentWorkOrder = null;
+
+            foreach (var lineItem in availableItems)
+            {
+                var customer = customers.FirstOrDefault(c => c.Id == lineItem.PickingList.CustomerId) ?? throw new Exception("Customer not found for picking list item");
+                var customerMaxSkidCapacity = customer.MaxSkidCapacity ?? machine.MaxSkidCapacity ?? 4000;
+                var remainingOrderWeight = lineItem.Weight ?? 0;
+
+                while (remainingOrderWeight > 0 && coilRemainingWeight > 0)
+                {
+                    if (currentWorkOrder == null || currentWorkOrder.Items.Any(i => i.CustomerId != customer.Id) || currentWorkOrder.Items.Sum(i => i.PlannedWeight ?? 0) >= customerMaxSkidCapacity)
+                    {
+                        currentWorkOrder = CreateNewWorkOrderFromMaster(masterWorkOrder);
+                        generatedWorkOrders.Add(currentWorkOrder);
+                    }
+
+                    var currentSkidWeight = currentWorkOrder.Items.Sum(i => i.PlannedWeight ?? 0);
+                    var availableSkidCapacity = customerMaxSkidCapacity - currentSkidWeight;
+
+                    var constrainedWeight = Math.Min(availableSkidCapacity, Math.Min(coilRemainingWeight, remainingOrderWeight));
+                    if (constrainedWeight <= 0) break;
+
+                    var unitWeight = (lineItem.Weight ?? 0) / (lineItem.Quantity > 0 ? lineItem.Quantity : 1);
+                    if (unitWeight <= 0) break;
+
+                    var plannedQuantity = Math.Floor(constrainedWeight / unitWeight);
+                    if (plannedQuantity == 0) break;
+                    var plannedWeight = plannedQuantity * unitWeight;
+
+                    string splitReason = null;
+                    if (plannedWeight < remainingOrderWeight)
+                    {
+                        splitReason = (currentSkidWeight + plannedWeight >= customerMaxSkidCapacity) ? "skid-capacity" : "coil-capacity";
+                    }
+
+                    currentWorkOrder.Items.Add(new WorkOrderItem
+                    {
+                        PickingListItemId = lineItem.Id,
+                        ItemCode = lineItem.ItemId,
+                        Description = lineItem.ItemDescription,
+                        SalesOrderNumber = lineItem.PickingList.SalesOrderNumber,
+                        CustomerId = customer.Id,
+                        CustomerName = customer.CustomerName,
+                        CustomerMaxSkidCapacity = customerMaxSkidCapacity,
+                        PlannedQuantity = plannedQuantity,
+                        PlannedWeight = plannedWeight,
+                        Status = WorkOrderItemStatus.Pending,
+                        SplitReason = splitReason
+                    });
+
+                    remainingOrderWeight -= plannedWeight;
+                    coilRemainingWeight -= plannedWeight;
+                }
+            }
+
+            generatedWorkOrders.RemoveAll(wo => !wo.Items.Any());
+            for (int i = 0; i < generatedWorkOrders.Count; i++)
+            {
+                generatedWorkOrders[i].WorkOrderSequence = i + 1;
+                generatedWorkOrders[i].TotalWorkOrders = generatedWorkOrders.Count;
+                generatedWorkOrders[i].IsMultiWorkOrder = generatedWorkOrders.Count > 1;
+            }
+
+            return generatedWorkOrders;
         }
 
-        public async Task<WorkOrder> CreateAsync(WorkOrder workOrder, string userId)
+        private WorkOrder CreateNewWorkOrderFromMaster(WorkOrder master)
+        {
+            return new WorkOrder
+            {
+                TagNumber = master.TagNumber,
+                MachineId = master.MachineId,
+                MachineCategory = master.MachineCategory,
+                DueDate = master.DueDate,
+                Instructions = master.Instructions,
+                Priority = master.Priority,
+                ParentItemId = master.ParentItemId,
+                Items = new List<WorkOrderItem>()
+            };
+        }
+
+        public async Task<List<WorkOrder>> CreateWorkOrdersAsync(List<WorkOrder> workOrders, string userId)
         {
             using var db = _dbContextFactory.CreateDbContext();
-            var user = await _userManager.FindByIdAsync(userId)
-                ?? throw new InvalidOperationException("User not found.");
-            if (!user.BranchId.HasValue)
-                throw new InvalidOperationException("User has no default branch assigned.");
-
-            workOrder.BranchId = user.BranchId.Value;
-            workOrder.WorkOrderNumber = await GenerateWorkOrderNumber(workOrder.BranchId);
+            var user = await _userManager.FindByIdAsync(userId) ?? throw new InvalidOperationException("User not found.");
+            if (!user.BranchId.HasValue) throw new InvalidOperationException("User has no default branch assigned.");
 
             var createdBy = user.UserName ?? user.Email ?? user.Id;
-            workOrder.CreatedBy = createdBy;
-            workOrder.CreatedDate = DateTime.UtcNow;
-            workOrder.LastUpdatedBy = createdBy;
-            workOrder.LastUpdatedDate = workOrder.CreatedDate;
 
-            if (workOrder.Status == 0)
-                workOrder.Status = WorkOrderStatus.Draft;
+            foreach (var workOrder in workOrders)
+            {
+                workOrder.BranchId = user.BranchId.Value;
+                workOrder.WorkOrderNumber = await GenerateWorkOrderNumber(workOrder.BranchId);
+                workOrder.CreatedBy = createdBy;
+                workOrder.CreatedDate = DateTime.UtcNow;
+                workOrder.LastUpdatedBy = createdBy;
+                workOrder.LastUpdatedDate = workOrder.CreatedDate;
+                workOrder.Status = WorkOrderStatus.Pending;
 
-            await AutoScheduleWorkOrder(db, workOrder);
+                await AutoScheduleWorkOrder(db, workOrder);
+                db.WorkOrders.Add(workOrder);
+            }
 
-            db.WorkOrders.Add(workOrder);
             await db.SaveChangesAsync();
 
-            await _auditEventService.CreateAuditEventAsync(workOrder.Id, TaskType.WorkOrder, AuditEventType.Create, userId, "Work Order created.");
-            await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+            foreach (var workOrder in workOrders)
+            {
+                await _auditEventService.CreateAuditEventAsync(workOrder.Id, TaskType.WorkOrder, AuditEventType.Create, userId, $"Work Order created (Part {workOrder.WorkOrderSequence}/{workOrder.TotalWorkOrders})");
+                await _hubContext.Clients.All.SendAsync("WorkOrderUpdated", workOrder.Id);
+            }
 
-            return workOrder;
+            return workOrders;
         }
 
         private async Task AutoScheduleWorkOrder(ApplicationDbContext db, WorkOrder workOrder)
         {
-            if (!workOrder.ScheduledStartDate.HasValue) return;
+            if (!workOrder.ScheduledStartDate.HasValue)
+            {
+                workOrder.ScheduledStartDate = DateTime.UtcNow;
+            };
 
             var machine = await db.Machines.FindAsync(workOrder.MachineId);
             if (machine == null) return;
 
-            var totalWeight = workOrder.Items.Sum(i => i.OrderWeight ?? 0);
-            if (totalWeight == 0 || machine.EstimatedLbsPerHour == 0)
+            var totalWeight = workOrder.Items.Sum(i => i.PlannedWeight ?? 0);
+            if (totalWeight == 0 || (machine.EstimatedLbsPerHour ?? 0) == 0)
             {
                 workOrder.ScheduledEndDate = workOrder.ScheduledStartDate.Value.AddHours(1); // Default duration
                 return;
             }
 
-            var durationHours = (double)(totalWeight / machine.EstimatedLbsPerHour);
+            var durationHours = (double)(totalWeight / machine.EstimatedLbsPerHour.Value);
             var duration = TimeSpan.FromHours(durationHours);
 
             var lastScheduledEnd = await db.WorkOrders
@@ -177,6 +253,7 @@ namespace CMetalsWS.Services
 
             var dueDateChanged = existing.DueDate.Date != workOrder.DueDate.Date;
 
+            // Update scalar properties
             existing.TagNumber = workOrder.TagNumber;
             existing.DueDate = workOrder.DueDate;
             existing.Instructions = workOrder.Instructions;
@@ -185,9 +262,14 @@ namespace CMetalsWS.Services
             existing.Priority = workOrder.Priority;
             existing.Shift = workOrder.Shift;
             existing.Status = workOrder.Status;
+            existing.ActualLbs = workOrder.ActualLbs;
+            existing.IsMultiWorkOrder = workOrder.IsMultiWorkOrder;
+            existing.TotalWorkOrders = workOrder.TotalWorkOrders;
+            existing.WorkOrderSequence = workOrder.WorkOrderSequence;
             existing.LastUpdatedBy = updatedBy;
             existing.LastUpdatedDate = DateTime.UtcNow;
 
+            // Sync items
             var incomingItemIds = workOrder.Items.Select(i => i.Id).ToHashSet();
             var itemsToRemove = existing.Items.Where(i => i.Id != 0 && !incomingItemIds.Contains(i.Id)).ToList();
             db.WorkOrderItems.RemoveRange(itemsToRemove);
@@ -197,13 +279,16 @@ namespace CMetalsWS.Services
                 var existingItem = item.Id == 0 ? null : existing.Items.FirstOrDefault(i => i.Id == item.Id);
                 if (existingItem == null)
                 {
-                    // This is a new item, add it to the tracked collection
                     existing.Items.Add(item);
                 }
                 else
                 {
-                    // This is an existing item, update its values
-                    db.Entry(existingItem).CurrentValues.SetValues(item);
+                    existingItem.PlannedQuantity = item.PlannedQuantity;
+                    existingItem.PlannedWeight = item.PlannedWeight;
+                    existingItem.ProducedQuantity = item.ProducedQuantity;
+                    existingItem.ProducedWeight = item.ProducedWeight;
+                    existingItem.ManuallyAdjusted = item.ManuallyAdjusted;
+                    existingItem.Status = item.Status;
                 }
             }
 
