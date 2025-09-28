@@ -37,11 +37,11 @@
                 <div>
                     <div class="d-flex align-center gap-2">
                         <MudText Typo="Typo.h5">@_headerTitle</MudText>
-                        <MudChip Text="@Model.Status.ToString()" Color="@GetStatusColor(Model.Status)" Size="Size.Small" />
-                        <MudChip Text="@Model.Priority.ToString()" Color="@GetPriorityColor(Model.Priority)" Size="Size.Small" />
+                        <MudChip T="string" Text="@Model.Status.ToString()" Color="@GetStatusColor(Model.Status)" Size="Size.Small" />
+                        <MudChip T="string" Text="@Model.Priority.ToString()" Color="@GetPriorityColor(Model.Priority)" Size="Size.Small" />
                         @if (Model.IsMultiWorkOrder)
                         {
-                            <MudChip Label="true" Text="@($"Multi WO {Model.WorkOrderSequence}/{Model.TotalWorkOrders}")" Color="Color.Warning" Size="Size.Small" />
+                            <MudChip T="string" Label="true" Text="@($"Multi WO {Model.WorkOrderSequence}/{Model.TotalWorkOrders}")" Color="Color.Warning" Size="Size.Small" />
                         }
                     </div>
                     <MudText Typo="Typo.body2" Class="text-muted">@_headerSubtitle</MudText>
@@ -110,8 +110,8 @@
                         <MudCardContent>
                             <MudGrid>
                                 <MudItem xs="12" md="6">
-                                    <MudSelect T="int?" @bind-Value="Model.MachineId" Label="Production Machine *" For="@(() => Model.MachineId)"
-                                               Disabled="@(Mode == "process")" ValueChanged="OnMachineSelected">
+                                    <MudSelect T="int?" Value="Model.MachineId" ValueChanged="OnMachineSelected" Label="Production Machine *" For="@(() => Model.MachineId)"
+                                               Disabled="@(Mode == "process")">
                                         @foreach (var machine in _machines)
                                         {
                                             <MudSelectItem T="int?" Value="@machine.Id">@machine.Name</MudSelectItem>
@@ -158,8 +158,8 @@
                                              <MudText Typo="Typo.body1"><b>@item.Description</b></MudText>
                                              <MudText Typo="Typo.body2" Class="text-muted">@item.CustomerName - @item.SalesOrderNumber</MudText>
                                              <MudGrid Class="mt-2">
-                                                <MudItem xs="6" sm="3"><MudNumericField Value="item.PlannedQuantity" Label="Qty (pcs)" Variant="Variant.Outlined" Margin="Margin.Dense" ReadOnly="true"/></MudItem>
-                                                <MudItem xs="6" sm="3"><MudNumericField Value="item.PlannedWeight" Label="Weight (lbs)" Variant="Variant.Outlined" Margin="Margin.Dense" ReadOnly="true"/></MudItem>
+                                                <MudItem xs="6" sm="3"><MudNumericField T="decimal?" Value="item.PlannedQuantity" Label="Qty (pcs)" Variant="Variant.Outlined" Margin="Margin.Dense" ReadOnly="true"/></MudItem>
+                                                <MudItem xs="6" sm="3"><MudNumericField T="decimal?" Value="item.PlannedWeight" Label="Weight (lbs)" Variant="Variant.Outlined" Margin="Margin.Dense" ReadOnly="true"/></MudItem>
                                             </MudGrid>
                                         </MudPaper>
                                     }
@@ -193,11 +193,11 @@
                                                 <div class="d-flex gap-2">
                                                     @if(item.ManuallyAdjusted)
                                                     {
-                                                        <MudChip Size="Size.Small" Variant="Variant.Outlined" Color="Color.Success">Manual</MudChip>
+                                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Success">Manual</MudChip>
                                                     }
                                                     @if(!string.IsNullOrEmpty(item.SplitReason))
                                                     {
-                                                        <MudChip Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning">@item.SplitReason</MudChip>
+                                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning">@item.SplitReason</MudChip>
                                                     }
                                                 </div>
                                             </div>
@@ -206,12 +206,10 @@
                                             {
                                                 <MudGrid Class="mt-2">
                                                     <MudItem xs="6" sm="3">
-                                                        <MudNumericField @bind-Value="item.PlannedQuantity" Label="Qty (pcs)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0"
-                                                                         ValueChanged="(val) => UpdateLineItemQuantity(item, val)" />
+                                                        <MudNumericField T="decimal?" Value="item.PlannedQuantity" ValueChanged="(val) => UpdateLineItemQuantity(item, val)" Label="Qty (pcs)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                                                     </MudItem>
                                                      <MudItem xs="6" sm="3">
-                                                        <MudNumericField @bind-Value="item.PlannedWeight" Label="Weight (lbs)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0"
-                                                                         ValueChanged="(val) => UpdateLineItemWeight(item, val)" />
+                                                        <MudNumericField T="decimal?" Value="item.PlannedWeight" ValueChanged="(val) => UpdateLineItemWeight(item, val)" Label="Weight (lbs)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                                                     </MudItem>
                                                 </MudGrid>
                                             }
@@ -229,10 +227,10 @@
                             <MudGrid>
                                 <MudItem xs="12" sm="6"><MudTextField @bind-Value="_newStockItem.ItemCode" Label="Item Code" Required="true" /></MudItem>
                                 <MudItem xs="12" sm="6"><MudTextField @bind-Value="_newStockItem.Description" Label="Description" Required="true" /></MudItem>
-                                <MudItem xs="12" sm="3"><MudNumericField @bind-Value="_newStockItem.Width" Label="Width" /></MudItem>
-                                <MudItem xs="12" sm="3"><MudNumericField @bind-Value="_newStockItem.Length" Label="Length" /></MudItem>
-                                <MudItem xs="12" sm="3"><MudNumericField @bind-Value="_newStockItem.PlannedQuantity" Label="Quantity" /></MudItem>
-                                <MudItem xs="12" sm="3"><MudNumericField @bind-Value="_newStockItem.PlannedWeight" Label="Weight" /></MudItem>
+                                <MudItem xs="12" sm="3"><MudNumericField T="decimal?" @bind-Value="_newStockItem.Width" Label="Width" /></MudItem>
+                                <MudItem xs="12" sm="3"><MudNumericField T="decimal?" @bind-Value="_newStockItem.Length" Label="Length" /></MudItem>
+                                <MudItem xs="12" sm="3"><MudNumericField T="decimal?" @bind-Value="_newStockItem.PlannedQuantity" Label="Quantity" /></MudItem>
+                                <MudItem xs="12" sm="3"><MudNumericField T="decimal?" @bind-Value="_newStockItem.PlannedWeight" Label="Weight" /></MudItem>
                             </MudGrid>
                         </MudCardContent>
                         <MudCardActions>
@@ -253,7 +251,7 @@
                                 <tbody>
                                     <tr>
                                         <td>Total Weight:</td>
-                                        <td><b>@Model.Items.Sum(i => i.PlannedWeight ?? 0).ToString("N0") lbs</b></td>
+                                        <td><b>@_summaryTotalWeight.ToString("N0") lbs</b></td>
                                     </tr>
                                     <tr>
                                         <td>Est. Duration:</td>
@@ -283,20 +281,20 @@
                     </MudCard>
 
                      <!-- Split Analysis -->
-                    @if (Model.Items.Any(i => !string.IsNullOrEmpty(i.SplitReason) || i.ManuallyAdjusted))
+                    @if ((Mode == "create" ? _generatedWorkOrders.SelectMany(wo => wo.Items) : Model.Items).Any(i => !string.IsNullOrEmpty(i.SplitReason) || i.ManuallyAdjusted))
                     {
                         <MudCard>
                             <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Split & Edit Analysis</MudText></CardHeaderContent></MudCardHeader>
                             <MudCardContent>
-                                @if (Model.Items.Any(i => i.SplitReason == "skid-capacity"))
+                                @if ((Mode == "create" ? _generatedWorkOrders.SelectMany(wo => wo.Items) : Model.Items).Any(i => i.SplitReason == "skid-capacity"))
                                 {
                                     <MudAlert Severity="Severity.Info" Class="mb-2">Split by Customer Skid Capacity</MudAlert>
                                 }
-                                @if (Model.Items.Any(i => i.SplitReason == "coil-capacity"))
+                                @if ((Mode == "create" ? _generatedWorkOrders.SelectMany(wo => wo.Items) : Model.Items).Any(i => i.SplitReason == "coil-capacity"))
                                 {
                                     <MudAlert Severity="Severity.Warning" Class="mb-2">Split by Coil Capacity</MudAlert>
                                 }
-                                @if (Model.Items.Any(i => i.ManuallyAdjusted))
+                                @if ((Mode == "create" ? _generatedWorkOrders.SelectMany(wo => wo.Items) : Model.Items).Any(i => i.ManuallyAdjusted))
                                 {
                                     <MudAlert Severity="Severity.Success">Items Manually Adjusted</MudAlert>
                                 }
@@ -330,6 +328,7 @@
     private List<PickingListItem> _originalPickingListItems = new();
     private List<TaskAuditEvent> _auditEvents = new();
     private WorkOrderItem _newStockItem = new() { IsStockItem = true };
+    private decimal _summaryTotalWeight = 0;
 
     // Processing fields
     private System.Timers.Timer? _timer;
@@ -364,7 +363,8 @@
         }
 
         _machines = (await MachineService.GetMachinesAsync()).Where(m => m.IsActive && (m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter)).ToList();
-        _customers = await CustomerService.GetCustomersAsync();
+        var customerResult = await CustomerService.GetCustomersAsync(page: 1, pageSize: 10000, searchTerm: null, sortField: "CustomerName", country: null, active: true, sortDir: "false", hasCoordinates: false);
+        _customers = customerResult.Customers.ToList();
         UpdateSidebar();
 
         _isLoading = false;
@@ -412,7 +412,6 @@
                 Snackbar.Add($"Generated {_generatedWorkOrders.Count} work order(s) based on capacity.", Severity.Success);
             }
 
-            // Fetch original picking list items for validation in create mode
             var originalItemIds = _generatedWorkOrders.SelectMany(wo => wo.Items).Select(i => i.PickingListItemId ?? 0).Where(id => id != 0).ToList();
             _originalPickingListItems = await PickingListService.GetItemsByIdsAsync(originalItemIds);
 
@@ -427,8 +426,7 @@
         var originalLineItem = _originalPickingListItems.FirstOrDefault(i => i.Id == item.PickingListItemId);
         if (originalLineItem == null && Mode == "create")
         {
-            // In create mode, we don't have original items fetched yet, so we can't validate yet.
-            // This logic will be handled by the service on creation.
+            // This case should be handled by the logic that pre-fetches original items
         }
         else if (originalLineItem != null)
         {
@@ -438,8 +436,11 @@
                 item.PlannedQuantity = originalLineItem.Quantity; // Revert
                 return;
             }
-            var unitWeight = originalLineItem.Weight / originalLineItem.Quantity;
-            item.PlannedWeight = newQuantity * unitWeight;
+            if (originalLineItem.Quantity > 0)
+            {
+                var unitWeight = originalLineItem.Weight / originalLineItem.Quantity;
+                item.PlannedWeight = newQuantity * unitWeight;
+            }
         }
 
         item.PlannedQuantity = newQuantity;
@@ -456,10 +457,32 @@
             return;
         }
 
-        Model.Items.Add(_newStockItem);
-        _newStockItem = new() { IsStockItem = true }; // Reset for next entry
+        var targetWorkOrder = Mode == "create" ? _generatedWorkOrders.FirstOrDefault() : Model;
+        if (targetWorkOrder == null && Mode == "create")
+        {
+            targetWorkOrder = CreateNewWorkOrderFromMaster(Model);
+            _generatedWorkOrders.Add(targetWorkOrder);
+        }
+
+        targetWorkOrder.Items.Add(_newStockItem);
+        _newStockItem = new() { IsStockItem = true };
         UpdateSidebar();
         StateHasChanged();
+    }
+
+    private WorkOrder CreateNewWorkOrderFromMaster(WorkOrder master)
+    {
+        return new WorkOrder
+        {
+            TagNumber = master.TagNumber,
+            MachineId = master.MachineId,
+            MachineCategory = master.MachineCategory,
+            DueDate = master.DueDate,
+            Instructions = master.Instructions,
+            Priority = master.Priority,
+            ParentItemId = master.ParentItemId,
+            Items = new List<WorkOrderItem>()
+        };
     }
 
     private void UpdateLineItemWeight(WorkOrderItem item, decimal? newWeight)
@@ -473,10 +496,13 @@
                 item.PlannedWeight = originalLineItem.Weight; // Revert
                 return;
             }
-            var unitWeight = originalLineItem.Weight / originalLineItem.Quantity;
-            if (unitWeight > 0)
+            if(originalLineItem.Quantity > 0)
             {
-                item.PlannedQuantity = Math.Floor(newWeight.Value / unitWeight.Value);
+                var unitWeight = originalLineItem.Weight / originalLineItem.Quantity;
+                if (unitWeight > 0)
+                {
+                    item.PlannedQuantity = Math.Floor(newWeight.Value / unitWeight.Value);
+                }
             }
         }
 
@@ -488,7 +514,25 @@
 
     private void RemoveLineItem(WorkOrderItem item)
     {
-        Model.Items.Remove(item);
+        if(Mode == "create")
+        {
+            foreach(var wo in _generatedWorkOrders)
+            {
+                if(wo.Items.Contains(item))
+                {
+                    wo.Items.Remove(item);
+                    if (!wo.Items.Any())
+                    {
+                        _generatedWorkOrders.Remove(wo);
+                    }
+                    break;
+                }
+            }
+        }
+        else
+        {
+            Model.Items.Remove(item);
+        }
         UpdateSidebar();
         StateHasChanged();
     }
@@ -503,9 +547,9 @@
             .Distinct()
             .ToList();
 
-        var totalWeight = allItems.Sum(i => i.PlannedWeight ?? 0);
+        _summaryTotalWeight = allItems.Sum(i => i.PlannedWeight ?? 0);
         var machineRate = _machines.FirstOrDefault(m => m.Id == Model.MachineId)?.EstimatedLbsPerHour ?? 0;
-        _estDuration = machineRate > 0 ? (totalWeight / machineRate) * 60 : 0;
+        _estDuration = machineRate > 0 ? (_summaryTotalWeight / machineRate) * 60 : 0;
     }
 
     private async Task SaveWorkOrder()
@@ -515,9 +559,10 @@
         {
             if (Mode == "create")
             {
-                if (!_generatedWorkOrders.Any())
+                 if (!_generatedWorkOrders.Any())
                 {
                     Snackbar.Add("No work orders to create.", Severity.Warning);
+                    _isSaving = false;
                     return;
                 }
                 await WorkOrderService.CreateWorkOrdersAsync(_generatedWorkOrders, _userId);
@@ -596,7 +641,8 @@
 
     private async Task CompleteWorkOrder()
     {
-        var parameters = new DialogParameters<CompleteWorkOrderDialog> { { x => x.WorkOrder, Model } };
+        var parameters = new DialogParameters();
+        parameters.Add("WorkOrder", Model);
         var dialog = await DialogService.ShowAsync<CompleteWorkOrderDialog>("Complete Work Order", parameters);
         var result = await dialog.Result;
 
