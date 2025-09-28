@@ -99,7 +99,6 @@
                                 <MudAlert Severity="Severity.Success" Class="mt-4">
                                     <div class="d-flex justify-space-between">
                                         <div><b>Master Coil Found:</b> @Model.TagNumber</div>
-                                        <div><b>Grade/Gauge:</b> @_parentItem.Grade</div>
                                         <div><b>Size/Weight:</b> @_parentItem.Width" - @_parentItem.Snapshot?.ToString("N0") lbs</div>
                                     </div>
                                 </MudAlert>
@@ -192,7 +191,7 @@
                                     </MudSelect>
                                 </MudItem>
                                 <MudItem xs="12" md="6">
-                                    <MudDatePicker @bind-Date="Model.DueDate" Label="Scheduled Date" Variant="Variant.Outlined" />
+                                    <MudDatePicker Date="Model.DueDate" DateChanged="SetDueDate" Label="Scheduled Date" Variant="Variant.Outlined" />
                                 </MudItem>
                             </MudGrid>
                         </MudPaper>
@@ -274,33 +273,33 @@
                                 </CardHeaderContent>
                             </MudCardHeader>
                             <MudCardContent>
-                                <MudList>
-                                    <MudListItem>
+                                <MudList T="object">
+                                    <MudListItem T="object">
                                         <div class="d-flex justify-space-between w-100">
                                             <span>Machine</span>
                                             <b>@(Model.MachineId.HasValue ? _machines.FirstOrDefault(m => m.Id == Model.MachineId.Value)?.Name : "N/A")</b>
                                         </div>
                                     </MudListItem>
-                                    <MudListItem>
+                                    <MudListItem T="object">
                                         <div class="d-flex justify-space-between w-100">
                                             <span>Coil Tag</span>
                                             <b>@(string.IsNullOrEmpty(Model.TagNumber) ? "N/A" : Model.TagNumber)</b>
                                         </div>
                                     </MudListItem>
-                                    <MudListItem>
+                                    <MudListItem T="object">
                                         <div class="d-flex justify-space-between w-100">
                                             <span>Priority</span>
-                                            <MudChip Text="@Model.Priority.ToString()" Color="@GetPriorityColor(Model.Priority)" Size="Size.Small" />
+                                            <MudChip T="string" Text="@Model.Priority.ToString()" Color="@GetPriorityColor(Model.Priority)" Size="Size.Small" />
                                         </div>
                                     </MudListItem>
                                     <MudDivider Class="my-2" />
-                                    <MudListItem>
+                                    <MudListItem T="object">
                                         <div class="d-flex justify-space-between w-100">
                                             <span>Line Items</span>
                                             <b>@Model.Items.Count</b>
                                         </div>
                                     </MudListItem>
-                                    <MudListItem>
+                                    <MudListItem T="object">
                                         <div class="d-flex justify-space-between w-100">
                                             <span>Total Weight</span>
                                             <b>@Model.Items.Sum(i => i.OrderWeight ?? 0).ToString("N0") lbs</b>
@@ -448,6 +447,14 @@
             }
         }
     }
+
+private void SetDueDate(DateTime? newDate)
+{
+    if (newDate.HasValue)
+    {
+        Model.DueDate = newDate.Value;
+    }
+}
 
     private async Task FetchPickingListItemsAsync()
     {
