@@ -14,10 +14,12 @@ namespace CMetalsWS.Services
     public class CustomerService
     {
         private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
+        private readonly RegionAssignmentService _regionAssignmentService;
 
-        public CustomerService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
+        public CustomerService(IDbContextFactory<ApplicationDbContext> dbContextFactory, RegionAssignmentService regionAssignmentService)
         {
             _dbContextFactory = dbContextFactory;
+            _regionAssignmentService = regionAssignmentService;
         }
 
         public async Task<Customer?> GetByIdAsync(int id)
@@ -175,6 +177,12 @@ namespace CMetalsWS.Services
         {
             var report = new CustomerImportReport { TotalRows = importRows.Count };
             var _random = new Random();
+
+            // Pre-fetch lookups for efficiency
+            await using var dbForLookups = _dbContextFactory.CreateDbContext();
+            var allRegions = await dbForLookups.DestinationRegions.AsNoTracking().ToDictionaryAsync(r => r.Name, r => r.Id, StringComparer.OrdinalIgnoreCase);
+            var allGroups = await dbForLookups.DestinationGroups.AsNoTracking().ToDictionaryAsync(g => g.Name, g => g.Id, StringComparer.OrdinalIgnoreCase);
+
             foreach (var row in importRows)
             {
                 try
@@ -193,13 +201,6 @@ namespace CMetalsWS.Services
                     if (isNew)
                     {
                         customer = new Customer { CustomerCode = row.Dto.CustomerCode, CreatedUtc = DateTime.UtcNow };
-
-                        // Add random max skid weight capacity between 1500 to 6000 lbs in increments of 500 lbs
-                        customer.MaxSkidCapacity = _random.Next(3, 13) * 500; // 1500 to 6000
-
-                        // Add random max slit coil weight from 1000 to 4000 lbs in increments of 500 lbs
-                        customer.MaxSlitCoilWeight = _random.Next(2, 9) * 500; // 1000 to 4000
-
                         db.Customers.Add(customer);
                     }
 
@@ -218,6 +219,18 @@ namespace CMetalsWS.Services
                     if (string.IsNullOrWhiteSpace(customer.FullAddress))
                     {
                         report.Errors.Add($"INFO: No FullAddress for {row.Dto.CustomerCode} - {row.Dto.CustomerName}. Skipped parsing.");
+                    }
+
+                    // Assign Destination Region and Group
+                    var regionName = _regionAssignmentService.GetRegionName(customer.City, customer.Province);
+                    if (allRegions.TryGetValue(regionName, out var regionId))
+                    {
+                        customer.DestinationRegionId = regionId;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(customer.City) && allGroups.TryGetValue(customer.City, out var groupId))
+                    {
+                        customer.DestinationGroupId = groupId;
                     }
 
                     customer.ModifiedUtc = DateTime.UtcNow;

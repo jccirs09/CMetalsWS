@@ -120,6 +120,7 @@ builder.Services.AddScoped<PickingListService>();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<ItemRelationshipService>();
 builder.Services.AddTransient<IdentityDataSeeder>();
+builder.Services.AddTransient<DestinationDataSeeder>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<LoadService>();
 builder.Services.AddScoped<CustomerService>();
@@ -127,6 +128,7 @@ builder.Services.AddScoped<ITaskAuditEventService, TaskAuditEventService>();
 builder.Services.AddScoped<DestinationGroupService>();
 builder.Services.AddScoped<DestinationRegionService>();
 builder.Services.AddScoped<WorkOrderService>();
+builder.Services.AddSingleton<RegionAssignmentService>();
 
 // Picking List PDF Parser
 builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();
@@ -151,8 +153,11 @@ var app = builder.Build();
 // Seed roles, permission claims, and admin user
 using (var scope = app.Services.CreateScope())
 {
-    var seeder = scope.ServiceProvider.GetRequiredService<IdentityDataSeeder>();
-    await seeder.SeedAsync();
+    var identitySeeder = scope.ServiceProvider.GetRequiredService<IdentityDataSeeder>();
+    await identitySeeder.SeedAsync();
+
+    var destinationSeeder = scope.ServiceProvider.GetRequiredService<DestinationDataSeeder>();
+    await destinationSeeder.SeedAsync();
 }
 
 // Pipeline
