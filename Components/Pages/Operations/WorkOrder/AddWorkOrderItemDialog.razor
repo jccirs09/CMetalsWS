@@ -1,4 +1,5 @@
 @using CMetalsWS.Data
+@using MudBlazor
 
 <MudDialog>
     <TitleContent>
@@ -8,7 +9,7 @@
         @if (PickingListItem != null)
         {
             <MudText><b>Item:</b> @PickingListItem.ItemDescription</MudText>
-            <MudText Class="mt-2"><b>Total Required:</b> @PickingListItem.Quantity?.ToString("N0") @PickingListItem.Unit</MudText>
+            <MudText Class="mt-2"><b>Total Required:</b> @PickingListItem.Quantity.ToString("N0") @PickingListItem.Unit</MudText>
             <MudText><b>Remaining:</b> @RemainingQuantity.ToString("N0") @PickingListItem.Unit</MudText>
 
             <MudNumericField @bind-Value="QuantityToAdd" Label="Quantity to Add" Variant="Variant.Outlined" Min="1" Max="@RemainingQuantity" Required="true" Class="mt-4" />
@@ -22,7 +23,7 @@
 
 @code {
     [CascadingParameter]
-    MudDialogInstance MudDialog { get; set; }
+    public IMudDialogInstance MudDialog { get; set; }
 
     [Parameter]
     public PickingListItem PickingListItem { get; set; }
