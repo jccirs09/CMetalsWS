@@ -191,12 +191,12 @@ namespace CMetalsWS.Services
                     }
 
                     // Always update basic info from the spreadsheet
-                    customer!.CustomerName = row.Dto.CustomerName;
-                    customer.BusinessHours = row.Dto.BusinessHours;
-                    customer.ContactNumber = row.Dto.ContactNumber;
+                    customer!.CustomerName = row.Dto.CustomerName?.Trim();
+                    customer.BusinessHours = row.Dto.BusinessHours?.Trim();
+                    customer.ContactNumber = row.Dto.ContactNumber?.Trim();
 
                     // Update address info from the spreadsheet
-                    customer.FullAddress = row.Dto.Address;
+                    customer.FullAddress = row.Dto.FullAddress?.Trim();
                     ParseFullAddress(customer);
 
                     customer.ModifiedUtc = DateTime.UtcNow;
