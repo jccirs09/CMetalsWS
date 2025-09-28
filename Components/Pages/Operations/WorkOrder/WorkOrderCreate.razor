@@ -28,13 +28,9 @@
                 <MudText Color="Color.Dark" GutterBottom="true">Select production machine and enter coil tag number for automatic order matching</MudText>
 
                 <MudSelect T="int?" Label="Production Machine *" @bind-Value="SelectedMachineId" For="@(() => SelectedMachineId)" Class="mt-4">
-                    @foreach (var group in _groupedMachines)
+                    @foreach (var machine in _productionMachines)
                     {
-                        <MudListSubheader>@group.Key</MudListSubheader>
-                        @foreach (var machine in group)
-                        {
-                            <MudSelectItem T="int?" Value="@machine.Id">@machine.Name</MudSelectItem>
-                        }
+                        <MudSelectItem T="int?" Value="@machine.Id">@($"{machine.Name} ({machine.Category})")</MudSelectItem>
                     }
                 </MudSelect>
 
@@ -166,7 +162,6 @@
 @code {
     private WorkOrder Model { get; set; } = new();
     private List<Machine> _productionMachines = new();
-    private IGrouping<MachineCategory, Machine>[] _groupedMachines = Array.Empty<IGrouping<MachineCategory, Machine>>();
     private List<PickingListItem> _availablePickingListItems = new();
     private List<PickingListItem> _originalPickingListItems = new();
     private InventoryItem? _parentItem;
@@ -192,6 +187,10 @@
                 if (machine != null)
                 {
                     Model.MachineCategory = machine.Category;
+                    if (!string.IsNullOrWhiteSpace(Model.TagNumber))
+                    {
+                        InvokeAsync(OnCoilTagChanged);
+                    }
                 }
             }
             else
@@ -200,6 +199,7 @@
                 _parentItem = null;
                 _availablePickingListItems.Clear();
             }
+            StateHasChanged();
         }
     }
 
@@ -210,7 +210,6 @@
         _userId = user?.Id;
 
         _productionMachines = await MachineService.GetProductionMachinesAsync();
-        _groupedMachines = _productionMachines.GroupBy(m => m.Category).ToArray();
     }
 
     private async Task OnCoilTagChanged(string text)
