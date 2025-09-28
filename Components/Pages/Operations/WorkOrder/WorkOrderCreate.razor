@@ -31,8 +31,7 @@
                     <MudText Typo="Typo.h6" GutterBottom="true">1. Machine & Master Coil</MudText>
                     <MudGrid>
                         <MudItem xs="12" sm="6">
-                            <MudSelect T="int?" Label="Production Machine" @bind-Value="Model.MachineId" For="@(() => Model.MachineId)" Required="true" RequiredError="Machine is required."
-                                       ValueChanged="OnMachineSelected">
+                            <MudSelect T="int?" Label="Production Machine" @bind-Value="SelectedMachineId" For="@(() => Model.MachineId)" Required="true" RequiredError="Machine is required.">
                                 @foreach (var machine in _machines)
                                 {
                                     <MudSelectItem T="int?" Value="@machine.Id">@machine.Name</MudSelectItem>
@@ -40,7 +39,7 @@
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" sm="6">
-                            <MudTextField T="string" Label="Master Coil Tag" Value="_coilTagSearch" ValueChanged="OnCoilTagInput" Disabled="@(Model.MachineId == null)"
+                            <MudTextField T="string" Label="Master Coil Tag" @bind-Value="CoilTagSearchText" Disabled="@(Model.MachineId == null)"
                                           Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" HelperText="Type to search automatically."/>
                         </MudItem>
                     </MudGrid>
@@ -73,7 +72,7 @@
                 <!-- Section 3: Picking Items -->
                 <MudPaper Class="pa-4">
                     <MudText Typo="Typo.h6" GutterBottom="true">2. Available Picking Items</MudText>
-                    <MudTable Items="@_availablePickingListItems" T="PickingListItem" MultiSelection="true" @bind-SelectedItems="_selectedPickingListItems" SelectedItemsChanged="@((HashSet<PickingListItem> items) => UpdateWorkOrderItems())" Hover="true" Dense="true" MaxHeight="400">
+                    <MudTable Items="@_availablePickingListItems" T="PickingListItem" MultiSelection="true" @bind-SelectedItems="SelectedPickingListItems" Hover="true" Dense="true" MaxHeight="400">
                         <HeaderContent>
                             <MudTh>SO#</MudTh>
                             <MudTh>Item</MudTh>
@@ -185,7 +184,7 @@
     private Machine? _selectedMachine;
     private InventoryItem? _parentItem;
     private List<PickingListItem> _availablePickingListItems = new();
-    private HashSet<PickingListItem> _selectedPickingListItems { get; set; } = new();
+    private HashSet<PickingListItem> _selectedPickingListItems = new();
     private WorkOrderItem _newStockItem = new() { IsStockItem = true };
 
     private bool _isFetchingCoil = false;
@@ -193,6 +192,40 @@
     private string? _userId;
     private Timer _debounceTimer = default!;
     private string _coilTagSearch = string.Empty;
+
+    // Wrapper properties to handle binding and side-effects correctly
+    private int? SelectedMachineId
+    {
+        get => Model.MachineId;
+        set
+        {
+            Model.MachineId = value;
+            _selectedMachine = _machines.FirstOrDefault(m => m.Id == value);
+            Model.MachineCategory = _selectedMachine?.Category ?? default;
+            SortAvailableItems();
+        }
+    }
+
+    private string CoilTagSearchText
+    {
+        get => _coilTagSearch;
+        set
+        {
+            _coilTagSearch = value;
+            _debounceTimer.Stop();
+            _debounceTimer.Start();
+        }
+    }
+
+    private HashSet<PickingListItem> SelectedPickingListItems
+    {
+        get => _selectedPickingListItems;
+        set
+        {
+            _selectedPickingListItems = value;
+            UpdateWorkOrderItems();
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -205,22 +238,6 @@
         _debounceTimer.AutoReset = false;
 
         _machines = await MachineService.GetProductionMachinesAsync();
-    }
-
-    private void OnMachineSelected(int? machineId)
-    {
-        Model.MachineId = machineId;
-        _selectedMachine = _machines.FirstOrDefault(m => m.Id == machineId);
-        Model.MachineCategory = _selectedMachine?.Category ?? MachineCategory.None;
-        SortAvailableItems();
-        StateHasChanged();
-    }
-
-    private void OnCoilTagInput(string value)
-    {
-        _coilTagSearch = value;
-        _debounceTimer.Stop();
-        _debounceTimer.Start();
     }
 
     private async void OnDebounceTimerElapsed(object? sender, ElapsedEventArgs e)
@@ -283,13 +300,17 @@
         {
             _availablePickingListItems = _availablePickingListItems.OrderBy(i => i.ItemDescription).ToList();
         }
+        StateHasChanged();
     }
 
     private void UpdateWorkOrderItems()
     {
         var stockItems = Model.Items.Where(i => i.IsStockItem).ToList();
         Model.Items.Clear();
-        Model.Items.AddRange(stockItems);
+        foreach (var item in stockItems)
+        {
+            Model.Items.Add(item);
+        }
 
         foreach (var plItem in _selectedPickingListItems)
         {
@@ -333,6 +354,7 @@
         }
         Model.Items.Add(_newStockItem);
         _newStockItem = new() { IsStockItem = true, ItemCode = $"{_parentItem?.ItemId}-STOCK", Description = _parentItem?.Description, Width = _parentItem?.Width };
+        StateHasChanged();
     }
 
     private async Task CreateWorkOrderAsync()
