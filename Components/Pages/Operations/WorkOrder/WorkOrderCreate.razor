@@ -388,6 +388,14 @@
 
         try
         {
+            if (_parentItem != null)
+            {
+                Model.ParentItemId = _parentItem.ItemId;
+                Model.ParentItemDescription = _parentItem.Description;
+                Model.ParentItemWeight = _parentItem.Snapshot;
+                Model.ParentItemLocation = _parentItem.Location;
+            }
+
             await WorkOrderService.CreateAsync(Model, _userId);
             Snackbar.Add("Work Order Created Successfully!", Severity.Success);
             Navigation.NavigateTo("/operations/workorders");
