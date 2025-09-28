@@ -127,12 +127,13 @@
                                                     <div class="d-flex align-center text-right">
                                                         <div class="mr-4">
                                                             <MudText>@item.Width" x @item.Length"</MudText>
-                                                            <MudText Typo="Typo.caption">@item.Quantity PCS</MudText>
+                                                            <MudText Typo="Typo.caption">Total: @item.Quantity PCS</MudText>
+                                                            <MudText Typo="Typo.caption" Color="Color.Success"><b>Rem: @_remainingQuantities.GetValueOrDefault(item.Id)</b></MudText>
                                                         </div>
                                                         <div class="mr-4">
                                                             <MudText><b>@item.Weight?.ToString("N0") lbs</b></MudText>
                                                         </div>
-                                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => AddLineItem(item))">Add</MudButton>
+                                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => AddLineItem(item))" Disabled="@(_remainingQuantities.GetValueOrDefault(item.Id, 0) <= 0)">Add</MudButton>
                                                     </div>
                                                 </div>
                                             </MudCardContent>
@@ -383,7 +384,8 @@
     private List<Machine> _machines = new();
     private InventoryItem? _parentItem;
     private List<PickingListItem> _allAvailablePickingListItems = new();
-    private IEnumerable<PickingListItem> AvailableOrdersForDisplay => _allAvailablePickingListItems.Where(p => !Model.Items.Any(i => i.PickingListItemId == p.Id));
+    private Dictionary<int, decimal> _remainingQuantities = new();
+    private IEnumerable<PickingListItem> AvailableOrdersForDisplay => _allAvailablePickingListItems?.Where(p => _remainingQuantities.GetValueOrDefault(p.Id, 0) > 0) ?? Enumerable.Empty<PickingListItem>();
     private bool _isFetchingOrders = false;
     private bool _isSaving = false;
 
@@ -471,6 +473,17 @@ private void SetDueDate(DateTime? newDate)
             var result = await WorkOrderService.GetPickingListItemsForWorkOrderAsync(Model.MachineCategory, Model.TagNumber);
             _parentItem = result.ParentItem;
             _allAvailablePickingListItems = result.AvailableItems;
+
+            if (_allAvailablePickingListItems.Any())
+            {
+                var ids = _allAvailablePickingListItems.Select(i => i.Id);
+                _remainingQuantities = await WorkOrderService.GetRemainingQuantitiesForPickingListItemsAsync(ids);
+            }
+            else
+            {
+                _remainingQuantities.Clear();
+            }
+
             Snackbar.Add($"Found {_allAvailablePickingListItems.Count} available order line(s).", Severity.Success);
         }
         catch (Exception ex)
@@ -484,24 +497,40 @@ private void SetDueDate(DateTime? newDate)
         }
     }
 
-    private void AddLineItem(PickingListItem plItem)
+    private async Task AddLineItem(PickingListItem plItem)
     {
-        var workOrderItem = new WorkOrderItem
+        var remainingQuantity = _remainingQuantities.GetValueOrDefault(plItem.Id, 0);
+
+        var parameters = new DialogParameters
         {
-            PickingListItemId = plItem.Id,
-            ItemCode = plItem.ItemId,
-            Description = plItem.ItemDescription,
-            SalesOrderNumber = plItem.PickingList?.SalesOrderNumber,
-            CustomerName = plItem.PickingList?.Customer?.CustomerName,
-            OrderQuantity = plItem.Quantity,
-            OrderWeight = plItem.Weight,
-            Width = plItem.Width,
-            Length = plItem.Length,
-            Unit = plItem.Unit,
-            OriginalOrderLineItemId = plItem.Id.ToString()
+            ["PickingListItem"] = plItem,
+            ["RemainingQuantity"] = remainingQuantity
         };
-        Model.Items.Add(workOrderItem);
-        StateHasChanged();
+
+        var dialog = await DialogService.ShowAsync<AddWorkOrderItemDialog>("Add Item to Work Order", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is decimal quantityToAdd && quantityToAdd > 0)
+        {
+            var unitWeight = (plItem.Quantity ?? 0) > 0 ? (plItem.Weight ?? 0) / plItem.Quantity.Value : 0;
+
+            var workOrderItem = new WorkOrderItem
+            {
+                PickingListItemId = plItem.Id,
+                ItemCode = plItem.ItemId,
+                Description = plItem.ItemDescription,
+                SalesOrderNumber = plItem.PickingList?.SalesOrderNumber,
+                CustomerName = plItem.PickingList?.Customer?.CustomerName,
+                OrderQuantity = quantityToAdd,
+                OrderWeight = unitWeight * quantityToAdd,
+                Width = plItem.Width,
+                Length = plItem.Length,
+                Unit = plItem.Unit,
+                OriginalOrderLineItemId = plItem.Id.ToString()
+            };
+            Model.Items.Add(workOrderItem);
+            StateHasChanged();
+        }
     }
 
     private void RemoveLineItem(WorkOrderItem item)

@@ -103,6 +103,64 @@ namespace CMetalsWS.Services
             return (taggedItem, await query.AsNoTracking().ToListAsync());
         }
 
+        public async Task<decimal> GetRemainingQuantityForPickingListItemAsync(int pickingListItemId)
+        {
+            using var db = _dbContextFactory.CreateDbContext();
+
+            var pickingListItem = await db.PickingListItems
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == pickingListItemId);
+
+            if (pickingListItem == null || !pickingListItem.Quantity.HasValue)
+            {
+                return 0;
+            }
+
+            var totalQuantity = pickingListItem.Quantity.Value;
+
+            var plannedQuantity = await db.WorkOrderItems
+                .AsNoTracking()
+                .Where(wi => wi.PickingListItemId == pickingListItemId)
+                .SumAsync(wi => wi.OrderQuantity ?? 0);
+
+            var remainingQuantity = totalQuantity - plannedQuantity;
+
+            return remainingQuantity > 0 ? remainingQuantity : 0;
+        }
+
+        public async Task<Dictionary<int, decimal>> GetRemainingQuantitiesForPickingListItemsAsync(IEnumerable<int> pickingListItemIds)
+        {
+            if (pickingListItemIds == null || !pickingListItemIds.Any())
+            {
+                return new Dictionary<int, decimal>();
+            }
+
+            using var db = _dbContextFactory.CreateDbContext();
+
+            var pickingListItems = await db.PickingListItems
+                .AsNoTracking()
+                .Where(p => pickingListItemIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id, p => p.Quantity ?? 0);
+
+            var plannedQuantities = await db.WorkOrderItems
+                .AsNoTracking()
+                .Where(wi => wi.PickingListItemId.HasValue && pickingListItemIds.Contains(wi.PickingListItemId.Value))
+                .GroupBy(wi => wi.PickingListItemId.Value)
+                .Select(g => new { PickingListItemId = g.Key, TotalPlanned = g.Sum(wi => wi.OrderQuantity ?? 0) })
+                .ToDictionaryAsync(g => g.PickingListItemId, g => g.TotalPlanned);
+
+            var remainingQuantities = new Dictionary<int, decimal>();
+            foreach (var id in pickingListItemIds)
+            {
+                var totalQuantity = pickingListItems.GetValueOrDefault(id, 0);
+                var plannedQuantity = plannedQuantities.GetValueOrDefault(id, 0);
+                var remaining = totalQuantity - plannedQuantity;
+                remainingQuantities[id] = remaining > 0 ? remaining : 0;
+            }
+
+            return remainingQuantities;
+        }
+
         public async Task<WorkOrder> CreateAsync(WorkOrder workOrder, string userId)
         {
             using var db = _dbContextFactory.CreateDbContext();
