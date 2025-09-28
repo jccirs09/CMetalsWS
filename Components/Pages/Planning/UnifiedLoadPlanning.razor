@@ -120,13 +120,20 @@
                     <MudContainer Style="max-height: 300px; overflow-y: auto">
                         @foreach (var item in _itemsInLoad)
                         {
-                            <MudDropZone T="LoadItem" OnItemDropped="ItemDropped" Identifier="@(item.PickingListItemId.ToString())">
+                            <MudDropZone T="LoadItem" OnItemDropped="ItemDropped" Identifier="@(_loadItemClientIds[item].ToString())">
                                 <MudPaper Elevation="2" Class="pa-2 ma-1">
-                                    <MudGrid>
-                                        <MudItem xs="1">@item.StopSequence</MudItem>
-                                        <MudItem xs="3">@item.PickingListItem.PickingList.SalesOrderNumber</MudItem>
-                                        <MudItem xs="4">@item.PickingListItem.PickingList.Customer.CustomerName</MudItem>
-                                        <MudItem xs="2" Style="text-align:right">@item.ShippedWeight.ToString("N2")</MudItem>
+                                    <MudGrid Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudItem xs="1">
+                                            <MudText Typo="Typo.body2"><strong>@item.StopSequence</strong></MudText>
+                                        </MudItem>
+                                        <MudItem xs="6">
+                                            <MudText Typo="Typo.body2">@item.PickingListItem.ItemDescription</MudText>
+                                            <MudText Typo="Typo.caption">SO: @item.PickingListItem.PickingList.SalesOrderNumber | Cust: @item.PickingListItem.PickingList.Customer.CustomerName</MudText>
+                                        </MudItem>
+                                        <MudItem xs="3" Style="text-align:right">
+                                            <MudText Typo="Typo.body2">@item.ShippedWeight.ToString("N2") lbs</MudText>
+                                            <MudText Typo="Typo.caption">@item.ShippedQuantity.ToString("N2") pcs</MudText>
+                                        </MudItem>
                                         <MudItem xs="1">
                                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => RemoveItemFromLoad(item))" />
                                         </MudItem>
@@ -160,6 +167,7 @@
     private HashSet<IGrouping<string, PickingList>> _selectedGroups = new();
     private Load? _load;
     private List<LoadItem> _itemsInLoad = new();
+    private Dictionary<LoadItem, Guid> _loadItemClientIds = new();
     private List<Truck> _trucks = new();
 
     protected override async Task OnInitializedAsync()
@@ -225,17 +233,20 @@
 
         _load = new Load { ShippingDate = DateTime.Today };
         _itemsInLoad.Clear();
+        _loadItemClientIds.Clear();
 
         var allItems = _selectedGroups.SelectMany(g => g).SelectMany(pl => pl.Items);
         foreach (var item in allItems)
         {
-            _itemsInLoad.Add(new LoadItem
+            var newLoadItem = new LoadItem
             {
                 PickingListItemId = item.Id,
                 PickingListItem = item,
                 ShippedQuantity = item.RemainingQuantity,
                 ShippedWeight = item.RemainingWeight
-            });
+            };
+            _itemsInLoad.Add(newLoadItem);
+            _loadItemClientIds.Add(newLoadItem, Guid.NewGuid());
         }
         RecalculateStopSequence();
         UpdateLoadCapacity();
@@ -254,13 +265,15 @@
         {
             if (allPickingListItemsOnPage.TryGetValue(itemToAdd.PickingListItemId, out var originalItem))
             {
-                _itemsInLoad.Add(new LoadItem
+                var newLoadItem = new LoadItem
                 {
                     PickingListItemId = originalItem.Id,
                     PickingListItem = originalItem,
                     ShippedQuantity = itemToAdd.Quantity,
                     ShippedWeight = itemToAdd.Weight
-                });
+                };
+                _itemsInLoad.Add(newLoadItem);
+                _loadItemClientIds.Add(newLoadItem, Guid.NewGuid());
             }
         }
         RecalculateStopSequence();
@@ -269,6 +282,7 @@
 
     private void RemoveItemFromLoad(LoadItem item)
     {
+        _loadItemClientIds.Remove(item);
         _itemsInLoad.Remove(item);
         RecalculateStopSequence();
         UpdateLoadCapacity();
@@ -311,6 +325,7 @@
         _load = null;
         _itemsInLoad.Clear();
         _selectedGroups.Clear();
+        _loadItemClientIds.Clear();
         _loadCapacity = 0;
         StateHasChanged();
     }
@@ -321,7 +336,9 @@
 
         var itemToMove = dropItem.Item;
         var targetIdentifier = dropItem.DropzoneIdentifier;
-        var targetItem = _itemsInLoad.FirstOrDefault(x => x.PickingListItemId.ToString() == targetIdentifier);
+
+        var targetGuid = Guid.Parse(targetIdentifier);
+        var targetItem = _loadItemClientIds.FirstOrDefault(kvp => kvp.Value == targetGuid).Key;
 
         if (targetItem == null) return;
 
