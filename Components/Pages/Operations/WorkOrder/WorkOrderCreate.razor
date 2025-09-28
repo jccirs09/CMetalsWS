@@ -28,9 +28,11 @@
                 <MudText Color="Color.Dark" GutterBottom="true">Select production machine and enter coil tag number for automatic order matching</MudText>
 
                 <MudText Typo="Typo.subtitle1" Class="mt-4">Production Machine *</MudText>
-                <MudChipSet @bind-SelectedValue="SelectedMachineCategory" T="MachineCategory?">
-                    <MudChip T="MachineCategory" Value="MachineCategory.CTL">CTL</MudChip>
-                    <MudChip T="MachineCategory" Value="MachineCategory.Slitter">Slitter</MudChip>
+                <MudChipSet @bind-SelectedValue="SelectedMachineCategory" T="string">
+                    @foreach (var category in _machineCategories)
+                    {
+                        <MudChip T="string" Value="@category">@category</MudChip>
+                    }
                 </MudChipSet>
 
                 <MudSelect T="int?" Label="Select a machine" @bind-Value="Model.MachineId" For="@(() => Model.MachineId)" Class="mt-4">
@@ -167,8 +169,9 @@
 
 @code {
     private WorkOrder Model { get; set; } = new();
-    private List<Machine> _machines = new();
+    private List<Machine> _allMachines = new();
     private IEnumerable<Machine> _filteredMachines = Enumerable.Empty<Machine>();
+    private List<string> _machineCategories = new();
     private List<PickingListItem> _availablePickingListItems = new();
     private List<PickingListItem> _originalPickingListItems = new();
     private InventoryItem? _parentItem;
@@ -177,8 +180,8 @@
     private WorkOrderItem _newStockItem = new() { IsStockItem = true };
     private bool _isSaving = false;
 
-    private MachineCategory? _selectedMachineCategory;
-    private MachineCategory? SelectedMachineCategory
+    private string? _selectedMachineCategory;
+    private string? SelectedMachineCategory
     {
         get => _selectedMachineCategory;
         set
@@ -186,10 +189,10 @@
             if (_selectedMachineCategory == value) return;
             _selectedMachineCategory = value;
             Model.MachineId = null;
-            if (_selectedMachineCategory.HasValue)
+            if (!string.IsNullOrEmpty(_selectedMachineCategory) && Enum.TryParse<MachineCategory>(_selectedMachineCategory, out var categoryEnum))
             {
-                Model.MachineCategory = _selectedMachineCategory.Value;
-                _filteredMachines = _machines.Where(m => m.Category == _selectedMachineCategory.Value);
+                Model.MachineCategory = categoryEnum;
+                _filteredMachines = _allMachines.Where(m => m.Category == categoryEnum);
             }
             else
             {
@@ -205,9 +208,8 @@
         var user = await UserManager.GetUserAsync(authState.User);
         _userId = user?.Id;
 
-        _machines = (await MachineService.GetMachinesAsync())
-            .Where(m => m.IsActive && (m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter))
-            .ToList();
+        _allMachines = await MachineService.GetProductionMachinesAsync();
+        _machineCategories = await MachineService.GetProductionMachineCategoriesAsync();
     }
 
     private async Task OnCoilTagChanged()
