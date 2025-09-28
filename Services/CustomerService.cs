@@ -14,10 +14,12 @@ namespace CMetalsWS.Services
     public class CustomerService
     {
         private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
+        private readonly RegionAssignmentService _regionAssignmentService;
 
-        public CustomerService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
+        public CustomerService(IDbContextFactory<ApplicationDbContext> dbContextFactory, RegionAssignmentService regionAssignmentService)
         {
             _dbContextFactory = dbContextFactory;
+            _regionAssignmentService = regionAssignmentService;
         }
 
         public async Task<Customer?> GetByIdAsync(int id)
@@ -137,14 +139,27 @@ namespace CMetalsWS.Services
 
         public async Task<List<CustomerImportRow>> PreviewImportAsync(Stream stream)
         {
-            var rows = stream.Query<CustomerImportDto>().ToList();
-            var tasks = new List<Task<CustomerImportRow>>();
+            // Read from the beginning just in case
+            if (stream.CanSeek) stream.Position = 0;
 
-            foreach (var row in rows)
-            {
-                tasks.Add(ProcessImportRow(row));
-            }
+            var raw = stream.Query<CustomerImportDto>().ToList();
 
+            // Clean and filter
+            var rows = raw
+                .Where(r => !string.IsNullOrWhiteSpace(r.CustomerCode) || !string.IsNullOrWhiteSpace(r.CustomerName))
+                .Select(r => new CustomerImportDto
+                {
+                    CustomerCode  = r.CustomerCode?.Trim(),
+                    CustomerName  = r.CustomerName?.Trim(),
+                    FullAddress   = CleanAddress(r.FullAddress),
+                    BusinessHours = r.BusinessHours?.Trim(),
+                    ContactNumber = r.ContactNumber?.Trim(),
+                    Latitude = r.Latitude,
+                    Longitude = r.Longitude
+                })
+                .ToList();
+
+            var tasks = rows.Select(r => ProcessImportRow(r)).ToList();
             var results = await Task.WhenAll(tasks);
             return results.ToList();
         }
@@ -162,6 +177,12 @@ namespace CMetalsWS.Services
         {
             var report = new CustomerImportReport { TotalRows = importRows.Count };
             var _random = new Random();
+
+            // Pre-fetch lookups for efficiency
+            await using var dbForLookups = _dbContextFactory.CreateDbContext();
+            var allRegions = await dbForLookups.DestinationRegions.AsNoTracking().ToDictionaryAsync(r => r.Name, r => r.Id, StringComparer.OrdinalIgnoreCase);
+            var allGroups = await dbForLookups.DestinationGroups.AsNoTracking().ToDictionaryAsync(g => g.Name, g => g.Id, StringComparer.OrdinalIgnoreCase);
+
             foreach (var row in importRows)
             {
                 try
@@ -180,13 +201,6 @@ namespace CMetalsWS.Services
                     if (isNew)
                     {
                         customer = new Customer { CustomerCode = row.Dto.CustomerCode, CreatedUtc = DateTime.UtcNow };
-
-                        // Add random max skid weight capacity between 1500 to 6000 lbs in increments of 500 lbs
-                        customer.MaxSkidCapacity = _random.Next(3, 13) * 500; // 1500 to 6000
-
-                        // Add random max slit coil weight from 1000 to 4000 lbs in increments of 500 lbs
-                        customer.MaxSlitCoilWeight = _random.Next(2, 9) * 500; // 1000 to 4000
-
                         db.Customers.Add(customer);
                     }
 
@@ -194,10 +208,30 @@ namespace CMetalsWS.Services
                     customer!.CustomerName = row.Dto.CustomerName;
                     customer.BusinessHours = row.Dto.BusinessHours;
                     customer.ContactNumber = row.Dto.ContactNumber;
+                    customer.Latitude = row.Dto.Latitude;
+                    customer.Longitude = row.Dto.Longitude;
 
                     // Update address info from the spreadsheet
-                    customer.FullAddress = row.Dto.Address;
+                    customer.FullAddress = row.Dto.FullAddress; // Already cleaned in PreviewImportAsync
                     ParseFullAddress(customer);
+
+                    // If still null/empty, add a non-fatal info line so you know which rows had no address
+                    if (string.IsNullOrWhiteSpace(customer.FullAddress))
+                    {
+                        report.Errors.Add($"INFO: No FullAddress for {row.Dto.CustomerCode} - {row.Dto.CustomerName}. Skipped parsing.");
+                    }
+
+                    // Assign Destination Region and Group
+                    var regionName = _regionAssignmentService.GetRegionName(customer.City, customer.Province);
+                    if (allRegions.TryGetValue(regionName, out var regionId))
+                    {
+                        customer.DestinationRegionId = regionId;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(customer.City) && allGroups.TryGetValue(customer.City, out var groupId))
+                    {
+                        customer.DestinationGroupId = groupId;
+                    }
 
                     customer.ModifiedUtc = DateTime.UtcNow;
                     await db.SaveChangesAsync(); // Commit each record individually for robustness
@@ -212,11 +246,18 @@ namespace CMetalsWS.Services
 
             return report;
         }
+
+        private static string? CleanAddress(string? s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            // collapse whitespace & replace line breaks with comma + space
+            var normalized = Regex.Replace(s, @"\r\n|\n|\r", ", ");
+            normalized = Regex.Replace(normalized, @"\s+", " ").Trim();
+            return normalized.TrimEnd(','); // common typo in exports
+        }
         private void ParseFullAddress(Customer customer)
         {
             if (string.IsNullOrWhiteSpace(customer.FullAddress)) return;
-
-            var addressParts = customer.FullAddress.Split(',').Select(p => p.Trim()).ToList();
 
             // Reset fields
             customer.Street1 = null;
@@ -226,46 +267,54 @@ namespace CMetalsWS.Services
             customer.PostalCode = null;
             customer.Country = null;
 
+            var address = customer.FullAddress;
+
+            // 1. Extract Country from the end of the string
+            var countryRegex = new Regex(@"(,?\s*(?<country>USA|Canada))$", RegexOptions.IgnoreCase);
+            var countryMatch = countryRegex.Match(address);
+            if (countryMatch.Success)
+            {
+                customer.Country = countryMatch.Groups["country"].Value.ToUpper();
+                address = address.Substring(0, countryMatch.Index).Trim();
+            }
+
+            // 2. Extract Postal Code from the end of the remaining string
+            var postalCodeRegex = new Regex(@"(,?\s*(?<postal_code>(?<zip>\d{5}(?:-\d{4})?)|(?<postal>[A-Z]\d[A-Z]\s?\d[A-Z]\d)))$", RegexOptions.IgnoreCase | RegexOptions.RightToLeft);
+            var postalMatch = postalCodeRegex.Match(address);
+            if (postalMatch.Success)
+            {
+                customer.PostalCode = postalMatch.Groups["postal_code"].Value;
+                address = address.Substring(0, postalMatch.Index).Trim();
+            }
+
+            // 3. Split the rest by comma
+            var addressParts = address.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                      .Select(p => p.Trim())
+                                      .Where(p => !string.IsNullOrEmpty(p))
+                                      .ToList();
+
+            if (addressParts.Count == 0) return;
+
+            // 4. Province/State is likely the last part.
+            customer.Province = addressParts.Last();
+            addressParts.RemoveAt(addressParts.Count - 1);
+
+            if (addressParts.Count == 0) return;
+
+            // 5. City is now the last part.
+            customer.City = addressParts.Last();
+            addressParts.RemoveAt(addressParts.Count - 1);
+
             if (addressParts.Count > 0)
             {
+                // 6. The rest is street address.
                 customer.Street1 = addressParts[0];
-                addressParts.RemoveAt(0);
-            }
-
-            if (addressParts.Count > 0)
-            {
-                customer.City = addressParts[0];
-                addressParts.RemoveAt(0);
-            }
-
-            foreach(var part in addressParts)
-            {
-                // Canadian postal code
-                var postalCodeRegex = new Regex(@"\b[A-Z]\d[A-Z] ?\d[A-Z]\d\b", RegexOptions.IgnoreCase);
-                var match = postalCodeRegex.Match(part);
-                if (match.Success)
+                if (addressParts.Count > 1)
                 {
-                    customer.PostalCode = match.Value;
-                    var province = part.Replace(match.Value, "").Trim();
-                    if(!string.IsNullOrWhiteSpace(province))
-                    {
-                        customer.Province = province;
-                    }
-                    continue;
-                }
-
-                if (part.Equals("Canada", StringComparison.OrdinalIgnoreCase) || part.Equals("USA", StringComparison.OrdinalIgnoreCase))
-                {
-                    customer.Country = part;
-                    continue;
-                }
-
-                // If not postal code or country, it must be province.
-                if(string.IsNullOrWhiteSpace(customer.Province))
-                {
-                    customer.Province = part;
+                    customer.Street2 = string.Join(", ", addressParts.Skip(1));
                 }
             }
+
         }
     }
 

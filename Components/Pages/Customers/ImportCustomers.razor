@@ -21,7 +21,7 @@
 
 <MudPaper Class="p-4">
     <MudText Typo="Typo.h5">Import Customers from Excel</MudText>
-    <MudText Typo="Typo.body1" Class="mt-2 mb-4">Select an Excel file to begin the import process.</MudText>
+    <MudText Typo="Typo.body1" Class="mt-2 mb-4">Select or drop an Excel file to import customers directly.</MudText>
 
     <MudFileUpload T="IBrowserFile"
                    FilesChanged="ProcessFile"
@@ -51,33 +51,30 @@
         <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
     }
 
-    @if (_importRows.Any())
+    @if (_importReport != null)
     {
-        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="CommitImport" Disabled="@_isUploading" Class="mt-4">
-            Commit Selections
-        </MudButton>
-
-        <MudTable Items="@_importRows" Class="mt-4" Dense="true" Hover="true">
-            <HeaderContent>
-                <MudTh>Customer</MudTh>
-                <MudTh>Address</MudTh>
-                <MudTh>Status</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Customer">@context.Dto.CustomerName (@context.Dto.CustomerCode)</MudTd>
-                <MudTd DataLabel="Address">@context.Dto.Address</MudTd>
-                <MudTd DataLabel="Status">
-                    @if (!string.IsNullOrWhiteSpace(context.Error))
-                    {
-                        <MudChip T="string" Color="Color.Error">@context.Error</MudChip>
-                    }
-                    else
-                    {
-                        <MudChip T="string" Color="Color.Success">Ready</MudChip>
-                    }
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
+        <MudCard Class="mt-4">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Import Report</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudText>Total Rows: @_importReport.TotalRows</MudText>
+                <MudText Color="Color.Success">Successful Imports: @_importReport.SuccessfulImports</MudText>
+                <MudText Color="Color.Error">Failed Imports: @_importReport.FailedImports</MudText>
+                @if (_importReport.Errors.Any())
+                {
+                    <MudText Typo="Typo.subtitle1" Class="mt-2">Errors:</MudText>
+                    <MudList T="string">
+                        @foreach (var error in _importReport.Errors)
+                        {
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.Error" IconColor="Color.Error">@error</MudListItem>
+                        }
+                    </MudList>
+                }
+            </MudCardContent>
+        </MudCard>
     }
 </MudPaper>
 
@@ -86,14 +83,14 @@
     private string _dragClass = DefaultDragClass;
 
     private bool _isUploading = false;
-    private List<CustomerImportRow> _importRows = new();
+    private CustomerImportReport? _importReport;
 
     private async Task ProcessFile(IBrowserFile file)
     {
         if (file == null) return;
 
         _isUploading = true;
-        _importRows.Clear();
+        _importReport = null;
         StateHasChanged();
 
         try
@@ -102,8 +99,10 @@
             await file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5).CopyToAsync(ms);
             ms.Position = 0;
 
-            _importRows = await CustomerService.PreviewImportAsync(ms);
-            Snackbar.Add("File processed. Please review the candidates.", Severity.Info);
+            var importRows = await CustomerService.PreviewImportAsync(ms);
+            _importReport = await CustomerService.CommitImportAsync(importRows);
+
+            Snackbar.Add($"Import complete. Success: {_importReport.SuccessfulImports}, Failed: {_importReport.FailedImports}", _importReport.FailedImports > 0 ? Severity.Warning : Severity.Success);
         }
         catch (Exception ex)
         {
@@ -114,14 +113,6 @@
             _isUploading = false;
             StateHasChanged();
         }
-    }
-
-    private async Task CommitImport()
-    {
-        var report = await CustomerService.CommitImportAsync(_importRows);
-        Snackbar.Add($"Import committed. Success: {report.SuccessfulImports}, Failed: {report.FailedImports}", report.FailedImports > 0 ? Severity.Warning : Severity.Success);
-        _importRows.Clear();
-        StateHasChanged();
     }
 
     private void SetDragClass()
