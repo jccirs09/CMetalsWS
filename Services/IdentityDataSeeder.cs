@@ -393,54 +393,62 @@ namespace CMetalsWS.Services
 
         private async Task SeedDestinationRegionsAsync()
         {
-            if (await _context.DestinationRegions.AnyAsync())
+            var requiredRegions = new[] { "Local", "Island", "Okanagan", "Out of Town" };
+            var existingRegions = await _context.DestinationRegions.Select(r => r.Name).ToListAsync();
+
+            var regionsToAdd = requiredRegions
+                .Where(r => !existingRegions.Contains(r, StringComparer.OrdinalIgnoreCase))
+                .Select(r => new DestinationRegion { Name = r })
+                .ToList();
+
+            if (regionsToAdd.Any())
             {
-                return; // Data has already been seeded
+                _context.DestinationRegions.AddRange(regionsToAdd);
+                await _context.SaveChangesAsync();
             }
-
-            var allBranches = await _context.Branches.ToListAsync();
-            var surreyBranch = allBranches.FirstOrDefault(b => b.Name == "SURREY");
-            var deltaBranch = allBranches.FirstOrDefault(b => b.Name == "DELTA");
-
-            var islandBranches = new List<Branch>();
-            if (surreyBranch != null) islandBranches.Add(surreyBranch);
-            if (deltaBranch != null) islandBranches.Add(deltaBranch);
-
-            var okanaganBranches = new List<Branch>();
-            if (surreyBranch != null) okanaganBranches.Add(surreyBranch);
-            if (deltaBranch != null) okanaganBranches.Add(deltaBranch);
-
-            var destinationRegions = new List<DestinationRegion>
-            {
-                new DestinationRegion { Name = "LOCAL", Branches = allBranches },
-                new DestinationRegion { Name = "OUT OF TOWN", Branches = allBranches },
-                new DestinationRegion { Name = "CUSTOMER PICKUP", Branches = allBranches },
-                new DestinationRegion { Name = "ISLAND", Branches = islandBranches },
-                new DestinationRegion { Name = "OKANAGAN", Branches = okanaganBranches }
-            };
-
-            _context.DestinationRegions.AddRange(destinationRegions);
-            await _context.SaveChangesAsync();
         }
 
         private async Task SeedDestinationGroupsAsync()
         {
-            if (await _context.DestinationGroups.AnyAsync())
-            {
-                return; // Data has already been seeded
-            }
+            var existingGroups = await _context.DestinationGroups.Select(g => g.Name).ToListAsync();
+            var existingGroupSet = new HashSet<string>(existingGroups, StringComparer.OrdinalIgnoreCase);
 
-            var lowerMainlandCities = new List<string>
+            var allCities = new List<string>
             {
-                "Vancouver", "Burnaby", "New Westminster", "Coquitlam", "Port Coquitlam",
-                "Port Moody", "Surrey", "Richmond", "Delta", "White Rock", "North Vancouver",
-                "West Vancouver", "Pitt Meadows", "Maple Ridge", "Langley"
+                // BC - Lower Mainland / Local
+                "Vancouver", "Burnaby", "New Westminster", "Coquitlam", "Port Coquitlam", "Port Moody",
+                "Anmore", "Belcarra", "Surrey", "Richmond", "Delta", "White Rock", "North Vancouver",
+                "West Vancouver", "Lions Bay", "Pitt Meadows", "Maple Ridge", "Langley", "Abbotsford",
+                "Mission", "Chilliwack", "Hope", "Squamish", "Whistler", "Pemberton", "Gibsons", "Sechelt", "Rosedale",
+
+                // BC - Vancouver Island / Island
+                "Victoria", "Saanich", "Esquimalt", "Oak Bay", "View Royal", "Colwood", "Langford",
+                "Metchosin", "Sooke", "Sidney", "North Saanich", "Central Saanich", "Nanaimo",
+                "Ladysmith", "Parksville", "Qualicum Beach", "Port Alberni", "Ucluelet", "Tofino",
+                "Courtenay", "Comox", "Cumberland", "Campbell River", "Gold River", "Tahsis", "Sayward",
+                "Port McNeill", "Port Hardy", "Port Alice", "Zeballos", "Lake Cowichan", "Duncan",
+
+                // BC - Okanagan
+                "Kelowna", "West Kelowna", "Vernon", "Penticton", "Summerland", "Peachland", "Lake Country",
+                "Armstrong", "Enderby", "Lumby", "Coldstream", "Oliver", "Osoyoos", "Keremeos", "Princeton",
+                "Sicamous", "Salmon Arm", "Revelstoke", "Kamloops",
+
+                // Alberta
+                "Calgary", "Edmonton", "Red Deer", "Lethbridge", "St. Albert", "Medicine Hat", "Grande Prairie",
+                "Airdrie", "Spruce Grove", "Leduc", "Fort Saskatchewan", "Lloydminster", "Camrose",
+                "Chestermere", "Cochrane", "Okotoks", "High River", "Strathmore", "Canmore", "Banff"
             };
 
-            var destinationGroups = lowerMainlandCities.Select(city => new DestinationGroup { Name = city }).ToList();
+            var groupsToAdd = allCities
+                .Where(city => !existingGroupSet.Contains(city))
+                .Select(city => new DestinationGroup { Name = city })
+                .ToList();
 
-            _context.DestinationGroups.AddRange(destinationGroups);
-            await _context.SaveChangesAsync();
+            if (groupsToAdd.Any())
+            {
+                _context.DestinationGroups.AddRange(groupsToAdd);
+                await _context.SaveChangesAsync();
+            }
         }
 
         private async Task SeedTrucksAsync()
