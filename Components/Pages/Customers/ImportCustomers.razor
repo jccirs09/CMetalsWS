@@ -66,10 +66,10 @@
                 @if (_importReport.Errors.Any())
                 {
                     <MudText Typo="Typo.subtitle1" Class="mt-2">Errors:</MudText>
-                    <MudList>
+                    <MudList T="string">
                         @foreach (var error in _importReport.Errors)
                         {
-                            <MudListItem Icon="@Icons.Material.Filled.Error" IconColor="Color.Error">@error</MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.Error" IconColor="Color.Error">@error</MudListItem>
                         }
                     </MudList>
                 }
