@@ -133,7 +133,7 @@
                             <MudText><b>Customer:</b> @GetMainCustomer(_workOrder)</MudText>
                             <MudText><b>Machine:</b> @_workOrder.Machine?.Name</MudText>
                             <MudText><b>Operator:</b> @_workOrder.Operator</MudText>
-                            <MudText><b>Due Date:</b> @_workOrder.DueDate.ToString("yyyy-MM-dd")</MudText>
+                            <MudText><b>Due Date:</b> @(_workOrder.DueDate?.ToString("yyyy-MM-dd") ?? "N/A")</MudText>
                         </MudCardContent>
                     </MudCard>
 
