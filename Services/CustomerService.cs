@@ -137,14 +137,25 @@ namespace CMetalsWS.Services
 
         public async Task<List<CustomerImportRow>> PreviewImportAsync(Stream stream)
         {
-            var rows = stream.Query<CustomerImportDto>().ToList();
-            var tasks = new List<Task<CustomerImportRow>>();
+            // Read from the beginning just in case
+            if (stream.CanSeek) stream.Position = 0;
 
-            foreach (var row in rows)
-            {
-                tasks.Add(ProcessImportRow(row));
-            }
+            var raw = stream.Query<CustomerImportDto>().ToList();
 
+            // Clean and filter
+            var rows = raw
+                .Where(r => !string.IsNullOrWhiteSpace(r.CustomerCode) || !string.IsNullOrWhiteSpace(r.CustomerName))
+                .Select(r => new CustomerImportDto
+                {
+                    CustomerCode  = r.CustomerCode?.Trim(),
+                    CustomerName  = r.CustomerName?.Trim(),
+                    FullAddress   = CleanAddress(r.FullAddress),
+                    BusinessHours = r.BusinessHours?.Trim(),
+                    ContactNumber = r.ContactNumber?.Trim()
+                })
+                .ToList();
+
+            var tasks = rows.Select(r => ProcessImportRow(r)).ToList();
             var results = await Task.WhenAll(tasks);
             return results.ToList();
         }
@@ -191,13 +202,19 @@ namespace CMetalsWS.Services
                     }
 
                     // Always update basic info from the spreadsheet
-                    customer!.CustomerName = row.Dto.CustomerName?.Trim();
-                    customer.BusinessHours = row.Dto.BusinessHours?.Trim();
-                    customer.ContactNumber = row.Dto.ContactNumber?.Trim();
+                    customer!.CustomerName = row.Dto.CustomerName;
+                    customer.BusinessHours = row.Dto.BusinessHours;
+                    customer.ContactNumber = row.Dto.ContactNumber;
 
                     // Update address info from the spreadsheet
-                    customer.FullAddress = row.Dto.FullAddress?.Trim();
+                    customer.FullAddress = row.Dto.FullAddress; // Already cleaned in PreviewImportAsync
                     ParseFullAddress(customer);
+
+                    // If still null/empty, add a non-fatal info line so you know which rows had no address
+                    if (string.IsNullOrWhiteSpace(customer.FullAddress))
+                    {
+                        report.Errors.Add($"INFO: No FullAddress for {row.Dto.CustomerCode} - {row.Dto.CustomerName}. Skipped parsing.");
+                    }
 
                     customer.ModifiedUtc = DateTime.UtcNow;
                     await db.SaveChangesAsync(); // Commit each record individually for robustness
@@ -211,6 +228,15 @@ namespace CMetalsWS.Services
             }
 
             return report;
+        }
+
+        private static string? CleanAddress(string? s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            // collapse whitespace & replace line breaks with comma + space
+            var normalized = Regex.Replace(s, @"\r\n|\n|\r", ", ");
+            normalized = Regex.Replace(normalized, @"\s+", " ").Trim();
+            return normalized.TrimEnd(','); // common typo in exports
         }
         private void ParseFullAddress(Customer customer)
         {

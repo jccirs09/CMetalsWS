@@ -14,7 +14,7 @@ namespace CMetalsWS.Data
         [Required, MaxLength(200)]
         public string CustomerName { get; set; } = default!;
 
-        [MaxLength(256)]
+        [MaxLength(512)]
         public string? FullAddress { get; set; }
 
         [MaxLength(100)]
