@@ -27,18 +27,14 @@
                 <MudText Typo="Typo.h6" GutterBottom="true">Machine Setup</MudText>
                 <MudText Color="Color.Dark" GutterBottom="true">Select production machine and enter coil tag number for automatic order matching</MudText>
 
-                <MudText Typo="Typo.subtitle1" Class="mt-4">Production Machine *</MudText>
-                <MudChipSet @bind-SelectedValue="SelectedMachineCategory" T="string">
-                    @foreach (var category in _machineCategories)
+                <MudSelect T="int?" Label="Production Machine *" Value="Model.MachineId" ValueChanged="OnMachineChanged" For="@(() => Model.MachineId)" Class="mt-4">
+                    @foreach (var group in _groupedMachines)
                     {
-                        <MudChip T="string" Value="@category">@category</MudChip>
-                    }
-                </MudChipSet>
-
-                <MudSelect T="int?" Label="Select a machine" @bind-Value="Model.MachineId" For="@(() => Model.MachineId)" Class="mt-4">
-                    @foreach (var machine in _filteredMachines)
-                    {
-                        <MudSelectItem T="int?" Value="@machine.Id">@machine.Name</MudSelectItem>
+                        <MudListSubheader>@group.Key</MudListSubheader>
+                        @foreach (var machine in group)
+                        {
+                            <MudSelectItem T="int?" Value="@machine.Id">@machine.Name</MudSelectItem>
+                        }
                     }
                 </MudSelect>
 
@@ -97,7 +93,7 @@
                         </MudTd>
                     </RowTemplate>
                     <NoRecordsContent>
-                        <MudText>Enter a coil tag to see available items.</MudText>
+                        <MudText>Select a machine and enter a coil tag to see available items.</MudText>
                     </NoRecordsContent>
                 </MudTable>
             </MudPaper>
@@ -169,9 +165,8 @@
 
 @code {
     private WorkOrder Model { get; set; } = new();
-    private List<Machine> _allMachines = new();
-    private IEnumerable<Machine> _filteredMachines = Enumerable.Empty<Machine>();
-    private List<string> _machineCategories = new();
+    private List<Machine> _productionMachines = new();
+    private IGrouping<MachineCategory, Machine>[] _groupedMachines = Array.Empty<IGrouping<MachineCategory, Machine>>();
     private List<PickingListItem> _availablePickingListItems = new();
     private List<PickingListItem> _originalPickingListItems = new();
     private InventoryItem? _parentItem;
@@ -180,36 +175,34 @@
     private WorkOrderItem _newStockItem = new() { IsStockItem = true };
     private bool _isSaving = false;
 
-    private string? _selectedMachineCategory;
-    private string? SelectedMachineCategory
-    {
-        get => _selectedMachineCategory;
-        set
-        {
-            if (_selectedMachineCategory == value) return;
-            _selectedMachineCategory = value;
-            Model.MachineId = null;
-            if (!string.IsNullOrEmpty(_selectedMachineCategory) && Enum.TryParse<MachineCategory>(_selectedMachineCategory, out var categoryEnum))
-            {
-                Model.MachineCategory = categoryEnum;
-                _filteredMachines = _allMachines.Where(m => m.Category == categoryEnum);
-            }
-            else
-            {
-                _filteredMachines = Enumerable.Empty<Machine>();
-            }
-            StateHasChanged();
-        }
-    }
-
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(authState.User);
         _userId = user?.Id;
 
-        _allMachines = await MachineService.GetProductionMachinesAsync();
-        _machineCategories = await MachineService.GetProductionMachineCategoriesAsync();
+        _productionMachines = await MachineService.GetProductionMachinesAsync();
+        _groupedMachines = _productionMachines.GroupBy(m => m.Category).ToArray();
+    }
+
+    private void OnMachineChanged(int? machineId)
+    {
+        Model.MachineId = machineId;
+        if (machineId.HasValue)
+        {
+            var machine = _productionMachines.FirstOrDefault(m => m.Id == machineId.Value);
+            if (machine != null)
+            {
+                Model.MachineCategory = machine.Category;
+            }
+        }
+        else
+        {
+            Model.TagNumber = string.Empty;
+            _parentItem = null;
+            _availablePickingListItems.Clear();
+        }
+        StateHasChanged();
     }
 
     private async Task OnCoilTagChanged()
@@ -300,22 +293,27 @@
             if (originalItem != null)
             {
                 _availablePickingListItems.Add(originalItem);
-                if (Model.MachineCategory == MachineCategory.Slitter)
-                {
-                    _availablePickingListItems = _availablePickingListItems
-                        .OrderBy(i => i.PickingList?.Priority)
-                        .ThenBy(i => i.PickingList?.ShipDate)
-                        .ToList();
-                }
-                else
-                {
-                    _availablePickingListItems = _availablePickingListItems
-                        .OrderBy(i => i.ItemDescription)
-                        .ToList();
-                }
+                SortAvailableItems();
             }
         }
         StateHasChanged();
+    }
+
+    private void SortAvailableItems()
+    {
+        if (Model.MachineCategory == MachineCategory.Slitter)
+        {
+            _availablePickingListItems = _availablePickingListItems
+                .OrderBy(i => i.PickingList?.Priority)
+                .ThenBy(i => i.PickingList?.ShipDate)
+                .ToList();
+        }
+        else
+        {
+            _availablePickingListItems = _availablePickingListItems
+                .OrderBy(i => i.ItemDescription)
+                .ToList();
+        }
     }
 
     private void AddStockItem()
