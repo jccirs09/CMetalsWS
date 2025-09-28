@@ -1,4 +1,5 @@
 @page "/operations/workorder/create"
+@using MudBlazor
 @using CMetalsWS.Data
 @using CMetalsWS.Services
 @using Microsoft.AspNetCore.Components.Authorization
@@ -22,7 +23,6 @@
 <MudGrid>
     <MudItem xs="12" md="8">
         <MudStack Spacing="3">
-            @* Machine Setup Section *@
             <MudPaper Class="pa-4">
                 <MudText Typo="Typo.h6" GutterBottom="true">Machine Setup</MudText>
                 <MudText Color="Color.Dark" GutterBottom="true">Select production machine and enter coil tag number for automatic order matching</MudText>
@@ -52,7 +52,8 @@
                 {
                     <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="my-4" />
                 }
-                @else if (_parentItem != null)
+
+                @if (!_isFetchingCoil && _parentItem != null)
                 {
                     <MudPaper Outlined="true" Class="pa-3 mt-4">
                         <MudGrid>
@@ -81,10 +82,8 @@
                               Lines="3"
                               Class="mt-4"
                               HelperText="Enter any special instructions for operators." />
-
             </MudPaper>
 
-            @* Picking Items Section *@
             <MudPaper Class="pa-4">
                 <MudText Typo="Typo.h6" GutterBottom="true">Picking Items</MudText>
                 <MudTable Items="@_availablePickingListItems" Dense="true" Hover="true" Striped="true">
@@ -103,7 +102,7 @@
                         <MudTd DataLabel="Item">@context.ItemDescription</MudTd>
                         <MudTd DataLabel="Dimensions">@($"{context.Width:N4} x {context.Length:N4}")</MudTd>
                         <MudTd DataLabel="Order Wt.">@($"{context.Weight:N0} lbs")</MudTd>
-                        <MudTd DataLabel="Due Date">@(context.PickingList is not null ? context.PickingList.ShipDate.ToShortDateString() : string.Empty)</MudTd>
+                        <MudTd DataLabel="Due Date">@(context.PickingList != null ? context.PickingList.ShipDate.ToShortDateString() : string.Empty)</MudTd>
                         <MudTd DataLabel="Action">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => AddPickingListItemToWorkOrder(context))">Add</MudButton>
                         </MudTd>
@@ -114,7 +113,6 @@
                 </MudTable>
             </MudPaper>
 
-            @* Line Items Building Section *@
             <MudPaper Class="pa-4">
                 <MudText Typo="Typo.h6" GutterBottom="true">Line Items Building</MudText>
                 <MudTable Items="@Model.Items" Dense="true" Hover="true" Striped="true">
@@ -182,7 +180,6 @@
                     </MudCardActions>
                 </MudCard>
             </MudPaper>
-
         </MudStack>
     </MudItem>
     <MudItem xs="12" md="4">
@@ -229,7 +226,7 @@
 @code {
     private WorkOrder Model { get; set; } = new();
     private List<Machine> _machines = new();
-    private IEnumerable<Machine> _filteredMachines = new List<Machine>();
+    private IEnumerable<Machine> _filteredMachines = Enumerable.Empty<Machine>();
     private List<PickingListItem> _availablePickingListItems = new();
     private InventoryItem? _parentItem;
     private bool _isFetchingCoil = false;
@@ -243,8 +240,9 @@
         get => _selectedMachineCategory;
         set
         {
+            if (_selectedMachineCategory == value) return;
             _selectedMachineCategory = value;
-            Model.MachineId = null; // Reset machine selection
+            Model.MachineId = null;
             if (_selectedMachineCategory.HasValue)
             {
                 Model.MachineCategory = _selectedMachineCategory.Value;
@@ -252,8 +250,9 @@
             }
             else
             {
-                _filteredMachines = new List<Machine>();
+                _filteredMachines = Enumerable.Empty<Machine>();
             }
+            StateHasChanged();
         }
     }
 
@@ -288,7 +287,6 @@
 
             if (Model.MachineCategory == MachineCategory.Slitter)
             {
-                // For Slitter, order by priority then due date
                 _availablePickingListItems = result.AvailableItems
                     .OrderBy(i => i.PickingList?.Priority)
                     .ThenBy(i => i.PickingList?.ShipDate)
@@ -296,7 +294,6 @@
             }
             else
             {
-                // For CTL, order by description or another default
                 _availablePickingListItems = result.AvailableItems
                     .OrderBy(i => i.ItemDescription)
                     .ToList();
@@ -322,7 +319,6 @@
 
     private void AddPickingListItemToWorkOrder(PickingListItem item)
     {
-        // Prevent adding the same item multiple times
         if (Model.Items.Any(i => i.PickingListItemId == item.Id))
         {
             Snackbar.Add("This item has already been added to the work order.", Severity.Info);
@@ -345,24 +341,13 @@
         };
 
         Model.Items.Add(workOrderItem);
-        _availablePickingListItems.Remove(item); // Remove from available list
+        _availablePickingListItems.Remove(item);
         StateHasChanged();
     }
 
     private void RemoveWorkOrderItem(WorkOrderItem item)
     {
         Model.Items.Remove(item);
-
-        // If the item came from a picking list, add it back to the available list
-        if (item.PickingListItemId.HasValue)
-        {
-            // This is a simplified approach. A better approach would be to re-fetch the original PickingListItem
-            // For now, we assume we have enough info to re-create a representation or we find it
-            // This part might need adjustment based on how PickingListItem is structured and if we stored it.
-            // For this implementation, we will assume we cannot add it back to the list since we don't have the full object.
-            // A better implementation would be to not remove it from the available list until the WO is saved.
-        }
-
         StateHasChanged();
     }
 
@@ -375,7 +360,7 @@
         }
 
         Model.Items.Add(_newStockItem);
-        _newStockItem = new() { IsStockItem = true }; // Reset for next entry
+        _newStockItem = new() { IsStockItem = true };
         StateHasChanged();
     }
 
