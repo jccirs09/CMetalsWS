@@ -161,7 +161,7 @@ namespace CMetalsWS.Services
         public async Task<CustomerImportReport> CommitImportAsync(List<CustomerImportRow> importRows)
         {
             var report = new CustomerImportReport { TotalRows = importRows.Count };
-
+            var _random = new Random();
             foreach (var row in importRows)
             {
                 try
@@ -180,6 +180,13 @@ namespace CMetalsWS.Services
                     if (isNew)
                     {
                         customer = new Customer { CustomerCode = row.Dto.CustomerCode, CreatedUtc = DateTime.UtcNow };
+
+                        // Add random max skid weight capacity between 1500 to 6000 lbs in increments of 500 lbs
+                        customer.MaxSkidCapacity = _random.Next(3, 13) * 500; // 1500 to 6000
+
+                        // Add random max slit coil weight from 1000 to 4000 lbs in increments of 500 lbs
+                        customer.MaxSlitCoilWeight = _random.Next(2, 9) * 500; // 1000 to 4000
+
                         db.Customers.Add(customer);
                     }
 

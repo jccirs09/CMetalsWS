@@ -464,6 +464,12 @@ namespace CMetalsWS.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<int?>("MaxSkidCapacity")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MaxSlitCoilWeight")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("ModifiedUtc")
                         .HasColumnType("datetime2");
 
@@ -1342,10 +1348,10 @@ namespace CMetalsWS.Migrations
                     b.Property<int>("Priority")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("ScheduledEndDate")
+                    b.Property<DateTime?>("ScheduledEndDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime>("ScheduledStartDate")
+                    b.Property<DateTime?>("ScheduledStartDate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Shift")

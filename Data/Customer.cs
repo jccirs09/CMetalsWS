@@ -53,6 +53,8 @@ namespace CMetalsWS.Data
 
 
         // --- Operational Details ---
+        public int? MaxSkidCapacity { get; set; }
+        public int? MaxSlitCoilWeight { get; set; }
         public TimeSpan? ReceivingHourStart { get; set; }
         public TimeSpan? ReceivingHourEnd { get; set; }
 
