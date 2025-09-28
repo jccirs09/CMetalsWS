@@ -272,16 +272,6 @@ namespace CMetalsWS.Services
                 }
             }
 
-            // Rebuild the FullAddress string from the parsed components for consistency.
-            customer.FullAddress = string.Join(", ", new[]
-            {
-                customer.Street1,
-                customer.Street2,
-                customer.City,
-                customer.Province,
-                customer.PostalCode,
-                customer.Country
-            }.Where(s => !string.IsNullOrWhiteSpace(s)));
         }
     }
 
