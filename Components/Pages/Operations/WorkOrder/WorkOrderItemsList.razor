@@ -18,7 +18,7 @@
                                 <MudText Typo="Typo.caption">
                                     @if(item.IsStockItem)
                                     {
-                                        <MudChip Size="Size.Small" Color="Color.Info">STOCK</MudChip>
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info">STOCK</MudChip>
                                     }
                                     else
                                     {
@@ -46,7 +46,7 @@
 
 @code {
     [Parameter]
-    public List<WorkOrderItem> WorkOrderItems { get; set; } = new();
+    public ICollection<WorkOrderItem> WorkOrderItems { get; set; } = new List<WorkOrderItem>();
 
     [Parameter]
     public EventCallback<WorkOrderItem> OnRemoveItem { get; set; }

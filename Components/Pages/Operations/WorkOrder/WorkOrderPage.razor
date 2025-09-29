@@ -108,9 +108,9 @@
                                           WorkOrderItems="Model.Items"
                                           RemainingQuantities="_remainingQuantities"
                                           SplitQuantities="_splitQuantities"
-                                          OnPickingLineCheckedChanged="((args) => OnPickingLineCheckedChanged(args.pli, args.isChecked))"
-                                          OnSplitQuantityChanged="((args) => OnSplitQuantityChanged(args.pliId, args.newValue))"
-                                          OnSplitQtyKeyDown="((args) => OnSplitQtyKeyDown(args.e, args.pli))"
+                                          OnPickingLineCheckedChanged="OnPickingLineCheckedChanged"
+                                          OnSplitQuantityChanged="OnSplitQuantityChanged"
+                                          OnSplitQtyKeyDown="OnSplitQtyKeyDown"
                                           OnPromptSplit="PromptSplitAndAddToWO" />
 
                         <WorkOrderItemsList WorkOrderItems="Model.Items"
@@ -445,8 +445,9 @@
         }
     }
 
-    private void OnPickingLineCheckedChanged(PickingListItem pli, bool isChecked)
+    private void OnPickingLineCheckedChanged((PickingListItem pli, bool isChecked) args)
     {
+        var (pli, isChecked) = args;
         if (isChecked)
         {
             if (Model.Items.Any(i => i.PickingListItemId == pli.Id)) return;
@@ -595,17 +596,17 @@
         }
     }
 
-    private async Task OnSplitQtyKeyDown(KeyboardEventArgs e, PickingListItem pli)
+    private async Task OnSplitQtyKeyDown((KeyboardEventArgs e, PickingListItem pli) args)
     {
-        if (e.Key == "Enter")
+        if (args.e.Key == "Enter")
         {
-            await PromptSplitAndAddToWO(pli);
+            await PromptSplitAndAddToWO(args.pli);
         }
     }
 
-    private void OnSplitQuantityChanged(int pliId, decimal? newValue)
+    private void OnSplitQuantityChanged((int pliId, decimal? newValue) args)
     {
-        _splitQuantities[pliId] = newValue ?? 0;
+        _splitQuantities[args.pliId] = args.newValue ?? 0;
     }
 
     private void RemoveLineItem(WorkOrderItem item)

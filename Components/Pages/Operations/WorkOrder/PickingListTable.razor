@@ -58,7 +58,7 @@
     public List<PickingListItem> PickingListItems { get; set; } = new();
 
     [Parameter]
-    public List<WorkOrderItem> WorkOrderItems { get; set; } = new();
+    public ICollection<WorkOrderItem> WorkOrderItems { get; set; } = new List<WorkOrderItem>();
 
     [Parameter]
     public Dictionary<int, decimal> RemainingQuantities { get; set; } = new();

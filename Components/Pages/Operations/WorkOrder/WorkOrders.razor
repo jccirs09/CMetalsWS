@@ -15,7 +15,6 @@
             <MudText Color="Color.Dark">Manage production work orders across all machines</MudText>
         </div>
         <MudStack Row="true" Spacing="2">
-            <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/operations/workorder/process-queue"))" StartIcon="@Icons.Material.Filled.PlayCircleOutline">Process Orders</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo("/operations/workorder/manage"))" StartIcon="@Icons.Material.Filled.Add">Create Work Order</MudButton>
         </MudStack>
     </div>
@@ -88,7 +87,7 @@
                                         {
                                             <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning" OnClick="@(() => ProcessOrder(order))">Pause</MudButton>
                                         }
-                                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Variant="Variant.Outlined" OnClick="@(() => ProcessOrder(order))" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined" OnClick="@(() => ProcessOrder(order))" />
                                     </div>
                                 </div>
                             </div>
@@ -132,7 +131,7 @@
                                         </div>
                                         <div class="d-flex justify-space-between align-center mt-2 pt-2 border-t-1">
                                             <MudText Typo="Typo.caption">Due: @order.DueDate.ToString("d")</MudText>
-                                            <MudIconButton Icon="@Icons.Material.Filled.PlayCircleOutline" Size="Size.Small" OnClick="@(() => ProcessOrder(order))" OnClickStopPropagation="true" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@((e) => { e.stopPropagation(); ProcessOrder(order); })" />
                                         </div>
                                     </MudCardContent>
                                 </MudCard>
