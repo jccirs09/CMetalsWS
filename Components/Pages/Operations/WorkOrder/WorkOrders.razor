@@ -19,25 +19,27 @@
         </MudStack>
     </div>
 
-    <div class="d-flex ga-4 my-4">
-        <MudTextField @bind-Value="_searchString" Label="Search work orders..." Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" />
-        <MudSelect T="WorkOrderStatus?" @bind-Value="_selectedStatus" Label="Filter by status" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-            <MudSelectItem T="WorkOrderStatus?" Value="@(null)">All Statuses</MudSelectItem>
-            @foreach (WorkOrderStatus status in Enum.GetValues(typeof(WorkOrderStatus)))
-            {
-                <MudSelectItem T="WorkOrderStatus?" Value="@status">@status.ToString()</MudSelectItem>
-            }
-        </MudSelect>
-        <MudSelect T="int?" @bind-Value="_selectedMachineId" Label="Filter by machine" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-            <MudSelectItem T="int?" Value="@(null)">All Machines</MudSelectItem>
-            @foreach (var machine in _machines)
-            {
-                <MudSelectItem T="int?" Value="@machine.Id">@machine.Name</MudSelectItem>
-            }
-        </MudSelect>
-    </div>
+    <MudPaper Outlined="true" Class="pa-2 mb-4">
+        <MudStack Row="true" Spacing="4" AlignItems="AlignItems.Center">
+            <MudTextField @bind-Value="_searchString" Label="Search work orders..." Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="flex-grow-1" />
+            <MudSelect T="WorkOrderStatus?" @bind-Value="_selectedStatus" Label="Filter by status" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Style="min-width: 200px;">
+                <MudSelectItem T="WorkOrderStatus?" Value="@(null)">All Statuses</MudSelectItem>
+                @foreach (WorkOrderStatus status in Enum.GetValues(typeof(WorkOrderStatus)))
+                {
+                    <MudSelectItem T="WorkOrderStatus?" Value="@status">@status.ToString()</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="int?" @bind-Value="_selectedMachineId" Label="Filter by machine" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Style="min-width: 200px;">
+                <MudSelectItem T="int?" Value="@(null)">All Machines</MudSelectItem>
+                @foreach (var machine in _machines)
+                {
+                    <MudSelectItem T="int?" Value="@machine.Id">@machine.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudStack>
+    </MudPaper>
 
-    <MudTabs @bind-ActivePanelIndex="_activePanelIndex" Elevation="2" Rounded="true" PanelClass="pa-4">
+    <MudTabs @bind-ActivePanelIndex="_activePanelIndex" Elevation="2" Rounded="true" PanelClass="pa-0">
         <MudTabPanel Text="List View" Icon="@Icons.Material.Filled.List">
             <MudDataGrid T="WorkOrder" Items="@FilteredWorkOrders" Dense="true" Striped="true" Hover="true" Bordered="true"
                          Sortable="true" Filterable="false" Groupable="false" RowClick="@((args) => ProcessOrder(args.Item))"
@@ -88,10 +90,10 @@
             </MudDataGrid>
         </MudTabPanel>
         <MudTabPanel Text="Kanban View" Icon="@Icons.Material.Filled.ViewKanban">
-            <div class="d-flex ga-4 overflow-x-auto">
+            <div class="d-flex ga-4 pa-4 overflow-x-auto mud-height-full">
                 @foreach (WorkOrderStatus status in Enum.GetValues(typeof(WorkOrderStatus)))
                 {
-                    <div class="kanban-column">
+                    <MudPaper Width="320px" Class="pa-4" Outlined="true">
                         <div class="d-flex justify-space-between align-center mb-4">
                             <MudText Typo="Typo.h6">@status.ToString()</MudText>
                             <MudChip T="string" Text="@FilteredWorkOrders.Count(o => o.Status == status).ToString()" Color="Color.Default" />
@@ -120,7 +122,8 @@
                                                 <span><MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-1" Style="font-size: 1rem;"/>@order.Operator</span>
                                             }
                                         </div>
-                                        <div class="d-flex justify-space-between align-center mt-2 pt-2 border-t-1">
+                                        <MudDivider Class="my-2" />
+                                        <div class="d-flex justify-space-between align-center">
                                             <MudText Typo="Typo.caption">Due: @(order.DueDate.HasValue ? order.DueDate.Value.ToString("d") : "N/A")</MudText>
                                             <span @onclick:stopPropagation="true">
                                                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => ProcessOrder(order))" />
@@ -130,25 +133,12 @@
                                 </MudCard>
                             }
                         </MudStack>
-                    </div>
+                    </MudPaper>
                 }
             </div>
         </MudTabPanel>
     </MudTabs>
 </MudPaper>
-
-<style>
-    .kanban-column {
-        min-width: 320px;
-        max-width: 320px;
-        background-color: var(--mud-palette-background-grey);
-        padding: 1rem;
-        border-radius: var(--mud-shape-rounded);
-    }
-    .border-t-1 {
-        border-top: 1px solid var(--mud-palette-divider);
-    }
-</style>
 
 @code {
     private List<WorkOrder> _workOrders = new();

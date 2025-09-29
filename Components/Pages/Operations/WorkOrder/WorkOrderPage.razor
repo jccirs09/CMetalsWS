@@ -86,24 +86,24 @@
                                     </MudSelect>
                                 </MudItem>
                                 <MudItem xs="12" md="6">
-                                    <div class="d-flex">
+                                    <MudStack Row="true" AlignItems="AlignItems.Start">
                                         <MudTextField @bind-Value="Model.TagNumber" Label="Coil Tag Number" Variant="Variant.Outlined" For="@(() => Model.TagNumber)"
                                                       Required="true" RequiredError="Tag number is required." Class="flex-grow-1" />
                                         <MudButton OnClick="FetchPickingListItemsAsync" Variant="Variant.Filled" Color="Color.Primary"
                                                    Disabled="@(Model.MachineId == null || string.IsNullOrWhiteSpace(Model.TagNumber))"
-                                                   Class="ml-2 mt-1" Style="height: 54px;">
+                                                   Style="height: 56px;">
                                             Fetch
                                         </MudButton>
-                                    </div>
+                                    </MudStack>
                                 </MudItem>
                             </MudGrid>
-                             @if (_parentItem != null)
+                            @if (_parentItem != null)
                             {
                                 <MudAlert Severity="Severity.Success" Class="mt-4">
-                                    <div class="d-flex justify-space-between">
-                                        <div><b>Master Coil Found:</b> @Model.TagNumber</div>
-                                        <div><b>Size/Weight:</b> @_parentItem.Width" - @_parentItem.Snapshot?.ToString("N0") lbs</div>
-                                    </div>
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" Class="w-100">
+                                        <MudText><b>Master Coil Found:</b> @Model.TagNumber</MudText>
+                                        <MudText><b>Size/Weight:</b> @_parentItem.Width" - @_parentItem.Snapshot?.ToString("N0") lbs</MudText>
+                                    </MudStack>
                                 </MudAlert>
                             }
                         </MudPaper>
@@ -150,39 +150,29 @@
                                     </CardHeaderContent>
                                 </MudCardHeader>
                                 <MudCardContent>
-                                    <MudList T="object" Dense="true">
-                                        <MudListItem T="object">
-                                            <div class="d-flex justify-space-between w-100">
-                                                <span>Machine</span>
-                                                <b>@(Model.MachineId.HasValue ? _machines.FirstOrDefault(m => m.Id == Model.MachineId.Value)?.Name : "N/A")</b>
-                                            </div>
-                                        </MudListItem>
-                                        <MudListItem T="object">
-                                            <div class="d-flex justify-space-between w-100">
-                                                <span>Coil Tag</span>
-                                                <b>@(string.IsNullOrEmpty(Model.TagNumber) ? "N/A" : Model.TagNumber)</b>
-                                            </div>
-                                        </MudListItem>
-                                        <MudListItem T="object">
-                                            <div class="d-flex justify-space-between w-100">
-                                                <span>Priority</span>
-                                                <MudChip T="string" Text="@Model.Priority.ToString()" Color="@GetPriorityColor(Model.Priority)" Size="Size.Small" />
-                                            </div>
-                                        </MudListItem>
+                                    <MudStack Spacing="1">
+                                        <div class="d-flex justify-space-between w-100">
+                                            <MudText>Machine</MudText>
+                                            <MudText Typo="Typo.body1"><b>@(Model.MachineId.HasValue ? _machines.FirstOrDefault(m => m.Id == Model.MachineId.Value)?.Name : "N/A")</b></MudText>
+                                        </div>
+                                        <div class="d-flex justify-space-between w-100">
+                                            <MudText>Coil Tag</MudText>
+                                            <MudText Typo="Typo.body1"><b>@(string.IsNullOrEmpty(Model.TagNumber) ? "N/A" : Model.TagNumber)</b></MudText>
+                                        </div>
+                                        <div class="d-flex justify-space-between w-100">
+                                            <MudText>Priority</MudText>
+                                            <MudChip T="string" Text="@Model.Priority.ToString()" Color="@GetPriorityColor(Model.Priority)" Size="Size.Small" />
+                                        </div>
                                         <MudDivider Class="my-2" />
-                                        <MudListItem T="object">
-                                            <div class="d-flex justify-space-between w-100">
-                                                <span>Line Items</span>
-                                                <b>@Model.Items.Count</b>
-                                            </div>
-                                        </MudListItem>
-                                        <MudListItem T="object">
-                                            <div class="d-flex justify-space-between w-100">
-                                                <span>Total Weight</span>
-                                                <b>@Model.Items.Sum(i => i.OrderWeight ?? 0).ToString("N0") lbs</b>
-                                            </div>
-                                        </MudListItem>
-                                    </MudList>
+                                        <div class="d-flex justify-space-between w-100">
+                                            <MudText>Line Items</MudText>
+                                            <MudText Typo="Typo.body1"><b>@Model.Items.Count</b></MudText>
+                                        </div>
+                                        <div class="d-flex justify-space-between w-100">
+                                            <MudText>Total Weight</MudText>
+                                            <MudText Typo="Typo.body1"><b>@Model.Items.Sum(i => i.OrderWeight ?? 0).ToString("N0") lbs</b></MudText>
+                                        </div>
+                                    </MudStack>
                                 </MudCardContent>
                                 <MudCardActions>
                                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitWorkOrderAsync" Disabled="@(Model.Items.Count == 0 || _isSaving)" FullWidth="true" Size="Size.Large">
@@ -201,11 +191,13 @@
                     <MudStack Spacing="3">
                         <MudPaper Outlined="true" Class="pa-4">
                             <MudText Typo="Typo.h6" GutterBottom="true">Progress Overview</MudText>
-                            <div class="d-flex justify-space-between mb-2">
-                                <MudText>Overall Progress</MudText>
-                                <MudText><b>@_overallProgress.ToString("F0")%</b></MudText>
-                            </div>
-                            <MudProgressLinear Color="Color.Primary" Value="@_overallProgress" />
+                            <MudStack>
+                                <div class="d-flex justify-space-between">
+                                    <MudText>Overall Progress</MudText>
+                                    <MudText><b>@_overallProgress.ToString("F0")%</b></MudText>
+                                </div>
+                                <MudProgressLinear Color="Color.Primary" Value="@_overallProgress" />
+                            </MudStack>
                             <MudGrid Class="mt-4 text-center">
                                 <MudItem xs="3">
                                     <MudText Typo="Typo.h5" Color="Color.Primary">@_elapsedTimeDisplay</MudText>
@@ -232,18 +224,20 @@
                                 @foreach (var item in Model.Items)
                                 {
                                     <MudPaper Outlined="true" Class="pa-3">
-                                        <div class="d-flex justify-space-between">
-                                            <div>
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                            <MudStack>
                                                 <MudText Typo="Typo.body1"><b>@item.Description</b></MudText>
                                                 <MudText Typo="Typo.body2" Color="Color.Dark">@item.ItemCode • @item.Width?.ToString("F2") x @item.Length?.ToString("F2")</MudText>
-                                            </div>
+                                            </MudStack>
                                             <MudChip T="string" Text="@item.Status.ToString()" Color="@GetStatusColor(item.Status)" />
-                                        </div>
-                                        <div class="d-flex justify-space-between mt-2">
-                                            <MudText>Progress: @(item.ProducedQuantity ?? 0) / @(item.OrderQuantity ?? 0) @item.Unit</MudText>
-                                            <MudText>@CalculateItemProgress(item).ToString("F0")%</MudText>
-                                        </div>
-                                        <MudProgressLinear Color="Color.Secondary" Value="@CalculateItemProgress(item)" Class="my-1" />
+                                        </MudStack>
+                                        <MudStack Class="mt-2">
+                                            <div class="d-flex justify-space-between">
+                                                <MudText>Progress: @(item.ProducedQuantity ?? 0) / @(item.OrderQuantity ?? 0) @item.Unit</MudText>
+                                                <MudText>@CalculateItemProgress(item).ToString("F0")%</MudText>
+                                            </div>
+                                            <MudProgressLinear Color="Color.Secondary" Value="@CalculateItemProgress(item)" Class="my-1" />
+                                        </MudStack>
 
                                         @if (Model.Status == WorkOrderStatus.InProgress)
                                         {

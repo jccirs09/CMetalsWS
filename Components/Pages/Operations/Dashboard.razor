@@ -1,0 +1,111 @@
+@page "/operations/dashboard"
+@using CMetalsWS.Data
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = Permissions.WorkOrders.View)]
+
+<MudText Typo="Typo.h4" GutterBottom="true">Operations Dashboard</MudText>
+
+<MudGrid Spacing="4">
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" GutterBottom="true">Work Orders by Status</MudText>
+            <MudChart ChartType="ChartType.Donut" Width="100%" Height="300px" @ref="_statusChart" Options="@_statusChartOptions" />
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="8">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" GutterBottom="true">Machine Utilization</MudText>
+            <MudChart ChartType="ChartType.Bar" Width="100%" Height="300px" @ref="_machineChart" Options="@_machineChartOptions" />
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.subtitle1">Total Pending</MudText>
+            <MudText Typo="Typo.h4">@_totalPending</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.subtitle1">Total In Progress</MudText>
+            <MudText Typo="Typo.h4">@_totalInProgress</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@inject CMetalsWS.Services.WorkOrderService WorkOrderService
+
+@code {
+    private MudChart? _statusChart;
+    private MudChart? _machineChart;
+
+    private int _totalPending;
+    private int _totalInProgress;
+
+    private readonly ChartOptions _statusChartOptions = new()
+    {
+        Legend = new Legend { Position = Position.Bottom }
+    };
+
+    private readonly ChartOptions _machineChartOptions = new()
+    {
+        YAxisTicks = 1,
+        YAxisLines = true
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var workOrders = await WorkOrderService.GetAsync();
+        if (workOrders == null || !workOrders.Any()) return;
+
+        // Process data for charts
+        ProcessStatusChart(workOrders);
+        ProcessMachineChart(workOrders);
+
+        // Calculate KPIs
+        _totalPending = workOrders.Count(wo => wo.Status == WorkOrderStatus.Pending);
+        _totalInProgress = workOrders.Count(wo => wo.Status == WorkOrderStatus.InProgress);
+    }
+
+    private void ProcessStatusChart(List<WorkOrder> workOrders)
+    {
+        var statusCounts = workOrders
+            .GroupBy(wo => wo.Status)
+            .ToDictionary(g => g.Key.ToString(), g => g.Count());
+
+        if (_statusChart != null)
+        {
+            _statusChart.Series = new List<ChartSeries>
+            {
+                new ChartSeries
+                {
+                    Name = "Work Orders by Status",
+                    Data = statusCounts.Values.Select(v => (double)v).ToArray()
+                }
+            };
+            _statusChart.XAxisLabels = statusCounts.Keys.ToArray();
+            _statusChart.Update();
+        }
+    }
+
+    private void ProcessMachineChart(List<WorkOrder> workOrders)
+    {
+        var machineCounts = workOrders
+            .Where(wo => wo.Machine != null)
+            .GroupBy(wo => wo.Machine!.Name)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        if (_machineChart != null)
+        {
+            _machineChart.Series = new List<ChartSeries>
+            {
+                new ChartSeries
+                {
+                    Name = "Active Work Orders",
+                    Data = machineCounts.Values.Select(v => (double)v).ToArray()
+                }
+            };
+            _machineChart.XAxisLabels = machineCounts.Keys.ToArray();
+            _machineChart.Update();
+        }
+    }
+}
