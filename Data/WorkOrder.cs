@@ -44,7 +44,7 @@ namespace CMetalsWS.Data
 
         public MachineCategory MachineCategory { get; set; }
 
-        public DateTime DueDate { get; set; }
+        public DateTime? DueDate { get; set; }
 
         public string? ParentItemId { get; set; }
         public string? ParentItemDescription { get; set; }
