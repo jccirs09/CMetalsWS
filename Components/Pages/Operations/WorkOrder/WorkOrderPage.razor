@@ -135,10 +135,7 @@
                                           PickingListItems="_allAvailablePickingListItems"
                                           WorkOrderItems="Model.Items"
                                           RemainingQuantities="_remainingQuantities"
-                                          SplitQuantities="_splitQuantities"
                                           OnPickingLineCheckedChanged="OnPickingLineCheckedChanged"
-                                          OnSplitQuantityChanged="OnSplitQuantityChanged"
-                                          OnSplitQtyKeyDown="OnSplitQtyKeyDown"
                                           OnPromptSplit="PromptSplitAndAddToWO" />
 
                         <MudPaper Class="pa-4">
@@ -335,7 +332,6 @@
     private InventoryItem? _parentItem;
     private List<PickingListItem> _allAvailablePickingListItems = new();
     private Dictionary<int, decimal> _remainingQuantities = new();
-    private Dictionary<int, decimal> _splitQuantities = new();
     private bool _isFetchingOrders = false;
     private bool _isSaving = false;
 
@@ -508,24 +504,18 @@
         var remainingQuantity = _remainingQuantities.GetValueOrDefault(pli.Id, 0);
         if (remainingQuantity <= 0)
         {
-            Snackbar.Add("No remaining quantity to split.", Severity.Info);
+            Snackbar.Add("No remaining quantity to add.", Severity.Info);
             return;
-        }
-
-        var qtyToSplit = _splitQuantities.GetValueOrDefault(pli.Id, 0);
-        if (qtyToSplit <= 0 || qtyToSplit > remainingQuantity)
-        {
-            qtyToSplit = remainingQuantity;
         }
 
         var parameters = new DialogParameters
         {
             ["PickingListItem"] = pli,
             ["RemainingQuantity"] = remainingQuantity,
-            ["QuantityToAdd"] = qtyToSplit
+            ["QuantityToAdd"] = remainingQuantity // Default to adding the full remaining quantity
         };
 
-        var dialog = await DialogService.ShowAsync<AddWorkOrderItemDialog>("Split Quantity to Work Order", parameters);
+        var dialog = await DialogService.ShowAsync<AddWorkOrderItemDialog>("Add Item to Work Order", parameters);
         var result = await dialog.Result;
 
         if (!result.Canceled && result.Data is decimal quantityToAdd && quantityToAdd > 0)
@@ -548,7 +538,6 @@
             };
             Model.Items.Add(workOrderItem);
             _remainingQuantities[pli.Id] -= quantityToAdd;
-            _splitQuantities.Remove(pli.Id);
             Snackbar.Add("Item added to work order.", Severity.Success);
             StateHasChanged();
         }
@@ -562,16 +551,19 @@
             return;
         }
 
-        if (_nullableDueDate.HasValue)
+        if (!Model.MachineId.HasValue)
         {
-            Model.DueDate = _nullableDueDate.Value;
-            Model.ScheduledStartDate = _nullableDueDate.Value;
+            Snackbar.Add("A machine must be selected.", Severity.Error);
+            return;
         }
-        else
+
+        if (!_nullableDueDate.HasValue)
         {
             Snackbar.Add("A due date is required.", Severity.Error);
             return;
         }
+        Model.DueDate = _nullableDueDate.Value;
+        Model.ScheduledStartDate = _nullableDueDate.Value;
 
         _isSaving = true;
 
@@ -598,19 +590,6 @@
         {
             _isSaving = false;
         }
-    }
-
-    private async Task OnSplitQtyKeyDown((KeyboardEventArgs e, PickingListItem pli) args)
-    {
-        if (args.e.Key == "Enter")
-        {
-            await PromptSplitAndAddToWO(args.pli);
-        }
-    }
-
-    private void OnSplitQuantityChanged((int pliId, decimal? newValue) args)
-    {
-        _splitQuantities[args.pliId] = args.newValue ?? 0;
     }
 
     private void RemoveLineItem(WorkOrderItem item)

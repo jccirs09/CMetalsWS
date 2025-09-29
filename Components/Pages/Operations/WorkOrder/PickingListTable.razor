@@ -16,7 +16,6 @@
                 <MudTh>Item</MudTh>
                 <MudTh>Total Qty</MudTh>
                 <MudTh>Rem. Qty</MudTh>
-                <MudTh>Qty to Split</MudTh>
                 <MudTh>Actions</MudTh>
             </HeaderContent>
             <RowTemplate>
@@ -30,16 +29,8 @@
                 <MudTd DataLabel="Item">@context.ItemDescription</MudTd>
                 <MudTd DataLabel="Total Qty">@context.Quantity.ToString("N0")</MudTd>
                 <MudTd DataLabel="Rem. Qty">@RemainingQuantities.GetValueOrDefault(context.Id).ToString("N0")</MudTd>
-                <MudTd DataLabel="Qty to Split">
-                    <MudNumericField T="decimal?"
-                                     Value="@SplitQuantities.GetValueOrDefault(context.Id)"
-                                     ValueChanged="@((decimal? val) => OnSplitQuantityChanged.InvokeAsync((context.Id, val)))"
-                                     Variant="Variant.Outlined"
-                                     Margin="Margin.Dense"
-                                     OnKeyDown="@((KeyboardEventArgs e) => OnSplitQtyKeyDown.InvokeAsync((e, context)))" />
-                </MudTd>
                 <MudTd DataLabel="Actions">
-                    <MudButton Variant="Variant.Filled" Size="Size.Small" OnClick="@(() => OnPromptSplit.InvokeAsync(context))">Split</MudButton>
+                    <MudButton Variant="Variant.Filled" Size="Size.Small" OnClick="@(() => OnPromptSplit.InvokeAsync(context))" Disabled="@(RemainingQuantities.GetValueOrDefault(context.Id) == 0)">Add Item</MudButton>
                 </MudTd>
             </RowTemplate>
         </MudTable>
@@ -64,16 +55,7 @@
     public Dictionary<int, decimal> RemainingQuantities { get; set; } = new();
 
     [Parameter]
-    public Dictionary<int, decimal> SplitQuantities { get; set; } = new();
-
-    [Parameter]
     public EventCallback<(PickingListItem pli, bool isChecked)> OnPickingLineCheckedChanged { get; set; }
-
-    [Parameter]
-    public EventCallback<(int pliId, decimal? newValue)> OnSplitQuantityChanged { get; set; }
-
-    [Parameter]
-    public EventCallback<(KeyboardEventArgs e, PickingListItem pli)> OnSplitQtyKeyDown { get; set; }
 
     [Parameter]
     public EventCallback<PickingListItem> OnPromptSplit { get; set; }
