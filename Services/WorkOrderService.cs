@@ -195,30 +195,40 @@ namespace CMetalsWS.Services
 
         private async Task AutoScheduleWorkOrder(ApplicationDbContext db, WorkOrder workOrder)
         {
-            if (!workOrder.ScheduledStartDate.HasValue) return;
+            if (!workOrder.ScheduledStartDate.HasValue)
+            {
+                return;
+            }
+
+            DateTime scheduledStartDate = workOrder.ScheduledStartDate.Value;
 
             var machine = await db.Machines.FindAsync(workOrder.MachineId);
             if (machine == null) return;
 
             var totalWeight = workOrder.Items.Sum(i => i.OrderWeight ?? 0);
+            TimeSpan duration;
             if (totalWeight == 0 || machine.EstimatedLbsPerHour == 0)
             {
-                workOrder.ScheduledEndDate = workOrder.ScheduledStartDate.Value.AddHours(1); // Default duration
-                return;
+                duration = TimeSpan.FromHours(1); // Default duration
             }
-
-            var durationHours = (double)(totalWeight / machine.EstimatedLbsPerHour);
-            var duration = TimeSpan.FromHours(durationHours);
+            else
+            {
+                var durationHours = (double)(totalWeight / machine.EstimatedLbsPerHour);
+                duration = TimeSpan.FromHours(durationHours);
+            }
 
             var lastScheduledEnd = await db.WorkOrders
                 .Where(wo => wo.MachineId == workOrder.MachineId &&
+                             wo.ScheduledEndDate.HasValue &&
                              wo.ScheduledStartDate.HasValue &&
-                             wo.ScheduledStartDate.Value.Date == workOrder.ScheduledStartDate.Value.Date &&
+                             wo.ScheduledStartDate.Value.Date == scheduledStartDate.Date &&
                              wo.Id != workOrder.Id)
-                .MaxAsync(wo => (DateTime?)wo.ScheduledEndDate);
+                .MaxAsync(wo => wo.ScheduledEndDate);
 
-            workOrder.ScheduledStartDate = lastScheduledEnd ?? workOrder.ScheduledStartDate;
-            workOrder.ScheduledEndDate = workOrder.ScheduledStartDate.Value.Add(duration);
+            DateTime newStartDate = lastScheduledEnd ?? scheduledStartDate;
+
+            workOrder.ScheduledStartDate = newStartDate;
+            workOrder.ScheduledEndDate = newStartDate.Add(duration);
         }
 
         public async Task UpdateAsync(WorkOrder workOrder, string userId)
