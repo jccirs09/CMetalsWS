@@ -19,6 +19,7 @@ namespace CMetalsWS.Services
         private readonly ITaskAuditEventService _auditEventService;
         private readonly ItemRelationshipService _itemRelationshipService;
         private readonly InventoryService _inventoryService;
+        private static readonly TimeSpan DefaultWorkOrderDuration = TimeSpan.FromHours(1);
 
         public WorkOrderService(
             IDbContextFactory<ApplicationDbContext> dbContextFactory,
@@ -195,40 +196,72 @@ namespace CMetalsWS.Services
 
         private async Task AutoScheduleWorkOrder(ApplicationDbContext db, WorkOrder workOrder)
         {
+            // Must have a picked date.
             if (!workOrder.ScheduledStartDate.HasValue)
-            {
                 return;
-            }
 
-            DateTime scheduledStartDate = workOrder.ScheduledStartDate.Value;
+            var day = workOrder.ScheduledStartDate.Value.Date;
 
-            var machine = await db.Machines.FindAsync(workOrder.MachineId);
-            if (machine == null) return;
+            // Need machine for filtering; branch for shift time.
+            var machine = await db.Machines.AsNoTracking()
+                .FirstOrDefaultAsync(m => m.Id == workOrder.MachineId);
+            if (machine is null) return;
 
-            var totalWeight = workOrder.Items.Sum(i => i.OrderWeight ?? 0);
-            TimeSpan duration;
-            if (totalWeight == 0 || machine.EstimatedLbsPerHour == 0)
+            var branch = await db.Branches.AsNoTracking()
+                .FirstOrDefaultAsync(b => b.Id == workOrder.BranchId);
+
+            // Duration: honor explicit end if provided; else default.
+            var duration = (workOrder.ScheduledEndDate.HasValue && workOrder.ScheduledStartDate.HasValue)
+                ? (workOrder.ScheduledEndDate.Value - workOrder.ScheduledStartDate.Value)
+                : DefaultWorkOrderDuration;
+
+            if (duration <= TimeSpan.Zero)
+                duration = DefaultWorkOrderDuration;
+
+            // Earliest shift start for that date:
+            // 1) Branch.StartTime if set
+            // 2) Earliest Shift.StartTime for the branch
+            // 3) Fallback 06:00
+            TimeSpan earliestSpan;
+            if (branch?.StartTime is TimeOnly brStart)
             {
-                duration = TimeSpan.FromHours(1); // Default duration
+                earliestSpan = brStart.ToTimeSpan();
             }
             else
             {
-                var durationHours = (double)(totalWeight / machine.EstimatedLbsPerHour);
-                duration = TimeSpan.FromHours(durationHours);
+                var earliestShift = await db.Set<Shift>()
+                    .AsNoTracking()
+                    .Where(s => s.BranchId == workOrder.BranchId)
+                    .OrderBy(s => s.StartTime)
+                    .Select(s => (TimeSpan?)s.StartTime.ToTimeSpan())
+                    .FirstOrDefaultAsync();
+
+                earliestSpan = earliestShift ?? TimeSpan.FromHours(6);
             }
 
-            var lastScheduledEnd = await db.WorkOrders
-                .Where(wo => wo.MachineId == workOrder.MachineId &&
-                             wo.ScheduledEndDate.HasValue &&
-                             wo.ScheduledStartDate.HasValue &&
-                             wo.ScheduledStartDate.Value.Date == scheduledStartDate.Date &&
-                             wo.Id != workOrder.Id)
-                .MaxAsync(wo => wo.ScheduledEndDate);
+            var dayEarliest = day.Add(earliestSpan);
 
-            DateTime newStartDate = lastScheduledEnd ?? scheduledStartDate;
+            // Latest scheduled end on that machine for the same date (excluding current WO)
+            var lastEnd = await db.WorkOrders
+                .Where(wo =>
+                    wo.MachineId == workOrder.MachineId &&
+                    wo.Id != workOrder.Id &&
+                    wo.ScheduledStartDate.HasValue &&
+                    wo.ScheduledEndDate.HasValue &&
+                    wo.ScheduledStartDate.Value.Date == day)
+                .MaxAsync(wo => (DateTime?)wo.ScheduledEndDate);
 
-            workOrder.ScheduledStartDate = newStartDate;
-            workOrder.ScheduledEndDate = newStartDate.Add(duration);
+            // Your rule:
+            // - none exist => start at earliest branch shift for selected date
+            // - exists     => start at last end + 1h
+            var start = lastEnd.HasValue ? lastEnd.Value.AddHours(1) : dayEarliest;
+
+            // Don’t start before earliest shift (if user picked 00:00 etc.)
+            if (start < dayEarliest)
+                start = dayEarliest;
+
+            workOrder.ScheduledStartDate = start;
+            workOrder.ScheduledEndDate   = start.Add(duration);
         }
 
         public async Task UpdateAsync(WorkOrder workOrder, string userId)
