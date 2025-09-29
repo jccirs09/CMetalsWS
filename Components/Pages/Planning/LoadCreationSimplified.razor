@@ -14,11 +14,11 @@
             <div class="d-flex justify-space-between align-center mb-4">
                 <MudText Typo="Typo.h6">Ship Dates</MudText>
                 <div class="text-right">
-                    <MudText Typo="Typo.body2"><b>@AllAvailableOrders.Sum(o => o.Weight).ToString("N0") lbs</b></MudText>
-                    <MudText Typo="Typo.caption" Class="text-muted">@AllAvailableOrders.Count() orders total</MudText>
+                    <MudText Typo="Typo.body2"><b>@FilteredAvailableOrders.Sum(o => o.Weight).ToString("N0") lbs</b></MudText>
+                    <MudText Typo="Typo.caption" Class="text-muted">@FilteredAvailableOrders.Count() orders total</MudText>
                 </div>
             </div>
-            <MudList Clickable="true" @bind-SelectedValue="SelectedShipDate" Style="max-height: 70vh; overflow-y: auto;">
+            <MudList Clickable="true" SelectedValue="SelectedShipDate" SelectedValueChanged="OnSelectedShipDateChanged" Style="max-height: 70vh; overflow-y: auto;">
                 @foreach (var date in AvailableShipDates)
                 {
                     <MudListItem Value="date">
@@ -139,22 +139,27 @@
     [Parameter] public List<AvailableOrder> AllAvailableOrders { get; set; } = new();
     [Parameter] public List<TruckInfo> AvailableTrucks { get; set; } = new();
     [Parameter] public EventCallback OnLoadCreated { get; set; }
+    [Parameter] public string? SelectedRegionName { get; set; }
 
-    private DateTime? SelectedShipDate { get; set; } = DateTime.Today;
-    private DateTime? ScheduledShipDate { get; set; } = DateTime.Today;
+    private DateTime? SelectedShipDate { get; set; }
+    private DateTime? ScheduledShipDate { get; set; }
     private string LoadNotes { get; set; }
     private string SelectedTruckId { get; set; }
 
     private HashSet<AvailableOrder> SelectedOrders { get; set; } = new();
     private HashSet<OrderItem> SelectedItems { get; set; } = new();
 
-    private List<DateTime> AvailableShipDates => AllAvailableOrders
+    private List<AvailableOrder> FilteredAvailableOrders => string.IsNullOrEmpty(SelectedRegionName)
+        ? AllAvailableOrders
+        : AllAvailableOrders.Where(o => o.DeliveryRegion == SelectedRegionName).ToList();
+
+    private List<DateTime> AvailableShipDates => FilteredAvailableOrders
         .Select(o => o.ReadyDate.Date)
         .Distinct()
         .OrderBy(d => d)
         .ToList();
 
-    private IEnumerable<AvailableOrder> OrdersByDate(DateTime date) => AllAvailableOrders
+    private IEnumerable<AvailableOrder> OrdersByDate(DateTime date) => FilteredAvailableOrders
         .Where(o => o.ReadyDate.Date == date.Date);
 
     private IEnumerable<AvailableOrder> OrdersForSelectedDate => SelectedShipDate.HasValue
@@ -162,6 +167,13 @@
         : Enumerable.Empty<AvailableOrder>();
 
     private int TotalSelectedWeight => SelectedItems.Sum(i => i.Weight);
+
+    private void OnSelectedShipDateChanged(DateTime? newDate)
+    {
+        SelectedShipDate = newDate;
+        ClearSelections();
+        StateHasChanged();
+    }
 
     private void ClearSelections()
     {
@@ -235,11 +247,11 @@
         return Color.Primary;
     }
 
-    protected override void OnInitialized()
+    protected override void OnParametersSet()
     {
-        if (AvailableShipDates.Any() && !SelectedShipDate.HasValue)
+        if (!string.IsNullOrEmpty(SelectedRegionName) || (AvailableShipDates.Any() && SelectedShipDate == null))
         {
-            SelectedShipDate = AvailableShipDates.First();
+            SelectedShipDate = AvailableShipDates.FirstOrDefault();
         }
     }
 

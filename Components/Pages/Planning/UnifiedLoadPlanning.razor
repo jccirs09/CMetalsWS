@@ -40,7 +40,7 @@
                     @foreach (var region in _regions)
                     {
                         <MudItem xs="12" sm="6" md="4" lg="2">
-                            <MudCard Class="d-flex flex-column region-card" Style="height:100%; cursor:pointer;" @onclick='() => ActivateTab("Simple Planning")'>
+                            <MudCard Class="d-flex flex-column region-card" Style="height:100%; cursor:pointer;" @onclick='() => ActivateTabWithRegion(region.Name)'>
                                 <MudCardContent>
                                     <div class="d-flex justify-space-between align-start mb-2">
                                         <MudAvatar Color="GetRegionColor(region.Type)" Size="Size.Medium">
@@ -61,7 +61,7 @@
                                             <MudItem xs="8"><MudText Typo="Typo.caption">Pending Pickups:</MudText></MudItem>
                                             <MudItem xs="4" Class="text-right"><MudChip T="int" Size="Size.Small" Color="Color.Error">@region.Metrics.PendingPickups</MudChip></MudItem>
                                         }
-                                    </MudGrid>
+                                    </Grid>
 
                                     <div class="mt-3 pt-3 border-t-1">
                                         <MudText Typo="Typo.caption" Class="d-flex align-center gap-1"><MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small"/> @region.OperationalInfo.Coordinator</MudText>
@@ -267,7 +267,7 @@
                 </MudStack>
             </MudTabPanel>
             <MudTabPanel Text="Simple Planning" Icon="@Icons.Material.Filled.Add">
-                <LoadCreationSimplified AllAvailableOrders="_availableOrders" AvailableTrucks="_trucks" OnLoadCreated="LoadData" />
+                <LoadCreationSimplified AllAvailableOrders="_availableOrders" AvailableTrucks="_trucks" OnLoadCreated="LoadData" SelectedRegionName="@_selectedRegionName" />
             </MudTabPanel>
             <MudTabPanel Text="Pool Management" Icon="@Icons.Material.Filled.Layers" Disabled="true">
                 <MudText>Pool Management coming soon.</MudText>
@@ -287,6 +287,7 @@
 
 @code {
     private MudTabs _mudTabs;
+    private string? _selectedRegionName;
     private List<DeliveryRegion> _regions = new();
     private List<ShippingLoad> _loads = new();
     private List<AvailableOrder> _availableOrders = new();
@@ -328,6 +329,12 @@
         {
             _mudTabs.ActivatePanel(panel);
         }
+    }
+
+    private void ActivateTabWithRegion(string regionName)
+    {
+        _selectedRegionName = regionName;
+        ActivateTab("Simple Planning");
     }
 
     private Color GetStatusColor(string status) => status.ToLower() switch
