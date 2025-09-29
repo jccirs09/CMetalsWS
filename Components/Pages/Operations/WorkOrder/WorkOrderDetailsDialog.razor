@@ -7,34 +7,43 @@
         <MudText Typo="Typo.h6">Work Order: @Model.WorkOrderNumber</MudText>
     </TitleContent>
     <DialogContent>
-        <MudGrid Spacing="2">
-            <MudItem xs="6"><MudText><b>Machine:</b> @Model.Machine?.Name</MudText></MudItem>
-            <MudItem xs="6"><MudText><b>Status:</b> @Model.Status</MudText></MudItem>
-            <MudItem xs="6"><MudText><b>Tag:</b> @Model.TagNumber</MudText></MudItem>
-            <MudItem xs="6"><MudText><b>Due:</b> @Model.DueDate.ToString("d")</MudText></MudItem>
-        </MudGrid>
-        <MudText Typo="Typo.h6" Class="mt-4">Items</MudText>
-        <MudSimpleTable Dense="true" Hover="true">
-            <thead>
-                <tr>
-                    <th>Item Code</th>
-                    <th>Description</th>
-                    <th>Quantity</th>
-                    <th>Weight</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach(var item in Model.Items)
-                {
-                    <tr>
-                        <td>@item.ItemCode</td>
-                        <td>@item.Description</td>
-                        <td>@item.OrderQuantity</td>
-                        <td>@item.OrderWeight?.ToString("N2")</td>
-                    </tr>
-                }
-            </tbody>
-        </MudSimpleTable>
+        <MudStack Spacing="3">
+            <MudGrid>
+                <MudItem xs="6">
+                    <MudText><b>Machine:</b> @(Model.Machine?.Name ?? "N/A")</MudText>
+                </MudItem>
+                <MudItem xs="6">
+                    <div class="d-flex align-center">
+                        <MudText Class="mr-2"><b>Status:</b></MudText>
+                        <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(Model.Status)" Text="@Model.Status.ToString()" />
+                    </div>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudText><b>Tag:</b> @Model.TagNumber</MudText>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudText><b>Due:</b> @(Model.DueDate.HasValue ? Model.DueDate.Value.ToString("d") : "N/A")</MudText>
+                </MudItem>
+            </MudGrid>
+
+            <MudTable Items="@Model.Items" T="WorkOrderItem" Dense="true" Hover="true" Striped="true" Outlined="true" Class="mt-2">
+                <HeaderContent>
+                    <MudTh>Item Code</MudTh>
+                    <MudTh>Description</MudTh>
+                    <MudTh>Quantity</MudTh>
+                    <MudTh Style="text-align:right">Weight (lbs)</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Item Code">@context.ItemCode</MudTd>
+                    <MudTd DataLabel="Description">@context.Description</MudTd>
+                    <MudTd DataLabel="Quantity">@context.OrderQuantity</MudTd>
+                    <MudTd DataLabel="Weight" Style="text-align:right">@context.OrderWeight?.ToString("N2")</MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudStack>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Close</MudButton>
@@ -44,16 +53,27 @@
 
 @code {
     [CascadingParameter]
-    IMudDialogInstance MudDialog { get; set; }
+    private IMudDialogInstance MudDialog { get; set; } = default!;
 
     [Parameter]
-    public WorkOrder Model { get; set; }
+    public WorkOrder Model { get; set; } = new();
 
-    void GoToProcessPage()
+    private Color GetStatusColor(WorkOrderStatus status) => status switch
+    {
+        WorkOrderStatus.Draft => Color.Default,
+        WorkOrderStatus.Pending => Color.Info,
+        WorkOrderStatus.InProgress => Color.Success,
+        WorkOrderStatus.Awaiting => Color.Warning,
+        WorkOrderStatus.Completed => Color.Primary,
+        WorkOrderStatus.Canceled => Color.Error,
+        _ => Color.Dark
+    };
+
+    private void GoToProcessPage()
     {
         Navigation.NavigateTo($"/operations/workorder/process/{Model.Id}");
         MudDialog.Close(DialogResult.Ok(true));
     }
 
-    void Cancel() => MudDialog.Cancel();
+    private void Cancel() => MudDialog.Cancel();
 }
