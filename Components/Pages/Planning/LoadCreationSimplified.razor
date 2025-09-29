@@ -1,5 +1,11 @@
+@using System.Security.Claims
+@using CMetalsWS.Data
 @using CMetalsWS.Models
+@using CMetalsWS.Services
 @using MudBlazor
+@inject LoadService LoadService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
 
 <MudGrid Spacing="4">
     @* Ship Dates Column *@
@@ -7,17 +13,25 @@
         <MudPaper Class="pa-4" Style="height: 100%;">
             <div class="d-flex justify-space-between align-center mb-4">
                 <MudText Typo="Typo.h6">Ship Dates</MudText>
-                <MudText Typo="Typo.body2">@AvailableShipDates.Count Ship Dates</MudText>
+                <div class="text-right">
+                    <MudText Typo="Typo.body2"><b>@FilteredAvailableOrders.Sum(o => o.Weight).ToString("N0") lbs</b></MudText>
+                    <MudText Typo="Typo.caption" Class="text-muted">@FilteredAvailableOrders.Count() orders total</MudText>
+                </div>
             </div>
-            <MudList Clickable="true" @bind-SelectedValue="SelectedShipDate">
+            <MudList T="DateTime?" Clickable="true" SelectedValue="SelectedShipDate" SelectedValueChanged="OnSelectedShipDateChanged" Style="max-height: 70vh; overflow-y: auto;">
                 @foreach (var date in AvailableShipDates)
                 {
-                    <MudListItem Value="date" Class="d-flex justify-space-between">
-                        <div>
-                            <MudText><b>@date.ToString("MMM dd")</b></MudText>
-                            <MudText Typo="Typo.body2" Class="text-muted">@date.DayOfWeek</MudText>
+                    <MudListItem Value="@((DateTime?)date)">
+                        <div class="d-flex justify-space-between align-center" style="width:100%">
+                            <div>
+                                <MudText><b>@date.ToString("dddd, MMM dd")</b></MudText>
+                                <MudText Typo="Typo.caption" Class="text-muted">@date.ToString("yyyy")</MudText>
+                            </div>
+                            <div class="text-right">
+                                <MudText Typo="Typo.body2"><b>@OrdersByDate(date).Sum(o => o.Weight).ToString("N0") lbs</b></MudText>
+                                <MudText Typo="Typo.caption" Class="text-muted">@OrdersByDate(date).Count() orders</MudText>
+                            </div>
                         </div>
-                        <MudChip T="int" Size="Size.Small">@OrdersByDate(date).Count()</MudChip>
                     </MudListItem>
                 }
             </MudList>
@@ -32,7 +46,7 @@
                     <MudText Typo="Typo.h6">Orders & Line Items</MudText>
                     <MudText Typo="Typo.body2" Class="text-muted">@OrdersForSelectedDate.Count() Available Orders</MudText>
                 </div>
-                <MudButton Variant="Variant.Text" OnClick="ClearSelections">Clear Selections</MudButton>
+                <MudButton Variant="Variant.Text" @onclick="ClearSelections">Clear Selections</MudButton>
             </div>
 
             <div class="d-flex flex-column gap-4" style="max-height: 70vh; overflow-y: auto;">
@@ -104,8 +118,8 @@
                                 <div class="flex-grow-1">
                                     <MudText><b>@truck.Name</b> @(truck.IsRecommended ? "(Recommended)" : "")</MudText>
                                     <MudText Typo="Typo.body2">@truck.Type - @truck.Driver</MudText>
-                                    <MudProgressLinear Value="((double)truck.CurrentLoad / truck.Capacity) * 100" Color="Color.Primary" Class="my-1" />
-                                    <MudText Typo="Typo.caption">@truck.CurrentLoad.ToString("N0") / @truck.Capacity.ToString("N0") lbs</MudText>
+                                    <MudProgressLinear Value="@((GetProjectedLoad(truck) / (double)truck.Capacity) * 100)" Color="@GetProjectedLoadColor(truck)" Class="my-1" />
+                                    <MudText Typo="Typo.caption">@GetProjectedLoad(truck).ToString("N0") / @truck.Capacity.ToString("N0") lbs</MudText>
                                 </div>
                                 <MudRadio T="string" Value="@truck.Id" />
                             </div>
@@ -115,31 +129,38 @@
             </MudForm>
 
             <div class="mt-auto">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4" Disabled="@(SelectedItems.Count == 0)">Create Load</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4" Disabled="@(!CanCreate)" OnClick="CreateLoadAsync">Create Load</MudButton>
             </div>
         </MudPaper>
     </MudItem>
 </MudGrid>
 
 @code {
+    private bool CanCreate => SelectedItems.Any() && !string.IsNullOrEmpty(SelectedTruckId);
     [Parameter] public List<AvailableOrder> AllAvailableOrders { get; set; } = new();
     [Parameter] public List<TruckInfo> AvailableTrucks { get; set; } = new();
+    [Parameter] public EventCallback OnLoadCreated { get; set; }
+    [Parameter] public string? SelectedRegionName { get; set; }
 
-    private DateTime? SelectedShipDate { get; set; } = DateTime.Today;
-    private DateTime? ScheduledShipDate { get; set; } = DateTime.Today;
+    private DateTime? SelectedShipDate { get; set; }
+    private DateTime? ScheduledShipDate { get; set; }
     private string LoadNotes { get; set; }
     private string SelectedTruckId { get; set; }
 
     private HashSet<AvailableOrder> SelectedOrders { get; set; } = new();
     private HashSet<OrderItem> SelectedItems { get; set; } = new();
 
-    private List<DateTime> AvailableShipDates => AllAvailableOrders
+    private List<AvailableOrder> FilteredAvailableOrders => string.IsNullOrEmpty(SelectedRegionName)
+        ? AllAvailableOrders
+        : AllAvailableOrders.Where(o => o.DeliveryRegion == SelectedRegionName).ToList();
+
+    private List<DateTime> AvailableShipDates => FilteredAvailableOrders
         .Select(o => o.ReadyDate.Date)
         .Distinct()
         .OrderBy(d => d)
         .ToList();
 
-    private IEnumerable<AvailableOrder> OrdersByDate(DateTime date) => AllAvailableOrders
+    private IEnumerable<AvailableOrder> OrdersByDate(DateTime date) => FilteredAvailableOrders
         .Where(o => o.ReadyDate.Date == date.Date);
 
     private IEnumerable<AvailableOrder> OrdersForSelectedDate => SelectedShipDate.HasValue
@@ -147,6 +168,13 @@
         : Enumerable.Empty<AvailableOrder>();
 
     private int TotalSelectedWeight => SelectedItems.Sum(i => i.Weight);
+
+    private void OnSelectedShipDateChanged(DateTime? newDate)
+    {
+        SelectedShipDate = newDate;
+        ClearSelections();
+        StateHasChanged();
+    }
 
     private void ClearSelections()
     {
@@ -208,13 +236,90 @@
         _ => Color.Default
     };
 
-    protected override void OnInitialized()
+    private int GetProjectedLoad(TruckInfo truck) => truck.CurrentLoad + TotalSelectedWeight;
+
+    private Color GetProjectedLoadColor(TruckInfo truck)
     {
-        // In a real scenario, this data would be loaded from a service.
-        // For now, we'll use the parameter or expect it to be passed.
-        if (AvailableShipDates.Any() && !SelectedShipDate.HasValue)
+        if (truck.Capacity == 0) return Color.Primary;
+        var projectedLoad = GetProjectedLoad(truck);
+        var percentage = (double)projectedLoad / truck.Capacity;
+        if (percentage > 1) return Color.Error;
+        if (percentage > 0.9) return Color.Warning;
+        return Color.Primary;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrEmpty(SelectedRegionName) || (AvailableShipDates.Any() && SelectedShipDate == null))
         {
-            SelectedShipDate = AvailableShipDates.First();
+            SelectedShipDate = AvailableShipDates.FirstOrDefault();
+        }
+    }
+
+    private async Task CreateLoadAsync()
+    {
+        if (!CanCreate)
+        {
+            Snackbar.Add("Please select items and a truck for the load.", Severity.Warning);
+            return;
+        }
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var selectedTruck = AvailableTrucks.FirstOrDefault(t => t.Id == SelectedTruckId);
+
+        if (selectedTruck == null)
+        {
+            Snackbar.Add("Selected truck not found.", Severity.Error);
+            return;
+        }
+
+        var newLoad = new Load
+        {
+            TruckId = int.Parse(SelectedTruckId),
+            ShippingDate = ScheduledShipDate,
+            Status = LoadStatus.Pending,
+            Notes = LoadNotes,
+            OriginBranchId = selectedTruck.BranchId,
+            TotalWeight = SelectedItems.Sum(i => i.Weight)
+        };
+
+        var loadItems = new List<Data.LoadItem>();
+        var ordersWithSelectedItems = AllAvailableOrders.Where(o => o.Items.Any(i => SelectedItems.Contains(i)));
+
+        foreach (var order in ordersWithSelectedItems)
+        {
+            var itemsToLoad = order.Items.Where(i => SelectedItems.Contains(i));
+            foreach (var item in itemsToLoad)
+            {
+                loadItems.Add(new Data.LoadItem
+                {
+                    PickingListId = int.Parse(order.Id),
+                    PickingListItemId = int.Parse(item.Id),
+                    ShippedWeight = item.Weight,
+                    ShippedQuantity = item.Quantity
+                });
+            }
+        }
+
+        newLoad.Items = loadItems;
+
+        if (!newLoad.Items.Any())
+        {
+            Snackbar.Add("Could not find selected items to create the load. Please try again.", Severity.Error);
+            return;
+        }
+
+        try
+        {
+            await LoadService.CreateAsync(newLoad, userId);
+            Snackbar.Add("Load created successfully!", Severity.Success);
+            ClearSelections();
+            await OnLoadCreated.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error creating load: {ex.Message}", Severity.Error);
         }
     }
 }

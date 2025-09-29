@@ -155,6 +155,12 @@ using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<IdentityDataSeeder>();
     await seeder.SeedAsync();
+
+    // Seed destination regions
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    await CMetalsWS.Data.Seed.SeedDestinationRegions.RunAsync(dbContext, roleManager, userManager);
 }
 
 // Pipeline

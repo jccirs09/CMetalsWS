@@ -6,304 +6,345 @@
 @inject ShippingService ShippingService
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-8">
-    <div class="d-flex justify-space-between align-center mb-4">
-        <div>
-            <MudText Typo="Typo.h4">Loads & Shipping</MudText>
-            <MudText Typo="Typo.body1" Class="text-muted">Manage truck loads and shipping operations</MudText>
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-center align-center" style="height: 80vh;">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
         </div>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">New Load</MudButton>
-    </div>
-
-    <MudTabs @ref="_mudTabs" Elevation="2" Rounded="true" PanelClass="mt-4">
-        <MudTabPanel Text="Regional Overview" Icon="@Icons.Material.Filled.Map">
-            <div class="d-flex justify-space-between align-center mb-4">
-                <div>
-                    <MudText Typo="Typo.h5">Regional Delivery Management</MudText>
-                    <MudText Typo="Typo.body2" Class="text-muted">Manage deliveries across different geographical regions and service types</MudText>
-                </div>
-                <div class="d-flex gap-2">
-                    <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Route">Optimize Routes</MudButton>
-                    <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.CalendarToday">Schedule Pools</MudButton>
-                </div>
+    }
+    else
+    {
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div>
+                <MudText Typo="Typo.h4">Loads & Shipping</MudText>
+                <MudText Typo="Typo.body1" Class="text-muted">Manage truck loads and shipping operations</MudText>
             </div>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">New Load</MudButton>
+        </div>
 
-            <!-- Regional Summary Cards -->
-            <MudGrid Spacing="4" Class="mb-6">
-                @foreach (var region in _regions)
-                {
-                    <MudItem xs="12" sm="6" md="4" lg="2">
-                        <MudCard Class="d-flex flex-column region-card" Style="height:100%; cursor:pointer;" @onclick='() => ActivateTab("Simple Planning")'>
+        <MudTabs @ref="_mudTabs" Elevation="2" Rounded="true" PanelClass="mt-4">
+            <MudTabPanel Text="Regional Overview" Icon="@Icons.Material.Filled.Map">
+                <div class="d-flex justify-space-between align-center mb-4">
+                    <div>
+                        <MudText Typo="Typo.h5">Regional Delivery Management</MudText>
+                        <MudText Typo="Typo.body2" Class="text-muted">Manage deliveries across different geographical regions and service types</MudText>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Route">Optimize Routes</MudButton>
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.CalendarToday">Schedule Pools</MudButton>
+                    </div>
+                </div>
+
+                <!-- Regional Summary Cards -->
+                <MudGrid Spacing="4" Class="mb-6">
+                    @foreach (var region in _regions)
+                    {
+                        <MudItem xs="12" sm="6" md="4" lg="2">
+                            <MudCard Class="d-flex flex-column region-card" Style="height:100%; cursor:pointer;" @onclick="@(() => ActivateTabWithRegion(region.Name))">
+                                <MudCardContent>
+                                    <div class="d-flex justify-space-between align-start mb-2">
+                                        <MudAvatar Color="@GetRegionColor(region.Type)" Size="Size.Medium">
+                                            <MudIcon Icon="@GetRegionIcon(region.Type)" />
+                                        </MudAvatar>
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@region.Metrics.UtilizationRate%</MudChip>
+                                    </div>
+
+                                    <MudText Typo="Typo.h6">@region.Name</MudText>
+                                    <MudText Typo="Typo.body2" Class="text-muted mb-3">@region.Description</MudText>
+
+                                    <MudGrid Spacing="2">
+                                        <MudItem xs="6"><MudText Typo="Typo.caption">Active Orders:</MudText></MudItem>
+                                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2"><b>@region.Metrics.ActiveOrders</b></MudText></MudItem>
+
+                                        <MudItem xs="6"><MudText Typo="Typo.caption">Avg Delivery:</MudText></MudItem>
+                                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2"><b>@region.Metrics.AverageDeliveryTime</b></MudText></MudItem>
+
+                                        @if (region.Metrics.PendingPickups > 0)
+                                        {
+                                            <MudItem xs="8"><MudText Typo="Typo.caption">Pending Pickups:</MudText></MudItem>
+                                            <MudItem xs="4" Class="text-right">
+                                                <MudChip T="int" Size="Size.Small" Color="Color.Error">@region.Metrics.PendingPickups</MudChip>
+                                            </MudItem>
+                                        }
+                                    </MudGrid>
+
+                                    <div class="mt-3 pt-3 border-t-1">
+                                        <MudText Typo="Typo.caption" Class="d-flex align-center gap-1">
+                                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" /> @region.OperationalInfo.Coordinator
+                                        </MudText>
+                                        <MudText Typo="Typo.caption" Class="d-flex align-center gap-1">
+                                            <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" /> @region.OperationalInfo.Phone
+                                        </MudText>
+                                    </div>
+
+                                    <div class="d-flex gap-2 mt-2">
+                                        @if (region.Characteristics.RequiresPooling)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Layers" Color="Color.Primary">Pool Delivery</MudChip>
+                                        }
+                                    </div>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+
+                <!-- Orders and Fleet -->
+                <MudGrid Spacing="4" Class="mb-6">
+                    <MudItem xs="12" lg="6">
+                        <MudCard>
+                            <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Orders by Region</MudText></CardHeaderContent></MudCardHeader>
                             <MudCardContent>
-                                <div class="d-flex justify-space-between align-start mb-2">
-                                    <MudAvatar Color="GetRegionColor(region.Type)" Size="Size.Medium">
-                                        <MudIcon Icon="@GetRegionIcon(region.Type)" />
-                                    </MudAvatar>
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@region.Metrics.UtilizationRate%</MudChip>
-                                </div>
-                                <MudText Typo="Typo.h6">@region.Name</MudText>
-                                <MudText Typo="Typo.body2" Class="text-muted mb-3">@region.Description</MudText>
+                                @foreach (var region in _regions)
+                                {
+                                    var regionOrders = _availableOrders.Where(o => o.DeliveryRegion == region.Name).ToList();
+                                    <div class="d-flex align-center justify-space-between pa-2 my-1 rounded-lg" style="background-color: var(--mud-palette-background-grey);">
+                                        <div class="d-flex align-center gap-3">
+                                            <MudAvatar Color="@GetRegionColor(region.Type)" Size="Size.Small" />
+                                            <div>
+                                                <MudText><b>@region.Name</b></MudText>
+                                                <MudText Typo="Typo.body2" Class="text-muted">@regionOrders.Sum(o => o.Weight).ToString("N0") lbs</MudText>
+                                            </div>
+                                        </div>
+                                        <MudChip T="string" Size="Size.Small">@regionOrders.Count() orders</MudChip>
+                                    </div>
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                    <MudItem xs="12" lg="6">
+                        <MudCard>
+                            <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Fleet Assignment</MudText></CardHeaderContent></MudCardHeader>
+                            <MudCardContent>
+                                 @foreach (var region in _regions)
+                                {
+                                    var regionTrucks = _trucks.Where(t => t.Type == region.Name).ToList(); // Simplified logic
+                                    <div class="d-flex align-center justify-space-between pa-2 my-1 rounded-lg" style="background-color: var(--mud-palette-background-grey);">
+                                        <div class="d-flex align-center gap-3">
+                                            <MudAvatar Color="@GetRegionColor(region.Type)" Size="Size.Small" />
+                                            <div>
+                                                <MudText><b>@region.Name</b></MudText>
+                                                <MudText Typo="Typo.body2" Class="text-muted">@regionTrucks.Count() active • @regionTrucks.Count(t => t.IsRecommended) pool trucks</MudText>
+                                            </div>
+                                        </div>
+                                        <MudChip T="string" Size="Size.Small">@regionTrucks.Count() trucks</MudChip>
+                                    </div>
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                </MudGrid>
 
-                                <MudGrid Spacing="2">
-                                    <MudItem xs="6"><MudText Typo="Typo.caption">Active Orders:</MudText></MudItem>
-                                    <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2"><b>@region.Metrics.ActiveOrders</b></MudText></MudItem>
-                                    <MudItem xs="6"><MudText Typo="Typo.caption">Avg Delivery:</MudText></MudItem>
-                                    <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2"><b>@region.Metrics.AverageDeliveryTime</b></MudText></MudItem>
-                                    @if(region.Metrics.PendingPickups > 0)
-                                    {
-                                        <MudItem xs="8"><MudText Typo="Typo.caption">Pending Pickups:</MudText></MudItem>
-                                        <MudItem xs="4" Class="text-right"><MudChip T="int" Size="Size.Small" Color="Color.Error">@region.Metrics.PendingPickups</MudChip></MudItem>
-                                    }
-                                </MudGrid>
-
-                                <div class="mt-3 pt-3 border-t-1">
-                                    <MudText Typo="Typo.caption" Class="d-flex align-center gap-1"><MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small"/> @region.OperationalInfo.Coordinator</MudText>
-                                    <MudText Typo="Typo.caption" Class="d-flex align-center gap-1"><MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small"/> @region.OperationalInfo.Phone</MudText>
-                                </div>
-
-                                <div class="d-flex gap-2 mt-2">
-                                    @if(region.Characteristics.FerryDependent)
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.DirectionsBoat" Color="Color.Info">Ferry Dependent</MudChip>
-                                    }
-                                    @if(region.Characteristics.RequiresPooling)
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Layers" Color="Color.Primary">Pool Delivery</MudChip>
-                                    }
+                <!-- Alerts -->
+                <MudGrid Spacing="4">
+                    @foreach(var alert in _alerts)
+                    {
+                        <MudItem xs="12" md="4">
+                            <MudAlert Severity="@GetAlertSeverity(alert.Color)" Dense="true"><b>@alert.Title</b> - @alert.Content</MudAlert>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudTabPanel>
+            <MudTabPanel Text="Load Management" Icon="@Icons.Material.Filled.LocalShipping">
+                <!-- Summary Cards -->
+                <MudGrid Spacing="4" Class="mb-6">
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudCard>
+                            <MudCardContent Class="d-flex align-center">
+                                <MudAvatar Color="Color.Primary" Size="Size.Large"><MudIcon Icon="@Icons.Material.Filled.LocalShipping" /></MudAvatar>
+                                <div class="ml-4">
+                                    <MudText Typo="Typo.body2" Class="text-muted">Active Loads</MudText>
+                                    <MudText Typo="Typo.h5"><b>@_loads.Count(l => l.Status != "delivered")</b></MudText>
                                 </div>
                             </MudCardContent>
                         </MudCard>
                     </MudItem>
-                }
-            </MudGrid>
-
-            <!-- Orders and Fleet -->
-            <MudGrid Spacing="4" Class="mb-6">
-                <MudItem xs="12" lg="6">
-                    <MudCard>
-                        <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Orders by Region</MudText></CardHeaderContent></MudCardHeader>
-                        <MudCardContent>
-                            @foreach (var region in _regions)
-                            {
-                                var regionOrders = _availableOrders.Where(o => o.DeliveryRegion == region.Id).ToList();
-                                <div class="d-flex align-center justify-space-between pa-2 my-1 rounded-lg" style="background-color: var(--mud-palette-background-grey);">
-                                    <div class="d-flex align-center gap-3">
-                                        <MudAvatar Color="GetRegionColor(region.Type)" Size="Size.Small" />
-                                        <div>
-                                            <MudText><b>@region.Name</b></MudText>
-                                            <MudText Typo="Typo.body2" Class="text-muted">@regionOrders.Sum(o => o.Weight).ToString("N0") lbs</MudText>
-                                        </div>
-                                    </div>
-                                    <MudChip T="string" Size="Size.Small">@regionOrders.Count() orders</MudChip>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudCard>
+                            <MudCardContent Class="d-flex align-center">
+                                <MudAvatar Color="Color.Warning" Size="Size.Large"><MudIcon Icon="@Icons.Material.Filled.LocalShipping" /></MudAvatar>
+                                <div class="ml-4">
+                                    <MudText Typo="Typo.body2" Class="text-muted">In Transit</MudText>
+                                    <MudText Typo="Typo.h5"><b>@_loads.Count(l => l.Status == "in-transit")</b></MudText>
                                 </div>
-                            }
-                        </MudCardContent>
-                    </MudCard>
-                </MudItem>
-                <MudItem xs="12" lg="6">
-                    <MudCard>
-                        <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Fleet Assignment</MudText></CardHeaderContent></MudCardHeader>
-                        <MudCardContent>
-                             @foreach (var region in _regions)
-                            {
-                                var regionTrucks = _trucks.Where(t => t.Type == region.Name).ToList(); // Simplified logic
-                                <div class="d-flex align-center justify-space-between pa-2 my-1 rounded-lg" style="background-color: var(--mud-palette-background-grey);">
-                                    <div class="d-flex align-center gap-3">
-                                        <MudAvatar Color="GetRegionColor(region.Type)" Size="Size.Small" />
-                                        <div>
-                                            <MudText><b>@region.Name</b></MudText>
-                                            <MudText Typo="Typo.body2" Class="text-muted">@regionTrucks.Count() active • @regionTrucks.Count(t => t.IsRecommended) pool trucks</MudText>
-                                        </div>
-                                    </div>
-                                    <MudChip T="string" Size="Size.Small">@regionTrucks.Count() trucks</MudChip>
-                                </div>
-                            }
-                        </MudCardContent>
-                    </MudCard>
-                </MudItem>
-            </MudGrid>
-
-            <!-- Alerts -->
-            <MudGrid Spacing="4">
-                @foreach(var alert in _alerts)
-                {
-                    <MudItem xs="12" md="4">
-                        <MudAlert Severity="GetAlertSeverity(alert.Color)" Dense="true"><b>@alert.Title</b> - @alert.Content</MudAlert>
+                            </MudCardContent>
+                        </MudCard>
                     </MudItem>
-                }
-            </MudGrid>
-        </MudTabPanel>
-        <MudTabPanel Text="Load Management" Icon="@Icons.Material.Filled.LocalShipping">
-            <!-- Summary Cards -->
-            <MudGrid Spacing="4" Class="mb-6">
-                <MudItem xs="12" sm="6" md="3">
-                    <MudCard>
-                        <MudCardContent class="d-flex align-center">
-                            <MudAvatar Color="Color.Primary" Size="Size.Large"><MudIcon Icon="@Icons.Material.Filled.LocalShipping" /></MudAvatar>
-                            <div class="ml-4">
-                                <MudText Typo="Typo.body2" Class="text-muted">Active Loads</MudText>
-                                <MudText Typo="Typo.h5"><b>@_loads.Count(l => l.Status != "delivered")</b></MudText>
-                            </div>
-                        </MudCardContent>
-                    </MudCard>
-                </MudItem>
-                <MudItem xs="12" sm="6" md="3">
-                    <MudCard>
-                        <MudCardContent class="d-flex align-center">
-                            <MudAvatar Color="Color.Warning" Size="Size.Large"><MudIcon Icon="@Icons.Material.Filled.LocalShipping" /></MudAvatar>
-                            <div class="ml-4">
-                                <MudText Typo="Typo.body2" Class="text-muted">In Transit</MudText>
-                                <MudText Typo="Typo.h5"><b>@_loads.Count(l => l.Status == "in-transit")</b></MudText>
-                            </div>
-                        </MudCardContent>
-                    </MudCard>
-                </MudItem>
-                <MudItem xs="12" sm="6" md="3">
-                    <MudCard>
-                        <MudCardContent class="d-flex align-center">
-                            <MudAvatar Color="Color.Success" Size="Size.Large"><MudIcon Icon="@Icons.Material.Filled.CheckCircle" /></MudAvatar>
-                            <div class="ml-4">
-                                <MudText Typo="Typo.body2" Class="text-muted">Delivered Today</MudText>
-                                <MudText Typo="Typo.h5"><b>0</b></MudText>
-                            </div>
-                        </MudCardContent>
-                    </MudCard>
-                </MudItem>
-                <MudItem xs="12" sm="6" md="3">
-                    <MudCard>
-                        <MudCardContent class="d-flex align-center">
-                            <MudAvatar Color="Color.Error" Size="Size.Large"><MudIcon Icon="@Icons.Material.Filled.Warning" /></MudAvatar>
-                            <div class="ml-4">
-                                <MudText Typo="Typo.body2" Class="text-muted">Overdue</MudText>
-                                <MudText Typo="Typo.h5"><b>0</b></MudText>
-                            </div>
-                        </MudCardContent>
-                    </MudCard>
-                </MudItem>
-            </MudGrid>
-
-            <!-- Loads List -->
-            <MudStack Spacing="4">
-                @foreach (var load in _loads)
-                {
-                    <MudCard>
-                        <MudCardHeader>
-                            <CardHeaderContent>
-                                <div class="d-flex align-center gap-2">
-                                    <MudText Typo="Typo.h6">@load.Id</MudText>
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@load.TrailerType</MudChip>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudCard>
+                            <MudCardContent Class="d-flex align-center">
+                                <MudAvatar Color="Color.Success" Size="Size.Large"><MudIcon Icon="@Icons.Material.Filled.CheckCircle" /></MudAvatar>
+                                <div class="ml-4">
+                                    <MudText Typo="Typo.body2" Class="text-muted">Delivered Today</MudText>
+                                    <MudText Typo="Typo.h5"><b>@_loads.Count(l => l.Status == "delivered" && l.EstimatedDelivery?.Date == DateTime.Today)</b></MudText>
                                 </div>
-                                <MudText Typo="Typo.body2" Class="text-muted">@load.DriverName • @load.TruckNumber • @load.DriverPhone</MudText>
-                            </CardHeaderContent>
-                            <CardHeaderActions>
-                                <MudChip T="string" Size="Size.Small" Color="GetPriorityColor(load.Priority)">@load.Priority</MudChip>
-                                <MudChip T="string" Size="Size.Small" Color="GetStatusColor(load.Status)">@load.Status</MudChip>
-                                <MudChip T="string" Size="Size.Small" Color="GetRegionColor(load.DeliveryRegion)">@load.DeliveryRegion</MudChip>
-                            </CardHeaderActions>
-                        </MudCardHeader>
-                        <MudCardContent>
-                            <MudText Typo="Typo.body2">Load Utilization</MudText>
-                            <MudProgressLinear Value="(double)load.UtilizationPercentage" Color="Color.Primary" Class="my-1" />
-                            <div class="d-flex justify-space-between">
-                                <MudText Typo="Typo.caption">@load.UtilizationPercentage% utilized</MudText>
-                                <MudText Typo="Typo.caption"><b>@load.CurrentWeight.ToString("N0") / @load.MaxWeight.ToString("N0") lbs</b></MudText>
-                            </div>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudCard>
+                            <MudCardContent Class="d-flex align-center">
+                                <MudAvatar Color="Color.Error" Size="Size.Large"><MudIcon Icon="@Icons.Material.Filled.Warning" /></MudAvatar>
+                                <div class="ml-4">
+                                    <MudText Typo="Typo.body2" Class="text-muted">Overdue</MudText>
+                                    <MudText Typo="Typo.h5"><b>@_loads.Count(l => l.Status != "delivered" && l.EstimatedDelivery.HasValue && l.EstimatedDelivery.Value.Date < DateTime.Today)</b></MudText>
+                                </div>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                </MudGrid>
 
-                            <MudGrid Class="mt-4">
-                                <MudItem xs="6">
-                                    <MudText Typo="Typo.caption">Scheduled Pickup</MudText>
-                                    <MudText><b>@load.ScheduledPickup.ToString("g")</b></MudText>
-                                </MudItem>
-                                <MudItem xs="6">
-                                    <MudText Typo="Typo.caption">Est. Delivery</MudText>
-                                    <MudText><b>@load.EstimatedDelivery?.ToString("g")</b></MudText>
-                                </MudItem>
-                            </MudGrid>
+                <!-- Loads List -->
+                <MudStack Spacing="4">
+                    @foreach (var load in _loads)
+                    {
+                        <MudCard>
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <div class="d-flex align-center gap-2">
+                                        <MudText Typo="Typo.h6">@load.Id</MudText>
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@load.TrailerType</MudChip>
+                                    </div>
+                                    <MudText Typo="Typo.body2" Class="text-muted">@load.DriverName • @load.TruckNumber • @load.DriverPhone</MudText>
+                                </CardHeaderContent>
+                                <CardHeaderActions>
+                                    <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(load.Priority)">@load.Priority</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(load.Status)">@load.Status</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="@GetRegionColorForLoad(load)">@load.DeliveryRegion</MudChip>
+                                </CardHeaderActions>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <MudText Typo="Typo.body2">Load Utilization</MudText>
+                                <MudProgressLinear Value="(double)load.UtilizationPercentage" Color="Color.Primary" Class="my-1" />
+                                <div class="d-flex justify-space-between">
+                                    <MudText Typo="Typo.caption">@load.UtilizationPercentage% utilized</MudText>
+                                    <MudText Typo="Typo.caption"><b>@load.CurrentWeight.ToString("N0") / @load.MaxWeight.ToString("N0") lbs</b></MudText>
+                                </div>
 
-                            <MudText Typo="Typo.subtitle1" Class="mt-4">Route:</MudText>
-                            <MudStack Spacing="2" Class="mt-2">
-                                @foreach(var item in load.Items)
+                                <MudGrid Class="mt-4">
+                                    <MudItem xs="6">
+                                        <MudText Typo="Typo.caption">Scheduled Pickup</MudText>
+                                        <MudText><b>@load.ScheduledPickup.ToString("g")</b></MudText>
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <MudText Typo="Typo.caption">Est. Delivery</MudText>
+                                        <MudText><b>@load.EstimatedDelivery?.ToString("g")</b></MudText>
+                                    </MudItem>
+                                </MudGrid>
+
+                                <MudText Typo="Typo.subtitle1" Class="mt-4">Route:</MudText>
+                                <MudStack Spacing="2" Class="mt-2">
+                                    @foreach(var item in load.Items)
+                                    {
+                                        <MudPaper Outlined="true" Class="pa-2 d-flex align-center gap-4">
+                                            <MudAvatar Color="Color.Primary" Size="Size.Small" Class="mr-2">@load.Items.IndexOf(item)+1</MudAvatar>
+                                            <div class="flex-grow-1">
+                                                <MudText><b>@item.CustomerName</b></MudText>
+                                                <MudText Typo="Typo.body2" Class="text-muted">@item.Destination</MudText>
+                                                @if(!string.IsNullOrEmpty(item.SpecialInstructions))
+                                                {
+                                                    <MudText Typo="Typo.caption" Color="Color.Warning">⚠️ @item.SpecialInstructions</MudText>
+                                                }
+                                            </div>
+                                            <div class="text-right">
+                                                <MudText><b>@item.Weight.ToString("N0") lbs</b></MudText>
+                                                <MudText Typo="Typo.body2" Class="text-muted">@item.Pieces pcs</MudText>
+                                            </div>
+                                        </MudPaper>
+                                    }
+                                </MudStack>
+                                 @if(!string.IsNullOrEmpty(load.Notes))
                                 {
-                                    <MudPaper Outlined="true" Class="pa-2 d-flex align-center gap-4">
-                                        <MudAvatar Color="Color.Primary" Size="Size.Small" Class="mr-2">@load.Items.IndexOf(item)+1</MudAvatar>
-                                        <div class="flex-grow-1">
-                                            <MudText><b>@item.CustomerName</b></MudText>
-                                            <MudText Typo="Typo.body2" Class="text-muted">@item.Destination</MudText>
-                                            @if(!string.IsNullOrEmpty(item.SpecialInstructions))
-                                            {
-                                                <MudText Typo="Typo.caption" Color="Color.Warning">⚠️ @item.SpecialInstructions</MudText>
-                                            }
-                                        </div>
-                                        <div class="text-right">
-                                            <MudText><b>@item.Weight.ToString("N0") lbs</b></MudText>
-                                            <MudText Typo="Typo.body2" Class="text-muted">@item.Pieces pcs</MudText>
-                                        </div>
+                                    <MudPaper Class="mt-4 pa-3" Style="background-color: var(--mud-palette-info-lighten); border-left: 3px solid var(--mud-palette-info)">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-1">Load Notes</MudText>
+                                        <MudText Typo="Typo.body2">@load.Notes</MudText>
                                     </MudPaper>
                                 }
-                            </MudStack>
-                             @if(!string.IsNullOrEmpty(load.Notes))
-                            {
-                                <MudPaper Class="mt-4 pa-3" Style="background-color: var(--mud-palette-info-lighten); border-left: 3px solid var(--mud-palette-info)">
-                                    <MudText Typo="Typo.subtitle2" Class="mb-1">Load Notes</MudText>
-                                    <MudText Typo="Typo.body2">@load.Notes</MudText>
-                                </MudPaper>
-                            }
-                        </MudCardContent>
-                        <MudCardActions Class="justify-space-between">
-                            <MudText Typo="Typo.caption">Created by @load.CreatedBy • @load.CreatedAt.ToShortDateString()</MudText>
-                            <div class="d-flex gap-2">
-                                <MudButton Variant="Variant.Outlined" Size="Size.Small">Edit Load</MudButton>
-                                @if(load.Status == "loaded")
-                                {
-                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">Dispatch</MudButton>
-                                }
-                            </div>
-                        </MudCardActions>
-                    </MudCard>
-                }
-            </MudStack>
-        </MudTabPanel>
-        <MudTabPanel Text="Simple Planning" Icon="@Icons.Material.Filled.Add">
-            <LoadCreationSimplified AllAvailableOrders="_availableOrders" AvailableTrucks="_trucks" />
-        </MudTabPanel>
-        <MudTabPanel Text="Pool Management" Icon="@Icons.Material.Filled.Layers" Disabled="true">
-            <MudText>Pool Management coming soon.</MudText>
-        </MudTabPanel>
-        <MudTabPanel Text="Shipping Execution" Icon="@Icons.Material.Filled.PlayArrow" Disabled="true">
-            <MudText>Shipping Execution coming soon.</MudText>
-        </MudTabPanel>
-        <MudTabPanel Text="Live Tracking" Icon="@Icons.Material.Filled.LocationOn" Disabled="true">
-            <MudText>Live Tracking coming soon.</MudText>
-        </MudTabPanel>
-        <MudTabPanel Text="Analytics" Icon="@Icons.Material.Filled.Analytics" Disabled="true">
-            <MudText>Analytics coming soon.</MudText>
-        </MudTabPanel>
-    </MudTabs>
+                            </MudCardContent>
+                            <MudCardActions Class="justify-space-between">
+                                <MudText Typo="Typo.caption">Created by @load.CreatedBy • @load.CreatedAt.ToShortDateString()</MudText>
+                                <div class="d-flex gap-2">
+                                    <MudButton Variant="Variant.Outlined" Size="Size.Small">Edit Load</MudButton>
+                                    @if(load.Status == "loaded")
+                                    {
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">Dispatch</MudButton>
+                                    }
+                                </div>
+                            </MudCardActions>
+                        </MudCard>
+                    }
+                </MudStack>
+            </MudTabPanel>
+            <MudTabPanel Text="Simple Planning" Icon="@Icons.Material.Filled.Add">
+                <LoadCreationSimplified AllAvailableOrders="_availableOrders" AvailableTrucks="_trucks" OnLoadCreated="LoadData" SelectedRegionName="@_selectedRegionName" />
+            </MudTabPanel>
+            <MudTabPanel Text="Pool Management" Icon="@Icons.Material.Filled.Layers" Disabled="true">
+                <MudText>Pool Management coming soon.</MudText>
+            </MudTabPanel>
+            <MudTabPanel Text="Shipping Execution" Icon="@Icons.Material.Filled.PlayArrow" Disabled="true">
+                <MudText>Shipping Execution coming soon.</MudText>
+            </MudTabPanel>
+            <MudTabPanel Text="Live Tracking" Icon="@Icons.Material.Filled.LocationOn" Disabled="true">
+                <MudText>Live Tracking coming soon.</MudText>
+            </MudTabPanel>
+            <MudTabPanel Text="Analytics" Icon="@Icons.Material.Filled.Analytics" Disabled="true">
+                <MudText>Analytics coming soon.</MudText>
+            </MudTabPanel>
+        </MudTabs>
+    }
 </MudContainer>
 
 @code {
-    private MudTabs _mudTabs;
+    private MudTabs? _mudTabs;
+    private string? _selectedRegionName;
     private List<DeliveryRegion> _regions = new();
     private List<ShippingLoad> _loads = new();
     private List<AvailableOrder> _availableOrders = new();
     private List<TruckInfo> _trucks = new();
     private List<RegionalAlert> _alerts = new();
+    private bool _isLoading = true;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        _regions = ShippingService.GetRegionalData();
-        _loads = ShippingService.GetSampleLoads();
-        _availableOrders = ShippingService.GetAvailableOrders();
-        _trucks = ShippingService.GetAvailableTrucks();
-        _alerts = ShippingService.GetRegionalAlerts();
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _isLoading = true;
+
+        var regionsTask = ShippingService.GetRegionalDataAsync();
+        var loadsTask = ShippingService.GetLoadsAsync();
+        var ordersTask = ShippingService.GetAvailableOrdersAsync();
+        var trucksTask = ShippingService.GetAvailableTrucksAsync();
+        var alertsTask = ShippingService.GetRegionalAlertsAsync();
+
+        await Task.WhenAll(regionsTask, loadsTask, ordersTask, trucksTask, alertsTask);
+
+        _regions = await regionsTask;
+        _loads = await loadsTask;
+        _availableOrders = await ordersTask;
+        _trucks = await trucksTask;
+        _alerts = await alertsTask;
+
+        _isLoading = false;
+        StateHasChanged();
     }
 
     private void ActivateTab(string tabName)
     {
-        var panel = _mudTabs.Panels.Cast<MudTabPanel>().FirstOrDefault(p => p.Text == tabName);
-        if (panel != null)
+        if (_mudTabs is null) return;
+        var panel = _mudTabs.Panels.OfType<MudTabPanel>().FirstOrDefault(p => p.Text == tabName);
+        if (panel is not null)
         {
             _mudTabs.ActivatePanel(panel);
         }
+    }
+
+    private void ActivateTabWithRegion(string regionName)
+    {
+        _selectedRegionName = regionName;
+        ActivateTab("Simple Planning");
     }
 
     private Color GetStatusColor(string status) => status.ToLower() switch
@@ -333,6 +374,12 @@
         "customer-pickup" => Color.Info,
         _ => Color.Default
     };
+
+    private Color GetRegionColorForLoad(ShippingLoad load)
+    {
+        var regionType = _regions.FirstOrDefault(r => r.Name == load.DeliveryRegion)?.Type ?? "";
+        return GetRegionColor(regionType);
+    }
 
     private string GetRegionIcon(string regionType) => regionType.ToLower() switch
     {

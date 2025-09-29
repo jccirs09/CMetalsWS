@@ -82,13 +82,23 @@ namespace CMetalsWS.Models
         public List<OrderItem> Items { get; set; } = new();
     }
 
-    public class OrderItem
+    public class OrderItem : IEquatable<OrderItem>
     {
         public string Id { get; set; }
         public string Description { get; set; }
         public int Quantity { get; set; }
         public int Weight { get; set; }
         public string Status { get; set; }
+
+        public bool Equals(OrderItem? other)
+        {
+            if (other is null) return false;
+            return Id == other.Id;
+        }
+
+        public override bool Equals(object? obj) => Equals(obj as OrderItem);
+
+        public override int GetHashCode() => Id.GetHashCode();
     }
 
 
@@ -101,6 +111,7 @@ namespace CMetalsWS.Models
         public bool IsRecommended { get; set; }
         public string Type { get; set; }
         public string Driver { get; set; }
+        public int BranchId { get; set; }
     }
 
     public class RegionalAlert
