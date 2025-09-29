@@ -1,0 +1,751 @@
+@page "/operations/workorder/manage"
+@page "/operations/workorder/manage/{Id:int}"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@implements IDisposable
+@attribute [Authorize(Policy = Permissions.WorkOrders.View)]
+
+@inject WorkOrderService WorkOrderService
+@inject MachineService MachineService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IDialogService DialogService
+
+<MudPaper Class="pa-4" Elevation="0">
+    @if (IsLoading)
+    {
+        <div class="d-flex justify-center align-center" style="height: 50vh;">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+            <MudText Class="ml-4">Loading Work Order...</MudText>
+        </div>
+    }
+    else
+    {
+        @if (IsCreateMode)
+        {
+            <div class="d-flex justify-space-between align-center mb-4">
+                <div>
+                    <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/operations/workorders"))" StartIcon="@Icons.Material.Filled.ArrowBack">Back to Work Orders</MudButton>
+                    <MudText Typo="Typo.h5" Class="mt-2">
+                        @(IsCreateMode
+                            ? "Create Work Order"
+                            : $"Edit Work Order {Model?.WorkOrderNumber ?? "(unsaved)"}")
+                    </MudText>
+                    <MudText Color="Color.Dark">Create a new work order by selecting machine, coil, and customer orders.</MudText>
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- Process Mode Header -->
+            <div class="d-flex justify-space-between align-center mb-4">
+                <div>
+                    <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/operations/workorders"))" StartIcon="@Icons.Material.Filled.ArrowBack">Back</MudButton>
+                    <MudText Typo="Typo.h5" class="mt-2">@Model.WorkOrderNumber</MudText>
+                    <div class="d-flex align-center ga-2 mt-1">
+                        <MudChip T="string" Text="@Model.Status.ToString()" Color="@GetStatusColor(Model.Status)" />
+                        <MudChip T="string" Text="@Model.Priority.ToString()" Color="@GetPriorityColor(Model.Priority)" />
+                    </div>
+                </div>
+                <div class="d-flex ga-2">
+                    @if (Model.Status == WorkOrderStatus.Pending || Model.Status == WorkOrderStatus.Awaiting)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="StartOrResumeWorkOrder" StartIcon="@Icons.Material.Filled.PlayArrow">
+                            @(Model.Status == WorkOrderStatus.Pending ? "Start" : "Resume")
+                        </MudButton>
+                    }
+                    @if (Model.Status == WorkOrderStatus.InProgress)
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="PauseWorkOrder" StartIcon="@Icons.Material.Filled.Pause">Pause</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CompleteWorkOrder" StartIcon="@Icons.Material.Filled.CheckCircle">Complete</MudButton>
+                    }
+                </div>
+            </div>
+        }
+
+        <MudGrid Spacing="4">
+            @if (IsCreateMode)
+            {
+                <!-- CREATE MODE -->
+                <MudItem xs="12" md="7">
+                    <MudStack Spacing="3">
+                        <MudPaper Outlined="true" Class="pa-4">
+                            <MudText Typo="Typo.h6" GutterBottom="true">1. Machine & Coil Selection</MudText>
+                            <MudGrid>
+                                <MudItem xs="12" md="6">
+                                    <MudSelect T="int?" Value="Model.MachineId" ValueChanged="OnMachineChanged" Label="Machine" Variant="Variant.Outlined" For="@(() => Model.MachineId)"
+                                               Required="true" RequiredError="Machine is required.">
+                                        @foreach (var machine in _machines)
+                                        {
+                                            <MudSelectItem T="int?" Value="@machine.Id">@machine.Name (@machine.Category)</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <div class="d-flex">
+                                        <MudTextField @bind-Value="Model.TagNumber" Label="Coil Tag Number" Variant="Variant.Outlined" For="@(() => Model.TagNumber)"
+                                                      Required="true" RequiredError="Tag number is required." Class="flex-grow-1" />
+                                        <MudButton OnClick="FetchPickingListItemsAsync" Variant="Variant.Filled" Color="Color.Primary"
+                                                   Disabled="@(Model.MachineId == null || string.IsNullOrWhiteSpace(Model.TagNumber))"
+                                                   Class="ml-2 mt-1" Style="height: 54px;">
+                                            Fetch
+                                        </MudButton>
+                                    </div>
+                                </MudItem>
+                            </MudGrid>
+                             @if (_parentItem != null)
+                            {
+                                <MudAlert Severity="Severity.Success" Class="mt-4">
+                                    <div class="d-flex justify-space-between">
+                                        <div><b>Master Coil Found:</b> @Model.TagNumber</div>
+                                        <div><b>Size/Weight:</b> @_parentItem.Width" - @_parentItem.Snapshot?.ToString("N0") lbs</div>
+                                    </div>
+                                </MudAlert>
+                            }
+                        </MudPaper>
+
+                        <WorkOrderItemsList WorkOrderItems="Model.Items"
+                                            OnRemoveItem="RemoveLineItem"
+                                            OnAddStockItem="OpenAddStockItemDialogAsync" />
+
+                        <MudPaper Outlined="true" Class="pa-4">
+                            <MudText Typo="Typo.h6" GutterBottom="true">3. Instructions & Scheduling</MudText>
+                            <MudGrid>
+                                <MudItem xs="12">
+                                    <MudTextField @bind-Value="Model.Instructions" Label="Work Order Instructions" Variant="Variant.Outlined" Lines="3" />
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudSelect @bind-Value="Model.Priority" Label="Priority" Variant="Variant.Outlined">
+                                        @foreach (WorkOrderPriority prio in Enum.GetValues(typeof(WorkOrderPriority)))
+                                        {
+                                            <MudSelectItem Value="@prio">@prio.ToString()</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudDatePicker @bind-Date="_nullableDueDate" Label="Scheduled Date" Variant="Variant.Outlined" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="12" md="5">
+                    <MudStack Spacing="3">
+                        <PickingListTable IsLoading="_isFetchingOrders"
+                                          PickingListItems="_allAvailablePickingListItems"
+                                          WorkOrderItems="Model.Items"
+                                          RemainingQuantities="_remainingQuantities"
+                                          OnPickingLineCheckedChanged="OnPickingLineCheckedChanged"
+                                          OnPromptSplit="PromptSplitAndAddToWO" />
+
+                        <MudPaper Class="pa-4">
+                            <MudCard Elevation="0">
+                                <MudCardHeader>
+                                    <CardHeaderContent>
+                                        <MudText Typo="Typo.h6">Summary</MudText>
+                                    </CardHeaderContent>
+                                </MudCardHeader>
+                                <MudCardContent>
+                                    <MudList T="object" Dense="true">
+                                        <MudListItem T="object">
+                                            <div class="d-flex justify-space-between w-100">
+                                                <span>Machine</span>
+                                                <b>@(Model.MachineId.HasValue ? _machines.FirstOrDefault(m => m.Id == Model.MachineId.Value)?.Name : "N/A")</b>
+                                            </div>
+                                        </MudListItem>
+                                        <MudListItem T="object">
+                                            <div class="d-flex justify-space-between w-100">
+                                                <span>Coil Tag</span>
+                                                <b>@(string.IsNullOrEmpty(Model.TagNumber) ? "N/A" : Model.TagNumber)</b>
+                                            </div>
+                                        </MudListItem>
+                                        <MudListItem T="object">
+                                            <div class="d-flex justify-space-between w-100">
+                                                <span>Priority</span>
+                                                <MudChip T="string" Text="@Model.Priority.ToString()" Color="@GetPriorityColor(Model.Priority)" Size="Size.Small" />
+                                            </div>
+                                        </MudListItem>
+                                        <MudDivider Class="my-2" />
+                                        <MudListItem T="object">
+                                            <div class="d-flex justify-space-between w-100">
+                                                <span>Line Items</span>
+                                                <b>@Model.Items.Count</b>
+                                            </div>
+                                        </MudListItem>
+                                        <MudListItem T="object">
+                                            <div class="d-flex justify-space-between w-100">
+                                                <span>Total Weight</span>
+                                                <b>@Model.Items.Sum(i => i.OrderWeight ?? 0).ToString("N0") lbs</b>
+                                            </div>
+                                        </MudListItem>
+                                    </MudList>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitWorkOrderAsync" Disabled="@(Model.Items.Count == 0 || _isSaving)" FullWidth="true" Size="Size.Large">
+                                        @(IsCreateMode ? "Create Work Order" : "Update Work Order")
+                                    </MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudPaper>
+                    </MudStack>
+                </MudItem>
+            }
+            else
+            {
+                <!-- PROCESS MODE -->
+                <MudItem xs="12" md="7">
+                    <MudStack Spacing="3">
+                        <MudPaper Outlined="true" Class="pa-4">
+                            <MudText Typo="Typo.h6" GutterBottom="true">Progress Overview</MudText>
+                            <div class="d-flex justify-space-between mb-2">
+                                <MudText>Overall Progress</MudText>
+                                <MudText><b>@_overallProgress.ToString("F0")%</b></MudText>
+                            </div>
+                            <MudProgressLinear Color="Color.Primary" Value="@_overallProgress" />
+                            <MudGrid Class="mt-4 text-center">
+                                <MudItem xs="3">
+                                    <MudText Typo="Typo.h5" Color="Color.Primary">@_elapsedTimeDisplay</MudText>
+                                    <MudText Typo="Typo.body2">Elapsed Time</MudText>
+                                </MudItem>
+                                <MudItem xs="3">
+                                    <MudText Typo="Typo.h5">@Model.Items.Sum(i => i.ProducedWeight ?? 0).ToString("N0")</MudText>
+                                    <MudText Typo="Typo.body2">Processed (lbs)</MudText>
+                                </MudItem>
+                                <MudItem xs="3">
+                                    <MudText Typo="Typo.h5">@_lbsPerHour.ToString("N0")</MudText>
+                                    <MudText Typo="Typo.body2">Rate (lbs/hr)</MudText>
+                                </MudItem>
+                                <MudItem xs="3">
+                                    <MudText Typo="Typo.h5">--:--</MudText>
+                                    <MudText Typo="Typo.body2">Est. Complete</MudText>
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+
+                        <MudPaper Outlined="true" Class="pa-4">
+                            <MudText Typo="Typo.h6" GutterBottom="true">Line Items (@Model.Items.Count)</MudText>
+                            <MudStack Spacing="3">
+                                @foreach (var item in Model.Items)
+                                {
+                                    <MudPaper Outlined="true" Class="pa-3">
+                                        <div class="d-flex justify-space-between">
+                                            <div>
+                                                <MudText Typo="Typo.body1"><b>@item.Description</b></MudText>
+                                                <MudText Typo="Typo.body2" Color="Color.Dark">@item.ItemCode • @item.Width?.ToString("F2") x @item.Length?.ToString("F2")</MudText>
+                                            </div>
+                                            <MudChip T="string" Text="@item.Status.ToString()" Color="@GetStatusColor(item.Status)" />
+                                        </div>
+                                        <div class="d-flex justify-space-between mt-2">
+                                            <MudText>Progress: @(item.ProducedQuantity ?? 0) / @(item.OrderQuantity ?? 0) @item.Unit</MudText>
+                                            <MudText>@CalculateItemProgress(item).ToString("F0")%</MudText>
+                                        </div>
+                                        <MudProgressLinear Color="Color.Secondary" Value="@CalculateItemProgress(item)" Class="my-1" />
+
+                                        @if (Model.Status == WorkOrderStatus.InProgress)
+                                        {
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mt-2">
+                                                <MudTextField T="decimal?" Label="Produced Qty" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                              Value="item.ProducedQuantity" ValueChanged="@((decimal? v) => OnProgressChanged(item, v, true))" />
+                                                <MudTextField T="decimal?" Label="Produced Wt" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                              Value="item.ProducedWeight" ValueChanged="@((decimal? v) => OnProgressChanged(item, v, false))" />
+                                                <MudButton Variant="Variant.Text" OnClick="@(() => { item.Status = WorkOrderItemStatus.Completed; RecalculateProgress(); })">Mark Complete</MudButton>
+                                            </MudStack>
+                                        }
+                                    </MudPaper>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="12" md="5">
+                    <MudPaper Class="pa-4" Style="height: 100%;">
+                        <MudStack Spacing="3">
+                            <MudCard Outlined="true">
+                                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Work Order Details</MudText></CardHeaderContent></MudCardHeader>
+                                <MudCardContent>
+                                    <MudText><b>Sales Order:</b> @Model.Items.FirstOrDefault()?.SalesOrderNumber</MudText>
+                                    <MudText><b>Customer:</b> @GetMainCustomer(Model)</MudText>
+                                    <MudText><b>Machine:</b> @Model.Machine?.Name</MudText>
+                                    <MudText><b>Operator:</b> @Model.Operator</MudText>
+                                    <MudText><b>Due Date:</b> @Model.DueDate.ToString("yyyy-MM-dd")</MudText>
+                                </MudCardContent>
+                            </MudCard>
+
+                            <MudCard Outlined="true">
+                                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Notes & Instructions</MudText></CardHeaderContent></MudCardHeader>
+                                <MudCardContent>
+                                    @if (!string.IsNullOrWhiteSpace(Model.Instructions))
+                                    {
+                                        <MudText>@Model.Instructions</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Color="Color.Dark" Typo="Typo.caption">No instructions provided.</MudText>
+                                    }
+                                </MudCardContent>
+                            </MudCard>
+
+                            <MudCard Outlined="true">
+                                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Timeline</MudText></CardHeaderContent></MudCardHeader>
+                                <MudCardContent>
+                                    <MudTimeline TimelinePosition="TimelinePosition.Left" TimelineVariant="TimelineVariant.Outlined" Dense="true">
+                                        @foreach(var ev in _events)
+                                        {
+                                            <MudTimelineItem Icon="@GetEventIcon(ev.EventType)" Color="@GetEventColor(ev.EventType)">
+                                                <MudText Typo="Typo.body2"><b>@ev.EventType.ToString()</b> by @ev.User?.UserName</MudText>
+                                                <MudText Typo="Typo.caption">@ev.Timestamp.ToLocalTime().ToString("g")</MudText>
+                                                @if(!string.IsNullOrEmpty(ev.Notes))
+                                                {
+                                                    <MudText Typo="Typo.caption" Style="font-style: italic;">Notes: @ev.Notes</MudText>
+                                                }
+                                            </MudTimelineItem>
+                                        }
+                                    </MudTimeline>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudPaper>
+
+<style>
+    .selected-card {
+        border: 2px solid var(--mud-palette-primary);
+    }
+</style>
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    private bool IsLoading { get; set; } = true;
+    private bool IsCreateMode => Id == null;
+    private WorkOrder Model { get; set; } = new();
+    private string? _userId;
+    private DateTime? _nullableDueDate;
+
+    // Create Mode specific properties
+    private List<Machine> _machines = new();
+    private InventoryItem? _parentItem;
+    private List<PickingListItem> _allAvailablePickingListItems = new();
+    private Dictionary<int, decimal> _remainingQuantities = new();
+    private bool _isFetchingOrders = false;
+    private bool _isSaving = false;
+
+    // Process Mode specific properties
+    [Inject]
+    private ITaskAuditEventService AuditEventService { get; set; } = default!;
+    private List<TaskAuditEvent> _events = new();
+    private System.Timers.Timer? _timer;
+    private TimeSpan _elapsed;
+    private string _elapsedTimeDisplay = "00:00:00";
+    private double _overallProgress = 0;
+    private decimal _lbsPerHour = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        IsLoading = true;
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        _userId = user?.Id;
+
+        if (Id.HasValue)
+        {
+            Model = await WorkOrderService.GetByIdAsync(Id.Value);
+            if (Model == null)
+            {
+                Snackbar.Add("Work Order not found.", Severity.Error);
+                Navigation.NavigateTo("/operations/workorders");
+                return;
+            }
+            _events = await AuditEventService.GetEventsForTaskAsync(Id.Value, TaskType.WorkOrder);
+            _events = _events.OrderByDescending(e => e.Timestamp).ToList();
+
+            if (!string.IsNullOrEmpty(Model.TagNumber) && Model.MachineId.HasValue)
+            {
+                await FetchPickingListItemsAsync();
+            }
+
+            if (Model?.Status == WorkOrderStatus.InProgress)
+            {
+                StartTimer();
+            }
+            RecalculateProgress();
+        }
+        else
+        {
+            Model = new WorkOrder { DueDate = DateTime.Today.AddDays(7) };
+            _nullableDueDate = Model.DueDate;
+            _machines = (await MachineService.GetMachinesAsync())
+                .Where(m => m.IsActive && (m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter))
+                .ToList();
+        }
+        IsLoading = false;
+        StateHasChanged();
+    }
+
+    private void OnMachineChanged(int? machineId)
+    {
+        Model.MachineId = machineId;
+        if (machineId.HasValue)
+        {
+            var machine = _machines.FirstOrDefault(m => m.Id == machineId.Value);
+            if (machine != null)
+            {
+                Model.MachineCategory = machine.Category;
+            }
+        }
+    }
+
+
+    private async Task FetchPickingListItemsAsync()
+    {
+        if (Model.MachineId == null || string.IsNullOrWhiteSpace(Model.TagNumber))
+        {
+            Snackbar.Add("Please select a machine and enter a tag number first.", Severity.Warning);
+            return;
+        }
+
+        _isFetchingOrders = true;
+        StateHasChanged();
+        try
+        {
+            var result = await WorkOrderService.GetPickingListItemsForWorkOrderAsync(Model.MachineCategory, Model.TagNumber);
+            _parentItem = result.ParentItem;
+            _allAvailablePickingListItems = result.AvailableItems;
+
+            if (_allAvailablePickingListItems.Any())
+            {
+                var ids = _allAvailablePickingListItems.Select(i => i.Id);
+                _remainingQuantities = await WorkOrderService.GetRemainingQuantitiesForPickingListItemsAsync(ids);
+            }
+            else
+            {
+                _remainingQuantities.Clear();
+            }
+
+            Snackbar.Add($"Found {_allAvailablePickingListItems.Count} available order line(s).", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _isFetchingOrders = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OnPickingLineCheckedChanged((PickingListItem pli, bool isChecked) args)
+    {
+        var (pli, isChecked) = args;
+        if (isChecked)
+        {
+            if (Model.Items.Any(i => i.PickingListItemId == pli.Id)) return;
+
+            var remainingQuantity = _remainingQuantities.GetValueOrDefault(pli.Id, 0);
+            if (remainingQuantity > 0)
+            {
+                var unitWeight = pli.Quantity > 0 ? pli.Weight / pli.Quantity : 0;
+                var workOrderItem = new WorkOrderItem
+                {
+                    PickingListItemId = pli.Id,
+                    ItemCode = pli.ItemId,
+                    Description = pli.ItemDescription,
+                    SalesOrderNumber = pli.PickingList?.SalesOrderNumber,
+                    CustomerName = pli.PickingList?.Customer?.CustomerName,
+                    OrderQuantity = remainingQuantity,
+                    OrderWeight = unitWeight * remainingQuantity,
+                    Width = pli.Width,
+                    Length = pli.Length,
+                    Unit = pli.Unit,
+                    OriginalOrderLineItemId = pli.Id.ToString(),
+                    Status = WorkOrderItemStatus.Pending
+                };
+                Model.Items.Add(workOrderItem);
+                _remainingQuantities[pli.Id] = 0;
+                Snackbar.Add($"Full remaining quantity for {pli.ItemDescription} added.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("No remaining quantity to add.", Severity.Info);
+            }
+        }
+        else // Unchecking
+        {
+            var itemsToRemove = Model.Items.Where(i => i.PickingListItemId == pli.Id).ToList();
+            if (itemsToRemove.Any())
+            {
+                decimal reAddedQuantity = 0;
+                foreach (var item in itemsToRemove)
+                {
+                    reAddedQuantity += item.OrderQuantity ?? 0;
+                    Model.Items.Remove(item);
+                }
+                _remainingQuantities[pli.Id] += reAddedQuantity;
+                Snackbar.Add($"{itemsToRemove.Count} split(s) removed.", Severity.Success);
+            }
+        }
+        StateHasChanged();
+    }
+
+
+    private async Task PromptSplitAndAddToWO(PickingListItem pli)
+    {
+        var remainingQuantity = _remainingQuantities.GetValueOrDefault(pli.Id, 0);
+        if (remainingQuantity <= 0)
+        {
+            Snackbar.Add("No remaining quantity to add.", Severity.Info);
+            return;
+        }
+
+        var parameters = new DialogParameters
+        {
+            ["PickingListItem"] = pli,
+            ["RemainingQuantity"] = remainingQuantity,
+            ["QuantityToAdd"] = remainingQuantity // Default to adding the full remaining quantity
+        };
+
+        var dialog = await DialogService.ShowAsync<AddWorkOrderItemDialog>("Add Item to Work Order", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is decimal quantityToAdd && quantityToAdd > 0)
+        {
+            var unitWeight = pli.Quantity > 0 ? pli.Weight / pli.Quantity : 0;
+            var workOrderItem = new WorkOrderItem
+            {
+                PickingListItemId = pli.Id,
+                ItemCode = pli.ItemId,
+                Description = pli.ItemDescription,
+                SalesOrderNumber = pli.PickingList?.SalesOrderNumber,
+                CustomerName = pli.PickingList?.Customer?.CustomerName,
+                OrderQuantity = quantityToAdd,
+                OrderWeight = unitWeight * quantityToAdd,
+                Width = pli.Width,
+                Length = pli.Length,
+                Unit = pli.Unit,
+                OriginalOrderLineItemId = pli.Id.ToString(),
+                Status = WorkOrderItemStatus.Pending
+            };
+            Model.Items.Add(workOrderItem);
+            _remainingQuantities[pli.Id] -= quantityToAdd;
+            Snackbar.Add("Item added to work order.", Severity.Success);
+            StateHasChanged();
+        }
+    }
+
+    private async Task SubmitWorkOrderAsync()
+    {
+        if (string.IsNullOrEmpty(_userId))
+        {
+            Snackbar.Add("User not found. Cannot save.", Severity.Error);
+            return;
+        }
+
+        if (!Model.MachineId.HasValue)
+        {
+            Snackbar.Add("A machine must be selected.", Severity.Error);
+            return;
+        }
+
+        if (!_nullableDueDate.HasValue)
+        {
+            Snackbar.Add("A due date is required.", Severity.Error);
+            return;
+        }
+        Model.DueDate = _nullableDueDate.Value;
+        Model.ScheduledStartDate = _nullableDueDate.Value;
+
+        _isSaving = true;
+
+        try
+        {
+            if (IsCreateMode)
+            {
+                var createdWorkOrder = await WorkOrderService.CreateAsync(Model, _userId);
+                Snackbar.Add("Work Order Created Successfully!", Severity.Success);
+                Navigation.NavigateTo($"/operations/workorder/manage/{createdWorkOrder.Id}", replace: true);
+            }
+            else
+            {
+                await WorkOrderService.UpdateAsync(Model, _userId);
+                Snackbar.Add("Work Order updated successfully.", Severity.Success);
+                await LoadDataAsync(); // Refresh data
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void RemoveLineItem(WorkOrderItem item)
+    {
+        Model.Items.Remove(item);
+        if (item.PickingListItemId.HasValue)
+        {
+            _remainingQuantities[item.PickingListItemId.Value] += item.OrderQuantity ?? 0;
+        }
+        StateHasChanged();
+    }
+
+    private async Task OpenAddStockItemDialogAsync()
+    {
+        var parameters = new DialogParameters
+        {
+            ["WorkOrderItems"] = Model.Items.Where(i => !i.IsStockItem).ToList(),
+            ["ParentCoil"] = _parentItem
+        };
+
+        var dialog = await DialogService.ShowAsync<AddStockItemDialog>("Add Stock Item", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is WorkOrderItem newStockItem)
+        {
+            Model.Items.Add(newStockItem);
+            StateHasChanged();
+        }
+    }
+
+
+    // Process Mode Methods
+    private void StartTimer()
+    {
+        var lastStartEvent = _events
+            .Where(e => e.EventType == AuditEventType.Start || e.EventType == AuditEventType.Resume)
+            .OrderByDescending(e => e.Timestamp)
+            .FirstOrDefault();
+
+        if (lastStartEvent == null) return;
+
+        var pauseEvents = _events
+            .Where(e => e.EventType == AuditEventType.Pause && e.Timestamp > lastStartEvent.Timestamp)
+            .ToList();
+
+        var resumeEvents = _events
+            .Where(e => e.EventType == AuditEventType.Resume && e.Timestamp > lastStartEvent.Timestamp)
+            .ToList();
+
+        var totalPauseDuration = TimeSpan.Zero;
+        foreach (var pauseEvent in pauseEvents)
+        {
+            var correspondingResume = resumeEvents.FirstOrDefault(r => r.Timestamp > pauseEvent.Timestamp);
+            var endTime = correspondingResume?.Timestamp ?? DateTime.UtcNow;
+            totalPauseDuration += endTime - pauseEvent.Timestamp;
+        }
+
+        _elapsed = (DateTime.UtcNow - lastStartEvent.Timestamp) - totalPauseDuration;
+
+        _timer = new System.Timers.Timer(1000);
+        _timer.Elapsed += OnTimerElapsed;
+        _timer.AutoReset = true;
+        _timer.Enabled = true;
+    }
+
+    private void OnTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
+    {
+        _elapsed = _elapsed.Add(TimeSpan.FromSeconds(1));
+        _elapsedTimeDisplay = _elapsed.ToString(@"hh\:mm\:ss");
+        RecalculateProgress();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void RecalculateProgress()
+    {
+        if (Model == null) return;
+        var totalWeight = GetTotalWeight(Model);
+        var producedWeight = Model.Items.Sum(i => i.ProducedWeight ?? 0);
+        _overallProgress = totalWeight > 0 ? (double)(producedWeight / totalWeight * 100) : 0;
+        _lbsPerHour = _elapsed.TotalHours > 0 ? (producedWeight / (decimal)_elapsed.TotalHours) : 0;
+    }
+
+    private double CalculateItemProgress(WorkOrderItem item)
+    {
+        if (item.OrderQuantity == null || item.OrderQuantity.Value == 0) return 0;
+        var progress = ((double)(item.ProducedQuantity ?? 0) / (double)item.OrderQuantity.Value) * 100.0;
+        return progress > 100 ? 100 : progress;
+    }
+
+    private void OnProgressChanged(WorkOrderItem item, decimal? value, bool isQuantity)
+    {
+        if (isQuantity) item.ProducedQuantity = value;
+        else item.ProducedWeight = value;
+
+        if ((item.ProducedQuantity ?? 0) > 0 || (item.ProducedWeight ?? 0) > 0)
+        {
+            item.Status = WorkOrderItemStatus.InProgress;
+        }
+
+        if (item.OrderQuantity.HasValue && (item.ProducedQuantity ?? 0) >= item.OrderQuantity.Value)
+        {
+            item.Status = WorkOrderItemStatus.Completed;
+        }
+        RecalculateProgress();
+    }
+
+    private async Task StartOrResumeWorkOrder()
+    {
+        if (Model == null || _userId == null) return;
+        if(Model.Status == WorkOrderStatus.Pending) await WorkOrderService.StartWorkOrderAsync(Model.Id, _userId);
+        else await WorkOrderService.ResumeWorkOrderAsync(Model.Id, _userId);
+        await LoadDataAsync();
+        StartTimer();
+    }
+
+    private async Task PauseWorkOrder()
+    {
+        if (Model == null || _userId == null) return;
+        var dialog = await DialogService.ShowAsync<PauseReasonDialog>("Pause Work Order");
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: string reason })
+        {
+            await WorkOrderService.PauseWorkOrderAsync(Model.Id, _userId, reason);
+            _timer?.Stop();
+            await LoadDataAsync();
+        }
+    }
+
+    private async Task CompleteWorkOrder()
+    {
+        if (Model == null || _userId == null) return;
+        var dialog = await DialogService.ShowAsync<CompleteWorkOrderDialog>("Complete Work Order");
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await WorkOrderService.CompleteWorkOrderAsync(Model.Id, _userId, Model.Items);
+            _timer?.Stop();
+            await LoadDataAsync();
+        }
+    }
+
+    // Common Helper Methods
+    private string GetMainCustomer(WorkOrder order) => order.Items?.FirstOrDefault()?.CustomerName ?? "N/A";
+    private decimal GetTotalWeight(WorkOrder order) => order.Items?.Sum(i => i.OrderWeight ?? 0) ?? 0;
+    private Color GetStatusColor(WorkOrderStatus status) => status switch { WorkOrderStatus.Draft => Color.Default, WorkOrderStatus.Pending => Color.Info, WorkOrderStatus.InProgress => Color.Success, WorkOrderStatus.Awaiting => Color.Warning, WorkOrderStatus.Completed => Color.Primary, WorkOrderStatus.Canceled => Color.Error, _ => Color.Dark };
+    private Color GetStatusColor(WorkOrderItemStatus status) => status switch { WorkOrderItemStatus.Pending => Color.Default, WorkOrderItemStatus.InProgress => Color.Info, WorkOrderItemStatus.Completed => Color.Success, _ => Color.Error };
+    private Color GetPriorityColor(WorkOrderPriority priority) => priority switch { WorkOrderPriority.Low => Color.Info, WorkOrderPriority.Normal => Color.Success, WorkOrderPriority.High => Color.Warning, WorkOrderPriority.Urgent => Color.Error, _ => Color.Default };
+    private Color GetEventColor(AuditEventType type) => type switch { AuditEventType.Start => Color.Success, AuditEventType.Resume => Color.Success, AuditEventType.Pause => Color.Warning, AuditEventType.Complete => Color.Primary, AuditEventType.Create => Color.Info, _ => Color.Default };
+    private string GetEventIcon(AuditEventType type) => type switch { AuditEventType.Start => Icons.Material.Filled.PlayArrow, AuditEventType.Resume => Icons.Material.Filled.PlayArrow, AuditEventType.Pause => Icons.Material.Filled.Pause, AuditEventType.Complete => Icons.Material.Filled.Check, AuditEventType.Create => Icons.Material.Filled.Add, _ => Icons.Material.Filled.Info };
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
+}

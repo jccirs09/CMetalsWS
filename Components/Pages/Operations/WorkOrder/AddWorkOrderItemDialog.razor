@@ -1,0 +1,46 @@
+@using CMetalsWS.Data
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Add Work Order Item</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (PickingListItem != null)
+        {
+            <MudText><b>Item:</b> @PickingListItem.ItemDescription</MudText>
+            <MudText Class="mt-2"><b>Total Required:</b> @PickingListItem.Quantity.ToString("N0") @PickingListItem.Unit</MudText>
+            <MudText><b>Remaining:</b> @RemainingQuantity.ToString("N0") @PickingListItem.Unit</MudText>
+
+            <MudNumericField @bind-Value="QuantityToAdd" Label="Quantity to Add" Variant="Variant.Outlined" Min="1" Max="@RemainingQuantity" Required="true" Class="mt-4" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(QuantityToAdd <= 0 || QuantityToAdd > RemainingQuantity)">Add Item</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public PickingListItem PickingListItem { get; set; }
+
+    [Parameter]
+    public decimal RemainingQuantity { get; set; }
+
+    [Parameter]
+    public decimal QuantityToAdd { get; set; }
+
+    private void Submit()
+    {
+        if (QuantityToAdd > 0 && QuantityToAdd <= RemainingQuantity)
+        {
+            MudDialog.Close(DialogResult.Ok(QuantityToAdd));
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

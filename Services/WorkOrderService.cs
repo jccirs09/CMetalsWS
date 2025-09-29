@@ -103,6 +103,64 @@ namespace CMetalsWS.Services
             return (taggedItem, await query.AsNoTracking().ToListAsync());
         }
 
+        public async Task<decimal> GetRemainingQuantityForPickingListItemAsync(int pickingListItemId)
+        {
+            using var db = _dbContextFactory.CreateDbContext();
+
+            var pickingListItem = await db.PickingListItems
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == pickingListItemId);
+
+            if (pickingListItem == null)
+            {
+                return 0;
+            }
+
+            var totalQuantity = pickingListItem.Quantity;
+
+            var plannedQuantity = await db.WorkOrderItems
+                .AsNoTracking()
+                .Where(wi => wi.PickingListItemId == pickingListItemId)
+                .SumAsync(wi => wi.OrderQuantity);
+
+            var remainingQuantity = totalQuantity - (plannedQuantity ?? 0);
+
+            return remainingQuantity > 0 ? remainingQuantity : 0;
+        }
+
+        public async Task<Dictionary<int, decimal>> GetRemainingQuantitiesForPickingListItemsAsync(IEnumerable<int> pickingListItemIds)
+        {
+            if (pickingListItemIds == null || !pickingListItemIds.Any())
+            {
+                return new Dictionary<int, decimal>();
+            }
+
+            using var db = _dbContextFactory.CreateDbContext();
+
+            var pickingListItems = await db.PickingListItems
+                .AsNoTracking()
+                .Where(p => pickingListItemIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id, p => p.Quantity);
+
+            var plannedQuantities = await db.WorkOrderItems
+                .AsNoTracking()
+                .Where(wi => wi.PickingListItemId.HasValue && pickingListItemIds.Contains(wi.PickingListItemId.Value))
+                .GroupBy(wi => wi.PickingListItemId.Value)
+                .Select(g => new { PickingListItemId = g.Key, TotalPlanned = g.Sum(wi => wi.OrderQuantity) })
+                .ToDictionaryAsync(g => g.PickingListItemId, g => g.TotalPlanned ?? 0);
+
+            var remainingQuantities = new Dictionary<int, decimal>();
+            foreach (var id in pickingListItemIds)
+            {
+                var totalQuantity = pickingListItems.GetValueOrDefault(id, 0);
+                var plannedQuantity = plannedQuantities.GetValueOrDefault(id, 0);
+                var remaining = totalQuantity - plannedQuantity;
+                remainingQuantities[id] = remaining > 0 ? remaining : 0;
+            }
+
+            return remainingQuantities;
+        }
+
         public async Task<WorkOrder> CreateAsync(WorkOrder workOrder, string userId)
         {
             using var db = _dbContextFactory.CreateDbContext();
@@ -123,6 +181,7 @@ namespace CMetalsWS.Services
             if (workOrder.Status == 0)
                 workOrder.Status = WorkOrderStatus.Draft;
 
+            await ValidateSplitQuantities(db, workOrder);
             await AutoScheduleWorkOrder(db, workOrder);
 
             db.WorkOrders.Add(workOrder);
@@ -136,30 +195,40 @@ namespace CMetalsWS.Services
 
         private async Task AutoScheduleWorkOrder(ApplicationDbContext db, WorkOrder workOrder)
         {
-            if (!workOrder.ScheduledStartDate.HasValue) return;
+            if (!workOrder.ScheduledStartDate.HasValue)
+            {
+                return;
+            }
+
+            DateTime scheduledStartDate = workOrder.ScheduledStartDate.Value;
 
             var machine = await db.Machines.FindAsync(workOrder.MachineId);
             if (machine == null) return;
 
             var totalWeight = workOrder.Items.Sum(i => i.OrderWeight ?? 0);
+            TimeSpan duration;
             if (totalWeight == 0 || machine.EstimatedLbsPerHour == 0)
             {
-                workOrder.ScheduledEndDate = workOrder.ScheduledStartDate.Value.AddHours(1); // Default duration
-                return;
+                duration = TimeSpan.FromHours(1); // Default duration
             }
-
-            var durationHours = (double)(totalWeight / machine.EstimatedLbsPerHour);
-            var duration = TimeSpan.FromHours(durationHours);
+            else
+            {
+                var durationHours = (double)(totalWeight / machine.EstimatedLbsPerHour);
+                duration = TimeSpan.FromHours(durationHours);
+            }
 
             var lastScheduledEnd = await db.WorkOrders
                 .Where(wo => wo.MachineId == workOrder.MachineId &&
+                             wo.ScheduledEndDate.HasValue &&
                              wo.ScheduledStartDate.HasValue &&
-                             wo.ScheduledStartDate.Value.Date == workOrder.ScheduledStartDate.Value.Date &&
+                             wo.ScheduledStartDate.Value.Date == scheduledStartDate.Date &&
                              wo.Id != workOrder.Id)
-                .MaxAsync(wo => (DateTime?)wo.ScheduledEndDate);
+                .MaxAsync(wo => wo.ScheduledEndDate);
 
-            workOrder.ScheduledStartDate = lastScheduledEnd ?? workOrder.ScheduledStartDate;
-            workOrder.ScheduledEndDate = workOrder.ScheduledStartDate.Value.Add(duration);
+            DateTime newStartDate = lastScheduledEnd ?? scheduledStartDate;
+
+            workOrder.ScheduledStartDate = newStartDate;
+            workOrder.ScheduledEndDate = newStartDate.Add(duration);
         }
 
         public async Task UpdateAsync(WorkOrder workOrder, string userId)
@@ -175,7 +244,7 @@ namespace CMetalsWS.Services
 
             if (existing is null) return;
 
-            var dueDateChanged = existing.DueDate.Date != workOrder.DueDate.Date;
+            var dueDateChanged = !Nullable.Equals(existing.DueDate?.Date, workOrder.DueDate?.Date);
 
             existing.TagNumber = workOrder.TagNumber;
             existing.DueDate = workOrder.DueDate;
@@ -207,6 +276,8 @@ namespace CMetalsWS.Services
                 }
             }
 
+            await ValidateSplitQuantities(db, existing);
+
             if (dueDateChanged)
             {
                 await AutoScheduleWorkOrder(db, existing);
@@ -237,6 +308,56 @@ namespace CMetalsWS.Services
             await SetStatusInternalAsync(workOrderId, WorkOrderStatus.Completed, userId, AuditEventType.Complete, updatedItems: updatedItems);
         }
 
+    private async Task ValidateSplitQuantities(ApplicationDbContext db, WorkOrder workOrder)
+    {
+        var allPickingListItemIds = workOrder.Items
+            .Where(i => i.PickingListItemId.HasValue)
+            .Select(i => i.PickingListItemId.Value)
+            .Distinct()
+            .ToList();
+
+        if (!allPickingListItemIds.Any()) return;
+
+        var originalPickingListItems = await db.PickingListItems
+            .AsNoTracking()
+            .Where(p => allPickingListItemIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.Quantity);
+
+        var otherWorkOrderItemsQuery = db.WorkOrderItems
+            .AsNoTracking()
+            .Where(i => i.PickingListItemId.HasValue &&
+                        allPickingListItemIds.Contains(i.PickingListItemId.Value));
+
+        if (workOrder.Id != 0)
+        {
+            otherWorkOrderItemsQuery = otherWorkOrderItemsQuery.Where(i => i.WorkOrderId != workOrder.Id);
+        }
+
+        var plannedQuantitiesInOtherWOs = await otherWorkOrderItemsQuery
+            .GroupBy(i => i.PickingListItemId.Value)
+            .Select(g => new { PickingListItemId = g.Key, Total = g.Sum(i => i.OrderQuantity) ?? 0 })
+            .ToDictionaryAsync(x => x.PickingListItemId, x => x.Total);
+
+        foreach (var pliId in allPickingListItemIds)
+        {
+            var quantityInCurrentWO = workOrder.Items
+                .Where(i => i.PickingListItemId == pliId)
+                .Sum(i => i.OrderQuantity ?? 0);
+
+            var quantityInOtherWOs = plannedQuantitiesInOtherWOs.GetValueOrDefault(pliId, 0);
+
+            var totalProposedQuantity = quantityInCurrentWO + quantityInOtherWOs;
+
+            var originalQuantity = originalPickingListItems.GetValueOrDefault(pliId, 0);
+
+            if (totalProposedQuantity > originalQuantity)
+            {
+                var pli = await db.PickingListItems.FindAsync(pliId);
+                throw new InvalidOperationException($"Cannot save. Total quantity for Picking List Item '{pli?.ItemId}' ({totalProposedQuantity}) would exceed available quantity ({originalQuantity}).");
+            }
+        }
+    }
+
         private async Task SetStatusInternalAsync(int workOrderId, WorkOrderStatus status, string userId, AuditEventType eventType, string? notes = null, IEnumerable<WorkOrderItem>? updatedItems = null)
         {
             using var db = _dbContextFactory.CreateDbContext();
@@ -263,14 +384,36 @@ namespace CMetalsWS.Services
                 workOrder.ActualEndDate = DateTime.UtcNow;
                 if (updatedItems != null)
                 {
+                    var matchedServerItemIds = new HashSet<int>();
+
                     foreach (var updatedItem in updatedItems)
                     {
-                        var item = workOrder.Items.FirstOrDefault(i => i.Id == updatedItem.Id);
-                        if (item != null)
+                        WorkOrderItem serverItem = null;
+
+                        // Primary match by ID
+                        if (updatedItem.Id != 0)
                         {
-                            item.ProducedQuantity = updatedItem.ProducedQuantity;
-                            item.ProducedWeight = updatedItem.ProducedWeight;
-                            item.Status = updatedItem.Status;
+                            serverItem = workOrder.Items.FirstOrDefault(i => i.Id == updatedItem.Id);
+                        }
+
+                        // Fallback match for new items
+                        if (serverItem == null)
+                        {
+                            serverItem = workOrder.Items
+                                .Where(s => !matchedServerItemIds.Contains(s.Id)) // Only search unmatched items
+                                .FirstOrDefault(s =>
+                                    s.PickingListItemId == updatedItem.PickingListItemId &&
+                                    s.OrderQuantity == updatedItem.OrderQuantity &&
+                                    (Math.Abs((s.OrderWeight ?? 0) - (updatedItem.OrderWeight ?? 0)) / Math.Max(1, updatedItem.OrderWeight ?? 1)) <= 0.005m
+                                );
+                        }
+
+                        if (serverItem != null)
+                        {
+                            serverItem.ProducedQuantity = updatedItem.ProducedQuantity;
+                            serverItem.ProducedWeight = updatedItem.ProducedWeight;
+                            serverItem.Status = updatedItem.Status;
+                            matchedServerItemIds.Add(serverItem.Id);
                         }
                     }
                 }
