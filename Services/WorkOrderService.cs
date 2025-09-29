@@ -244,10 +244,7 @@ namespace CMetalsWS.Services
 
             if (existing is null) return;
 
-            var dueDateChanged =
-                existing.DueDate.HasValue &&
-                workOrder.DueDate.HasValue &&
-                existing.DueDate.Value.Date != workOrder.DueDate.Value.Date;
+            var dueDateChanged = existing.DueDate.Date != workOrder.DueDate.Date;
 
             existing.TagNumber = workOrder.TagNumber;
             existing.DueDate = workOrder.DueDate;
