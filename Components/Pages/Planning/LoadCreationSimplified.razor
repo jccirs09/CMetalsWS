@@ -110,7 +110,7 @@
                 <MudTextField @bind-Value="LoadNotes" Label="Load Notes (Optional)" T="string" Lines="3" Class="mb-4" />
 
                 <MudText Typo="Typo.h6" Class="mb-2">Select Truck</MudText>
-                <MudRadioGroup @bind-SelectedOption="SelectedTruckId" T="string">
+                <MudRadioGroup SelectedOption="@SelectedTruckId" SelectedOptionChanged="OnTruckSelectionChanged" T="string">
                     @foreach (var truck in AvailableTrucks)
                     {
                         <MudCard Outlined="true" Class="mb-2 pa-2">
@@ -201,6 +201,12 @@
                 SelectedItems.Remove(item);
             }
         }
+        StateHasChanged();
+    }
+
+    private void OnTruckSelectionChanged(string truckId)
+    {
+        SelectedTruckId = truckId;
         StateHasChanged();
     }
 
