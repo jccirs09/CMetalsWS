@@ -6,11 +6,11 @@
         <MudText Typo="Typo.h6">Add Stock Item</MudText>
     </TitleContent>
     <DialogContent>
-        <MudSelect T="WorkOrderItem" Label="Use Template (Optional)" ValueChanged="OnTemplateChanged">
-            <MudSelectItem T="WorkOrderItem" Value="null">No Template</MudSelectItem>
+        <MudSelect T="int?" Label="Use Template (Optional)" ValueChanged="OnTemplateChanged">
+            <MudSelectItem T="int?" Value="@(null)">No Template</MudSelectItem>
             @foreach(var item in WorkOrderItems)
             {
-                <MudSelectItem T="WorkOrderItem" Value="item">@item.Description</MudSelectItem>
+                <MudSelectItem T="int?" Value="@item.Id">@item.Description</MudSelectItem>
             }
         </MudSelect>
 
@@ -63,13 +63,17 @@
         };
     }
 
-    private void OnTemplateChanged(WorkOrderItem template)
+    private void OnTemplateChanged(int? templateId)
     {
-        if (template != null)
+        if (templateId.HasValue)
         {
-            StockItem.Description = template.Description;
-            StockItem.Width = template.Width;
-            StockItem.Length = template.Length;
+            var template = WorkOrderItems.FirstOrDefault(i => i.Id == templateId.Value);
+            if (template != null)
+            {
+                StockItem.Description = template.Description;
+                StockItem.Width = template.Width;
+                StockItem.Length = template.Length;
+            }
         }
         else
         {

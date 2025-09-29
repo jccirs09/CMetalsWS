@@ -30,7 +30,7 @@
             <div class="d-flex justify-space-between align-center mb-4">
                 <div>
                     <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/operations/workorders"))" StartIcon="@Icons.Material.Filled.ArrowBack">Back to Work Orders</MudButton>
-                    <MudText Typo="Typo.h5" Class="mt-2">Create Work Order</MudText>
+                    <MudText Typo="Typo.h5" Class="mt-2">@(IsCreateMode ? "Create Work Order" : $"Edit Work Order {Model.WorkOrderNumber}")</MudText>
                     <MudText Color="Color.Dark">Create a new work order by selecting machine, coil, and customer orders.</MudText>
                 </div>
             </div>
@@ -103,87 +103,19 @@
                             }
                         </MudPaper>
 
-                        <MudPaper Outlined="true" Class="pa-4">
-                            <MudText Typo="Typo.h6" GutterBottom="true">Picking List</MudText>
-                            @if (_isFetchingOrders)
-                            {
-                                <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
-                            }
-                            else if (_allAvailablePickingListItems.Any())
-                            {
-                                <MudTable Items="@_allAvailablePickingListItems" Hover="true">
-                                    <HeaderContent>
-                                        <MudTh>Selected</MudTh>
-                                        <MudTh>Customer / SO</MudTh>
-                                        <MudTh>Item</MudTh>
-                                        <MudTh>Total Qty</MudTh>
-                                        <MudTh>Rem. Qty</MudTh>
-                                        <MudTh>Qty to Split</MudTh>
-                                        <MudTh>Actions</MudTh>
-                                    </HeaderContent>
-                                    <RowTemplate>
-                                        <MudTd>
-                                            <MudCheckBox T="bool" Checked="@(Model.Items.Any(i => i.PickingListItemId == context.Id))" CheckedChanged="@((bool isChecked) => OnPickingLineCheckedChanged(context, isChecked))" />
-                                        </MudTd>
-                                        <MudTd DataLabel="Customer / SO">
-                                            @context.PickingList?.Customer?.CustomerName<br/>
-                                            <MudText Typo="Typo.caption">@context.PickingList?.SalesOrderNumber</MudText>
-                                        </MudTd>
-                                        <MudTd DataLabel="Item">@context.ItemDescription</MudTd>
-                                        <MudTd DataLabel="Total Qty">@context.Quantity.ToString("N0")</MudTd>
-                                        <MudTd DataLabel="Rem. Qty">@_remainingQuantities.GetValueOrDefault(context.Id).ToString("N0")</MudTd>
-                                        <MudTd DataLabel="Qty to Split">
-                                            <MudNumericField T="decimal?"
-                                                             Value="@_splitQuantities.GetValueOrDefault(context.Id)"
-                                                             ValueChanged="@((decimal? val) => OnSplitQuantityChanged(context.Id, val))"
-                                                             Variant="Variant.Outlined"
-                                                             Margin="Margin.Dense"
-                                                             OnKeyDown="@((e) => OnSplitQtyKeyDown(e, context))" />
-                                        </MudTd>
-                                        <MudTd DataLabel="Actions">
-                                            <MudButton Variant="Variant.Filled" Size="Size.Small" OnClick="@(() => PromptSplitAndAddToWO(context))">Split</MudButton>
-                                        </MudTd>
-                                    </RowTemplate>
-                                </MudTable>
-                            }
-                            else
-                            {
-                                <MudText>No available orders found for this coil tag.</MudText>
-                            }
-                        </MudPaper>
+                        <PickingListTable IsLoading="_isFetchingOrders"
+                                          PickingListItems="_allAvailablePickingListItems"
+                                          WorkOrderItems="Model.Items"
+                                          RemainingQuantities="_remainingQuantities"
+                                          SplitQuantities="_splitQuantities"
+                                          OnPickingLineCheckedChanged="((args) => OnPickingLineCheckedChanged(args.pli, args.isChecked))"
+                                          OnSplitQuantityChanged="((args) => OnSplitQuantityChanged(args.pliId, args.newValue))"
+                                          OnSplitQtyKeyDown="((args) => OnSplitQtyKeyDown(args.e, args.pli))"
+                                          OnPromptSplit="PromptSplitAndAddToWO" />
 
-                        <MudPaper Outlined="true" Class="pa-4">
-                            <div class="d-flex justify-space-between align-center mb-2">
-                                <MudText Typo="Typo.h6">Work Order Line Items</MudText>
-                                <MudButton Variant="Variant.Outlined" OnClick="OpenAddStockItemDialogAsync" StartIcon="@Icons.Material.Filled.Add">Add Stock Item</MudButton>
-                            </div>
-                            @if (Model.Items.Any())
-                            {
-                                <MudStack Spacing="2">
-                                    @foreach (var item in Model.Items)
-                                    {
-                                        <MudCard Outlined="true">
-                                            <MudCardContent>
-                                                <div class="d-flex justify-space-between">
-                                                    <div>
-                                                        <MudText Typo="Typo.caption">SO: @item.SalesOrderNumber</MudText>
-                                                        <MudText><b>@item.CustomerName</b></MudText>
-                                                        <MudText>@item.Description</MudText>
-                                                    </div>
-                                                    <div class="d-flex align-center">
-                                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => RemoveLineItem(item))" />
-                                                    </div>
-                                                </div>
-                                            </MudCardContent>
-                                        </MudCard>
-                                    }
-                                </MudStack>
-                            }
-                            else
-                            {
-                                <MudText>Add orders from the list above to build the work order.</MudText>
-                            }
-                        </MudPaper>
+                        <WorkOrderItemsList WorkOrderItems="Model.Items"
+                                            OnRemoveItem="RemoveLineItem"
+                                            OnAddStockItem="OpenAddStockItemDialogAsync" />
 
                         <MudPaper Outlined="true" Class="pa-4">
                             <MudText Typo="Typo.h6" GutterBottom="true">Instructions & Scheduling</MudText>
@@ -316,6 +248,11 @@
                                     </MudListItem>
                                 </MudList>
                             </MudCardContent>
+                            <MudCardActions>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitWorkOrderAsync" Disabled="@(Model.Items.Count == 0 || _isSaving)">
+                                    @(IsCreateMode ? "Create Work Order" : "Update Work Order")
+                                </MudButton>
+                            </MudCardActions>
                         </MudCard>
                     }
                     else
@@ -508,33 +445,56 @@
         }
     }
 
-    private async Task OnPickingLineCheckedChanged(PickingListItem pli, bool isChecked)
+    private void OnPickingLineCheckedChanged(PickingListItem pli, bool isChecked)
     {
-        // This handler only acts on un-checking to remove items.
-        if (!isChecked)
+        if (isChecked)
+        {
+            if (Model.Items.Any(i => i.PickingListItemId == pli.Id)) return;
+
+            var remainingQuantity = _remainingQuantities.GetValueOrDefault(pli.Id, 0);
+            if (remainingQuantity > 0)
+            {
+                var unitWeight = pli.Quantity > 0 ? pli.Weight / pli.Quantity : 0;
+                var workOrderItem = new WorkOrderItem
+                {
+                    PickingListItemId = pli.Id,
+                    ItemCode = pli.ItemId,
+                    Description = pli.ItemDescription,
+                    SalesOrderNumber = pli.PickingList?.SalesOrderNumber,
+                    CustomerName = pli.PickingList?.Customer?.CustomerName,
+                    OrderQuantity = remainingQuantity,
+                    OrderWeight = unitWeight * remainingQuantity,
+                    Width = pli.Width,
+                    Length = pli.Length,
+                    Unit = pli.Unit,
+                    OriginalOrderLineItemId = pli.Id.ToString(),
+                    Status = WorkOrderItemStatus.Pending
+                };
+                Model.Items.Add(workOrderItem);
+                _remainingQuantities[pli.Id] = 0;
+                Snackbar.Add($"Full remaining quantity for {pli.ItemDescription} added.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("No remaining quantity to add.", Severity.Info);
+            }
+        }
+        else // Unchecking
         {
             var itemsToRemove = Model.Items.Where(i => i.PickingListItemId == pli.Id).ToList();
             if (itemsToRemove.Any())
             {
+                decimal reAddedQuantity = 0;
                 foreach (var item in itemsToRemove)
                 {
+                    reAddedQuantity += item.OrderQuantity ?? 0;
                     Model.Items.Remove(item);
                 }
-
-                // If the work order hasn't been created yet, we can't save.
-                // The removal is just client-side until the first split action.
-                if (IsCreateMode && Model.Id == 0)
-                {
-                    Snackbar.Add("Item(s) removed. Changes will be saved on the first split.", Severity.Info);
-                    StateHasChanged();
-                }
-                else
-                {
-                    await SaveChangesAndReloadAsync();
-                    Snackbar.Add($"{itemsToRemove.Count} split(s) removed from work order.", Severity.Success);
-                }
+                _remainingQuantities[pli.Id] += reAddedQuantity;
+                Snackbar.Add($"{itemsToRemove.Count} split(s) removed.", Severity.Success);
             }
         }
+        StateHasChanged();
     }
 
 
@@ -557,10 +517,8 @@
         {
             ["PickingListItem"] = pli,
             ["RemainingQuantity"] = remainingQuantity,
+            ["QuantityToAdd"] = qtyToSplit
         };
-        // The AddWorkOrderItemDialog uses a parameter named QuantityToAdd, let's align with that
-        parameters["QuantityToAdd"] = qtyToSplit;
-
 
         var dialog = await DialogService.ShowAsync<AddWorkOrderItemDialog>("Split Quantity to Work Order", parameters);
         var result = await dialog.Result;
@@ -570,7 +528,6 @@
             var unitWeight = pli.Quantity > 0 ? pli.Weight / pli.Quantity : 0;
             var workOrderItem = new WorkOrderItem
             {
-                Id = 0,
                 PickingListItemId = pli.Id,
                 ItemCode = pli.ItemId,
                 Description = pli.ItemDescription,
@@ -585,13 +542,14 @@
                 Status = WorkOrderItemStatus.Pending
             };
             Model.Items.Add(workOrderItem);
-            await SaveChangesAndReloadAsync();
+            _remainingQuantities[pli.Id] -= quantityToAdd;
             _splitQuantities.Remove(pli.Id);
             Snackbar.Add("Item added to work order.", Severity.Success);
+            StateHasChanged();
         }
     }
 
-    private async Task SaveChangesAndReloadAsync()
+    private async Task SubmitWorkOrderAsync()
     {
         if (string.IsNullOrEmpty(_userId))
         {
@@ -604,17 +562,36 @@
             Model.DueDate = _nullableDueDate.Value;
             Model.ScheduledStartDate = _nullableDueDate.Value;
         }
-
-        if (IsCreateMode)
-        {
-            var createdWorkOrder = await WorkOrderService.CreateAsync(Model, _userId);
-            Navigation.NavigateTo($"/operations/workorder/manage/{createdWorkOrder.Id}", replace: true);
-        }
         else
         {
-            await WorkOrderService.UpdateAsync(Model, _userId);
-            await LoadDataAsync();
-            Snackbar.Add("Work Order updated.", Severity.Success);
+            Snackbar.Add("A due date is required.", Severity.Error);
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            if (IsCreateMode)
+            {
+                var createdWorkOrder = await WorkOrderService.CreateAsync(Model, _userId);
+                Snackbar.Add("Work Order Created Successfully!", Severity.Success);
+                Navigation.NavigateTo($"/operations/workorder/manage/{createdWorkOrder.Id}", replace: true);
+            }
+            else
+            {
+                await WorkOrderService.UpdateAsync(Model, _userId);
+                Snackbar.Add("Work Order updated successfully.", Severity.Success);
+                await LoadDataAsync(); // Refresh data
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
         }
     }
 
@@ -668,10 +645,25 @@
             .OrderByDescending(e => e.Timestamp)
             .FirstOrDefault();
 
-        if (lastStartEvent != null)
+        if (lastStartEvent == null) return;
+
+        var pauseEvents = _events
+            .Where(e => e.EventType == AuditEventType.Pause && e.Timestamp > lastStartEvent.Timestamp)
+            .ToList();
+
+        var resumeEvents = _events
+            .Where(e => e.EventType == AuditEventType.Resume && e.Timestamp > lastStartEvent.Timestamp)
+            .ToList();
+
+        var totalPauseDuration = TimeSpan.Zero;
+        foreach (var pauseEvent in pauseEvents)
         {
-            _elapsed = DateTime.UtcNow - lastStartEvent.Timestamp;
+            var correspondingResume = resumeEvents.FirstOrDefault(r => r.Timestamp > pauseEvent.Timestamp);
+            var endTime = correspondingResume?.Timestamp ?? DateTime.UtcNow;
+            totalPauseDuration += endTime - pauseEvent.Timestamp;
         }
+
+        _elapsed = (DateTime.UtcNow - lastStartEvent.Timestamp) - totalPauseDuration;
 
         _timer = new System.Timers.Timer(1000);
         _timer.Elapsed += OnTimerElapsed;

@@ -31,16 +31,8 @@
     [Parameter]
     public decimal RemainingQuantity { get; set; }
 
-    private decimal QuantityToAdd { get; set; }
-
-    protected override void OnInitialized()
-    {
-        if (RemainingQuantity > 0)
-        {
-            // Default to the full remaining quantity
-            QuantityToAdd = RemainingQuantity;
-        }
-    }
+    [Parameter]
+    public decimal QuantityToAdd { get; set; }
 
     private void Submit()
     {
