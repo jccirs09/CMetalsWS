@@ -52,6 +52,12 @@ namespace CMetalsWS.Data
                 .WithMany(b => b.DestinationRegions)
                 .UsingEntity(j => j.ToTable("DestinationRegionBranch"));
 
+            modelBuilder.Entity<DestinationRegion>()
+                .HasOne(d => d.Coordinator)
+                .WithMany()
+                .HasForeignKey(d => d.CoordinatorId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             // Shift -> Branch
             modelBuilder.Entity<Shift>()
                 .HasOne(s => s.Branch)
