@@ -63,7 +63,7 @@
                         </CellTemplate>
                     </TemplateColumn>
                     <PropertyColumn Property="x => x.Items.Count" Title="Items" Sortable="true" />
-                    <TemplateColumn Title="Due Date" SortBy="@(new Func<WorkOrder, object>(x => x.DueDate))">
+                    <TemplateColumn Title="Due Date" SortBy="@(new Func<WorkOrder, object?>(x => x.DueDate))">
                         <CellTemplate>
                             @(context.Item.DueDate.HasValue ? context.Item.DueDate.Value.ToString("yyyy-MM-dd") : "N/A")
                         </CellTemplate>
