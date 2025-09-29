@@ -1,0 +1,220 @@
+@using CMetalsWS.Models
+@using MudBlazor
+
+<MudGrid Spacing="4">
+    @* Ship Dates Column *@
+    <MudItem xs="12" md="3">
+        <MudPaper Class="pa-4" Style="height: 100%;">
+            <div class="d-flex justify-space-between align-center mb-4">
+                <MudText Typo="Typo.h6">Ship Dates</MudText>
+                <MudText Typo="Typo.body2">@AvailableShipDates.Count Ship Dates</MudText>
+            </div>
+            <MudList Clickable="true" @bind-SelectedValue="SelectedShipDate">
+                @foreach (var date in AvailableShipDates)
+                {
+                    <MudListItem Value="date" Class="d-flex justify-space-between">
+                        <div>
+                            <MudText><b>@date.ToString("MMM dd")</b></MudText>
+                            <MudText Typo="Typo.body2" Class="text-muted">@date.DayOfWeek</MudText>
+                        </div>
+                        <MudChip T="int" Size="Size.Small">@OrdersByDate(date).Count()</MudChip>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudPaper>
+    </MudItem>
+
+    @* Orders & Line Items Column *@
+    <MudItem xs="12" md="5">
+        <MudPaper Class="pa-4" Style="height: 100%;">
+            <div class="d-flex justify-space-between align-center mb-4">
+                <div>
+                    <MudText Typo="Typo.h6">Orders & Line Items</MudText>
+                    <MudText Typo="Typo.body2" Class="text-muted">@OrdersForSelectedDate.Count() Available Orders</MudText>
+                </div>
+                <MudButton Variant="Variant.Text" OnClick="ClearSelections">Clear Selections</MudButton>
+            </div>
+
+            <div class="d-flex flex-column gap-4" style="max-height: 70vh; overflow-y: auto;">
+                @foreach (var order in OrdersForSelectedDate)
+                {
+                    <MudPaper Outlined="true">
+                        <MudExpansionPanel Text="@($"{order.CustomerName} ({order.OrderNumber})")">
+                            <TitleContent>
+                                <div class="d-flex align-center pa-1" style="width:100%">
+                                    <MudCheckBox T="bool" Value="@(SelectedOrders.Contains(order))" ValueChanged="@((bool val) => ToggleOrderSelection(order, val))" Class="mr-2" />
+                                    <div class="flex-grow-1">
+                                        <MudText><b>@order.CustomerName</b></MudText>
+                                        <MudText Typo="Typo.body2" Class="text-muted">@order.OrderNumber</MudText>
+                                    </div>
+                                    <div class="text-right">
+                                        <MudText>@order.Weight.ToString("N0") lbs</MudText>
+                                        <MudText Typo="Typo.body2" Class="text-muted">@order.Pieces pcs</MudText>
+                                    </div>
+                                </div>
+                            </TitleContent>
+                            <ChildContent>
+                                <MudTable Items="@order.Items" Dense="true" Hover="true" Class="mt-2">
+                                    <HeaderContent>
+                                        <MudTh></MudTh>
+                                        <MudTh>Description</MudTh>
+                                        <MudTh>Quantity</MudTh>
+                                        <MudTh>Weight</MudTh>
+                                        <MudTh>Status</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd><MudCheckBox T="bool" Value="@IsItemSelected(context)" ValueChanged="@((bool val) => ToggleItemSelection(order, context, val))" /></MudTd>
+                                        <MudTd DataLabel="Description">@context.Description</MudTd>
+                                        <MudTd DataLabel="Quantity">@context.Quantity</MudTd>
+                                        <MudTd DataLabel="Weight">@context.Weight.ToString("N0") lbs</MudTd>
+                                        <MudTd DataLabel="Status"><MudChip T="string" Size="Size.Small" Color="GetStatusColor(context.Status)">@context.Status</MudChip></MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </ChildContent>
+                        </MudExpansionPanel>
+                    </MudPaper>
+                }
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    @* Create Load Column *@
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4" Style="height: 100%;">
+            <MudText Typo="Typo.h6" GutterBottom="true">Create Load</MudText>
+
+            <MudCard Class="mb-4">
+                <MudCardContent>
+                    <MudText Typo="Typo.subtitle1"><b>Line Items:</b> @SelectedItems.Count</MudText>
+                    <MudText Typo="Typo.subtitle1"><b>Orders:</b> @SelectedOrders.Count</MudText>
+                    <MudText Typo="Typo.h5" Class="mt-2"><b>@TotalSelectedWeight.ToString("N0") lbs</b></MudText>
+                </MudCardContent>
+            </MudCard>
+
+            <MudForm>
+                <MudDatePicker Label="Scheduled Ship Date" @bind-Date="ScheduledShipDate" Class="mb-4" />
+                <MudTextField @bind-Value="LoadNotes" Label="Load Notes (Optional)" T="string" Lines="3" Class="mb-4" />
+
+                <MudText Typo="Typo.h6" Class="mb-2">Select Truck</MudText>
+                <MudRadioGroup @bind-SelectedOption="SelectedTruckId" T="string">
+                    @foreach (var truck in AvailableTrucks)
+                    {
+                        <MudCard Outlined="true" Class="mb-2 pa-2">
+                            <div class="d-flex align-center">
+                                <div class="flex-grow-1">
+                                    <MudText><b>@truck.Name</b> @(truck.IsRecommended ? "(Recommended)" : "")</MudText>
+                                    <MudText Typo="Typo.body2">@truck.Type - @truck.Driver</MudText>
+                                    <MudProgressLinear Value="((double)truck.CurrentLoad / truck.Capacity) * 100" Color="Color.Primary" Class="my-1" />
+                                    <MudText Typo="Typo.caption">@truck.CurrentLoad.ToString("N0") / @truck.Capacity.ToString("N0") lbs</MudText>
+                                </div>
+                                <MudRadio T="string" Value="@truck.Id" />
+                            </div>
+                        </MudCard>
+                    }
+                </MudRadioGroup>
+            </MudForm>
+
+            <div class="mt-auto">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4" Disabled="@(SelectedItems.Count == 0)">Create Load</MudButton>
+            </div>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter] public List<AvailableOrder> AllAvailableOrders { get; set; } = new();
+    [Parameter] public List<TruckInfo> AvailableTrucks { get; set; } = new();
+
+    private DateTime? SelectedShipDate { get; set; } = DateTime.Today;
+    private DateTime? ScheduledShipDate { get; set; } = DateTime.Today;
+    private string LoadNotes { get; set; }
+    private string SelectedTruckId { get; set; }
+
+    private HashSet<AvailableOrder> SelectedOrders { get; set; } = new();
+    private HashSet<OrderItem> SelectedItems { get; set; } = new();
+
+    private List<DateTime> AvailableShipDates => AllAvailableOrders
+        .Select(o => o.ReadyDate.Date)
+        .Distinct()
+        .OrderBy(d => d)
+        .ToList();
+
+    private IEnumerable<AvailableOrder> OrdersByDate(DateTime date) => AllAvailableOrders
+        .Where(o => o.ReadyDate.Date == date.Date);
+
+    private IEnumerable<AvailableOrder> OrdersForSelectedDate => SelectedShipDate.HasValue
+        ? OrdersByDate(SelectedShipDate.Value)
+        : Enumerable.Empty<AvailableOrder>();
+
+    private int TotalSelectedWeight => SelectedItems.Sum(i => i.Weight);
+
+    private void ClearSelections()
+    {
+        SelectedOrders.Clear();
+        SelectedItems.Clear();
+        StateHasChanged();
+    }
+
+    private void ToggleOrderSelection(AvailableOrder order, bool isSelected)
+    {
+        if (isSelected)
+        {
+            SelectedOrders.Add(order);
+            foreach (var item in order.Items)
+            {
+                SelectedItems.Add(item);
+            }
+        }
+        else
+        {
+            SelectedOrders.Remove(order);
+            foreach (var item in order.Items)
+            {
+                SelectedItems.Remove(item);
+            }
+        }
+        StateHasChanged();
+    }
+
+    private void ToggleItemSelection(AvailableOrder order, OrderItem item, bool isSelected)
+    {
+        if (isSelected)
+        {
+            SelectedItems.Add(item);
+        }
+        else
+        {
+            SelectedItems.Remove(item);
+        }
+
+        if (order.Items.All(i => SelectedItems.Contains(i)))
+        {
+            SelectedOrders.Add(order);
+        }
+        else
+        {
+            SelectedOrders.Remove(order);
+        }
+        StateHasChanged();
+    }
+
+    private bool IsItemSelected(OrderItem item) => SelectedItems.Contains(item);
+
+    private Color GetStatusColor(string status) => status switch
+    {
+        "picked" => Color.Info,
+        "packed" => Color.Success,
+        "ready" => Color.Primary,
+        _ => Color.Default
+    };
+
+    protected override void OnInitialized()
+    {
+        // In a real scenario, this data would be loaded from a service.
+        // For now, we'll use the parameter or expect it to be passed.
+        if (AvailableShipDates.Any() && !SelectedShipDate.HasValue)
+        {
+            SelectedShipDate = AvailableShipDates.First();
+        }
+    }
+}
