@@ -123,7 +123,7 @@
                                     </HeaderContent>
                                     <RowTemplate>
                                         <MudTd>
-                                            <MudCheckBox T="bool" Checked="@(Model.Items.Any(i => i.PickingListItemId == context.Id))" CheckedChanged="@((isChecked) => OnPickingLineCheckedChanged(context, isChecked))" />
+                                            <MudCheckBox T="bool" Checked="@(Model.Items.Any(i => i.PickingListItemId == context.Id))" CheckedChanged="@((bool isChecked) => OnPickingLineCheckedChanged(context, isChecked))" />
                                         </MudTd>
                                         <MudTd DataLabel="Customer / SO">
                                             @context.PickingList?.Customer?.CustomerName<br/>
@@ -135,7 +135,7 @@
                                         <MudTd DataLabel="Qty to Split">
                                             <MudNumericField T="decimal?"
                                                              Value="@_splitQuantities.GetValueOrDefault(context.Id)"
-                                                             ValueChanged="@((val) => _splitQuantities[context.Id] = val ?? 0)"
+                                                             ValueChanged="@((decimal? val) => OnSplitQuantityChanged(context.Id, val))"
                                                              Variant="Variant.Outlined"
                                                              Margin="Margin.Dense"
                                                              OnKeyDown="@((e) => OnSplitQtyKeyDown(e, context))" />
@@ -626,6 +626,11 @@
         }
     }
 
+    private void OnSplitQuantityChanged(int pliId, decimal? newValue)
+    {
+        _splitQuantities[pliId] = newValue ?? 0;
+    }
+
     private void RemoveLineItem(WorkOrderItem item)
     {
         Model.Items.Remove(item);
@@ -720,7 +725,7 @@
         if (Model == null || _userId == null) return;
         if(Model.Status == WorkOrderStatus.Pending) await WorkOrderService.StartWorkOrderAsync(Model.Id, _userId);
         else await WorkOrderService.ResumeWorkOrderAsync(Model.Id, _userId);
-        await LoadProcessDataAsync();
+        await LoadDataAsync();
         StartTimer();
     }
 
@@ -733,7 +738,7 @@
         {
             await WorkOrderService.PauseWorkOrderAsync(Model.Id, _userId, reason);
             _timer?.Stop();
-            await LoadProcessDataAsync();
+            await LoadDataAsync();
         }
     }
 
@@ -746,7 +751,7 @@
         {
             await WorkOrderService.CompleteWorkOrderAsync(Model.Id, _userId, Model.Items);
             _timer?.Stop();
-            await LoadProcessDataAsync();
+            await LoadDataAsync();
         }
     }
 
