@@ -78,7 +78,7 @@ namespace CMetalsWS.Services
                 CreatedAt = l.ShippingDate ?? DateTime.Now, // Placeholder
                 CreatedBy = "System", // Placeholder
                 DeliveryRegion = l.Items.FirstOrDefault()?.PickingList?.Customer?.DestinationRegion?.Name ?? "Unknown",
-                Items = l.Items.Select(i => new LoadItem
+                Items = l.Items.Select(i => new CMetalsWS.Models.LoadItem
                 {
                     Id = i.Id.ToString(),
                     CustomerName = i.PickingList.Customer?.CustomerName ?? "N/A",
