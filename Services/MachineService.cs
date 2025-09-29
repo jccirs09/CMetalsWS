@@ -22,18 +22,6 @@ namespace CMetalsWS.Services
                 .ToListAsync();
         }
 
-        public async Task<List<Machine>> GetProductionMachinesAsync()
-        {
-            using var db = _dbContextFactory.CreateDbContext();
-            var productionCategories = new[] { MachineCategory.CTL, MachineCategory.Slitter };
-            return await db.Machines
-                .Where(m => m.IsActive && productionCategories.Contains(m.Category))
-                .Include(m => m.Branch)
-                .AsNoTracking()
-                .OrderBy(m => m.Name)
-                .ToListAsync();
-        }
-
         public async Task<List<Machine>> GetMachinesAsync(int branchId)
         {
             using var db = _dbContextFactory.CreateDbContext();

@@ -19,13 +19,12 @@
                         <th style="text-align:right">Remaining Wt.</th>
                         <th style="text-align:right">Ship Qty</th>
                         <th style="text-align:right">Ship Wt.</th>
-                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var row in _itemsToDisplay)
                     {
-                        <tr @key="row.Id">
+                        <tr>
                             <td>
                                 <MudCheckBox T="bool" Value="@row.IsSelected" ValueChanged="@((bool val) => OnItemChecked(val, row))" />
                             </td>
@@ -36,7 +35,7 @@
                             <td>
                                 <MudNumericField T="decimal"
                                                  Value="row.ShipQuantity"
-                                                 ValueChanged="@((decimal val) => { row.ShipQuantity = val; OnShipQuantityChanged(row); })"
+                                                 ValueChanged="@((decimal val) => { row.ShipQuantity = val; })"
                                                  Disabled="@(!row.IsSelected)"
                                                  Margin="Margin.Dense"
                                                  Validation="@((decimal q) => ValidateQuantity(q, row))" />
@@ -48,13 +47,6 @@
                                                  Disabled="@(!row.IsSelected)"
                                                  Margin="Margin.Dense"
                                                  Validation="@((decimal w) => ValidateWeight(w, row))" />
-                            </td>
-                            <td>
-                                <MudIconButton Icon="@Icons.Material.Filled.Splitscreen" Size="Size.Small" OnClick="@(() => SplitRow(row))" />
-                                @if(row.IsSplit)
-                                {
-                                    <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Size="Size.Small" OnClick="@(() => RemoveSplitRow(row))" />
-                                }
                             </td>
                         </tr>
                     }
@@ -84,12 +76,10 @@
 
     private class DialogRow
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
         public required PickingListItem Item { get; set; }
         public decimal ShipQuantity { get; set; }
         public decimal ShipWeight { get; set; }
         public bool IsSelected { get; set; }
-        public bool IsSplit { get; set; } = false;
     }
 
     protected override void OnInitialized()
@@ -109,13 +99,9 @@
         row.IsSelected = isChecked;
         if (isChecked)
         {
-            // Default to full remaining quantity/weight only if it's the only one for this item.
-            var otherRows = _itemsToDisplay.Where(r => r.Item.Id == row.Item.Id && r.Id != row.Id).ToList();
-            if (!otherRows.Any(r => r.IsSelected))
-            {
-                row.ShipQuantity = row.Item.RemainingQuantity - otherRows.Sum(r => r.ShipQuantity);
-                row.ShipWeight = row.Item.RemainingWeight - otherRows.Sum(r => r.ShipWeight);
-            }
+            // Default to full remaining quantity/weight.
+            row.ShipQuantity = row.Item.RemainingQuantity;
+            row.ShipWeight = row.Item.RemainingWeight;
         }
         else
         {
@@ -125,60 +111,15 @@
         StateHasChanged();
     }
 
-    private void OnShipQuantityChanged(DialogRow row)
-    {
-        if (row.Item.RemainingWeight > 0 && row.Item.RemainingQuantity > 0)
-        {
-            row.ShipWeight = (row.ShipQuantity / row.Item.RemainingQuantity) * row.Item.RemainingWeight;
-        }
-        StateHasChanged();
-    }
-
-    private void SplitRow(DialogRow originalRow)
-    {
-        var newRow = new DialogRow
-        {
-            Item = originalRow.Item,
-            ShipQuantity = 0,
-            ShipWeight = 0,
-            IsSelected = true, // New split rows are selected by default.
-            IsSplit = true
-        };
-        var index = _itemsToDisplay.IndexOf(originalRow);
-        _itemsToDisplay.Insert(index + 1, newRow);
-
-        originalRow.IsSplit = true; // Mark the original row as split as well.
-
-        StateHasChanged();
-    }
-
-    private void RemoveSplitRow(DialogRow rowToRemove)
-    {
-        _itemsToDisplay.Remove(rowToRemove);
-
-        // If only one row remains for this item, it's no longer considered a "split"
-        if (_itemsToDisplay.Count(r => r.Item.Id == rowToRemove.Item.Id) == 1)
-        {
-            _itemsToDisplay.First(r => r.Item.Id == rowToRemove.Item.Id).IsSplit = false;
-        }
-
-        StateHasChanged();
-    }
-
     private IEnumerable<string> ValidateQuantity(decimal quantity, DialogRow row)
     {
         if (quantity < 0)
         {
             yield return "Quantity cannot be negative.";
         }
-
-        var totalQuantityForThisItem = _itemsToDisplay
-            .Where(r => r.Item.Id == row.Item.Id)
-            .Sum(r => r.ShipQuantity);
-
-        if (totalQuantityForThisItem > row.Item.RemainingQuantity)
+        if (quantity > row.Item.RemainingQuantity)
         {
-            yield return "Total ship quantity exceeds available quantity.";
+            yield return "Cannot ship more than available quantity.";
         }
     }
 
@@ -188,14 +129,9 @@
         {
             yield return "Weight cannot be negative.";
         }
-
-        var totalWeightForThisItem = _itemsToDisplay
-            .Where(r => r.Item.Id == row.Item.Id)
-            .Sum(r => r.ShipWeight);
-
-        if (totalWeightForThisItem > row.Item.RemainingWeight)
+        if (weight > row.Item.RemainingWeight)
         {
-            yield return "Total ship weight exceeds available weight.";
+            yield return "Cannot ship more than available weight.";
         }
     }
 

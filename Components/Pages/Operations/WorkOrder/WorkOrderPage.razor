@@ -635,20 +635,38 @@
 
         if (lastStartEvent == null) return;
 
+        // Ensure events are sorted chronologically for correct pairing
         var pauseEvents = _events
             .Where(e => e.EventType == AuditEventType.Pause && e.Timestamp > lastStartEvent.Timestamp)
+            .OrderBy(e => e.Timestamp)
             .ToList();
 
         var resumeEvents = _events
             .Where(e => e.EventType == AuditEventType.Resume && e.Timestamp > lastStartEvent.Timestamp)
+            .OrderBy(e => e.Timestamp)
             .ToList();
 
         var totalPauseDuration = TimeSpan.Zero;
+        var resumeQueue = new Queue<TaskAuditEvent>(resumeEvents);
+
         foreach (var pauseEvent in pauseEvents)
         {
-            var correspondingResume = resumeEvents.FirstOrDefault(r => r.Timestamp > pauseEvent.Timestamp);
-            var endTime = correspondingResume?.Timestamp ?? DateTime.UtcNow;
-            totalPauseDuration += endTime - pauseEvent.Timestamp;
+            // Find the first resume event after the current pause event
+            while (resumeQueue.Any() && resumeQueue.Peek().Timestamp < pauseEvent.Timestamp)
+            {
+                resumeQueue.Dequeue(); // Discard any resumes that occurred before this pause
+            }
+
+            if (resumeQueue.Any())
+            {
+                var correspondingResume = resumeQueue.Dequeue(); // Pair and remove
+                totalPauseDuration += correspondingResume.Timestamp - pauseEvent.Timestamp;
+            }
+            else
+            {
+                // If there's no corresponding resume, it's still paused.
+                totalPauseDuration += DateTime.UtcNow - pauseEvent.Timestamp;
+            }
         }
 
         _elapsed = (DateTime.UtcNow - lastStartEvent.Timestamp) - totalPauseDuration;

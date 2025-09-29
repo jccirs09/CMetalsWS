@@ -33,7 +33,9 @@ namespace CMetalsWS.Services
             await SeedBranchesAsync();
             await SeedCityCentroidsAsync();
             await SeedMachinesAsync();
+            await SeedDestinationRegionsAsync();
             await SeedDestinationGroupsAsync();
+            await SeedTrucksAsync();
 
             // Create roles
             string[] roles = { "Admin", "Planner", "Supervisor", "Manager", "Operator", "Driver", "Viewer" };
@@ -166,12 +168,6 @@ namespace CMetalsWS.Services
             }
             await _userManager.UpdateAsync(admin);
 
-            // Seed planner user
-            if (surreyBranch != null)
-            {
-                await CreateUserIfNotExists("planner1", "Planner", "One", "Planner", surreyBranch.Id);
-            }
-
             // Seed driver users
             if (surreyBranch != null)
             {
@@ -181,7 +177,6 @@ namespace CMetalsWS.Services
             }
 
             await SeedTrucksAsync();
-            await SeedDestinationRegionsAsync();
 
             await SeedUserClaimsAsync();
             await SeedChatDataAsync(admin);
@@ -398,63 +393,19 @@ namespace CMetalsWS.Services
 
         private async Task SeedDestinationRegionsAsync()
         {
-            var plannerRole = await _roleManager.FindByNameAsync("Planner");
-            if (plannerRole == null)
-            {
-                // Cannot seed without a Planner role
-                return;
-            }
+            var requiredRegions = new[] { "Local", "Island", "Okanagan", "Out of Town" };
+            var existingRegions = await _context.DestinationRegions.Select(r => r.Name).ToListAsync();
 
-            var planners = await _userManager.GetUsersInRoleAsync("Planner");
-            if (!planners.Any())
-            {
-                // Cannot seed without at least one planner
-                return;
-            }
-            var surreyBranch = await _context.Branches.FirstOrDefaultAsync(b => b.Name == "SURREY");
-            if (surreyBranch == null)
-            {
-                // Cannot seed without Surrey branch
-                return;
-            }
-            var regions = new List<DestinationRegion>
-            {
-                new() { Name = "Local Delivery", Type = "local", Description = "Same-day and next-day deliveries within metro area", RequiresPooling = false },
-                new() { Name = "Multi Out of Town Lanes", Type = "out-of-town", Description = "Regional deliveries to multiple towns and cities", RequiresPooling = true },
-                new() { Name = "Island Pool Trucks", Type = "island-pool", Description = "Consolidated ferry-dependent deliveries to Vancouver Island", RequiresPooling = true },
-                new() { Name = "Okanagan Pool Trucks", Type = "okanagan-pool", Description = "Pooled deliveries to Okanagan Valley region", RequiresPooling = true },
-                new() { Name = "Customer Pickup", Type = "customer-pickup", Description = "Customer self-pickup coordination and scheduling", RequiresPooling = false }
-            };
+            var regionsToAdd = requiredRegions
+                .Where(r => !existingRegions.Contains(r, StringComparer.OrdinalIgnoreCase))
+                .Select(r => new DestinationRegion { Name = r })
+                .ToList();
 
-            var existingRegions = await _context.DestinationRegions.Include(r => r.Branches).ToListAsync();
-            var rng = new System.Random();
-
-            foreach (var region in regions)
+            if (regionsToAdd.Any())
             {
-                var existingRegion = existingRegions.FirstOrDefault(r => r.Name == region.Name);
-                if (existingRegion == null)
-                {
-                    region.CoordinatorId = planners[rng.Next(planners.Count)].Id;
-                    region.Branches.Add(surreyBranch);
-                    _context.DestinationRegions.Add(region);
-                }
-                else
-                {
-                    existingRegion.Type = region.Type;
-                    existingRegion.Description = region.Description;
-                    existingRegion.RequiresPooling = region.RequiresPooling;
-                    if (string.IsNullOrEmpty(existingRegion.CoordinatorId))
-                    {
-                        existingRegion.CoordinatorId = planners[rng.Next(planners.Count)].Id;
-                    }
-                    if (!existingRegion.Branches.Any(b => b.Id == surreyBranch.Id))
-                    {
-                        existingRegion.Branches.Add(surreyBranch);
-                    }
-                }
+                _context.DestinationRegions.AddRange(regionsToAdd);
+                await _context.SaveChangesAsync();
             }
-
-            await _context.SaveChangesAsync();
         }
 
         private async Task SeedDestinationGroupsAsync()

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250929022333_InitialCreate")]
+    [Migration("20250928010940_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -464,14 +464,8 @@ namespace CMetalsWS.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("FullAddress")
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
-
-                    b.Property<double?>("Latitude")
-                        .HasColumnType("float");
-
-                    b.Property<double?>("Longitude")
-                        .HasColumnType("float");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<int?>("MaxSkidCapacity")
                         .HasColumnType("int");

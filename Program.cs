@@ -128,7 +128,6 @@ builder.Services.AddScoped<DestinationGroupService>();
 builder.Services.AddScoped<DestinationRegionService>();
 builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddSingleton<RegionAssignmentService>();
-builder.Services.AddSingleton<ShippingService>();
 
 // Picking List PDF Parser
 builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();
@@ -155,11 +154,6 @@ using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<IdentityDataSeeder>();
     await seeder.SeedAsync();
-
-    // Seed destination regions
-    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 }
 
 // Pipeline
