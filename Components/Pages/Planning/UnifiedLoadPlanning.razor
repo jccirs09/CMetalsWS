@@ -32,7 +32,7 @@
                 @foreach (var region in _regions)
                 {
                     <MudItem xs="12" sm="6" md="4" lg="2.4">
-                        <MudCard Class="d-flex flex-column region-card" Style="height:100%;" @onclick='() => ActivateTab("Simple Planning")'>
+                        <MudCard Class="d-flex flex-column region-card" Style="height:100%; cursor:pointer;" @onclick='() => ActivateTab("Simple Planning")'>
                             <MudCardContent>
                                 <div class="d-flex justify-space-between align-start mb-2">
                                     <MudAvatar Color="GetRegionColor(region.Type)" Size="Size.Medium">
@@ -87,7 +87,7 @@
                                 var regionOrders = _availableOrders.Where(o => o.DeliveryRegion == region.Id).ToList();
                                 <div class="d-flex align-center justify-space-between pa-2 my-1 rounded-lg" style="background-color: var(--mud-palette-background-grey);">
                                     <div class="d-flex align-center gap-3">
-                                        <MudAvatar Color="GetRegionColor(region.Type)" Variant="Variant.Circle" Size="Size.Small" />
+                                        <MudAvatar Color="GetRegionColor(region.Type)" Size="Size.Small" />
                                         <div>
                                             <MudText><b>@region.Name</b></MudText>
                                             <MudText Typo="Typo.body2" Class="text-muted">@regionOrders.Sum(o => o.Weight).ToString("N0") lbs</MudText>
@@ -108,7 +108,7 @@
                                 var regionTrucks = _trucks.Where(t => t.Type == region.Name).ToList(); // Simplified logic
                                 <div class="d-flex align-center justify-space-between pa-2 my-1 rounded-lg" style="background-color: var(--mud-palette-background-grey);">
                                     <div class="d-flex align-center gap-3">
-                                        <MudAvatar Color="GetRegionColor(region.Type)" Variant="Variant.Circle" Size="Size.Small" />
+                                        <MudAvatar Color="GetRegionColor(region.Type)" Size="Size.Small" />
                                         <div>
                                             <MudText><b>@region.Name</b></MudText>
                                             <MudText Typo="Typo.body2" Class="text-muted">@regionTrucks.Count() active • @regionTrucks.Count(t => t.IsRecommended) pool trucks</MudText>
@@ -202,7 +202,7 @@
                         </MudCardHeader>
                         <MudCardContent>
                             <MudText Typo="Typo.body2">Load Utilization</MudText>
-                            <MudProgressLinear Value="load.UtilizationPercentage" Color="Color.Primary" Class="my-1" />
+                            <MudProgressLinear Value="(double)load.UtilizationPercentage" Color="Color.Primary" Class="my-1" />
                             <div class="d-flex justify-space-between">
                                 <MudText Typo="Typo.caption">@load.UtilizationPercentage% utilized</MudText>
                                 <MudText Typo="Typo.caption"><b>@load.CurrentWeight.ToString("N0") / @load.MaxWeight.ToString("N0") lbs</b></MudText>
@@ -281,6 +281,7 @@
 </MudContainer>
 
 @code {
+    private MudTabs _mudTabs;
     private List<DeliveryRegion> _regions = new();
     private List<ShippingLoad> _loads = new();
     private List<AvailableOrder> _availableOrders = new();
@@ -296,12 +297,22 @@
         _alerts = ShippingService.GetRegionalAlerts();
     }
 
+    private void ActivateTab(string tabName)
+    {
+        var panel = _mudTabs.Panels.Cast<MudTabPanel>().FirstOrDefault(p => p.Text == tabName);
+        if (panel != null)
+        {
+            _mudTabs.ActivatePanel(panel);
+        }
+    }
+
     private Color GetStatusColor(string status) => status.ToLower() switch
     {
         "in-transit" => Color.Warning,
         "dispatched" => Color.Info,
         "planning" => Color.Default,
         "delivered" => Color.Success,
+        "loaded" => Color.Primary,
         _ => Color.Default
     };
 
@@ -311,5 +322,34 @@
         "urgent" => Color.Secondary,
         "normal" => Color.Primary,
         _ => Color.Default
+    };
+
+    private Color GetRegionColor(string regionType) => regionType.ToLower() switch
+    {
+        "local" => Color.Success,
+        "out-of-town" => Color.Primary,
+        "island-pool" => Color.Secondary,
+        "okanagan-pool" => Color.Warning,
+        "customer-pickup" => Color.Info,
+        _ => Color.Default
+    };
+
+    private string GetRegionIcon(string regionType) => regionType.ToLower() switch
+    {
+        "local" => Icons.Material.Filled.Business,
+        "out-of-town" => Icons.Material.Filled.Route,
+        "island-pool" => Icons.Material.Filled.DirectionsBoat,
+        "okanagan-pool" => Icons.Material.Filled.Map,
+        "customer-pickup" => Icons.Material.Filled.People,
+        _ => Icons.Material.Filled.Place
+    };
+
+    private Severity GetAlertSeverity(string color) => color.ToLower() switch
+    {
+        "warning" => Severity.Warning,
+        "info" => Severity.Info,
+        "success" => Severity.Success,
+        "error" => Severity.Error,
+        _ => Severity.Normal
     };
 }
