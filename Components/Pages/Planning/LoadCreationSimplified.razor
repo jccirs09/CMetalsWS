@@ -129,13 +129,14 @@
             </MudForm>
 
             <div class="mt-auto">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4" Disabled="@(SelectedItems.Count == 0)" OnClick="CreateLoadAsync">Create Load</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4" Disabled="@(!CanCreate)" OnClick="CreateLoadAsync">Create Load</MudButton>
             </div>
         </MudPaper>
     </MudItem>
 </MudGrid>
 
 @code {
+    private bool CanCreate => SelectedItems.Any() && !string.IsNullOrEmpty(SelectedTruckId);
     [Parameter] public List<AvailableOrder> AllAvailableOrders { get; set; } = new();
     [Parameter] public List<TruckInfo> AvailableTrucks { get; set; } = new();
     [Parameter] public EventCallback OnLoadCreated { get; set; }
@@ -257,7 +258,7 @@
 
     private async Task CreateLoadAsync()
     {
-        if (SelectedItems.Count == 0 || string.IsNullOrEmpty(SelectedTruckId))
+        if (!CanCreate)
         {
             Snackbar.Add("Please select items and a truck for the load.", Severity.Warning);
             return;
