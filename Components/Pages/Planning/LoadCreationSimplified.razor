@@ -118,8 +118,8 @@
                                 <div class="flex-grow-1">
                                     <MudText><b>@truck.Name</b> @(truck.IsRecommended ? "(Recommended)" : "")</MudText>
                                     <MudText Typo="Typo.body2">@truck.Type - @truck.Driver</MudText>
-                                    <MudProgressLinear Value="((double)truck.CurrentLoad / truck.Capacity) * 100" Color="Color.Primary" Class="my-1" />
-                                    <MudText Typo="Typo.caption">@truck.CurrentLoad.ToString("N0") / @truck.Capacity.ToString("N0") lbs</MudText>
+                                    <MudProgressLinear Value="@((GetProjectedLoad(truck) / (double)truck.Capacity) * 100)" Color="@GetProjectedLoadColor(truck)" Class="my-1" />
+                                    <MudText Typo="Typo.caption">@GetProjectedLoad(truck).ToString("N0") / @truck.Capacity.ToString("N0") lbs</MudText>
                                 </div>
                                 <MudRadio T="string" Value="@truck.Id" />
                             </div>
@@ -223,6 +223,18 @@
         _ => Color.Default
     };
 
+    private int GetProjectedLoad(TruckInfo truck) => truck.CurrentLoad + TotalSelectedWeight;
+
+    private Color GetProjectedLoadColor(TruckInfo truck)
+    {
+        if (truck.Capacity == 0) return Color.Primary;
+        var projectedLoad = GetProjectedLoad(truck);
+        var percentage = (double)projectedLoad / truck.Capacity;
+        if (percentage > 1) return Color.Error;
+        if (percentage > 0.9) return Color.Warning;
+        return Color.Primary;
+    }
+
     protected override void OnInitialized()
     {
         if (AvailableShipDates.Any() && !SelectedShipDate.HasValue)
@@ -260,24 +272,30 @@
         };
 
         var loadItems = new List<Data.LoadItem>();
-        foreach (var order in SelectedOrders)
-        {
-            foreach (var item in order.Items.Where(i => SelectedItems.Contains(i)))
-            {
-                var orderId = int.Parse(order.Id);
-                var pickingList = AllAvailableOrders.First(o => o.Id == order.Id);
-                var pickingListItem = pickingList.Items.First(i => i.Id == item.Id);
+        var ordersWithSelectedItems = AllAvailableOrders.Where(o => o.Items.Any(i => SelectedItems.Contains(i)));
 
+        foreach (var order in ordersWithSelectedItems)
+        {
+            var itemsToLoad = order.Items.Where(i => SelectedItems.Contains(i));
+            foreach (var item in itemsToLoad)
+            {
                 loadItems.Add(new Data.LoadItem
                 {
-                    PickingListId = orderId,
+                    PickingListId = int.Parse(order.Id),
                     PickingListItemId = int.Parse(item.Id),
                     ShippedWeight = item.Weight,
                     ShippedQuantity = item.Quantity
                 });
             }
         }
+
         newLoad.Items = loadItems;
+
+        if (!newLoad.Items.Any())
+        {
+            Snackbar.Add("Could not find selected items to create the load. Please try again.", Severity.Error);
+            return;
+        }
 
         try
         {
