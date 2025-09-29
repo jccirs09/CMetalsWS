@@ -39,62 +39,49 @@
 
     <MudTabs @bind-ActivePanelIndex="_activePanelIndex" Elevation="2" Rounded="true" PanelClass="pa-4">
         <MudTabPanel Text="List View" Icon="@Icons.Material.Filled.List">
-            <MudStack Spacing="3">
-                @foreach (var order in FilteredWorkOrders)
-                {
-                    <MudCard>
-                        <MudCardContent>
-                            <div class="d-flex justify-space-between align-center">
-                                <div class="d-flex align-center ga-4">
-                                    <div>
-                                        <div class="d-flex align-center ga-2 mb-1">
-                                            <MudChip T="string" Text="@order.WorkOrderNumber" Color="Color.Primary" />
-                                            <MudChip T="string" Text="@order.TagNumber" Color="Color.Secondary" />
-                                            <MudChip T="string" Text="@order.Status.ToString()" Color="@GetStatusColor(order.Status)" />
-                                            <MudChip T="string" Text="@order.Priority.ToString()" Color="@GetPriorityColor(order.Priority)" />
-                                        </div>
-                                        <MudText Typo="Typo.h6">@GetMainCustomer(order)</MudText>
-                                        <MudText Typo="Typo.body2" Color="Color.Dark">@GetMainItemDescription(order)</MudText>
-                                        <div class="d-flex align-center ga-4 mt-1">
-                                            <MudText Typo="Typo.caption"><MudIcon Icon="@Icons.Material.Filled.Factory" Class="mr-1"/>@order.Branch?.Name</MudText>
-                                            <MudText Typo="Typo.caption"><MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-1"/>Created by @order.CreatedBy</MudText>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-center ga-4">
-                                    <div class="text-right">
-                                        <MudText Typo="Typo.body2" Color="Color.Dark">Machine</MudText>
-                                        <MudText Typo="Typo.body1"><b>@(order.Machine?.Name ?? order.MachineCategory.ToString())</b></MudText>
-                                    </div>
-                                    <div class="text-right">
-                                        <MudText Typo="Typo.body2" Color="Color.Dark">Total Weight</MudText>
-                                        <MudText Typo="Typo.body1"><b>@GetTotalWeight(order).ToString("N0") lbs</b></MudText>
-                                    </div>
-                                    <div class="text-right">
-                                        <MudText Typo="Typo.body2" Color="Color.Dark">Items</MudText>
-                                        <MudText Typo="Typo.body1"><b>@order.Items.Count</b></MudText>
-                                    </div>
-                                    <div class="text-right">
-                                        <MudText Typo="Typo.body2" Color="Color.Dark">Due Date</MudText>
-                                        <MudText Typo="Typo.body1"><b>@order.DueDate.ToString("yyyy-MM-dd")</b></MudText>
-                                    </div>
-                                    <div class="d-flex ga-2">
-                                        @if (order.Status == WorkOrderStatus.Pending)
-                                        {
-                                            <MudButton Variant="Variant.Filled" Size="Size.Small" Color="Color.Success" OnClick="@(() => ProcessOrder(order))">Start</MudButton>
-                                        }
-                                        else if (order.Status == WorkOrderStatus.InProgress)
-                                        {
-                                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning" OnClick="@(() => ProcessOrder(order))">Pause</MudButton>
-                                        }
-                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined" OnClick="@(() => ProcessOrder(order))" />
-                                    </div>
-                                </div>
-                            </div>
-                        </MudCardContent>
-                    </MudCard>
-                }
-            </MudStack>
+            <MudDataGrid T="WorkOrder" Items="@FilteredWorkOrders" Dense="true" Striped="true" Hover="true" Bordered="true"
+                         Sortable="true" Filterable="false" Groupable="false" RowClick="@((args) => ProcessOrder(args.Item))"
+                         Class="mud-table-responsive">
+                <Columns>
+                    <PropertyColumn Property="x => x.WorkOrderNumber" Title="WO #" Sortable="true" />
+                    <TemplateColumn Title="Customer" SortBy="@(new Func<WorkOrder, object>(x => GetMainCustomer(x)))">
+                        <CellTemplate>
+                            @GetMainCustomer(context.Item)
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Machine" SortBy="@(new Func<WorkOrder, object>(x => x.Machine?.Name ?? x.MachineCategory.ToString()))">
+                        <CellTemplate>
+                            @(context.Item.Machine?.Name ?? context.Item.MachineCategory.ToString())
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="x => x.TagNumber" Title="Tag #" Sortable="true" />
+                    <TemplateColumn Title="Weight (lbs)" SortBy="@(new Func<WorkOrder, object>(x => GetTotalWeight(x)))">
+                        <CellTemplate>
+                            <div style="text-align: right;">@GetTotalWeight(context.Item).ToString("N0")</div>
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="x => x.Items.Count" Title="Items" Sortable="true" />
+                    <PropertyColumn Property="x => x.DueDate" Title="Due Date" Format="yyyy-MM-dd" Sortable="true" />
+                    <TemplateColumn Title="Status" SortBy="@(new Func<WorkOrder, object>(x => x.Status))">
+                        <CellTemplate>
+                            <MudChip T="string" Text="@context.Item.Status.ToString()" Color="@GetStatusColor(context.Item.Status)" Size="Size.Small" />
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Priority" SortBy="@(new Func<WorkOrder, object>(x => x.Priority))">
+                        <CellTemplate>
+                            <MudChip T="string" Text="@context.Item.Priority.ToString()" Color="@GetPriorityColor(context.Item.Priority)" Size="Size.Small" />
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="" StickyRight="true" >
+                        <CellTemplate>
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Title="View/Process" Size="Size.Small" OnClick="@(() => ProcessOrder(context.Item))" />
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+                <PagerContent>
+                    <MudDataGridPager T="WorkOrder" />
+                </PagerContent>
+            </MudDataGrid>
         </MudTabPanel>
         <MudTabPanel Text="Kanban View" Icon="@Icons.Material.Filled.ViewKanban">
             <div class="d-flex ga-4 overflow-x-auto">
@@ -131,7 +118,9 @@
                                         </div>
                                         <div class="d-flex justify-space-between align-center mt-2 pt-2 border-t-1">
                                             <MudText Typo="Typo.caption">Due: @order.DueDate.ToString("d")</MudText>
-                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@((e) => { e.stopPropagation(); ProcessOrder(order); })" />
+                                            <span @onclick:stopPropagation="true">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => ProcessOrder(order))" />
+                                            </span>
                                         </div>
                                     </MudCardContent>
                                 </MudCard>

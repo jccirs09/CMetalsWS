@@ -64,12 +64,13 @@
         }
 
         <MudGrid Spacing="4">
-            <MudItem xs="12" md="8">
-                <MudStack Spacing="3">
-                    @if (IsCreateMode)
-                    {
+            @if (IsCreateMode)
+            {
+                <!-- CREATE MODE -->
+                <MudItem xs="12" md="7">
+                    <MudStack Spacing="3">
                         <MudPaper Outlined="true" Class="pa-4">
-                            <MudText Typo="Typo.h6" GutterBottom="true">Machine & Coil Selection</MudText>
+                            <MudText Typo="Typo.h6" GutterBottom="true">1. Machine & Coil Selection</MudText>
                             <MudGrid>
                                 <MudItem xs="12" md="6">
                                     <MudSelect T="int?" Value="Model.MachineId" ValueChanged="OnMachineChanged" Label="Machine" Variant="Variant.Outlined" For="@(() => Model.MachineId)"
@@ -92,7 +93,7 @@
                                     </div>
                                 </MudItem>
                             </MudGrid>
-                            @if (_parentItem != null)
+                             @if (_parentItem != null)
                             {
                                 <MudAlert Severity="Severity.Success" Class="mt-4">
                                     <div class="d-flex justify-space-between">
@@ -103,22 +104,12 @@
                             }
                         </MudPaper>
 
-                        <PickingListTable IsLoading="_isFetchingOrders"
-                                          PickingListItems="_allAvailablePickingListItems"
-                                          WorkOrderItems="Model.Items"
-                                          RemainingQuantities="_remainingQuantities"
-                                          SplitQuantities="_splitQuantities"
-                                          OnPickingLineCheckedChanged="OnPickingLineCheckedChanged"
-                                          OnSplitQuantityChanged="OnSplitQuantityChanged"
-                                          OnSplitQtyKeyDown="OnSplitQtyKeyDown"
-                                          OnPromptSplit="PromptSplitAndAddToWO" />
-
                         <WorkOrderItemsList WorkOrderItems="Model.Items"
                                             OnRemoveItem="RemoveLineItem"
                                             OnAddStockItem="OpenAddStockItemDialogAsync" />
 
                         <MudPaper Outlined="true" Class="pa-4">
-                            <MudText Typo="Typo.h6" GutterBottom="true">Instructions & Scheduling</MudText>
+                            <MudText Typo="Typo.h6" GutterBottom="true">3. Instructions & Scheduling</MudText>
                             <MudGrid>
                                 <MudItem xs="12">
                                     <MudTextField @bind-Value="Model.Instructions" Label="Work Order Instructions" Variant="Variant.Outlined" Lines="3" />
@@ -136,10 +127,77 @@
                                 </MudItem>
                             </MudGrid>
                         </MudPaper>
-                    }
-                    else
-                    {
-                        <!-- PROCESS MODE - MAIN CONTENT -->
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="12" md="5">
+                    <MudStack Spacing="3">
+                        <PickingListTable IsLoading="_isFetchingOrders"
+                                          PickingListItems="_allAvailablePickingListItems"
+                                          WorkOrderItems="Model.Items"
+                                          RemainingQuantities="_remainingQuantities"
+                                          SplitQuantities="_splitQuantities"
+                                          OnPickingLineCheckedChanged="OnPickingLineCheckedChanged"
+                                          OnSplitQuantityChanged="OnSplitQuantityChanged"
+                                          OnSplitQtyKeyDown="OnSplitQtyKeyDown"
+                                          OnPromptSplit="PromptSplitAndAddToWO" />
+
+                        <MudPaper Class="pa-4">
+                            <MudCard Elevation="0">
+                                <MudCardHeader>
+                                    <CardHeaderContent>
+                                        <MudText Typo="Typo.h6">Summary</MudText>
+                                    </CardHeaderContent>
+                                </MudCardHeader>
+                                <MudCardContent>
+                                    <MudList T="object" Dense="true">
+                                        <MudListItem T="object">
+                                            <div class="d-flex justify-space-between w-100">
+                                                <span>Machine</span>
+                                                <b>@(Model.MachineId.HasValue ? _machines.FirstOrDefault(m => m.Id == Model.MachineId.Value)?.Name : "N/A")</b>
+                                            </div>
+                                        </MudListItem>
+                                        <MudListItem T="object">
+                                            <div class="d-flex justify-space-between w-100">
+                                                <span>Coil Tag</span>
+                                                <b>@(string.IsNullOrEmpty(Model.TagNumber) ? "N/A" : Model.TagNumber)</b>
+                                            </div>
+                                        </MudListItem>
+                                        <MudListItem T="object">
+                                            <div class="d-flex justify-space-between w-100">
+                                                <span>Priority</span>
+                                                <MudChip T="string" Text="@Model.Priority.ToString()" Color="@GetPriorityColor(Model.Priority)" Size="Size.Small" />
+                                            </div>
+                                        </MudListItem>
+                                        <MudDivider Class="my-2" />
+                                        <MudListItem T="object">
+                                            <div class="d-flex justify-space-between w-100">
+                                                <span>Line Items</span>
+                                                <b>@Model.Items.Count</b>
+                                            </div>
+                                        </MudListItem>
+                                        <MudListItem T="object">
+                                            <div class="d-flex justify-space-between w-100">
+                                                <span>Total Weight</span>
+                                                <b>@Model.Items.Sum(i => i.OrderWeight ?? 0).ToString("N0") lbs</b>
+                                            </div>
+                                        </MudListItem>
+                                    </MudList>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitWorkOrderAsync" Disabled="@(Model.Items.Count == 0 || _isSaving)" FullWidth="true" Size="Size.Large">
+                                        @(IsCreateMode ? "Create Work Order" : "Update Work Order")
+                                    </MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudPaper>
+                    </MudStack>
+                </MudItem>
+            }
+            else
+            {
+                <!-- PROCESS MODE -->
+                <MudItem xs="12" md="7">
+                    <MudStack Spacing="3">
                         <MudPaper Outlined="true" Class="pa-4">
                             <MudText Typo="Typo.h6" GutterBottom="true">Progress Overview</MudText>
                             <div class="d-flex justify-space-between mb-2">
@@ -200,66 +258,12 @@
                                 }
                             </MudStack>
                         </MudPaper>
-                    }
-                </MudStack>
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudPaper Class="pa-4" Style="height: 100%;">
-                    @if (IsCreateMode)
-                    {
-                        <MudCard Elevation="0">
-                            <MudCardHeader>
-                                <CardHeaderContent>
-                                    <MudText Typo="Typo.h6">Summary</MudText>
-                                </CardHeaderContent>
-                            </MudCardHeader>
-                            <MudCardContent>
-                                <MudList T="object">
-                                    <MudListItem T="object">
-                                        <div class="d-flex justify-space-between w-100">
-                                            <span>Machine</span>
-                                            <b>@(Model.MachineId.HasValue ? _machines.FirstOrDefault(m => m.Id == Model.MachineId.Value)?.Name : "N/A")</b>
-                                        </div>
-                                    </MudListItem>
-                                    <MudListItem T="object">
-                                        <div class="d-flex justify-space-between w-100">
-                                            <span>Coil Tag</span>
-                                            <b>@(string.IsNullOrEmpty(Model.TagNumber) ? "N/A" : Model.TagNumber)</b>
-                                        </div>
-                                    </MudListItem>
-                                    <MudListItem T="object">
-                                        <div class="d-flex justify-space-between w-100">
-                                            <span>Priority</span>
-                                            <MudChip T="string" Text="@Model.Priority.ToString()" Color="@GetPriorityColor(Model.Priority)" Size="Size.Small" />
-                                        </div>
-                                    </MudListItem>
-                                    <MudDivider Class="my-2" />
-                                    <MudListItem T="object">
-                                        <div class="d-flex justify-space-between w-100">
-                                            <span>Line Items</span>
-                                            <b>@Model.Items.Count</b>
-                                        </div>
-                                    </MudListItem>
-                                    <MudListItem T="object">
-                                        <div class="d-flex justify-space-between w-100">
-                                            <span>Total Weight</span>
-                                            <b>@Model.Items.Sum(i => i.OrderWeight ?? 0).ToString("N0") lbs</b>
-                                        </div>
-                                    </MudListItem>
-                                </MudList>
-                            </MudCardContent>
-                            <MudCardActions>
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitWorkOrderAsync" Disabled="@(Model.Items.Count == 0 || _isSaving)">
-                                    @(IsCreateMode ? "Create Work Order" : "Update Work Order")
-                                </MudButton>
-                            </MudCardActions>
-                        </MudCard>
-                    }
-                    else
-                    {
-                        <!-- PROCESS MODE - RIGHT PANEL -->
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="12" md="5">
+                    <MudPaper Class="pa-4" Style="height: 100%;">
                         <MudStack Spacing="3">
-                            <MudCard>
+                            <MudCard Outlined="true">
                                 <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Work Order Details</MudText></CardHeaderContent></MudCardHeader>
                                 <MudCardContent>
                                     <MudText><b>Sales Order:</b> @Model.Items.FirstOrDefault()?.SalesOrderNumber</MudText>
@@ -270,7 +274,7 @@
                                 </MudCardContent>
                             </MudCard>
 
-                            <MudCard>
+                            <MudCard Outlined="true">
                                 <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Notes & Instructions</MudText></CardHeaderContent></MudCardHeader>
                                 <MudCardContent>
                                     @if (!string.IsNullOrWhiteSpace(Model.Instructions))
@@ -284,10 +288,10 @@
                                 </MudCardContent>
                             </MudCard>
 
-                            <MudCard>
+                            <MudCard Outlined="true">
                                 <MudCardHeader><CardHeaderContent><MudText Typo="Typo.h6">Timeline</MudText></CardHeaderContent></MudCardHeader>
                                 <MudCardContent>
-                                    <MudTimeline TimelinePosition="TimelinePosition.Left" TimelineVariant="TimelineVariant.Outlined">
+                                    <MudTimeline TimelinePosition="TimelinePosition.Left" TimelineVariant="TimelineVariant.Outlined" Dense="true">
                                         @foreach(var ev in _events)
                                         {
                                             <MudTimelineItem Icon="@GetEventIcon(ev.EventType)" Color="@GetEventColor(ev.EventType)">
@@ -303,9 +307,9 @@
                                 </MudCardContent>
                             </MudCard>
                         </MudStack>
-                    }
-                </MudPaper>
-            </MudItem>
+                    </MudPaper>
+                </MudItem>
+            }
         </MudGrid>
     }
 </MudPaper>
