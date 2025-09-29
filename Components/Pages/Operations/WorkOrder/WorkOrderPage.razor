@@ -30,7 +30,11 @@
             <div class="d-flex justify-space-between align-center mb-4">
                 <div>
                     <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/operations/workorders"))" StartIcon="@Icons.Material.Filled.ArrowBack">Back to Work Orders</MudButton>
-                    <MudText Typo="Typo.h5" Class="mt-2">@(IsCreateMode ? "Create Work Order" : $"Edit Work Order {Model.WorkOrderNumber}")</MudText>
+                    <MudText Typo="Typo.h5" Class="mt-2">
+                        @(IsCreateMode
+                            ? "Create Work Order"
+                            : $"Edit Work Order {Model?.WorkOrderNumber ?? "(unsaved)"}")
+                    </MudText>
                     <MudText Color="Color.Dark">Create a new work order by selecting machine, coil, and customer orders.</MudText>
                 </div>
             </div>
