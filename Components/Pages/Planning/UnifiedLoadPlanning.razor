@@ -267,7 +267,7 @@
                 </MudStack>
             </MudTabPanel>
             <MudTabPanel Text="Simple Planning" Icon="@Icons.Material.Filled.Add">
-                <LoadCreationSimplified AllAvailableOrders="_availableOrders" AvailableTrucks="_trucks" />
+                <LoadCreationSimplified AllAvailableOrders="_availableOrders" AvailableTrucks="_trucks" OnLoadCreated="LoadData" />
             </MudTabPanel>
             <MudTabPanel Text="Pool Management" Icon="@Icons.Material.Filled.Layers" Disabled="true">
                 <MudText>Pool Management coming soon.</MudText>

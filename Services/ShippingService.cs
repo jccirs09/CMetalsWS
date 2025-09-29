@@ -20,29 +20,55 @@ namespace CMetalsWS.Services
         public async Task<List<DeliveryRegion>> GetRegionalDataAsync()
         {
             await using var db = await _dbContextFactory.CreateDbContextAsync();
+
             var regions = await db.DestinationRegions
                 .AsNoTracking()
                 .Include(r => r.Coordinator)
                 .ToListAsync();
 
-            // Note: Metrics are dynamic and will require separate queries.
-            // This is a simplified version for now.
-            return regions.Select(r => new DeliveryRegion
+            var inactiveStatuses = new[] { PickingListStatus.Shipped, PickingListStatus.Cancelled };
+            var pendingPickupStatuses = new[] { PickingListStatus.ReadyToShip, PickingListStatus.Ready };
+
+            var pickingListStats = await db.PickingLists
+                .AsNoTracking()
+                .Where(p => p.DestinationRegionId != null && !inactiveStatuses.Contains(p.Status))
+                .GroupBy(p => p.DestinationRegionId)
+                .Select(g => new
+                {
+                    RegionId = g.Key,
+                    ActiveOrders = g.Count(),
+                    PendingPickups = g.Count(p => pendingPickupStatuses.Contains(p.Status))
+                })
+                .ToListAsync();
+
+            var statsLookup = pickingListStats.ToDictionary(s => s.RegionId);
+
+            return regions.Select(r =>
             {
-                Id = r.Id.ToString(),
-                Name = r.Name,
-                Type = r.Type,
-                Description = r.Description,
-                Characteristics = new RegionCharacteristics
+                var metrics = new RegionMetrics();
+                if (statsLookup.TryGetValue(r.Id, out var stats))
                 {
-                    RequiresPooling = r.RequiresPooling
-                },
-                OperationalInfo = new RegionOperationalInfo
+                    metrics.ActiveOrders = stats.ActiveOrders;
+                    metrics.PendingPickups = stats.PendingPickups;
+                }
+
+                return new DeliveryRegion
                 {
-                    Coordinator = r.Coordinator?.FullName ?? "Unassigned",
-                    Phone = r.Coordinator?.PhoneNumber ?? "N/A"
-                },
-                Metrics = new RegionMetrics() // Placeholder for now
+                    Id = r.Id.ToString(),
+                    Name = r.Name,
+                    Type = r.Type,
+                    Description = r.Description,
+                    Characteristics = new RegionCharacteristics
+                    {
+                        RequiresPooling = r.RequiresPooling
+                    },
+                    OperationalInfo = new RegionOperationalInfo
+                    {
+                        Coordinator = r.Coordinator?.FullName ?? "Unassigned",
+                        Phone = r.Coordinator?.PhoneNumber ?? "N/A"
+                    },
+                    Metrics = metrics
+                };
             }).ToList();
         }
 
@@ -133,6 +159,20 @@ namespace CMetalsWS.Services
         public async Task<List<TruckInfo>> GetAvailableTrucksAsync()
         {
             await using var db = await _dbContextFactory.CreateDbContextAsync();
+
+            var activeLoadStatuses = new[] { LoadStatus.Pending, LoadStatus.Loaded, LoadStatus.Scheduled, LoadStatus.InTransit };
+
+            var truckLoads = await db.Loads
+                .AsNoTracking()
+                .Where(l => l.TruckId != null && activeLoadStatuses.Contains(l.Status))
+                .GroupBy(l => l.TruckId)
+                .Select(g => new
+                {
+                    TruckId = g.Key,
+                    CurrentWeight = g.Sum(l => l.TotalWeight)
+                })
+                .ToDictionaryAsync(x => x.TruckId!.Value, x => x.CurrentWeight);
+
             var trucks = await db.Trucks
                 .AsNoTracking()
                 .Where(t => t.IsActive)
@@ -144,10 +184,11 @@ namespace CMetalsWS.Services
                 Id = t.Id.ToString(),
                 Name = t.Name,
                 Capacity = (int)t.CapacityWeight,
-                CurrentLoad = 0, // Placeholder, requires querying loads
+                CurrentLoad = truckLoads.TryGetValue(t.Id, out var weight) ? (int)weight : 0,
                 IsRecommended = false, // Placeholder
                 Type = t.Description ?? "N/A",
-                Driver = t.Driver?.FullName ?? "Unassigned"
+                Driver = t.Driver?.FullName ?? "Unassigned",
+                BranchId = t.BranchId
             }).ToList();
         }
 

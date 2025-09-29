@@ -1,5 +1,11 @@
+@using System.Security.Claims
+@using CMetalsWS.Data
 @using CMetalsWS.Models
+@using CMetalsWS.Services
 @using MudBlazor
+@inject LoadService LoadService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
 
 <MudGrid Spacing="4">
     @* Ship Dates Column *@
@@ -7,17 +13,25 @@
         <MudPaper Class="pa-4" Style="height: 100%;">
             <div class="d-flex justify-space-between align-center mb-4">
                 <MudText Typo="Typo.h6">Ship Dates</MudText>
-                <MudText Typo="Typo.body2">@AvailableShipDates.Count Ship Dates</MudText>
+                <div class="text-right">
+                    <MudText Typo="Typo.body2"><b>@AllAvailableOrders.Sum(o => o.Weight).ToString("N0") lbs</b></MudText>
+                    <MudText Typo="Typo.caption" Class="text-muted">@AllAvailableOrders.Count() orders total</MudText>
+                </div>
             </div>
-            <MudList Clickable="true" @bind-SelectedValue="SelectedShipDate">
+            <MudList Clickable="true" @bind-SelectedValue="SelectedShipDate" Style="max-height: 70vh; overflow-y: auto;">
                 @foreach (var date in AvailableShipDates)
                 {
-                    <MudListItem Value="date" Class="d-flex justify-space-between">
-                        <div>
-                            <MudText><b>@date.ToString("MMM dd")</b></MudText>
-                            <MudText Typo="Typo.body2" Class="text-muted">@date.DayOfWeek</MudText>
+                    <MudListItem Value="date">
+                        <div class="d-flex justify-space-between align-center" style="width:100%">
+                            <div>
+                                <MudText><b>@date.ToString("dddd, MMM dd")</b></MudText>
+                                <MudText Typo="Typo.caption" Class="text-muted">@date.ToString("yyyy")</MudText>
+                            </div>
+                            <div class="text-right">
+                                <MudText Typo="Typo.body2"><b>@OrdersByDate(date).Sum(o => o.Weight).ToString("N0") lbs</b></MudText>
+                                <MudText Typo="Typo.caption" Class="text-muted">@OrdersByDate(date).Count() orders</MudText>
+                            </div>
                         </div>
-                        <MudChip T="int" Size="Size.Small">@OrdersByDate(date).Count()</MudChip>
                     </MudListItem>
                 }
             </MudList>
@@ -115,7 +129,7 @@
             </MudForm>
 
             <div class="mt-auto">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4" Disabled="@(SelectedItems.Count == 0)">Create Load</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4" Disabled="@(SelectedItems.Count == 0)" OnClick="CreateLoadAsync">Create Load</MudButton>
             </div>
         </MudPaper>
     </MudItem>
@@ -124,6 +138,7 @@
 @code {
     [Parameter] public List<AvailableOrder> AllAvailableOrders { get; set; } = new();
     [Parameter] public List<TruckInfo> AvailableTrucks { get; set; } = new();
+    [Parameter] public EventCallback OnLoadCreated { get; set; }
 
     private DateTime? SelectedShipDate { get; set; } = DateTime.Today;
     private DateTime? ScheduledShipDate { get; set; } = DateTime.Today;
@@ -210,11 +225,70 @@
 
     protected override void OnInitialized()
     {
-        // In a real scenario, this data would be loaded from a service.
-        // For now, we'll use the parameter or expect it to be passed.
         if (AvailableShipDates.Any() && !SelectedShipDate.HasValue)
         {
             SelectedShipDate = AvailableShipDates.First();
+        }
+    }
+
+    private async Task CreateLoadAsync()
+    {
+        if (SelectedItems.Count == 0 || string.IsNullOrEmpty(SelectedTruckId))
+        {
+            Snackbar.Add("Please select items and a truck for the load.", Severity.Warning);
+            return;
+        }
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var selectedTruck = AvailableTrucks.FirstOrDefault(t => t.Id == SelectedTruckId);
+
+        if (selectedTruck == null)
+        {
+            Snackbar.Add("Selected truck not found.", Severity.Error);
+            return;
+        }
+
+        var newLoad = new Load
+        {
+            TruckId = int.Parse(SelectedTruckId),
+            ShippingDate = ScheduledShipDate,
+            Status = LoadStatus.Pending,
+            Notes = LoadNotes,
+            OriginBranchId = selectedTruck.BranchId,
+            TotalWeight = SelectedItems.Sum(i => i.Weight)
+        };
+
+        var loadItems = new List<Data.LoadItem>();
+        foreach (var order in SelectedOrders)
+        {
+            foreach (var item in order.Items.Where(i => SelectedItems.Contains(i)))
+            {
+                var orderId = int.Parse(order.Id);
+                var pickingList = AllAvailableOrders.First(o => o.Id == order.Id);
+                var pickingListItem = pickingList.Items.First(i => i.Id == item.Id);
+
+                loadItems.Add(new Data.LoadItem
+                {
+                    PickingListId = orderId,
+                    PickingListItemId = int.Parse(item.Id),
+                    ShippedWeight = item.Weight,
+                    ShippedQuantity = item.Quantity
+                });
+            }
+        }
+        newLoad.Items = loadItems;
+
+        try
+        {
+            await LoadService.CreateAsync(newLoad, userId);
+            Snackbar.Add("Load created successfully!", Severity.Success);
+            ClearSelections();
+            await OnLoadCreated.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error creating load: {ex.Message}", Severity.Error);
         }
     }
 }

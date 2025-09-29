@@ -101,6 +101,7 @@ namespace CMetalsWS.Models
         public bool IsRecommended { get; set; }
         public string Type { get; set; }
         public string Driver { get; set; }
+        public int BranchId { get; set; }
     }
 
     public class RegionalAlert
