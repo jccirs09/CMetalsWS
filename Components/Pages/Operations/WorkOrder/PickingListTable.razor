@@ -33,7 +33,7 @@
                 <MudTd DataLabel="Qty to Split">
                     <MudNumericField T="decimal"
                                      Value="@SplitQuantities.GetValueOrDefault(context.Id)"
-                                     ValueChanged="@((val) => OnSplitQuantityChanged.InvokeAsync((context.Id, val)))"
+                                     ValueChanged="@((decimal? val) => OnSplitQuantityChanged.InvokeAsync((context.Id, val)))"
                                      Variant="Variant.Outlined"
                                      Margin="Margin.Dense"
                                      OnKeyDown="@((e) => OnSplitQtyKeyDown.InvokeAsync((e, context)))" />
@@ -70,7 +70,7 @@
     public EventCallback<(PickingListItem pli, bool isChecked)> OnPickingLineCheckedChanged { get; set; }
 
     [Parameter]
-    public EventCallback<(int pliId, decimal newValue)> OnSplitQuantityChanged { get; set; }
+    public EventCallback<(int pliId, decimal? newValue)> OnSplitQuantityChanged { get; set; }
 
     [Parameter]
     public EventCallback<(KeyboardEventArgs e, PickingListItem pli)> OnSplitQtyKeyDown { get; set; }
