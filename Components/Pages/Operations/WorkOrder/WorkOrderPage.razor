@@ -271,7 +271,7 @@
                                     <MudText><b>Customer:</b> @GetMainCustomer(Model)</MudText>
                                     <MudText><b>Machine:</b> @Model.Machine?.Name</MudText>
                                     <MudText><b>Operator:</b> @Model.Operator</MudText>
-                                    <MudText><b>Due Date:</b> @Model.DueDate.ToString("yyyy-MM-dd")</MudText>
+                                    <MudText><b>Due Date:</b> @Model.DueDate.ToDateTime(TimeOnly.MinValue).ToString("yyyy-MM-dd")</MudText>
                                 </MudCardContent>
                             </MudCard>
 

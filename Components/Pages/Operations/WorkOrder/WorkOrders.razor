@@ -61,7 +61,11 @@
                         </CellTemplate>
                     </TemplateColumn>
                     <PropertyColumn Property="x => x.Items.Count" Title="Items" Sortable="true" />
-                    <PropertyColumn Property="x => x.DueDate" Title="Due Date" Format="yyyy-MM-dd" Sortable="true" />
+                    <TemplateColumn Title="Due Date" SortBy="@(new Func<WorkOrder, object>(x => x.DueDate))">
+                        <CellTemplate>
+                            @context.Item.DueDate.ToDateTime(TimeOnly.MinValue).ToString("yyyy-MM-dd")
+                        </CellTemplate>
+                    </TemplateColumn>
                     <TemplateColumn Title="Status" SortBy="@(new Func<WorkOrder, object>(x => x.Status))">
                         <CellTemplate>
                             <MudChip T="string" Text="@context.Item.Status.ToString()" Color="@GetStatusColor(context.Item.Status)" Size="Size.Small" />
@@ -117,7 +121,7 @@
                                             }
                                         </div>
                                         <div class="d-flex justify-space-between align-center mt-2 pt-2 border-t-1">
-                                            <MudText Typo="Typo.caption">Due: @order.DueDate.ToString("d")</MudText>
+                                            <MudText Typo="Typo.caption">Due: @order.DueDate.ToDateTime(TimeOnly.MinValue).ToString("d")</MudText>
                                             <span @onclick:stopPropagation="true">
                                                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => ProcessOrder(order))" />
                                             </span>

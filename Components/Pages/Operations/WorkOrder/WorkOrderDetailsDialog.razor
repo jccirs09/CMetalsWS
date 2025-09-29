@@ -11,7 +11,7 @@
             <MudItem xs="6"><MudText><b>Machine:</b> @Model.Machine?.Name</MudText></MudItem>
             <MudItem xs="6"><MudText><b>Status:</b> @Model.Status</MudText></MudItem>
             <MudItem xs="6"><MudText><b>Tag:</b> @Model.TagNumber</MudText></MudItem>
-            <MudItem xs="6"><MudText><b>Due:</b> @Model.DueDate.ToString("d")</MudText></MudItem>
+            <MudItem xs="6"><MudText><b>Due:</b> @Model.DueDate.ToDateTime(TimeOnly.MinValue).ToString("d")</MudText></MudItem>
         </MudGrid>
         <MudText Typo="Typo.h6" Class="mt-4">Items</MudText>
         <MudSimpleTable Dense="true" Hover="true">
