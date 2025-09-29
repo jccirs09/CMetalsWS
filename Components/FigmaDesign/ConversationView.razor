@@ -1,0 +1,30 @@
+@namespace CMetalsWS.Components.FigmaDesign
+
+<div class="conversation-view">
+    @if (!string.IsNullOrEmpty(ConversationId))
+    {
+        <MudAppBar Dense="true" Color="Color.Surface" Elevation="1">
+            <MudText Typo="Typo.subtitle1">@ConversationId</MudText>
+        </MudAppBar>
+
+        <div class="messages-container pa-4">
+            @foreach (var message in _messages)
+            {
+                <div class="message-item">
+                    <MudText Typo="Typo.caption">@message.SenderName at @message.CreatedAt.ToLocalTime()</MudText>
+                    <MudText>@message.Content</MudText>
+                </div>
+            }
+        </div>
+
+        <div class="message-input pa-2 d-flex">
+            <MudTextField @bind-Value="_newMessage"
+                          Placeholder="Type a message..."
+                          Variant="Variant.Outlined"
+                          Class="flex-grow-1"
+                          OnAdornmentClick="SendMessageAsync"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@Icons.Material.Filled.Send" />
+        </div>
+    }
+</div>

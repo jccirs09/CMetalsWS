@@ -1,0 +1,27 @@
+@namespace CMetalsWS.Components.FigmaDesign
+
+@if (IsVisible)
+{
+    <MudPaper Class="messaging-system-container" Elevation="5">
+        <MessagingHeader OnClose="Close" />
+
+        <MudGrid Spacing="0" Class="messaging-body">
+            <MudItem xs="4">
+                <ConversationList OnConversationSelected="SelectConversation" />
+            </MudItem>
+            <MudItem xs="8">
+                @if (!string.IsNullOrEmpty(_selectedConversationId))
+                {
+                    <ConversationView ConversationId="_selectedConversationId" />
+                }
+                else
+                {
+                    <div class="welcome-message">
+                        <MudText Typo="Typo.h6">Welcome to Messages</MudText>
+                        <MudText>Select a conversation from the sidebar to start messaging.</MudText>
+                    </div>
+                }
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+}

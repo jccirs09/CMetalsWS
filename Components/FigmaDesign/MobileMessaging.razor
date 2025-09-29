@@ -1,0 +1,16 @@
+@namespace CMetalsWS.Components.FigmaDesign
+
+<div class="mobile-messaging">
+    @if (string.IsNullOrEmpty(_activeConversationId))
+    {
+        <ConversationList OnConversationSelected="ShowConversation" />
+    }
+    else
+    {
+        <MudAppBar Dense="true" Color="Color.Default" Elevation="1">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="ShowConversationList" />
+            <MudSpacer />
+        </MudAppBar>
+        <ConversationView ConversationId="_activeConversationId" />
+    }
+</div>

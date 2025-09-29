@@ -29,5 +29,8 @@ namespace CMetalsWS.Data.Chat
         Task<ChatGroup> CreateGroupAsync(string name, int? branchId, List<string> userIds);
         Task UpdateGroupAsync(ChatGroup group, List<string> userIds);
         Task DeleteGroupAsync(int groupId);
+
+        // User/Contact Management
+        Task<IEnumerable<UserBasics>> GetContactsAsync(string userId);
     }
 }

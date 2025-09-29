@@ -1,0 +1,34 @@
+@namespace CMetalsWS.Components.FigmaDesign
+
+<MudTabs Elevation="0" Centered="true">
+    <MudTabPanel Text="Chats">
+        <MudList T="string" Clickable="true">
+            @foreach (var thread in _threads)
+            {
+                <MudListItem T="string" OnClick="@(() => SelectConversation(thread.Id))">
+                    @thread.Title
+                </MudListItem>
+            }
+        </MudList>
+    </MudTabPanel>
+    <MudTabPanel Text="Contacts">
+        <MudList T="string" Clickable="true">
+            @foreach (var contact in _contacts)
+            {
+                <MudListItem T="string" OnClick="@(() => SelectConversation(contact.Id))">
+                    @contact.UserName
+                </MudListItem>
+            }
+        </MudList>
+    </MudTabPanel>
+    <MudTabPanel Text="Groups">
+        <MudList T="string" Clickable="true">
+            @foreach (var group in _groups)
+            {
+                <MudListItem T="string" OnClick="@(() => SelectConversation($"g:{group.Id}"))">
+                    @group.Name
+                </MudListItem>
+            }
+        </MudList>
+    </MudTabPanel>
+</MudTabs>

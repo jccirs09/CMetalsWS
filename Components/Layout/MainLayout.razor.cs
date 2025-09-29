@@ -25,7 +25,12 @@ namespace CMetalsWS.Components.Layout
         private bool _drawerOpen = true;
         private string? _userId;
         private int _unreadTotal;
+        private bool _isMessagingOpen = false;
 
+        private void ToggleMessaging()
+        {
+            _isMessagingOpen = !_isMessagingOpen;
+        }
 
         private readonly MudTheme _customTheme = new()
         {

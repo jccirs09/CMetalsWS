@@ -1,0 +1,24 @@
+@namespace CMetalsWS.Components.FigmaDesign
+
+<div class="messaging-coordinator">
+    <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+        @if (IsMessagingOpen)
+        {
+            <MessagingSystem
+                IsVisible="IsMessagingOpen"
+                IsVisibleChanged="(isOpen) => ToggleMessagingSystem(isOpen)"
+                OnOpenConversation="OpenConversation" />
+        }
+
+        <div class="docked-conversations">
+            @foreach (var conversationId in _openConversationIds)
+            {
+                <DockedConversation ConversationId="@conversationId" OnClose="CloseConversation" />
+            }
+        </div>
+    </MudHidden>
+
+    <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+        <MobileMessaging />
+    </MudHidden>
+</div>

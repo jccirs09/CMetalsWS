@@ -1,0 +1,17 @@
+@namespace CMetalsWS.Components.FigmaDesign
+
+<MudPaper Class="docked-conversation" Elevation="5">
+    <MudAppBar Dense="true" Color="Color.Primary">
+        <MudText Typo="Typo.subtitle2">@ConversationId</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@(_isMinimized ? Icons.Material.Filled.ArrowUpward : Icons.Material.Filled.ArrowDownward)" Size="Size.Small" OnClick="ToggleMinimize" />
+        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="Close" />
+    </MudAppBar>
+
+    @if (!_isMinimized)
+    {
+        <div class="docked-conversation-content">
+            <ConversationView ConversationId="@ConversationId" />
+        </div>
+    }
+</MudPaper>

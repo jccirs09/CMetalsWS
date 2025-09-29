@@ -1,5 +1,6 @@
 @inherits LayoutComponentBase
 @implements IDisposable
+@using CMetalsWS.Components.FigmaDesign
 
 <MudThemeProvider Theme="_customTheme" @bind-IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -24,20 +25,7 @@
             <MudMenuItem OnClick="Logout">Logout</MudMenuItem>
         </MudMenu>
 
-        @*@if (!ChatState.IsChatPageOpen)
-        {
-            <MudIconButton Icon="@Icons.Material.Filled.Chat"
-                           OnClick="@(() => ChatState.ToggleThreadPanel())"
-                           Color="Color.Inherit" />
-            <MudPopover Open="ChatState.IsThreadPanelOpen"
-                        AnchorOrigin="Origin.BottomRight"
-                        TransformOrigin="Origin.TopRight"
-                        OnClose="@(() => ChatState.ToggleThreadPanel())">
-                <div class="pa-2" style="width: 350px;">
-                    <ChatThreadPanel OnThreadSelected="OnHeaderThreadSelected" />
-                </div>
-            </MudPopover>
-        }*@
+        <MudIconButton Icon="@Icons.Material.Filled.Chat" OnClick="ToggleMessaging" Color="Color.Inherit" />
     </MudAppBar>
 
     <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
@@ -49,10 +37,7 @@
     </MudMainContent>
 </MudLayout>
 
-@*@if (!ChatState.IsChatPageOpen)
-{
-    <ChatDockHost />
-}*@
+<MessagingCoordinator @bind-IsMessagingOpen="@_isMessagingOpen" @bind-IsMessagingOpen:after="StateHasChanged" />
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.

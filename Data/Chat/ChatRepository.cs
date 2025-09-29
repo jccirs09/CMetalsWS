@@ -573,7 +573,21 @@ namespace CMetalsWS.Data.Chat
             return (page, total);
         }
 
-
-
+        public async Task<IEnumerable<UserBasics>> GetContactsAsync(string userId)
+        {
+            await using var c = await _contextFactory.CreateDbContextAsync();
+            return await c.Users.AsNoTracking()
+                .Where(u => u.Id != userId)
+                .Select(u => new UserBasics
+                {
+                    Id = u.Id,
+                    UserName = u.UserName,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
+                    Avatar = u.Avatar
+                })
+                .OrderBy(u => u.UserName)
+                .ToListAsync();
+        }
     }
 }
