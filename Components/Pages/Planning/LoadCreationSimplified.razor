@@ -17,7 +17,7 @@
                             <MudText><b>@date.ToString("MMM dd")</b></MudText>
                             <MudText Typo="Typo.body2" Class="text-muted">@date.DayOfWeek</MudText>
                         </div>
-                        <MudChip Size="Size.Small">@OrdersByDate(date).Count()</MudChip>
+                        <MudChip T="int" Size="Size.Small">@OrdersByDate(date).Count()</MudChip>
                     </MudListItem>
                 }
             </MudList>
@@ -67,7 +67,7 @@
                                         <MudTd DataLabel="Description">@context.Description</MudTd>
                                         <MudTd DataLabel="Quantity">@context.Quantity</MudTd>
                                         <MudTd DataLabel="Weight">@context.Weight.ToString("N0") lbs</MudTd>
-                                        <MudTd DataLabel="Status"><MudChip Size="Size.Small" Color="GetStatusColor(context.Status)">@context.Status</MudChip></MudTd>
+                                        <MudTd DataLabel="Status"><MudChip T="string" Size="Size.Small" Color="GetStatusColor(context.Status)">@context.Status</MudChip></MudTd>
                                     </RowTemplate>
                                 </MudTable>
                             </ChildContent>
@@ -93,23 +93,25 @@
 
             <MudForm>
                 <MudDatePicker Label="Scheduled Ship Date" @bind-Date="ScheduledShipDate" Class="mb-4" />
-                <MudTextField Label="Load Notes (Optional)" Lines="3" Class="mb-4" />
+                <MudTextField @bind-Value="LoadNotes" Label="Load Notes (Optional)" T="string" Lines="3" Class="mb-4" />
 
                 <MudText Typo="Typo.h6" Class="mb-2">Select Truck</MudText>
-                @foreach (var truck in AvailableTrucks)
-                {
-                    <MudCard Outlined="true" Class="mb-2 pa-2">
-                        <div class="d-flex align-center">
-                            <div class="flex-grow-1">
-                                <MudText><b>@truck.Name</b> @(truck.IsRecommended ? "(Recommended)" : "")</MudText>
-                                <MudText Typo="Typo.body2">@truck.Type - @truck.Driver</MudText>
-                                <MudProgressLinear Value="(double)truck.CurrentLoad / truck.Capacity * 100" Color="Color.Primary" Class="my-1" />
-                                <MudText Typo="Typo.caption">@truck.CurrentLoad.ToString("N0") / @truck.Capacity.ToString("N0") lbs</MudText>
+                <MudRadioGroup @bind-SelectedOption="SelectedTruckId" T="string">
+                    @foreach (var truck in AvailableTrucks)
+                    {
+                        <MudCard Outlined="true" Class="mb-2 pa-2">
+                            <div class="d-flex align-center">
+                                <div class="flex-grow-1">
+                                    <MudText><b>@truck.Name</b> @(truck.IsRecommended ? "(Recommended)" : "")</MudText>
+                                    <MudText Typo="Typo.body2">@truck.Type - @truck.Driver</MudText>
+                                    <MudProgressLinear Value="((double)truck.CurrentLoad / truck.Capacity) * 100" Color="Color.Primary" Class="my-1" />
+                                    <MudText Typo="Typo.caption">@truck.CurrentLoad.ToString("N0") / @truck.Capacity.ToString("N0") lbs</MudText>
+                                </div>
+                                <MudRadio T="string" Value="@truck.Id" />
                             </div>
-                            <MudRadio T="string" Value="@truck.Id" />
-                        </div>
-                    </MudCard>
-                }
+                        </MudCard>
+                    }
+                </MudRadioGroup>
             </MudForm>
 
             <div class="mt-auto">
@@ -125,6 +127,8 @@
 
     private DateTime? SelectedShipDate { get; set; } = DateTime.Today;
     private DateTime? ScheduledShipDate { get; set; } = DateTime.Today;
+    private string LoadNotes { get; set; }
+    private string SelectedTruckId { get; set; }
 
     private HashSet<AvailableOrder> SelectedOrders { get; set; } = new();
     private HashSet<OrderItem> SelectedItems { get; set; } = new();

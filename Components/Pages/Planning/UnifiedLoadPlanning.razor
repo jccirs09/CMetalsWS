@@ -14,7 +14,7 @@
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">New Load</MudButton>
     </div>
 
-    <MudTabs Elevation="2" Rounded="true" PanelClass="mt-4">
+    <MudTabs @ref="_mudTabs" Elevation="2" Rounded="true" PanelClass="mt-4">
         <MudTabPanel Text="Regional Overview" Icon="@Icons.Material.Filled.Map">
             <div class="d-flex justify-space-between align-center mb-4">
                 <div>
@@ -38,7 +38,7 @@
                                     <MudAvatar Color="GetRegionColor(region.Type)" Size="Size.Medium">
                                         <MudIcon Icon="@GetRegionIcon(region.Type)" />
                                     </MudAvatar>
-                                    <MudChip Size="Size.Small" Variant="Variant.Outlined">@region.Metrics.UtilizationRate%</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@region.Metrics.UtilizationRate%</MudChip>
                                 </div>
                                 <MudText Typo="Typo.h6">@region.Name</MudText>
                                 <MudText Typo="Typo.body2" Class="text-muted mb-3">@region.Description</MudText>
@@ -51,7 +51,7 @@
                                     @if(region.Metrics.PendingPickups > 0)
                                     {
                                         <MudItem xs="8"><MudText Typo="Typo.caption">Pending Pickups:</MudText></MudItem>
-                                        <MudItem xs="4" Class="text-right"><MudChip Size="Size.Small" Color="Color.Error">@region.Metrics.PendingPickups</MudChip></MudItem>
+                                        <MudItem xs="4" Class="text-right"><MudChip T="int" Size="Size.Small" Color="Color.Error">@region.Metrics.PendingPickups</MudChip></MudItem>
                                     }
                                 </MudGrid>
 
@@ -63,11 +63,11 @@
                                 <div class="d-flex gap-2 mt-2">
                                     @if(region.Characteristics.FerryDependent)
                                     {
-                                        <MudChip Size="Size.Small" Icon="@Icons.Material.Filled.DirectionsBoat" Color="Color.Info">Ferry Dependent</MudChip>
+                                        <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.DirectionsBoat" Color="Color.Info">Ferry Dependent</MudChip>
                                     }
                                     @if(region.Characteristics.RequiresPooling)
                                     {
-                                        <MudChip Size="Size.Small" Icon="@Icons.Material.Filled.Layers" Color="Color.Primary">Pool Delivery</MudChip>
+                                        <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Layers" Color="Color.Primary">Pool Delivery</MudChip>
                                     }
                                 </div>
                             </MudCardContent>
@@ -87,13 +87,13 @@
                                 var regionOrders = _availableOrders.Where(o => o.DeliveryRegion == region.Id).ToList();
                                 <div class="d-flex align-center justify-space-between pa-2 my-1 rounded-lg" style="background-color: var(--mud-palette-background-grey);">
                                     <div class="d-flex align-center gap-3">
-                                        <MudAvatar Color="GetRegionColor(region.Type)" Variant="Variant.Round" Size="Size.Small" />
+                                        <MudAvatar Color="GetRegionColor(region.Type)" Variant="Variant.Circle" Size="Size.Small" />
                                         <div>
                                             <MudText><b>@region.Name</b></MudText>
                                             <MudText Typo="Typo.body2" Class="text-muted">@regionOrders.Sum(o => o.Weight).ToString("N0") lbs</MudText>
                                         </div>
                                     </div>
-                                    <MudChip Size="Size.Small">@regionOrders.Count() orders</MudChip>
+                                    <MudChip T="string" Size="Size.Small">@regionOrders.Count() orders</MudChip>
                                 </div>
                             }
                         </MudCardContent>
@@ -108,13 +108,13 @@
                                 var regionTrucks = _trucks.Where(t => t.Type == region.Name).ToList(); // Simplified logic
                                 <div class="d-flex align-center justify-space-between pa-2 my-1 rounded-lg" style="background-color: var(--mud-palette-background-grey);">
                                     <div class="d-flex align-center gap-3">
-                                        <MudAvatar Color="GetRegionColor(region.Type)" Variant="Variant.Round" Size="Size.Small" />
+                                        <MudAvatar Color="GetRegionColor(region.Type)" Variant="Variant.Circle" Size="Size.Small" />
                                         <div>
                                             <MudText><b>@region.Name</b></MudText>
                                             <MudText Typo="Typo.body2" Class="text-muted">@regionTrucks.Count() active • @regionTrucks.Count(t => t.IsRecommended) pool trucks</MudText>
                                         </div>
                                     </div>
-                                    <MudChip Size="Size.Small">@regionTrucks.Count() trucks</MudChip>
+                                    <MudChip T="string" Size="Size.Small">@regionTrucks.Count() trucks</MudChip>
                                 </div>
                             }
                         </MudCardContent>
@@ -132,13 +132,13 @@
                 }
             </MudGrid>
         </MudTabPanel>
-        <MudTabPanel Text="Load Management" Icon="@Icons.Material.Filled.Truck">
+        <MudTabPanel Text="Load Management" Icon="@Icons.Material.Filled.LocalShipping">
             <!-- Summary Cards -->
             <MudGrid Spacing="4" Class="mb-6">
                 <MudItem xs="12" sm="6" md="3">
                     <MudCard>
                         <MudCardContent class="d-flex align-center">
-                            <MudAvatar Color="Color.Primary" Size="Size.Large"><MudIcon Icon="@Icons.Material.Filled.Truck" /></MudAvatar>
+                            <MudAvatar Color="Color.Primary" Size="Size.Large"><MudIcon Icon="@Icons.Material.Filled.LocalShipping" /></MudAvatar>
                             <div class="ml-4">
                                 <MudText Typo="Typo.body2" Class="text-muted">Active Loads</MudText>
                                 <MudText Typo="Typo.h5"><b>@_loads.Count(l => l.Status != "delivered")</b></MudText>
@@ -190,14 +190,14 @@
                             <CardHeaderContent>
                                 <div class="d-flex align-center gap-2">
                                     <MudText Typo="Typo.h6">@load.Id</MudText>
-                                    <MudChip Size="Size.Small" Variant="Variant.Outlined">@load.TrailerType</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@load.TrailerType</MudChip>
                                 </div>
                                 <MudText Typo="Typo.body2" Class="text-muted">@load.DriverName • @load.TruckNumber • @load.DriverPhone</MudText>
                             </CardHeaderContent>
                             <CardHeaderActions>
-                                <MudChip Size="Size.Small" Color="GetPriorityColor(load.Priority)">@load.Priority</MudChip>
-                                <MudChip Size="Size.Small" Color="GetStatusColor(load.Status)">@load.Status</MudChip>
-                                <MudChip Size="Size.Small" Color="GetRegionColor(load.DeliveryRegion)">@load.DeliveryRegion</MudChip>
+                                <MudChip T="string" Size="Size.Small" Color="GetPriorityColor(load.Priority)">@load.Priority</MudChip>
+                                <MudChip T="string" Size="Size.Small" Color="GetStatusColor(load.Status)">@load.Status</MudChip>
+                                <MudChip T="string" Size="Size.Small" Color="GetRegionColor(load.DeliveryRegion)">@load.DeliveryRegion</MudChip>
                             </CardHeaderActions>
                         </MudCardHeader>
                         <MudCardContent>
