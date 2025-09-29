@@ -128,6 +128,7 @@ builder.Services.AddScoped<DestinationGroupService>();
 builder.Services.AddScoped<DestinationRegionService>();
 builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddSingleton<RegionAssignmentService>();
+builder.Services.AddSingleton<ShippingService>();
 
 // Picking List PDF Parser
 builder.Services.AddScoped<IPdfParsingService, PdfParsingService>();
