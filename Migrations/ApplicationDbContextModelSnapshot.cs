@@ -461,8 +461,14 @@ namespace CMetalsWS.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("FullAddress")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("float");
 
                     b.Property<int?>("MaxSkidCapacity")
                         .HasColumnType("int");
