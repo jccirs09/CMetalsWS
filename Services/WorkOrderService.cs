@@ -451,6 +451,16 @@ namespace CMetalsWS.Services
                     .Where(p => lineIds.Contains(p.Id))
                     .ToListAsync();
 
+                if (eventType == AuditEventType.Complete)
+                {
+                    foreach (var pli in plis)
+                    {
+                        var relatedWoItems = workOrder.Items.Where(i => i.PickingListItemId == pli.Id);
+                        pli.PulledQuantity = (pli.PulledQuantity ?? 0) + relatedWoItems.Sum(i => i.ProducedQuantity ?? 0);
+                        pli.PulledWeight = (pli.PulledWeight ?? 0) + relatedWoItems.Sum(i => i.ProducedWeight ?? 0);
+                    }
+                }
+
                 var newPickingStatus = status switch
                 {
                     WorkOrderStatus.InProgress => PickingLineStatus.InProgress,
