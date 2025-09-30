@@ -325,7 +325,7 @@ public static class SeedFromDb_PickingLists_WithMachines
 
                 // Optional: also group by processing date to keep day buckets tidy
                 foreach (var dayBucket in group
-                             .GroupBy(i => (i.ScheduledProcessingDate ?? i.PickingList.ShipDate).Date)
+                             .GroupBy(i => (i.ScheduledProcessingDate ?? i.PickingList.ShipDate).Value.Date)
                              .OrderBy(g => g.Key))
                 {
                     var items = dayBucket.ToList();
