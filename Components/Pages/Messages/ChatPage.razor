@@ -8,15 +8,15 @@
 @inject IDialogService DialogService
 @implements IDisposable
 
-<MudGrid Justify="Justify.Center" Style="height: calc(100vh - 64px); overflow: hidden;">
-    <MudItem xs="12" sm="5" md="4" lg="3" Class="d-flex flex-column" Style="height: 100%;">
+<MudPaper Elevation="0" Class="d-flex" Style="height: 100%;">
+    <div class="d-flex flex-column pa-4" style="width: 350px; border-right: 1px solid var(--mud-palette-lines-default);">
         <MessagingHeader OnSearch="HandleSearch" OnNewChatClicked="HandleNewChat" />
         <div class="flex-grow-1 mt-3" style="overflow-y: auto;">
             <MessagingSystem OnThreadSelected="OpenThread" SearchQuery="@_searchQuery" />
         </div>
-    </MudItem>
+    </div>
 
-    <MudItem xs="12" sm="7" md="8" lg="9" Class="d-flex flex-column" Style="height: 100%;">
+    <div class="flex-grow-1 d-flex flex-column">
         @if (!string.IsNullOrWhiteSpace(ChatState.ActiveThreadId))
         {
             <ChatConversation @key="ChatState.ActiveThreadId"
@@ -24,16 +24,16 @@
         }
         else
         {
-            <MudPaper Class="d-flex align-center justify-center flex-grow-1" Elevation="0">
+            <div class="d-flex align-center justify-center flex-grow-1">
                 <div class="d-flex flex-column align-center">
-                    <MudIcon Icon="@Icons.Material.Filled.Message" Size="Size.Large" Class="mb-4" />
+                    <MudIcon Icon="@Icons.Material.Filled.Message" Size="Size.Large" Class="mb-4" Color="Color.Inherit" />
                     <MudText Typo="Typo.h6" Class="mud-text-secondary">Welcome to Messages</MudText>
                     <MudText Class="mud-text-secondary">Select a conversation from the sidebar to start messaging.</MudText>
                 </div>
-            </MudPaper>
+            </div>
         }
-    </MudItem>
-</MudGrid>
+    </div>
+</MudPaper>
 
 @code {
     [Parameter] public string? ThreadId { get; set; }

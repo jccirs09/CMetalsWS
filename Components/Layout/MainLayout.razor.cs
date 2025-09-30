@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 
-
 namespace CMetalsWS.Components.Layout
 {
     public partial class MainLayout : LayoutComponentBase, IDisposable
@@ -30,24 +29,23 @@ namespace CMetalsWS.Components.Layout
         {
             PaletteLight = new PaletteLight
             {
-                Primary = "#2E8B57",
-                Secondary = "#FFA500",
-                Background = Colors.Gray.Lighten5,
-                Surface = Colors.Gray.Lighten4,
-                DrawerBackground = Colors.Gray.Lighten5,
-                DrawerText = Colors.Gray.Darken4,
-                DrawerIcon = Colors.Gray.Darken3,
-                AppbarBackground = "#2E8B57",
-                AppbarText = Colors.Shades.White
+                Primary = "#0d9488", // teal-600 from figma
+                Secondary = "#f3f3f5", // input-background from figma
+                Background = "#f8fafc", // A very light gray, similar to sidebar color in figma
+                AppbarBackground = "#ffffff",
+                AppbarText = "#030213", // secondary-foreground from figma
+                DrawerBackground = "#ffffff",
+                DrawerText = "#030213",
+                Surface = "#ffffff",
+                TextPrimary = "#030213",
+                TextSecondary = "#717182", // muted-foreground from figma
+                ActionDefault = "#717182",
+                ActionDisabled = "#cbced4", // switch-background from figma
+                LinesDefault = "rgba(0, 0, 0, 0.1)" // border from figma
             },
-            PaletteDark = new PaletteDark
+            LayoutProperties = new LayoutProperties()
             {
-                Black = "#27272f",
-                Background = "#32333d",
-                BackgroundGray = "#27272f",
-                Surface = "#373740",
-                TextPrimary = "#ffffffb3",
-                TextSecondary = "rgba(255,255,255,0.50)"
+                DefaultBorderRadius = "0.625rem" // radius from figma
             }
         };
 
