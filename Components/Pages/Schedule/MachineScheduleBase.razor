@@ -69,12 +69,14 @@
     private (TimeOnly Start, TimeOnly End) _branchWorkHours;
     private DayOfWeek _firstDayOfWeek = DayOfWeek.Monday;
     private int? _currentBranchId;
+private string? _userId;
 
     protected override async Task OnInitializedAsync()
     {
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(auth.User);
         _currentBranchId = user?.BranchId;
+    _userId = user?.Id;
 
         var branches = await BranchService.GetBranchesAsync();
         var branch = branches.FirstOrDefault(b => b.Id == _currentBranchId);
@@ -146,7 +148,16 @@
 
         if (result is not null && !result.Canceled)
         {
-            NavigationManager.NavigateTo($"/operations/workorder/process/{scheduleEvent.WorkOrder.Id}");
+            var workOrder = scheduleEvent.WorkOrder;
+            var url = $"/operations/workorder/process/{workOrder.Id}";
+
+            // Only add the start=true parameter if the work order is in a state that can be started.
+            if (workOrder.Status == WorkOrderStatus.Pending || workOrder.Status == WorkOrderStatus.Awaiting)
+            {
+                url += "?start=true";
+            }
+
+            NavigationManager.NavigateTo(url);
         }
     }
 

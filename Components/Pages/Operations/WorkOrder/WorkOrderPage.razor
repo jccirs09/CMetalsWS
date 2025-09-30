@@ -90,7 +90,7 @@
                                     <MudStack Row="true" AlignItems="AlignItems.Start">
                                         <MudTextField @bind-Value="Model.TagNumber" Label="Coil Tag Number" Variant="Variant.Outlined" For="@(() => Model.TagNumber)"
                                                       Required="true" RequiredError="Tag number is required." Class="flex-grow-1" />
-                                        <MudButton OnClick="FetchPickingListItemsAsync" Variant="Variant.Filled" Color="Color.Primary"
+                                        <MudButton OnClick="@(() => FetchPickingListItemsAsync(true))" Variant="Variant.Filled" Color="Color.Primary"
                                                    Disabled="@(Model.MachineId == null || string.IsNullOrWhiteSpace(Model.TagNumber))"
                                                    Style="height: 56px;">
                                             Fetch
@@ -213,7 +213,7 @@
                                     <MudText Typo="Typo.body2">Rate (lbs/hr)</MudText>
                                 </MudItem>
                                 <MudItem xs="3">
-                                    <MudText Typo="Typo.h5">--:--</MudText>
+                                    <MudText Typo="Typo.h5">@_estCompleteDisplay</MudText>
                                     <MudText Typo="Typo.body2">Est. Complete</MudText>
                                 </MudItem>
                             </MudGrid>
@@ -320,6 +320,10 @@
     [Parameter]
     public int? Id { get; set; }
 
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public bool Start { get; set; }
+
     private bool IsLoading { get; set; } = true;
     private bool IsCreateMode => Id == null;
     private WorkOrder Model { get; set; } = new();
@@ -341,6 +345,7 @@
     private System.Timers.Timer? _timer;
     private TimeSpan _elapsed;
     private string _elapsedTimeDisplay = "00:00:00";
+private string _estCompleteDisplay = "--:--";
     private double _overallProgress = 0;
     private decimal _lbsPerHour = 0;
 
@@ -365,12 +370,29 @@
                 Navigation.NavigateTo("/operations/workorders");
                 return;
             }
+
+            // If the URL contains ?start=true, and the WO is in a startable state, start it.
+            if (Start && (Model.Status == WorkOrderStatus.Pending || Model.Status == WorkOrderStatus.Awaiting))
+            {
+                if (!string.IsNullOrEmpty(_userId))
+                {
+                    await WorkOrderService.StartWorkOrderAsync(Model.Id, _userId);
+                    // Navigate to a clean URL to prevent re-starting on reload/pause.
+                    Navigation.NavigateTo($"/operations/workorder/process/{Model.Id}", replace: true);
+                    return; // Stop execution, the page will reload cleanly.
+                }
+                else
+                {
+                    Snackbar.Add("Cannot start work order: User not found.", Severity.Error);
+                }
+            }
+
             _events = await AuditEventService.GetEventsForTaskAsync(Id.Value, TaskType.WorkOrder);
             _events = _events.OrderByDescending(e => e.Timestamp).ToList();
 
             if (!string.IsNullOrEmpty(Model.TagNumber) && Model.MachineId.HasValue)
             {
-                await FetchPickingListItemsAsync();
+                await FetchPickingListItemsAsync(false);
             }
 
             if (Model?.Status == WorkOrderStatus.InProgress)
@@ -405,7 +427,7 @@
     }
 
 
-    private async Task FetchPickingListItemsAsync()
+    private async Task FetchPickingListItemsAsync(bool showSnackbar = false)
     {
         if (Model.MachineId == null || string.IsNullOrWhiteSpace(Model.TagNumber))
         {
@@ -431,7 +453,10 @@
                 _remainingQuantities.Clear();
             }
 
-            Snackbar.Add($"Found {_allAvailablePickingListItems.Count} available order line(s).", Severity.Success);
+            if (showSnackbar)
+            {
+                Snackbar.Add($"Found {_allAvailablePickingListItems.Count} available order line(s).", Severity.Success);
+            }
         }
         catch (Exception ex)
         {
@@ -621,32 +646,41 @@
 
 
     // Process Mode Methods
-    private void StartTimer()
+    private void CalculateElapsedTime()
     {
-        var lastStartEvent = _events
-            .Where(e => e.EventType == AuditEventType.Start || e.EventType == AuditEventType.Resume)
-            .OrderByDescending(e => e.Timestamp)
-            .FirstOrDefault();
-
-        if (lastStartEvent == null) return;
-
-        var pauseEvents = _events
-            .Where(e => e.EventType == AuditEventType.Pause && e.Timestamp > lastStartEvent.Timestamp)
+        var relevantEvents = _events
+            .Where(e => e.EventType == AuditEventType.Start || e.EventType == AuditEventType.Resume || e.EventType == AuditEventType.Pause || e.EventType == AuditEventType.Complete)
+            .OrderBy(e => e.Timestamp)
             .ToList();
 
-        var resumeEvents = _events
-            .Where(e => e.EventType == AuditEventType.Resume && e.Timestamp > lastStartEvent.Timestamp)
-            .ToList();
+        TimeSpan totalDuration = TimeSpan.Zero;
+        DateTime? sessionStart = null;
 
-        var totalPauseDuration = TimeSpan.Zero;
-        foreach (var pauseEvent in pauseEvents)
+        foreach (var ev in relevantEvents)
         {
-            var correspondingResume = resumeEvents.FirstOrDefault(r => r.Timestamp > pauseEvent.Timestamp);
-            var endTime = correspondingResume?.Timestamp ?? DateTime.UtcNow;
-            totalPauseDuration += endTime - pauseEvent.Timestamp;
+            if (ev.EventType == AuditEventType.Start || ev.EventType == AuditEventType.Resume)
+            {
+                sessionStart = ev.Timestamp;
+            }
+            else if ((ev.EventType == AuditEventType.Pause || ev.EventType == AuditEventType.Complete) && sessionStart.HasValue)
+            {
+                totalDuration += ev.Timestamp - sessionStart.Value;
+                sessionStart = null;
+            }
         }
 
-        _elapsed = (DateTime.UtcNow - lastStartEvent.Timestamp) - totalPauseDuration;
+        if (sessionStart.HasValue)
+        {
+            totalDuration += DateTime.UtcNow - sessionStart.Value;
+        }
+
+        _elapsed = totalDuration;
+    }
+
+    private void StartTimer()
+    {
+        _timer?.Dispose();
+        CalculateElapsedTime();
 
         _timer = new System.Timers.Timer(1000);
         _timer.Elapsed += OnTimerElapsed;
@@ -669,6 +703,17 @@
         var producedWeight = Model.Items.Sum(i => i.ProducedWeight ?? 0);
         _overallProgress = totalWeight > 0 ? (double)(producedWeight / totalWeight * 100) : 0;
         _lbsPerHour = _elapsed.TotalHours > 0 ? (producedWeight / (decimal)_elapsed.TotalHours) : 0;
+
+        if (Model.Status == WorkOrderStatus.InProgress && Model.ScheduledStartDate.HasValue && Model.ScheduledEndDate.HasValue)
+        {
+            var plannedDuration = Model.ScheduledEndDate.Value - Model.ScheduledStartDate.Value;
+            var estCompletion = DateTime.UtcNow + plannedDuration;
+            _estCompleteDisplay = estCompletion.ToLocalTime().ToString("t"); // Short time format
+        }
+        else
+        {
+            _estCompleteDisplay = "--:--";
+        }
     }
 
     private double CalculateItemProgress(WorkOrderItem item)
@@ -712,7 +757,7 @@
         if (result is { Canceled: false, Data: string reason })
         {
             await WorkOrderService.PauseWorkOrderAsync(Model.Id, _userId, reason);
-            _timer?.Stop();
+            _timer?.Dispose();
             await LoadDataAsync();
         }
     }
@@ -725,7 +770,7 @@
         if (result is { Canceled: false })
         {
             await WorkOrderService.CompleteWorkOrderAsync(Model.Id, _userId, Model.Items);
-            _timer?.Stop();
+            _timer?.Dispose();
             await LoadDataAsync();
         }
     }
