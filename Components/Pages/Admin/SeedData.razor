@@ -32,7 +32,7 @@ else if (!string.IsNullOrWhiteSpace(ResultMessage))
 }
 
 <button class="btn btn-primary" @onclick="SeedDataAsync" disabled="@IsSeeding">
-    Seed Picking Lists
+    Seed Picking Lists & Generate Work Orders
 </button>
 
 @code {
@@ -57,10 +57,11 @@ else if (!string.IsNullOrWhiteSpace(ResultMessage))
             }
 
             using var db = DbFactory.CreateDbContext();
-            await SeedFromDb_PickingLists_WithMachines.RunAsync(db, user.BranchId.Value);
+            await SeedFromDb_PickingLists_WithMachines.RunPickingListsOnlyAsync(db, user.BranchId.Value);
+            await SeedFromDb_PickingLists_WithMachines.GenerateWorkOrdersFromBacklogAsync(db, user.BranchId.Value);
 
             ResultClass = "alert-success";
-            ResultMessage = "Seeding completed successfully.";
+            ResultMessage = "Seeding of Picking Lists and generation of Work Orders from backlog completed successfully.";
         }
         catch (Exception ex)
         {
