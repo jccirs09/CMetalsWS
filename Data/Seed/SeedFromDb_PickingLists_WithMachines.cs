@@ -50,7 +50,7 @@ public static class SeedFromDb_PickingLists_WithMachines
         var toMake = Math.Max(0, TargetPickingLists - existing);
         if (toMake == 0) return;
 
-        var rng = new Random(39230001);
+        var rng = new Random();
         var today = DateTime.Today;
         var reps = new[] { "CRAIG MUDIE", "DYLAN WILLIAMS", "SPENCER CHAPMAN", "NICOLE HARRIS", "JACK LAM" };
         var buyers = new[] { "JANE", "STEVE ARMITAGE", "ROBYN LOURENCO", "PROCUREMENT" };
