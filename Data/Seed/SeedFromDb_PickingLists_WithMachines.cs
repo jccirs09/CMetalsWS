@@ -1,5 +1,9 @@
+using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using CMetalsWS.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,11 +16,14 @@ public static class SeedFromDb_PickingLists_WithMachines
     private const int MaxLines = 6;
     private const int ShipHorizonDays = 60;
 
-    public static async Task RunAsync(ApplicationDbContext db, int branchId)
+    /// <summary>
+    /// Seeds Picking Lists ONLY. No work orders created here.
+    /// </summary>
+    public static async Task RunPickingListsOnlyAsync(ApplicationDbContext db, int branchId)
     {
         var rng = new Random();
 
-        // ----- Self-healing: Ensure ItemRelationships exist for CTL logic -----
+        // Optional self-heal for CTL mapping
         await EnsureItemRelationshipsExistAsync(db, rng);
 
         // ----- Load sources from DB -----
@@ -29,41 +36,40 @@ public static class SeedFromDb_PickingLists_WithMachines
             .Select(r => r.Id).ToListAsync();
         if (regions.Count == 0) regions = Enumerable.Range(1, 4).ToList();
 
-        // ----- Load machine lists -----
+        // Machines for routing
         var machines = await db.Set<Machine>().AsNoTracking()
             .Where(m => m.BranchId == branchId).ToListAsync();
 
-        var coilMachines = machines.Where(m => m.Category == MachineCategory.Coil).Select(m => m.Id).ToList();
-        var slitterMachines = machines.Where(m => m.Category == MachineCategory.Slitter).Select(m => m.Id).ToList();
-        var ctlMachines = machines.Where(m => m.Category == MachineCategory.CTL).Select(m => m.Id).ToList();
-        var sheetMachines = machines.Where(m => m.Category == MachineCategory.Sheet).Select(m => m.Id).ToList();
+        var coilMachines   = machines.Where(m => m.Category == MachineCategory.Coil).Select(m => m.Id).ToList();
+        var slitterMachines= machines.Where(m => m.Category == MachineCategory.Slitter).Select(m => m.Id).ToList();
+        var ctlMachines    = machines.Where(m => m.Category == MachineCategory.CTL).Select(m => m.Id).ToList();
+        var sheetMachines  = machines.Where(m => m.Category == MachineCategory.Sheet).Select(m => m.Id).ToList();
 
-        // ----- Load valid inventory sources for each machine type -----
+        // Inventory pools
         var ctlRelationships = await db.ItemRelationships.AsNoTracking()
-            .Where(ir => !string.IsNullOrEmpty(ir.CoilRelationship)).ToListAsync();
+            .Where(ir => !string.IsNullOrEmpty(ir.CoilRelationship))
+            .ToListAsync();
         var ctlItemCodes = ctlRelationships.Select(ir => ir.ItemCode).ToHashSet();
 
         var ctlSourceItems = await db.Set<InventoryItem>().AsNoTracking()
             .Where(i => ctlItemCodes.Contains(i.ItemId)).ToListAsync();
 
         var slitterSourceItems = await db.Set<InventoryItem>().AsNoTracking()
-            .Where(i => i.SnapshotUnit == "LBS" && (!i.Length.HasValue || i.Length == 0))
-            .ToListAsync();
+            .Where(i => i.SnapshotUnit == "LBS" && (!i.Length.HasValue || i.Length == 0)).ToListAsync();
 
         var sheetSourceItems = await db.Set<InventoryItem>().AsNoTracking()
-            .Where(i => i.SnapshotUnit == "PCS" && i.Length.HasValue && i.Length > 0)
-            .ToListAsync();
+            .Where(i => i.SnapshotUnit == "PCS" && i.Length.HasValue && i.Length > 0).ToListAsync();
 
         if (!ctlSourceItems.Any() || !slitterSourceItems.Any())
         {
-            Console.WriteLine("[Seeder] Could not run. Missing valid inventory for CTL or Slitter machines.");
+            Console.WriteLine("[Seeder] Skip: missing CTL or Slitter inventory.");
             return;
         }
 
-        // ----- Figure out how many to create -----
+        // How many to create
         const int toMake = PickingListsPerRun;
         var today = DateTime.Today;
-        var reps = new[] { "CRAIG MUDIE", "DYLAN WILLIAMS", "SPENCER CHAPMAN", "NICOLE HARRIS", "JACK LAM" };
+        var reps   = new[] { "CRAIG MUDIE", "DYLAN WILLIAMS", "SPENCER CHAPMAN", "NICOLE HARRIS", "JACK LAM" };
         var buyers = new[] { "JANE", "STEVE ARMITAGE", "ROBYN LOURENCO", "PROCUREMENT" };
 
         var existingCount = await db.PickingLists.Where(p => p.BranchId == branchId).CountAsync();
@@ -100,7 +106,6 @@ public static class SeedFromDb_PickingLists_WithMachines
             var perSheetMap = new Dictionary<PickingListItem, decimal>();
             decimal totalWeight = 0m;
             int ln = 1;
-
             var tempPickedItems = new HashSet<string>();
 
             for (int j = 0; j < lineCount; j++)
@@ -173,7 +178,7 @@ public static class SeedFromDb_PickingLists_WithMachines
                 {
                     LineNumber = ln++,
                     ItemId = inv.ItemId,
-                    ItemDescription = BuildItemDescription(inv, hasLen, machineId),
+                    ItemDescription = BuildItemDescription(inv, hasLen),
                     Quantity = qty,
                     Unit = unit,
                     Width = hasWid ? inv.Width : null,
@@ -256,6 +261,171 @@ public static class SeedFromDb_PickingLists_WithMachines
         }
 
         await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        Console.WriteLine("[Seeder] Picking Lists seeded (no WorkOrders created).");
+    }
+
+    /// <summary>
+    /// Separate process: build Work Orders from existing PickingListItems
+    /// MachineCategory ∈ {CTL, Slitter} AND Status = AssignedProduction
+    /// On success, updates item.Status -> WorkOrder
+    /// </summary>
+    public static async Task GenerateWorkOrdersFromBacklogAsync(
+        ApplicationDbContext db,
+        int branchId,
+        int targetMaxLbsPerWO = 20000,
+        int maxItemsPerWO = 10)
+    {
+        // Prefetch scheduled PLI ids to avoid duplicates
+        var alreadyScheduled = await db.WorkOrderItems
+            .AsNoTracking()
+            .Where(x => x.PickingListItemId != null)
+            .Select(x => x.PickingListItemId!.Value)
+            .ToHashSetAsync();
+
+        // Trackable query (we'll update statuses)
+        var backlog = await db.PickingListItems
+            .Include(pli => pli.PickingList)
+            .Include(pli => pli.Machine)
+            .Where(pli =>
+                pli.PickingList.BranchId == branchId &&
+                pli.MachineId.HasValue &&
+                pli.Machine != null &&
+                (pli.Machine.Category == MachineCategory.CTL || pli.Machine.Category == MachineCategory.Slitter) &&
+                pli.Status == PickingLineStatus.AssignedProduction)
+            .OrderBy(pli => pli.ScheduledProcessingDate ?? pli.PickingList.ShipDate)
+            .ThenBy(pli => pli.PickingList.Priority)
+            .ToListAsync();
+
+        // Remove items already scheduled
+        backlog = backlog.Where(pli => !alreadyScheduled.Contains(pli.Id)).ToList();
+
+        if (!backlog.Any())
+        {
+            Console.WriteLine("[WO-Gen] No eligible items found (or all already scheduled).");
+            return;
+        }
+
+        var branch = await db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == branchId);
+        var branchCode = branch?.Code ?? "00";
+        var woCounter = await db.WorkOrders.CountAsync(w => w.BranchId == branchId);
+
+        // Group by machine to keep orders machine-focused
+        var byMachine = backlog.GroupBy(i => i.MachineId!.Value);
+
+        using var tx = await db.Database.BeginTransactionAsync();
+        try
+        {
+            var newWOs = new List<WorkOrder>();
+
+            foreach (var group in byMachine)
+            {
+                var machineId = group.Key;
+                var machine = group.First().Machine!;
+
+                // Optional: also group by processing date to keep day buckets tidy
+                foreach (var dayBucket in group
+                             .GroupBy(i => (i.ScheduledProcessingDate ?? i.PickingList.ShipDate).Date)
+                             .OrderBy(g => g.Key))
+                {
+                    var items = dayBucket.ToList();
+                    var cursor = 0;
+
+                    while (cursor < items.Count)
+                    {
+                        var wo = new WorkOrder
+                        {
+                            WorkOrderNumber = $"W{branchCode}{++woCounter:0000000}",
+                            TagNumber = "AUTO-SEED",
+                            BranchId = branchId,
+                            MachineId = machineId,
+                            MachineCategory = machine.Category,
+                            Instructions = "Auto-generated from backlog.",
+                            CreatedBy = "SYSTEM",
+                            LastUpdatedBy = "SYSTEM",
+                            ScheduledStartDate = dayBucket.Key.AddHours(8), // 08:00 local
+                            Status = WorkOrderStatus.Pending,
+                            Priority = WorkOrderPriority.Normal,
+                            Items = new List<WorkOrderItem>()
+                        };
+
+                        decimal total = 0m;
+                        int added = 0;
+
+                        while (cursor < items.Count && added < maxItemsPerWO)
+                        {
+                            var pli = items[cursor];
+                            var wt = pli.Weight ?? 0m;
+                            if (wt <= 0) { cursor++; continue; }
+
+                            if (total + wt > targetMaxLbsPerWO) break;
+
+                            wo.Items.Add(new WorkOrderItem
+                            {
+                                PickingListItemId = pli.Id,
+                                ItemCode = pli.ItemId,
+                                Description = pli.ItemDescription,
+                                SalesOrderNumber = pli.PickingList.SalesOrderNumber,
+                                CustomerName = pli.PickingList.SoldTo,
+                                OrderQuantity = pli.Quantity,
+                                OrderWeight = pli.Weight,
+                                Width = pli.Width,
+                                Length = pli.Length,
+                                Unit = pli.Unit,
+                                Status = WorkOrderItemStatus.Pending,
+                                IsStockItem = false
+                            });
+
+                            // Flip status ONLY when attached to WO
+                            pli.Status = PickingLineStatus.WorkOrder;
+
+                            total += wt;
+                            added++;
+                            cursor++;
+                        }
+
+                        if (wo.Items.Count > 0)
+                        {
+                            wo.DueDate = wo.Items
+                                .Select(x => items.First(ii => ii.Id == x.PickingListItemId) // safe; same list
+                                    .ScheduledShipDate)
+                                .Min();
+
+                            // crude duration: 30 mins per item
+                            var estimated = TimeSpan.FromMinutes(30 * wo.Items.Count);
+                            wo.ScheduledEndDate = wo.ScheduledStartDate?.Add(estimated);
+
+                            newWOs.Add(wo);
+                        }
+                        else
+                        {
+                            // If nothing fit due to caps, bump cursor to avoid infinite loop
+                            cursor++;
+                        }
+                    }
+                }
+            }
+
+            if (newWOs.Count == 0)
+            {
+                Console.WriteLine("[WO-Gen] Nothing created (weight caps or constraints prevented batching).");
+                await tx.RollbackAsync();
+                return;
+            }
+
+            db.WorkOrders.AddRange(newWOs);
+            var changed = await db.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            var itemsCount = newWOs.Sum(w => w.Items.Count);
+            Console.WriteLine($"[WO-Gen] Created {newWOs.Count} WOs with {itemsCount} items. DB changes: {changed} rows.");
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            Console.WriteLine($"[WO-Gen] ERROR: {ex.Message}");
+            throw;
+        }
     }
 
     // ---------- helpers ----------
@@ -277,33 +447,25 @@ public static class SeedFromDb_PickingLists_WithMachines
         List<int> coil, List<int> slitter, List<int> ctl, List<int> sheet,
         Random rng)
     {
-        // The Work Order seeder specifically looks for CTL and Slitter items.
-        // We must ensure that a high percentage of items are routed to these machines.
         if (hasLength)
         {
-            // Has length -> CTL or Sheet. Prioritize CTL heavily.
-            if (ctl.Count > 0 && (rng.NextDouble() < 0.9 || sheet.Count == 0)) // 90% chance for CTL
+            if (ctl.Count > 0 && (rng.NextDouble() < 0.9 || sheet.Count == 0))
                 return ctl[rng.Next(ctl.Count)];
             if (sheet.Count > 0)
                 return sheet[rng.Next(sheet.Count)];
         }
         else
         {
-            // No length -> Slitter or Coil. Prioritize Slitter heavily.
-            if (slitter.Count > 0 && (rng.NextDouble() < 0.9 || coil.Count == 0)) // 90% chance for Slitter
+            if (slitter.Count > 0 && (rng.NextDouble() < 0.9 || coil.Count == 0))
                 return slitter[rng.Next(slitter.Count)];
             if (coil.Count > 0)
                 return coil[rng.Next(coil.Count)];
         }
 
-        // Fallback: any machine we can find (keeps seed from failing in sparse DBs)
         var any = coil.Concat(slitter).Concat(ctl).Concat(sheet).ToList();
-        if (any.Count > 0)
-        {
-            return any[rng.Next(any.Count)];
-        }
+        if (any.Count > 0) return any[rng.Next(any.Count)];
 
-        throw new InvalidOperationException("Could not route to a machine. No machines available for the current branch that match the required categories. Please upload machine data for your branch.");
+        throw new InvalidOperationException("No machines available in this branch. Seed machines first.");
     }
 
     private static decimal GuessThickness(string? desc)
@@ -312,25 +474,6 @@ public static class SeedFromDb_PickingLists_WithMachines
         if (Contains(desc, "24 GA")) return 0.0239m;
         if (Contains(desc, "26 GA")) return 0.0179m;
         return 0.0239m;
-    }
-
-    private static string BuildItemDescription(InventoryItem inv, bool hasLen, int machineId)
-    {
-        // Rough, PDF-like flavor lines
-        if (hasLen)
-        {
-            // SHEET/CTL → include size
-            var w = inv.Width ?? 48m;
-            var l = inv.Length ?? 120m;
-            return $"{(inv.Description ?? inv.ItemId)} — SHEET {w:0.#}\" x {l:0.#}\" (SOURCE: STOCK)";
-        }
-
-        if (inv.Width.HasValue)
-        {
-            return $"{(inv.Description ?? inv.ItemId)} — {(IsStdCoilWidth(inv.Width.Value) ? "COIL slit" : "SLITTER program")} @{inv.Width:0.###}\" (SOURCE: STOCK)";
-        }
-
-        return $"{(inv.Description ?? inv.ItemId)} — COIL (SOURCE: STOCK)";
     }
 
     private static bool Contains(string? s, string token)
@@ -344,27 +487,31 @@ public static class SeedFromDb_PickingLists_WithMachines
         return d.Date;
     }
 
+    private static string NormalizeToBaseCoilId(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId)) return itemId;
+        var m = Regex.Match(itemId, @"^(.*?)-\d+(\.\d+)?$");
+        return m.Success ? m.Groups[1].Value : itemId;
+    }
+
     private static async Task EnsureItemRelationshipsExistAsync(ApplicationDbContext db, Random rng)
     {
-        if (await db.ItemRelationships.AnyAsync())
-        {
-            return; // Relationships already exist, no need to seed.
-        }
+        if (await db.ItemRelationships.AnyAsync()) return;
 
-        var coils = await db.InventoryItems
+        var coils = await db.Set<InventoryItem>()
             .AsNoTracking()
             .Where(i => i.SnapshotUnit == "LBS" && (!i.Length.HasValue || i.Length.Value == 0))
             .Select(i => i.ItemId)
             .ToListAsync();
 
-        var sheets = await db.InventoryItems
+        var sheets = await db.Set<InventoryItem>()
             .AsNoTracking()
             .Where(i => i.SnapshotUnit == "PCS" && i.Length.HasValue && i.Length.Value > 0)
             .ToListAsync();
 
         if (!coils.Any() || !sheets.Any())
         {
-            Console.WriteLine("[Seeder Self-Heal] Could not create ItemRelationships. Missing source coils or sheets in Inventory.");
+            Console.WriteLine("[Seeder Self-Heal] Missing coils/sheets for ItemRelationships.");
             return;
         }
 
@@ -381,7 +528,28 @@ public static class SeedFromDb_PickingLists_WithMachines
 
         db.ItemRelationships.AddRange(newRelationships);
         await db.SaveChangesAsync();
-        db.ChangeTracker.Clear(); // Clear tracking after seeding relationships
-        Console.WriteLine($"[Seeder Self-Heal] Created {newRelationships.Count} new ItemRelationships.");
+        db.ChangeTracker.Clear();
+        Console.WriteLine($"[Seeder Self-Heal] Created {newRelationships.Count} ItemRelationships.");
+    }
+
+    private static string BuildItemDescription(InventoryItem inv, bool hasLen)
+    {
+        var desc = string.IsNullOrWhiteSpace(inv.Description) ? inv.ItemId : inv.Description;
+
+        if (hasLen)
+        {
+            var w = inv.Width ?? 48m;
+            var l = inv.Length ?? 120m;
+            return $"{desc} — SHEET {w:0.#}\" x {l:0.#}\" (SOURCE: STOCK)";
+        }
+
+        if (inv.Width.HasValue)
+        {
+            var w = inv.Width.Value;
+            var flavor = IsStdCoilWidth(w) ? "COIL slit" : "SLITTER program";
+            return $"{desc} — {flavor} @{w:0.###}\" (SOURCE: STOCK)";
+        }
+
+        return $"{desc} — COIL (SOURCE: STOCK)";
     }
 }
