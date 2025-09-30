@@ -438,19 +438,25 @@ private const int PickingListsPerRun = 20;
         List<int> coil, List<int> slitter, List<int> ctl, List<int> sheet,
         Random rng)
     {
+        // The Work Order seeder specifically looks for CTL and Slitter items.
+        // We must ensure that a high percentage of items are routed to these machines.
         if (hasLength)
         {
-            // CTL or SHEET (bias slightly to SHEET)
-            if (sheet.Count > 0 && (rng.NextDouble() < 0.6 || ctl.Count == 0))
+            // Has length -> CTL or Sheet. Prioritize CTL heavily.
+            if (ctl.Count > 0 && (rng.NextDouble() < 0.9 || sheet.Count == 0)) // 90% chance for CTL
+                return ctl[rng.Next(ctl.Count)];
+            if (sheet.Count > 0)
                 return sheet[rng.Next(sheet.Count)];
-            if (ctl.Count > 0) return ctl[rng.Next(ctl.Count)];
         }
         else
         {
-            if (width.HasValue && IsStdCoilWidth(width.Value) && coil.Count > 0)
+            // No length -> Slitter or Coil. Prioritize Slitter heavily.
+            if (slitter.Count > 0 && (rng.NextDouble() < 0.9 || coil.Count == 0)) // 90% chance for Slitter
+                return slitter[rng.Next(slitter.Count)];
+            if (coil.Count > 0)
                 return coil[rng.Next(coil.Count)];
-            if (slitter.Count > 0) return slitter[rng.Next(slitter.Count)];
         }
+
         // Fallback: any machine we can find (keeps seed from failing in sparse DBs)
         var any = coil.Concat(slitter).Concat(ctl).Concat(sheet).ToList();
         if (any.Count > 0)
