@@ -417,36 +417,24 @@ namespace CMetalsWS.Services
                 workOrder.ActualEndDate = DateTime.UtcNow;
                 if (updatedItems != null)
                 {
-                    var matchedServerItemIds = new HashSet<int>();
-
                     foreach (var updatedItem in updatedItems)
                     {
-                        WorkOrderItem serverItem = null;
-
-                        // Primary match by ID
-                        if (updatedItem.Id != 0)
+                        if (updatedItem.Id == 0)
                         {
-                            serverItem = workOrder.Items.FirstOrDefault(i => i.Id == updatedItem.Id);
+                            // This is a new item (e.g., a stock item added during processing).
+                            // Add it to the work order's collection. EF will handle inserting it.
+                            workOrder.Items.Add(updatedItem);
                         }
-
-                        // Fallback match for new items
-                        if (serverItem == null)
+                        else
                         {
-                            serverItem = workOrder.Items
-                                .Where(s => !matchedServerItemIds.Contains(s.Id)) // Only search unmatched items
-                                .FirstOrDefault(s =>
-                                    s.PickingListItemId == updatedItem.PickingListItemId &&
-                                    s.OrderQuantity == updatedItem.OrderQuantity &&
-                                    (Math.Abs((s.OrderWeight ?? 0) - (updatedItem.OrderWeight ?? 0)) / Math.Max(1, updatedItem.OrderWeight ?? 1)) <= 0.005m
-                                );
-                        }
-
-                        if (serverItem != null)
-                        {
-                            serverItem.ProducedQuantity = updatedItem.ProducedQuantity;
-                            serverItem.ProducedWeight = updatedItem.ProducedWeight;
-                            serverItem.Status = updatedItem.Status;
-                            matchedServerItemIds.Add(serverItem.Id);
+                            // This is an existing item. Find it in the tracked collection and update it.
+                            var serverItem = workOrder.Items.FirstOrDefault(i => i.Id == updatedItem.Id);
+                            if (serverItem != null)
+                            {
+                                serverItem.ProducedQuantity = updatedItem.ProducedQuantity;
+                                serverItem.ProducedWeight = updatedItem.ProducedWeight;
+                                serverItem.Status = updatedItem.Status;
+                            }
                         }
                     }
                 }
