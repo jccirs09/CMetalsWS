@@ -2,7 +2,7 @@
 @using CMetalsWS.Services
 @using MudBlazor
 
-@inject IUserService UserService
+@inject CMetalsWS.Services.IUserService UserService
 @inject NavigationManager Nav
 
 <MudDialog>
@@ -77,7 +77,6 @@
 
     private void StartChat(ApplicationUser user)
     {
-        // The thread ID for a direct message is simply the other user's ID.
         MudDialog.Close(DialogResult.Ok(user.Id));
     }
 
