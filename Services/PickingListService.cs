@@ -105,7 +105,7 @@ namespace CMetalsWS.Services
                     }
 
                     // For forward planning, if an item hasn't been pulled, use its theoretical weight.
-                    var plannableWeight = item.PulledWeight > 0.001m ? item.PulledWeight : (item.Weight ?? 0) * item.Quantity;
+                    var plannableWeight = (item.PulledWeight ?? 0m) > 0.001m ? item.PulledWeight.Value : (item.Weight ?? 0) * item.Quantity;
                     var plannableQuantity = item.PulledQuantity ?? item.Quantity;
 
                     item.RemainingQuantity = plannableQuantity - totalShippedQuantity;
