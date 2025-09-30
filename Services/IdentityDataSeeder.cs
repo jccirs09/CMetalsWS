@@ -559,11 +559,6 @@ namespace CMetalsWS.Services
 
         private async Task SeedShiftsAsync()
         {
-            if (await _context.Shifts.AnyAsync())
-            {
-                return; // Shifts have already been seeded
-            }
-
             var surreyBranch = await _context.Branches.FirstOrDefaultAsync(b => b.Name == "SURREY");
             if (surreyBranch == null)
             {
@@ -571,7 +566,7 @@ namespace CMetalsWS.Services
                 return;
             }
 
-            var shifts = new List<Shift>
+            var shiftsToAdd = new List<Shift>
             {
                 new Shift { Name = "AM SHIFT", StartTime = new TimeOnly(5, 0), EndTime = new TimeOnly(13, 30), BranchId = surreyBranch.Id },
                 new Shift { Name = "PM SHIFT", StartTime = new TimeOnly(13, 30), EndTime = new TimeOnly(0, 0), BranchId = surreyBranch.Id },
@@ -579,8 +574,19 @@ namespace CMetalsWS.Services
                 new Shift { Name = "0700 SHIFT", StartTime = new TimeOnly(7, 0), EndTime = new TimeOnly(15, 30), BranchId = surreyBranch.Id },
             };
 
-            _context.Shifts.AddRange(shifts);
-            await _context.SaveChangesAsync();
+            var existingShifts = await _context.Shifts
+                .Where(s => s.BranchId == surreyBranch.Id)
+                .ToDictionaryAsync(s => s.Name, StringComparer.OrdinalIgnoreCase);
+
+            var newShifts = shiftsToAdd
+                .Where(s => !existingShifts.ContainsKey(s.Name))
+                .ToList();
+
+            if (newShifts.Any())
+            {
+                _context.Shifts.AddRange(newShifts);
+                await _context.SaveChangesAsync();
+            }
         }
 
         private async Task CreateUserIfNotExists(string userName, string firstName, string lastName, string role, int branchId)
