@@ -14,6 +14,9 @@ private const int PickingListsPerRun = 20;
     {
     var rng = new Random();
 
+    // ----- Self-healing: Ensure ItemRelationships exist for CTL logic -----
+    await EnsureItemRelationshipsExistAsync(db, rng);
+
         // ----- Load sources from DB -----
     var customers = await db.Set<Customer>().AsNoTracking().Where(c => c.Active && !string.IsNullOrWhiteSpace(c.CustomerName)).ToListAsync();
     if (customers.Count == 0) return;
@@ -205,6 +208,47 @@ private const int PickingListsPerRun = 20;
                     db.PickingListItems.Add(li);
                 }
             }
+
+private static async Task EnsureItemRelationshipsExistAsync(ApplicationDbContext db, Random rng)
+{
+    if (await db.ItemRelationships.AnyAsync())
+    {
+        return; // Relationships already exist, no need to seed.
+    }
+
+    var coils = await db.InventoryItems
+        .AsNoTracking()
+        .Where(i => i.SnapshotUnit == "LBS" && (!i.Length.HasValue || i.Length.Value == 0))
+        .Select(i => i.ItemId)
+        .ToListAsync();
+
+    var sheets = await db.InventoryItems
+        .AsNoTracking()
+        .Where(i => i.SnapshotUnit == "PCS" && i.Length.HasValue && i.Length.Value > 0)
+        .ToListAsync();
+
+    if (!coils.Any() || !sheets.Any())
+    {
+        Console.WriteLine("[Seeder Self-Heal] Could not create ItemRelationships. Missing source coils or sheets in Inventory.");
+        return;
+    }
+
+    var newRelationships = new List<ItemRelationship>();
+    foreach (var sheet in sheets)
+    {
+        newRelationships.Add(new ItemRelationship
+        {
+            ItemCode = sheet.ItemId,
+            Description = sheet.Description ?? string.Empty,
+            CoilRelationship = coils[rng.Next(coils.Count)]
+        });
+    }
+
+    db.ItemRelationships.AddRange(newRelationships);
+    await db.SaveChangesAsync();
+    db.ChangeTracker.Clear(); // Clear tracking after seeding relationships
+    Console.WriteLine($"[Seeder Self-Heal] Created {newRelationships.Count} new ItemRelationships.");
+}
         }
 
         await db.SaveChangesAsync();
@@ -291,7 +335,8 @@ private const int PickingListsPerRun = 20;
                     LastUpdatedBy = "SYSTEM",
                     ScheduledStartDate = scheduleStart,
                     Status = WorkOrderStatus.Pending,
-                    Priority = WorkOrderPriority.Normal
+                    Priority = WorkOrderPriority.Normal,
+                    Items = new List<WorkOrderItem>()
                 };
 
                 decimal currentWoWeight = 0;
