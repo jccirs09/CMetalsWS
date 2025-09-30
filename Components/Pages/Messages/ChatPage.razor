@@ -8,13 +8,11 @@
 @inject IDialogService DialogService
 @implements IDisposable
 
-<MudGrid Justify="Justify.Center" Class="pa-4" Style="height: calc(100vh - 64px); overflow: hidden;">
+<MudGrid Justify="Justify.Center" Style="height: calc(100vh - 64px); overflow: hidden;">
     <MudItem xs="12" sm="5" md="4" lg="3" Class="d-flex flex-column" Style="height: 100%;">
-        <div class="d-flex flex-column" style="height: 100%;">
-            <MessagingHeader OnSearch="HandleSearch" OnNewChatClicked="HandleNewChat" />
-            <div class="flex-grow-1 mt-3" style="overflow-y: auto;">
-                <MessagingSystem OnThreadSelected="OpenThread" SearchQuery="@_searchQuery" />
-            </div>
+        <MessagingHeader OnSearch="HandleSearch" OnNewChatClicked="HandleNewChat" />
+        <div class="flex-grow-1 mt-3" style="overflow-y: auto;">
+            <MessagingSystem OnThreadSelected="OpenThread" SearchQuery="@_searchQuery" />
         </div>
     </MudItem>
 

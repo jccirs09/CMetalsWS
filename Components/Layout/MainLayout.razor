@@ -1,7 +1,5 @@
 @inherits LayoutComponentBase
 @implements IDisposable
-@using CMetalsWS.Components.Shared.Chat
-@using CMetalsWS.Data.Chat
 
 <MudThemeProvider Theme="_customTheme" @bind-IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -18,74 +16,29 @@
         <MudText Typo="Typo.h5" Class="ml-3">Application</MudText>
         <MudSpacer />
 
-        <MudMenu Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" Dense="true" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
-            <ActivatorContent>
-                <MudBadge Content="@NotificationService.UnreadTotal" Color="Color.Error" Overlap="true" Class="mx-2" Visible="@(NotificationService.UnreadTotal > 0)">
-                    <MudIcon Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" />
-                </MudBadge>
-            </ActivatorContent>
-            <ChildContent>
-                <div class="px-4 pt-2 pb-1">
-                    <MudText Typo="Typo.h6">Notifications</MudText>
-                </div>
-                <MudList T="NotificationItem" Dense="true" Style="min-width: 300px; max-height: 400px; overflow-y: auto;">
-                    @if (NotificationService.Recent.Any())
-                    {
-                        @foreach (var notification in NotificationService.Recent.Take(10))
-                        {
-                            <MudListItem T="NotificationItem" OnClick="@(() => { ChatState.HandleThreadClick(new ThreadSummary { Id = notification.ThreadId }); })">
-                                <div class="d-flex">
-                                    <MudAvatar Size="Size.Medium" Class="mr-3">
-                                        @if (!string.IsNullOrWhiteSpace(notification.AvatarUrl))
-                                        {
-                                            <MudImage Src="@notification.AvatarUrl" />
-                                        }
-                                        else
-                                        {
-                                            @($"{notification.FirstName?.FirstOrDefault()}{notification.LastName?.FirstOrDefault()}")
-                                        }
-                                    </MudAvatar>
-                                    <div>
-                                        <MudText Typo="Typo.body2">@notification.Title</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary text-ellipsis" Style="max-width: 250px;">@notification.Preview</MudText>
-                                    </div>
-                                </div>
-                            </MudListItem>
-                        }
-                    }
-                    else
-                    {
-                        <MudListItem T="NotificationItem">
-                            <MudText Class="mud-text-secondary">No new notifications</MudText>
-                        </MudListItem>
-                    }
-                </MudList>
-                <MudDivider />
-                <MudMenuItem Href="/messages">View All Messages</MudMenuItem>
-            </ChildContent>
+        <!-- Use the unified NotificationBell component here -->
+        @* <NotificationBell /> *@
+
+        <MudMenu Icon="@Icons.Material.Filled.Person" Color="Color.Inherit" Edge="Edge.End">
+            <MudMenuItem Link="/profile">Profile</MudMenuItem>
+            <MudMenuItem OnClick="Logout">Logout</MudMenuItem>
         </MudMenu>
 
-        @if (!ChatState.IsChatPageOpen)
+        @*@if (!ChatState.IsChatPageOpen)
         {
             <MudIconButton Icon="@Icons.Material.Filled.Chat"
                            OnClick="@(() => ChatState.ToggleThreadPanel())"
                            Color="Color.Inherit" />
-        }
-
-        <MudMenu Icon="@Icons.Material.Filled.Person" Color="Color.Inherit" Edge="Edge.End">
-            <MudMenuItem Href="/profile">Profile</MudMenuItem>
-            <MudMenuItem OnClick="Logout">Logout</MudMenuItem>
-        </MudMenu>
+            <MudPopover Open="ChatState.IsThreadPanelOpen"
+                        AnchorOrigin="Origin.BottomRight"
+                        TransformOrigin="Origin.TopRight"
+                        OnClose="@(() => ChatState.ToggleThreadPanel())">
+                <div class="pa-2" style="width: 350px;">
+                    <ChatThreadPanel OnThreadSelected="OnHeaderThreadSelected" />
+                </div>
+            </MudPopover>
+        }*@
     </MudAppBar>
-
-    <MudPopover Open="@ChatState.IsThreadPanelOpen"
-                AnchorOrigin="Origin.BottomRight"
-                TransformOrigin="Origin.TopRight"
-                OnClose="@(() => ChatState.ToggleThreadPanel())">
-        <div class="pa-2" style="width: 350px; max-height: 500px; overflow-y: auto;">
-            <ChatThreadPanel OnThreadSelected="OnHeaderThreadSelected" />
-        </div>
-    </MudPopover>
 
     <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
         <NavMenu />
@@ -96,7 +49,10 @@
     </MudMainContent>
 </MudLayout>
 
-<MessagingCoordinator />
+@*@if (!ChatState.IsChatPageOpen)
+{
+    <ChatDockHost />
+}*@
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
