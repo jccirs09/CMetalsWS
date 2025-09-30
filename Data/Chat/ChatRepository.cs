@@ -404,24 +404,23 @@ namespace CMetalsWS.Data.Chat
             if (skip < 0) skip = 0;
             ct.ThrowIfCancellationRequested();
 
-            await using var c = await _contextFactory.CreateDbContextAsync();
-            await using var cUsers = await _contextFactory.CreateDbContextAsync();
+            await using var db = await _contextFactory.CreateDbContextAsync();
 
             // ----- Pinned map (cheap lookup) -----
-            var pinnedIds = await c.PinnedThreads
+            var pinnedIds = await db.PinnedThreads
                 .AsNoTracking()
                 .Where(p => p.UserId == userId)
                 .Select(p => p.ThreadId)
                 .ToListAsync(ct);
 
             // ----- GROUPS the user belongs to -----
-            var myGroupIds = await c.ChatGroupUsers
+            var myGroupIds = await db.ChatGroupUsers
                 .AsNoTracking()
                 .Where(gu => gu.UserId == userId)
                 .Select(gu => gu.ChatGroupId)
                 .ToListAsync(ct);
 
-            var groupAgg = await c.ChatMessages
+            var groupAgg = await db.ChatMessages
                 .AsNoTracking()
                 .Where(m => m.ChatGroupId.HasValue && myGroupIds.Contains(m.ChatGroupId.Value))
                 .GroupBy(m => m.ChatGroupId!.Value)
@@ -434,7 +433,7 @@ namespace CMetalsWS.Data.Chat
                 })
                 .ToListAsync(ct);
 
-            var groupsMeta = await c.ChatGroups
+            var groupsMeta = await db.ChatGroups
                 .AsNoTracking()
                 .Where(g => myGroupIds.Contains(g.Id))
                 .Select(g => new { g.Id, g.Name })
@@ -460,7 +459,7 @@ namespace CMetalsWS.Data.Chat
             }
 
             // ----- DMs aggregated by "other user" -----
-            var dmAgg = await c.ChatMessages
+            var dmAgg = await db.ChatMessages
                 .AsNoTracking()
                 .Where(m =>
                     (m.SenderId == userId && m.RecipientId != null) ||
@@ -477,7 +476,7 @@ namespace CMetalsWS.Data.Chat
 
             var dmUserIds = dmAgg.Select(x => x.OtherId).Distinct().ToList();
 
-            var dmUsers = await cUsers.Users
+            var dmUsers = await db.Users
                 .AsNoTracking()
                 .Where(u => dmUserIds.Contains(u.Id))
                 .Select(u => new { u.Id, u.UserName, u.FirstName, u.LastName, u.Avatar })
@@ -512,16 +511,14 @@ namespace CMetalsWS.Data.Chat
                     var qUpper = q.ToUpper();
                     var existingDm = new HashSet<string>(dmAgg.Select(x => x.OtherId));
 
-                    var matches = await cUsers.Users
+                    var matches = await db.Users
                         .AsNoTracking()
                         .Where(u => u.Id != userId &&
                             (
-                                u.NormalizedUserName!.Contains(qUpper) ||
-                                u.NormalizedEmail!.Contains(qUpper) ||
+                                (u.NormalizedUserName != null && u.NormalizedUserName.Contains(qUpper)) ||
+                                (u.NormalizedEmail != null && u.NormalizedEmail.Contains(qUpper)) ||
                                 (u.FirstName != null && EF.Functions.Like(u.FirstName, $"%{q}%")) ||
-                                (u.LastName != null && EF.Functions.Like(u.LastName, $"%{q}%")) ||
-                                (u.FirstName != null && u.LastName != null &&
-                                 EF.Functions.Like(u.FirstName + " " + u.LastName, $"%{q}%"))
+                                (u.LastName != null && EF.Functions.Like(u.LastName, $"%{q}%"))
                             ))
                         .Select(u => new { u.Id, u.UserName, u.FirstName, u.LastName, u.Avatar })
                         .Take(50) 
