@@ -1,25 +1,142 @@
-@using MudBlazor
+@implements IDisposable
+@using CMetalsWS.Data
+@using CMetalsWS.Security
+@using CMetalsWS.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Routing
 
-<div class="pa-4">
-    <MudText Typo="Typo.h5" GutterBottom="true">MetaFlow WMS</MudText>
-    <MudText Typo="Typo.body2">Manager</MudText>
-</div>
-<MudDivider />
-<MudNavMenu Class="mt-4">
-    <MudNavLink Href="/dashboard" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.Dashboard">Dashboard</MudNavLink>
-    <MudNavLink Href="/schedule" Icon="@Icons.Material.Outlined.Event">Scheduler</MudNavLink>
-    <MudNavLink Href="/machine-schedule" Icon="@Icons.Material.Outlined.Schedule">Machine Schedule</MudNavLink>
-    <MudNavLink Href="/work-orders" Icon="@Icons.Material.Outlined.Assignment">Work Orders</MudNavLink>
-    <MudNavLink Href="/pulling" Icon="@Icons.Material.Outlined.MoveToInbox">Pulling</MudNavLink>
-    <MudNavLink Href="/leads-shipping" Icon="@Icons.Material.Outlined.LocalShipping">Leads & Shipping</MudNavLink>
-    <MudNavLink Href="/customers" Icon="@Icons.Material.Outlined.People">Customers</MudNavLink>
-    <MudNavLink Href="/machines" Icon="@Icons.Material.Outlined.PrecisionManufacturing">Machines</MudNavLink>
-    <MudNavLink Href="/admin" Icon="@Icons.Material.Outlined.AdminPanelSettings">Admin</MudNavLink>
-    <MudNavLink Href="/reports" Icon="@Icons.Material.Outlined.Assessment">Reports</MudNavLink>
-    <MudNavLink Href="/messages" Icon="@Icons.Material.Filled.Message" IconColor="Color.Primary">Messages</MudNavLink>
+@inject NavigationManager NavigationManager
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject DestinationRegionService DestinationRegionService
+
+<MudNavMenu>
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+    <MudNavLink Href="auth" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Lock">Auth Required</MudNavLink>
+    <MudNavLink Href="/dashboard" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+    <MudNavLink Href="/messages" Icon="@Icons.Material.Filled.Chat">Messages</MudNavLink>
+
+    <MudNavGroup text="System Panel" Icon="@Icons.Material.Filled.Settings" Title="System Panel" Expanded="true">
+        <AuthorizeView Policy="@Permissions.Users.View">
+            <MudNavLink Href="/users" Icon="@Icons.Material.Filled.Person">Users</MudNavLink>
+        </AuthorizeView>
+        <AuthorizeView Policy="@Permissions.Roles.View">
+            <MudNavLink Href="/roles" Icon="@Icons.Material.Filled.Security">Roles</MudNavLink>
+        </AuthorizeView>
+        <AuthorizeView Policy="@Permissions.Branches.View">
+            <MudNavLink Href="/branches" Icon="@Icons.Material.Filled.LocationCity">Branches</MudNavLink>
+        </AuthorizeView>
+        <AuthorizeView Policy="@Permissions.Shifts.View">
+            <MudNavLink Href="/shifts" Icon="@Icons.Material.Filled.AccessTime">Shifts</MudNavLink>
+        </AuthorizeView>
+        <AuthorizeView Policy="@Permissions.Machines.View">
+            <MudNavLink Href="/machines" Icon="@Icons.Material.Filled.Build">Machines</MudNavLink>
+        </AuthorizeView>
+        <AuthorizeView Policy="@Permissions.Trucks.View">
+            <MudNavLink Href="/trucks" Icon="@Icons.Material.Filled.LocalShipping">Trucks</MudNavLink>
+        </AuthorizeView>
+        <AuthorizeView Policy="@Permissions.Customers.View">
+            <MudNavLink Href="/customers" Icon="@Icons.Material.Filled.People">Customer Manager</MudNavLink>
+
+        </AuthorizeView>
+        <AuthorizeView Policy="@Permissions.Customers.Manage">
+            <MudNavLink Href="/admin/destination-groups" Icon="@Icons.Material.Filled.GroupWork">Destination Groups</MudNavLink>
+            <MudNavLink Href="/admin/destination-regions" Icon="@Icons.Material.Filled.Public">Destination Regions</MudNavLink>
+            <MudNavLink Href="/operations/item-relations" Icon="@Icons.Material.Filled.Link">Item Relationships</MudNavLink>
+            <MudNavLink Href="/operations/import-item-relations" Icon="@Icons.Material.Filled.UploadFile">Import Relationships</MudNavLink>
+            <MudNavLink Href="/operations/inventory" Icon="@Icons.Material.Filled.Inventory2">Inventory</MudNavLink>
+            <MudNavLink Href="/admin/seed-data" Icon="@Icons.Material.Filled.DataObject">Seed Data</MudNavLink>
+        </AuthorizeView>
+     </MudNavGroup>
+
+    @if (canWorkOrders || canPickingLists)
+    {
+        <MudNavGroup text="Operations" Icon="@Icons.Material.Filled.DashboardCustomize" Title="Operations">
+            @if (canWorkOrders)
+            {
+                <MudNavLink Href="/operations/workorders" Icon="@Icons.Material.Filled.Assignment">Work Orders</MudNavLink>
+            }
+            @if (canPickingLists)
+            {
+                <MudNavLink Href="/picking-lists" Icon="@Icons.Material.Filled.Inventory2">Picking Lists</MudNavLink>
+                <MudNavLink Href="/picking-lists/upload" Icon="@Icons.Material.Filled.Inventory2">Upload Picking List</MudNavLink>
+                <MudNavLink Href="/operations/picking-packing" Icon="@Icons.Material.Filled.PanTool">Picking & Packing</MudNavLink>
+                @if (canAssignPickingLists)
+                {
+                    <MudNavLink Href="/operations/pulling/sheet-queue" Icon="@Icons.Material.Filled.ViewList">Sheet Pulling Queue</MudNavLink>
+                    <MudNavLink Href="/operations/pulling/coil-queue" Icon="@Icons.Material.Filled.ViewList">Coil Pulling Queue</MudNavLink>
+                }
+            }
+        </MudNavGroup>
+    }
+
+    @if (canPickingLists)
+    {
+        <MudNavGroup text="Load Planning" Icon="@Icons.Material.Filled.LocalShipping" Title="Load Planning">
+            <MudNavLink Href="/planning/unified-load-planning" Icon="@Icons.Material.Filled.LocationOn">Unified Load Planning</MudNavLink>
+        </MudNavGroup>
+    }
+
+    @if (canWorkOrders)
+    {
+        <MudNavGroup text="Schedule" Icon="@Icons.Material.Filled.EventNote" Title="Scheduling">
+            <MudNavLink Href="/schedule/ctl" Icon="@Icons.Material.Filled.CalendarToday">CTL</MudNavLink>
+            <MudNavLink Href="/schedule/slitter" Icon="@Icons.Material.Filled.CalendarViewDay">Slitter</MudNavLink>
+            <MudNavLink Href="/schedule/pulling" Icon="@Icons.Material.Filled.PanTool">Pulling</MudNavLink>
+            <MudNavLink Href="/schedule/loads" Icon="@Icons.Material.Filled.LocalShipping">Loads</MudNavLink>
+        </MudNavGroup>
+    }
+
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink Href="/profile" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">Profile</MudNavLink>
+            <form action="Account/Logout" method="post">
+                <AntiforgeryToken />
+                <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                <button type="submit" class="mud-nav-link mud-ripple">
+                    <MudIcon Icon="@Icons.Material.Filled.Logout" Color="Color.Info" Class="mr-3"></MudIcon> Logout
+                </button>
+            </form>
+        </Authorized>
+        <NotAuthorized>
+            <MudNavLink Href="Account/Login" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Password">Login</MudNavLink>
+        </NotAuthorized>
+    </AuthorizeView>
 </MudNavMenu>
 
 @code {
-    // NOTE: The complex authorization logic has been removed to match the
-    // simplified UI from the Figma mockups. It can be re-added if needed.
+    private string? currentUrl;
+
+    // permission flags
+    private bool canWorkOrders;
+    private bool canPickingLists;
+    private bool canAssignPickingLists;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+        await ComputePermissionsAsync();
+    }
+
+    private async Task ComputePermissionsAsync()
+    {
+        var user = (await AuthStateProvider.GetAuthenticationStateAsync()).User;
+
+        canWorkOrders = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.WorkOrders.View)).Succeeded;
+        canPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.View)).Succeeded;
+        canAssignPickingLists = (await AuthorizationService.AuthorizeAsync(user, null, Permissions.PickingLists.Assign)).Succeeded;
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        await ComputePermissionsAsync();
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
 }

@@ -20,15 +20,15 @@
                       Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search" />
 
-        <MudList T="ApplicationUser" Clickable="true" Class="mt-3">
+        <MudList T="ApplicationUser" Clickable="true" Class="mt-3" Style="max-height: 400px; overflow-y: auto;">
             @if (_users.Any())
             {
                 foreach (var user in _users)
                 {
                     <MudListItem T="ApplicationUser" OnClick="() => StartChat(user)">
                         <ChildContent>
-                            <MudAvatar>@GetInitials(user.UserName)</MudAvatar>
-                            <MudText Class="ml-3">@user.UserName</MudText>
+                            <MudAvatar>@GetInitials(user)</MudAvatar>
+                            <MudText Class="ml-3">@GetDisplayName(user)</MudText>
                         </ChildContent>
                     </MudListItem>
                 }
@@ -69,7 +69,12 @@
         else
         {
             _users = _allUsers
-                .Where(u => u.UserName != null && u.UserName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase))
+                .Where(u =>
+                    (u.UserName != null && u.UserName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)) ||
+                    (u.FirstName != null && u.FirstName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)) ||
+                    (u.LastName != null && u.LastName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)) ||
+                    (GetDisplayName(u).Contains(_searchQuery, StringComparison.OrdinalIgnoreCase))
+                )
                 .ToList();
         }
         await InvokeAsync(StateHasChanged);
@@ -82,8 +87,15 @@
 
     private void Cancel() => MudDialog.Cancel();
 
-    private string? GetInitials(string? name)
+    private string GetDisplayName(ApplicationUser user)
     {
+        var fullName = $"{user.FirstName} {user.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(fullName) ? user.UserName ?? "Unknown" : fullName;
+    }
+
+    private string GetInitials(ApplicationUser user)
+    {
+        var name = GetDisplayName(user);
         if (string.IsNullOrWhiteSpace(name)) return "?";
         var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return parts.Length > 1 ? $"{parts[0][0]}{parts[1][0]}".ToUpper() : $"{name[0]}".ToUpper();
