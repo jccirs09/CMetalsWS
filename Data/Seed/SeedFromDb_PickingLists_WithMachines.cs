@@ -285,8 +285,9 @@ public static class SeedFromDb_PickingLists_WithMachines
 
                 if (parentCoil == null)
                 {
-                    Console.WriteLine($"[Seeder] Could not find an available parent coil for machine '{machine.Name}' to process item '{firstItem.ItemId}'. Skipping remaining items for this machine.");
-                    break;
+                    Console.WriteLine($"[Seeder] Could not find an available parent coil for machine '{machine.Name}' to process item '{firstItem.ItemId}'. Skipping this item.");
+                    itemsForMachine.RemoveAt(0); // Remove just the problematic item
+                    continue; // Continue to the next item in the machine's queue
                 }
 
                 var parentCoilAvailableWeight = (parentCoil.Snapshot ?? 0m) - allocatedCoilWeights.GetValueOrDefault(parentCoil.Id, 0m);
