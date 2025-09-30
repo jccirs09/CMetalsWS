@@ -267,109 +267,101 @@ public static class SeedFromDb_PickingLists_WithMachines
 
         var newWorkOrders = new List<WorkOrder>();
         var lastScheduleTimes = new Dictionary<int, DateTime>();
+        var allocatedCoilWeights = new Dictionary<int, decimal>();
 
         foreach (var group in groupedByMachine)
         {
             var machineId = group.Key;
-            var itemsInGroup = group.ToList();
-            var machine = itemsInGroup.First().Machine!;
+            var machine = group.First().Machine!;
+            var itemsForMachine = group
+                .OrderBy(i => i.PickingList.ShipDate)
+                .ThenBy(i => i.PickingList.Priority)
+                .ToList();
 
-            if (!lastScheduleTimes.TryGetValue(machineId, out var lastEndTime))
+            while (itemsForMachine.Any())
             {
-                var dbLastEndTime = await db.WorkOrders
-                    .Where(wo => wo.MachineId == machineId && wo.ScheduledEndDate.HasValue)
-                    .MaxAsync(wo => (DateTime?)wo.ScheduledEndDate);
+                var firstItem = itemsForMachine.First();
+                var parentCoil = await FindParentCoilAsync(db, firstItem, machine.Category, allocatedCoilWeights);
 
-                lastEndTime = dbLastEndTime ?? DateTime.Today.AddHours(8);
-            }
-
-            var scheduleStart = lastEndTime.AddMinutes(15);
-            var estimatedDuration = TimeSpan.FromHours(itemsInGroup.Count * 0.5);
-            var scheduleEnd = scheduleStart.Add(estimatedDuration);
-            lastScheduleTimes[machineId] = scheduleEnd;
-
-            string tagNumber = "FROM-SEEDER";
-            string? parentItemId = null;
-            string? parentItemDesc = null;
-            decimal? parentItemWeight = null;
-
-            var firstItem = itemsInGroup.First();
-
-            if (machine.Category == MachineCategory.CTL)
-            {
-                var relationship = await db.ItemRelationships
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(ir => ir.ItemCode == firstItem.ItemId);
-
-                if (relationship?.CoilRelationship != null)
+                if (parentCoil == null)
                 {
-                    var parentCoil = await db.Set<InventoryItem>()
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(inv => inv.ItemId == relationship.CoilRelationship);
+                    Console.WriteLine($"[Seeder] Could not find an available parent coil for machine '{machine.Name}' to process item '{firstItem.ItemId}'. Skipping remaining items for this machine.");
+                    break;
+                }
 
-                    if (parentCoil != null)
+                var parentCoilAvailableWeight = (parentCoil.Snapshot ?? 0m) - allocatedCoilWeights.GetValueOrDefault(parentCoil.Id, 0m);
+                if (!lastScheduleTimes.TryGetValue(machineId, out var lastEndTime))
+                {
+                    lastEndTime = await db.WorkOrders
+                        .Where(wo => wo.MachineId == machineId && wo.ScheduledEndDate.HasValue)
+                        .MaxAsync(wo => (DateTime?)wo.ScheduledEndDate) ?? DateTime.Today.AddHours(8);
+                }
+
+                var scheduleStart = lastEndTime.AddMinutes(15);
+
+                var wo = new WorkOrder
+                {
+                    WorkOrderNumber = $"W{branchCode}{++woCounter:0000000}",
+                    TagNumber = parentCoil.TagNumber ?? "FROM-SEEDER",
+                    BranchId = branchId,
+                    MachineId = machineId,
+                    MachineCategory = machine.Category,
+                    ParentItemId = parentCoil.ItemId,
+                    ParentItemDescription = parentCoil.Description,
+                    ParentItemWeight = parentCoil.Snapshot,
+                    Instructions = "Seeded work order.",
+                    CreatedBy = "SYSTEM",
+                    LastUpdatedBy = "SYSTEM",
+                    ScheduledStartDate = scheduleStart,
+                    Status = WorkOrderStatus.Pending,
+                    Priority = WorkOrderPriority.Normal
+                };
+
+                decimal currentWoWeight = 0;
+                var itemsAddedToThisWo = new List<PickingListItem>();
+
+                foreach (var item in itemsForMachine)
+                {
+                    var itemWeight = item.Weight ?? 0m;
+                    if (itemWeight > 0 && currentWoWeight + itemWeight <= parentCoilAvailableWeight)
                     {
-                        tagNumber = parentCoil.TagNumber ?? tagNumber;
-                        parentItemId = parentCoil.ItemId;
-                        parentItemDesc = parentCoil.Description;
-                        parentItemWeight = parentCoil.Snapshot;
+                        wo.Items.Add(new WorkOrderItem
+                        {
+                            PickingListItemId = item.Id,
+                            ItemCode = item.ItemId,
+                            Description = item.ItemDescription,
+                            SalesOrderNumber = item.PickingList.SalesOrderNumber,
+                            CustomerName = item.PickingList.SoldTo,
+                            OrderQuantity = item.Quantity,
+                            OrderWeight = item.Weight,
+                            Width = item.Width,
+                            Length = item.Length,
+                            Unit = item.Unit,
+                            Status = WorkOrderItemStatus.Pending,
+                            IsStockItem = false
+                        });
+                        currentWoWeight += itemWeight;
+                        itemsAddedToThisWo.Add(item);
                     }
                 }
-            }
-            else if (machine.Category == MachineCategory.Slitter)
-            {
-                var coil = await db.Set<InventoryItem>()
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(inv => inv.ItemId == firstItem.ItemId);
 
-                if (coil != null)
+                if (wo.Items.Any())
                 {
-                    tagNumber = coil.TagNumber ?? tagNumber;
-                    parentItemId = coil.ItemId;
-                    parentItemDesc = coil.Description;
-                    parentItemWeight = coil.Snapshot;
+                    wo.DueDate = itemsAddedToThisWo.Min(i => i.ScheduledShipDate);
+                    var estimatedDuration = TimeSpan.FromHours(itemsAddedToThisWo.Count * 0.5);
+                    wo.ScheduledEndDate = scheduleStart.Add(estimatedDuration);
+                    lastScheduleTimes[machineId] = wo.ScheduledEndDate.Value;
+
+                    allocatedCoilWeights[parentCoil.Id] = allocatedCoilWeights.GetValueOrDefault(parentCoil.Id, 0m) + currentWoWeight;
+                    newWorkOrders.Add(wo);
+                    itemsForMachine.RemoveAll(i => itemsAddedToThisWo.Contains(i));
+                }
+                else
+                {
+                    Console.WriteLine($"[Seeder] Item '{firstItem.ItemId}' (Weight: {firstItem.Weight}) is too heavy for the largest available parent coil '{parentCoil.ItemId}' (Available: {parentCoilAvailableWeight}). Skipping this item.");
+                    itemsForMachine.RemoveAt(0);
                 }
             }
-
-            var wo = new WorkOrder
-            {
-                WorkOrderNumber = $"W{branchCode}{++woCounter:0000000}",
-                TagNumber = tagNumber,
-                BranchId = branchId,
-                MachineId = machineId,
-                MachineCategory = machine.Category,
-                DueDate = itemsInGroup.Min(i => i.ScheduledShipDate),
-                ParentItemId = parentItemId,
-                ParentItemDescription = parentItemDesc,
-                ParentItemWeight = parentItemWeight,
-                Instructions = "Seeded work order.",
-                CreatedBy = "SYSTEM",
-                LastUpdatedBy = "SYSTEM",
-                ScheduledStartDate = scheduleStart,
-                ScheduledEndDate = scheduleEnd,
-                Status = WorkOrderStatus.Pending,
-                Priority = WorkOrderPriority.Normal
-            };
-
-            foreach (var pli in itemsInGroup)
-            {
-                wo.Items.Add(new WorkOrderItem
-                {
-                    PickingListItemId = pli.Id,
-                    ItemCode = pli.ItemId,
-                    Description = pli.ItemDescription,
-                    SalesOrderNumber = pli.PickingList.SalesOrderNumber,
-                    CustomerName = pli.PickingList.SoldTo,
-                    OrderQuantity = pli.Quantity,
-                    OrderWeight = pli.Weight,
-                    Width = pli.Width,
-                    Length = pli.Length,
-                    Unit = pli.Unit,
-                    Status = WorkOrderItemStatus.Pending,
-                    IsStockItem = false
-                });
-            }
-            newWorkOrders.Add(wo);
         }
 
         if (newWorkOrders.Any())
@@ -377,6 +369,50 @@ public static class SeedFromDb_PickingLists_WithMachines
             db.WorkOrders.AddRange(newWorkOrders);
             await db.SaveChangesAsync();
         }
+    }
+
+    private static async Task<InventoryItem?> FindParentCoilAsync(
+        ApplicationDbContext db,
+        PickingListItem itemToSchedule,
+        MachineCategory category,
+        IReadOnlyDictionary<int, decimal> allocatedWeights)
+    {
+        List<string> parentItemIds;
+
+        if (category == MachineCategory.CTL)
+        {
+            var relationship = await db.ItemRelationships.AsNoTracking().FirstOrDefaultAsync(ir => ir.ItemCode == itemToSchedule.ItemId);
+            if (string.IsNullOrEmpty(relationship?.CoilRelationship)) return null;
+            parentItemIds = new List<string> { relationship.CoilRelationship };
+        }
+        else if (category == MachineCategory.Slitter)
+        {
+            parentItemIds = new List<string> { itemToSchedule.ItemId };
+        }
+        else
+        {
+            return null;
+        }
+
+        var potentialCoils = await db.Set<InventoryItem>()
+            .AsNoTracking()
+            .Where(inv => parentItemIds.Contains(inv.ItemId) && inv.SnapshotUnit == "LBS" && inv.Snapshot > 0)
+            .OrderByDescending(inv => inv.Snapshot)
+            .ToListAsync();
+
+        var firstItemWeight = itemToSchedule.Weight ?? 0m;
+
+        foreach (var coil in potentialCoils)
+        {
+            var allocated = allocatedWeights.GetValueOrDefault(coil.Id, 0m);
+            var availableWeight = (coil.Snapshot ?? 0m) - allocated;
+            if (availableWeight >= firstItemWeight)
+            {
+                return coil;
+            }
+        }
+
+        return null;
     }
 
     // ---------- helpers ----------
