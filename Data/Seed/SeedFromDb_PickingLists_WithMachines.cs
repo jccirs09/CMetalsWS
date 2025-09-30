@@ -12,48 +12,41 @@ private const int PickingListsPerRun = 20;
     private const int ShipHorizonDays = 60;
     public static async Task RunAsync(ApplicationDbContext db, int branchId)
     {
+    var rng = new Random();
+
         // ----- Load sources from DB -----
-        var customers = await db.Set<Customer>()
-            .AsNoTracking()
-            .Where(c => c.Active && !string.IsNullOrWhiteSpace(c.CustomerName))
-            .ToListAsync(); // name / region fields exist here
-        if (customers.Count == 0) return; // nothing to seed
+    var customers = await db.Set<Customer>().AsNoTracking().Where(c => c.Active && !string.IsNullOrWhiteSpace(c.CustomerName)).ToListAsync();
+    if (customers.Count == 0) return;
 
-        var inventory = await db.Set<InventoryItem>()
-            .AsNoTracking()
-            .Where(i => !string.IsNullOrWhiteSpace(i.ItemId))
-            .ToListAsync(); // Width/Length/Snapshot/SnapshotUnit
-        if (inventory.Count == 0) return;
-
-        var regions = await db.Set<DestinationRegion>()
-            .AsNoTracking()
-            .Select(r => r.Id)
-            .ToListAsync();
+    var regions = await db.Set<DestinationRegion>().AsNoTracking().Select(r => r.Id).ToListAsync();
         if (regions.Count == 0) regions = Enumerable.Range(1, 4).ToList();
 
-        // Machines by category (don’t assume IDs → use Category)
-        var coilMachines = await db.Set<Machine>().AsNoTracking()
-            .Where(m => m.BranchId == branchId && m.Category == MachineCategory.Coil)
-            .Select(m => m.Id).ToListAsync();
-        var slitterMachines = await db.Set<Machine>().AsNoTracking()
-            .Where(m => m.BranchId == branchId && m.Category == MachineCategory.Slitter)
-            .Select(m => m.Id).ToListAsync();
-        var ctlMachines = await db.Set<Machine>().AsNoTracking()
-            .Where(m => m.BranchId == branchId && m.Category == MachineCategory.CTL)
-            .Select(m => m.Id).ToListAsync();
-        var sheetMachines = await db.Set<Machine>().AsNoTracking()
-            .Where(m => m.BranchId == branchId && m.Category == MachineCategory.Sheet)
-            .Select(m => m.Id).ToListAsync();
+    // ----- Load machine lists -----
+    var machines = await db.Set<Machine>().AsNoTracking().Where(m => m.BranchId == branchId).ToListAsync();
+    var coilMachines = machines.Where(m => m.Category == MachineCategory.Coil).Select(m => m.Id).ToList();
+    var slitterMachines = machines.Where(m => m.Category == MachineCategory.Slitter).Select(m => m.Id).ToList();
+    var ctlMachines = machines.Where(m => m.Category == MachineCategory.CTL).Select(m => m.Id).ToList();
+    var sheetMachines = machines.Where(m => m.Category == MachineCategory.Sheet).Select(m => m.Id).ToList();
+
+    // ----- Load valid inventory sources for each machine type -----
+    var ctlRelationships = await db.ItemRelationships.AsNoTracking().Where(ir => !string.IsNullOrEmpty(ir.CoilRelationship)).ToListAsync();
+    var ctlItemCodes = ctlRelationships.Select(ir => ir.ItemCode).ToHashSet();
+    var ctlSourceItems = await db.Set<InventoryItem>().AsNoTracking().Where(i => ctlItemCodes.Contains(i.ItemId)).ToListAsync();
+
+    var slitterSourceItems = await db.Set<InventoryItem>().AsNoTracking().Where(i => i.SnapshotUnit == "LBS" && (!i.Length.HasValue || i.Length == 0)).ToListAsync();
+    var sheetSourceItems = await db.Set<InventoryItem>().AsNoTracking().Where(i => i.SnapshotUnit == "PCS" && i.Length.HasValue && i.Length > 0).ToListAsync();
+
+    if (!ctlSourceItems.Any() || !slitterSourceItems.Any())
+    {
+        Console.WriteLine("[Seeder] Could not run. Missing valid inventory for CTL or Slitter machines.");
+        return;
+    }
 
     // ----- Figure out how many to create -----
     const int toMake = PickingListsPerRun;
-
-        var rng = new Random();
         var today = DateTime.Today;
         var reps = new[] { "CRAIG MUDIE", "DYLAN WILLIAMS", "SPENCER CHAPMAN", "NICOLE HARRIS", "JACK LAM" };
         var buyers = new[] { "JANE", "STEVE ARMITAGE", "ROBYN LOURENCO", "PROCUREMENT" };
-
-    // Base SO number on existing count to avoid collisions on subsequent runs
     var existingCount = await db.PickingLists.Where(p => p.BranchId == branchId).CountAsync();
     int soBase = 39250000 + existingCount + rng.Next(1000);
         var ci = CultureInfo.InvariantCulture;
@@ -68,34 +61,42 @@ private const int PickingListsPerRun = 20;
 
             var pl = new PickingList
             {
-                BranchId = branchId,
-                SalesOrderNumber = so,
-                OrderDate = orderDate,
-                ShipDate = shipDate,
-                PrintDateTime = printAt,
-                CustomerId = cust.Id,
-                SoldTo = cust.CustomerName,
-                ShipTo = BuildShipTo(cust),
-                SalesRep = reps[rng.Next(reps.Length)],
-                Buyer = buyers[rng.Next(buyers.Length)],
+            BranchId = branchId, SalesOrderNumber = so, OrderDate = orderDate, ShipDate = shipDate,
+            PrintDateTime = printAt, CustomerId = cust.Id, SoldTo = cust.CustomerName, ShipTo = BuildShipTo(cust),
+            SalesRep = reps[rng.Next(reps.Length)], Buyer = buyers[rng.Next(buyers.Length)],
                 DestinationRegionId = cust.DestinationRegionId ?? regions[rng.Next(regions.Count)],
-                Status = PickingListStatus.Pending,
-                Priority = 99
+            Status = PickingListStatus.Pending, Priority = 99
             };
 
             int lineCount = rng.Next(MinLines, MaxLines + 1);
-            var picked = PickRandom(inventory, lineCount, rng);
-
             var items = new List<PickingListItem>(lineCount);
             var perSheetMap = new Dictionary<PickingListItem, decimal>();
             decimal totalWeight = 0m;
             int ln = 1;
 
-            foreach (var inv in picked)
+        var tempPickedItems = new HashSet<string>();
+
+        for (int j = 0; j < lineCount; j++)
             {
+            var machineId = RouteMachineId(null, rng.NextDouble() > 0.5, coilMachines, slitterMachines, ctlMachines, sheetMachines, rng);
+            var machineCategory = machines.FirstOrDefault(m => m.Id == machineId)?.Category;
+
+            InventoryItem? inv = null;
+            if (machineCategory == MachineCategory.CTL && ctlSourceItems.Any()) inv = ctlSourceItems[rng.Next(ctlSourceItems.Count)];
+            else if (machineCategory == MachineCategory.Slitter && slitterSourceItems.Any()) inv = slitterSourceItems[rng.Next(slitterSourceItems.Count)];
+            else if (machineCategory == MachineCategory.Sheet && sheetSourceItems.Any()) inv = sheetSourceItems[rng.Next(sheetSourceItems.Count)];
+            else if (machineCategory == MachineCategory.Coil && slitterSourceItems.Any()) inv = slitterSourceItems[rng.Next(slitterSourceItems.Count)];
+
+            if (inv == null || !tempPickedItems.Add(inv.ItemId))
+            {
+                var fallbackSource = slitterSourceItems.Concat(ctlSourceItems).ToList();
+                if (!fallbackSource.Any()) continue;
+                inv = fallbackSource[rng.Next(fallbackSource.Count)];
+                if (!tempPickedItems.Add(inv.ItemId)) continue;
+            }
+
                 var hasLen = inv.Length.HasValue && inv.Length.Value > 0m;
                 var hasWid = inv.Width.HasValue && inv.Width.Value > 0m;
-
                 string unit;
                 decimal qty;
                 decimal weight;
@@ -103,14 +104,10 @@ private const int PickingListsPerRun = 20;
 
                 if (hasLen)
                 {
-                    // SHEET/CTL → PCS with estimated weight (rough steel math)
                     unit = "PCS";
-                    qty = (inv.SnapshotUnit?.Equals("PCS", StringComparison.OrdinalIgnoreCase) == true && inv.Snapshot is > 0)
-                        ? Math.Max(1, Math.Round(inv.Snapshot.Value))
-                        : rng.Next(10, 151);
-
+                qty = (inv.SnapshotUnit?.Equals("PCS", StringComparison.OrdinalIgnoreCase) == true && inv.Snapshot is > 0) ? Math.Max(1, Math.Round(inv.Snapshot.Value)) : rng.Next(10, 151);
                     var thickness = GuessThickness(inv.Description);
-                    var density = 0.283m; // lb/in^3
+                var density = 0.283m;
                     var w = inv.Width ?? 48m;
                     var l = inv.Length ?? 120m;
                     perSheet = w * l * thickness * density;
@@ -118,7 +115,6 @@ private const int PickingListsPerRun = 20;
                 }
                 else
                 {
-                    // COIL/SLITTER → LBS
                     unit = "LBS";
                     if (inv.SnapshotUnit?.Equals("LBS", StringComparison.OrdinalIgnoreCase) == true && inv.Snapshot is > 500)
                     {
@@ -128,41 +124,19 @@ private const int PickingListsPerRun = 20;
                     }
                     else
                     {
-                        if (hasWid && IsStdCoilWidth(inv.Width!.Value))
-                            weight = rng.Next(3000, 14001);
-                        else
-                            weight = rng.Next(1500, 9001);
+                    weight = hasWid && IsStdCoilWidth(inv.Width!.Value) ? rng.Next(3000, 14001) : rng.Next(1500, 9001);
                     }
                     qty = weight;
                 }
 
-                int machineId = RouteMachineId(
-                    inv.Width, hasLen,
-                    coilMachines, slitterMachines, ctlMachines, sheetMachines,
-                    rng);
-
-                var lineStatus = (pl.Status == PickingListStatus.Pending)
-                    ? (coilMachines.Contains(machineId) || sheetMachines.Contains(machineId)
-                        ? PickingLineStatus.AssignedPulling
-                        : PickingLineStatus.AssignedProduction)
-                    : PickingLineStatus.Pending;
+            var lineStatus = (pl.Status == PickingListStatus.Pending) ? (machineCategory == MachineCategory.Coil || machineCategory == MachineCategory.Sheet ? PickingLineStatus.AssignedPulling : PickingLineStatus.AssignedProduction) : PickingLineStatus.Pending;
 
                 var item = new PickingListItem
                 {
-                    LineNumber = ln++,
-                    ItemId = inv.ItemId,
-                    ItemDescription = BuildItemDescription(inv, hasLen, machineId),
-                    Quantity = qty,
-                    Unit = unit,
-                    Width = hasWid ? inv.Width : null,
-                    Length = hasLen ? inv.Length : null,
-                    Weight = weight,
-                    PulledQuantity = 0m,
-                    PulledWeight = 0m,
-                    Status = lineStatus,
-                    ScheduledShipDate = shipDate,
-                    ScheduledProcessingDate = BusinessDayMinusOne(shipDate),
-                    MachineId = machineId
+                LineNumber = ln++, ItemId = inv.ItemId, ItemDescription = BuildItemDescription(inv, hasLen, machineId),
+                Quantity = qty, Unit = unit, Width = hasWid ? inv.Width : null, Length = hasLen ? inv.Length : null,
+                Weight = weight, PulledQuantity = 0m, PulledWeight = 0m, Status = lineStatus,
+                ScheduledShipDate = shipDate, ScheduledProcessingDate = BusinessDayMinusOne(shipDate), MachineId = machineId
                 };
 
                 if (unit == "PCS") perSheetMap.Add(item, perSheet);
@@ -170,7 +144,6 @@ private const int PickingListsPerRun = 20;
                 totalWeight += weight;
             }
 
-            // Scale order to a realistic weight range
             if (totalWeight > 0)
             {
                 var targetWeight = (decimal)rng.Next(2000, 25001);
