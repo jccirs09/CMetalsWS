@@ -313,119 +313,123 @@ public static class SeedFromDb_PickingLists_WithMachines
         // Group by machine to keep orders machine-focused
         var byMachine = backlog.GroupBy(i => i.MachineId!.Value);
 
-        using var tx = await db.Database.BeginTransactionAsync();
-        try
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
-            var newWOs = new List<WorkOrder>();
-
-            foreach (var group in byMachine)
+            await using var tx = await db.Database.BeginTransactionAsync();
+            try
             {
-                var machineId = group.Key;
-                var machine = group.First().Machine!;
+                var newWOs = new List<WorkOrder>();
 
-                // Optional: also group by processing date to keep day buckets tidy
-                foreach (var dayBucket in group
-                             .GroupBy(i => (i.ScheduledProcessingDate ?? i.PickingList.ShipDate).Value.Date)
-                             .OrderBy(g => g.Key))
+                foreach (var group in byMachine)
                 {
-                    var items = dayBucket.ToList();
-                    var cursor = 0;
+                    var machineId = group.Key;
+                    var machine = group.First().Machine!;
 
-                    while (cursor < items.Count)
+                    // Optional: also group by processing date to keep day buckets tidy
+                    foreach (var dayBucket in group
+                                 .GroupBy(i => (i.ScheduledProcessingDate ?? i.PickingList.ShipDate).Value.Date)
+                                 .OrderBy(g => g.Key))
                     {
-                        var wo = new WorkOrder
+                        var items = dayBucket.ToList();
+                        var cursor = 0;
+
+                        while (cursor < items.Count)
                         {
-                            WorkOrderNumber = $"W{branchCode}{++woCounter:0000000}",
-                            TagNumber = "AUTO-SEED",
-                            BranchId = branchId,
-                            MachineId = machineId,
-                            MachineCategory = machine.Category,
-                            Instructions = "Auto-generated from backlog.",
-                            CreatedBy = "SYSTEM",
-                            LastUpdatedBy = "SYSTEM",
-                            ScheduledStartDate = dayBucket.Key.AddHours(8), // 08:00 local
-                            Status = WorkOrderStatus.Pending,
-                            Priority = WorkOrderPriority.Normal,
-                            Items = new List<WorkOrderItem>()
-                        };
-
-                        decimal total = 0m;
-                        int added = 0;
-
-                        while (cursor < items.Count && added < maxItemsPerWO)
-                        {
-                            var pli = items[cursor];
-                            var wt = pli.Weight ?? 0m;
-                            if (wt <= 0) { cursor++; continue; }
-
-                            if (total + wt > targetMaxLbsPerWO) break;
-
-                            wo.Items.Add(new WorkOrderItem
+                            var wo = new WorkOrder
                             {
-                                PickingListItemId = pli.Id,
-                                ItemCode = pli.ItemId,
-                                Description = pli.ItemDescription,
-                                SalesOrderNumber = pli.PickingList.SalesOrderNumber,
-                                CustomerName = pli.PickingList.SoldTo,
-                                OrderQuantity = pli.Quantity,
-                                OrderWeight = pli.Weight,
-                                Width = pli.Width,
-                                Length = pli.Length,
-                                Unit = pli.Unit,
-                                Status = WorkOrderItemStatus.Pending,
-                                IsStockItem = false
-                            });
+                                WorkOrderNumber = $"W{branchCode}{++woCounter:0000000}",
+                                TagNumber = "AUTO-SEED",
+                                BranchId = branchId,
+                                MachineId = machineId,
+                                MachineCategory = machine.Category,
+                                Instructions = "Auto-generated from backlog.",
+                                CreatedBy = "SYSTEM",
+                                LastUpdatedBy = "SYSTEM",
+                                ScheduledStartDate = dayBucket.Key.AddHours(8), // 08:00 local
+                                Status = WorkOrderStatus.Pending,
+                                Priority = WorkOrderPriority.Normal,
+                                Items = new List<WorkOrderItem>()
+                            };
 
-                            // Flip status ONLY when attached to WO
-                            pli.Status = PickingLineStatus.WorkOrder;
+                            decimal total = 0m;
+                            int added = 0;
 
-                            total += wt;
-                            added++;
-                            cursor++;
-                        }
+                            while (cursor < items.Count && added < maxItemsPerWO)
+                            {
+                                var pli = items[cursor];
+                                var wt = pli.Weight ?? 0m;
+                                if (wt <= 0) { cursor++; continue; }
 
-                        if (wo.Items.Count > 0)
-                        {
-                            wo.DueDate = wo.Items
-                                .Select(x => items.First(ii => ii.Id == x.PickingListItemId) // safe; same list
-                                    .ScheduledShipDate)
-                                .Min();
+                                if (total + wt > targetMaxLbsPerWO) break;
 
-                            // crude duration: 30 mins per item
-                            var estimated = TimeSpan.FromMinutes(30 * wo.Items.Count);
-                            wo.ScheduledEndDate = wo.ScheduledStartDate?.Add(estimated);
+                                wo.Items.Add(new WorkOrderItem
+                                {
+                                    PickingListItemId = pli.Id,
+                                    ItemCode = pli.ItemId,
+                                    Description = pli.ItemDescription,
+                                    SalesOrderNumber = pli.PickingList.SalesOrderNumber,
+                                    CustomerName = pli.PickingList.SoldTo,
+                                    OrderQuantity = pli.Quantity,
+                                    OrderWeight = pli.Weight,
+                                    Width = pli.Width,
+                                    Length = pli.Length,
+                                    Unit = pli.Unit,
+                                    Status = WorkOrderItemStatus.Pending,
+                                    IsStockItem = false
+                                });
 
-                            newWOs.Add(wo);
-                        }
-                        else
-                        {
-                            // If nothing fit due to caps, bump cursor to avoid infinite loop
-                            cursor++;
+                                // Flip status ONLY when attached to WO
+                                pli.Status = PickingLineStatus.WorkOrder;
+
+                                total += wt;
+                                added++;
+                                cursor++;
+                            }
+
+                            if (wo.Items.Count > 0)
+                            {
+                                wo.DueDate = wo.Items
+                                    .Select(x => items.First(ii => ii.Id == x.PickingListItemId) // safe; same list
+                                        .ScheduledShipDate)
+                                    .Min();
+
+                                // crude duration: 30 mins per item
+                                var estimated = TimeSpan.FromMinutes(30 * wo.Items.Count);
+                                wo.ScheduledEndDate = wo.ScheduledStartDate?.Add(estimated);
+
+                                newWOs.Add(wo);
+                            }
+                            else
+                            {
+                                // If nothing fit due to caps, bump cursor to avoid infinite loop
+                                cursor++;
+                            }
                         }
                     }
                 }
-            }
 
-            if (newWOs.Count == 0)
+                if (newWOs.Count == 0)
+                {
+                    Console.WriteLine("[WO-Gen] Nothing created (weight caps or constraints prevented batching).");
+                    await tx.RollbackAsync();
+                    return;
+                }
+
+                db.WorkOrders.AddRange(newWOs);
+                var changed = await db.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                var itemsCount = newWOs.Sum(w => w.Items.Count);
+                Console.WriteLine($"[WO-Gen] Created {newWOs.Count} WOs with {itemsCount} items. DB changes: {changed} rows.");
+            }
+            catch (Exception ex)
             {
-                Console.WriteLine("[WO-Gen] Nothing created (weight caps or constraints prevented batching).");
                 await tx.RollbackAsync();
-                return;
+                Console.WriteLine($"[WO-Gen] ERROR: {ex.Message}");
+                throw;
             }
-
-            db.WorkOrders.AddRange(newWOs);
-            var changed = await db.SaveChangesAsync();
-            await tx.CommitAsync();
-
-            var itemsCount = newWOs.Sum(w => w.Items.Count);
-            Console.WriteLine($"[WO-Gen] Created {newWOs.Count} WOs with {itemsCount} items. DB changes: {changed} rows.");
-        }
-        catch (Exception ex)
-        {
-            await tx.RollbackAsync();
-            Console.WriteLine($"[WO-Gen] ERROR: {ex.Message}");
-            throw;
-        }
+        });
     }
 
     // ---------- helpers ----------
