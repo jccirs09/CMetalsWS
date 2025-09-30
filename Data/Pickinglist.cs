@@ -101,7 +101,7 @@ namespace CMetalsWS.Data
         public decimal? PulledQuantity { get; set; }
 
         [Precision(18, 3)]
-        public decimal PulledWeight { get; set; }
+        public decimal? PulledWeight { get; set; }
 
         public PickingLineStatus Status { get; set; } = PickingLineStatus.Pending;
 
