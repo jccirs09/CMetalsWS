@@ -291,7 +291,7 @@ public static class SeedFromDb_PickingLists_WithMachines
                         {
                             WorkOrderNumber = $"W{branchCode}{++woCounter:0000000}",
                             TagNumber = parentCoil.TagNumber ?? "AUTO-GEN",
-                            BranchId = branchId, MachineId = machineId, MachineCategory = parentCoil.Category,
+                            BranchId = branchId, MachineId = machineId, MachineCategory = machine.Category,
                             ParentItemId = parentCoil.ItemId, ParentItemDescription = parentCoil.Description, ParentItemWeight = parentCoil.Snapshot,
                             Instructions = "Auto-generated from backlog.", CreatedBy = "SYSTEM", LastUpdatedBy = "SYSTEM",
                             ScheduledStartDate = scheduleStart, Status = WorkOrderStatus.Pending, Priority = WorkOrderPriority.Normal,
