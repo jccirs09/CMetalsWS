@@ -235,6 +235,148 @@ public static class SeedFromDb_PickingLists_WithMachines
         }
 
         await db.SaveChangesAsync();
+
+        await SeedWorkOrdersFromPickingListItems(db, branchId, rng);
+    }
+
+    private static async Task SeedWorkOrdersFromPickingListItems(ApplicationDbContext db, int branchId, Random rng)
+    {
+        var machineCategories = new[] { MachineCategory.CTL, MachineCategory.Slitter };
+
+        var itemsToSchedule = await db.PickingListItems
+            .Include(pli => pli.PickingList)
+            .Include(pli => pli.Machine)
+            .Where(pli =>
+                pli.PickingList.BranchId == branchId &&
+                pli.MachineId.HasValue &&
+                pli.Machine != null &&
+                machineCategories.Contains(pli.Machine.Category) &&
+                !db.WorkOrderItems.Any(woi => woi.PickingListItemId == pli.Id))
+            .AsNoTracking()
+            .ToListAsync();
+
+        if (!itemsToSchedule.Any()) return;
+
+        var groupedByMachine = itemsToSchedule
+            .GroupBy(i => i.MachineId!.Value)
+            .ToList();
+
+        var branch = await db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == branchId);
+        var branchCode = branch?.Code ?? "00";
+        var woCounter = await db.WorkOrders.CountAsync(w => w.BranchId == branchId);
+
+        var newWorkOrders = new List<WorkOrder>();
+        var lastScheduleTimes = new Dictionary<int, DateTime>();
+
+        foreach (var group in groupedByMachine)
+        {
+            var machineId = group.Key;
+            var itemsInGroup = group.ToList();
+            var machine = itemsInGroup.First().Machine!;
+
+            if (!lastScheduleTimes.TryGetValue(machineId, out var lastEndTime))
+            {
+                var dbLastEndTime = await db.WorkOrders
+                    .Where(wo => wo.MachineId == machineId && wo.ScheduledEndDate.HasValue)
+                    .MaxAsync(wo => (DateTime?)wo.ScheduledEndDate);
+
+                lastEndTime = dbLastEndTime ?? DateTime.Today.AddHours(8);
+            }
+
+            var scheduleStart = lastEndTime.AddMinutes(15);
+            var estimatedDuration = TimeSpan.FromHours(itemsInGroup.Count * 0.5);
+            var scheduleEnd = scheduleStart.Add(estimatedDuration);
+            lastScheduleTimes[machineId] = scheduleEnd;
+
+            string tagNumber = "FROM-SEEDER";
+            string? parentItemId = null;
+            string? parentItemDesc = null;
+            decimal? parentItemWeight = null;
+
+            var firstItem = itemsInGroup.First();
+
+            if (machine.Category == MachineCategory.CTL)
+            {
+                var relationship = await db.ItemRelationships
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(ir => ir.ItemCode == firstItem.ItemId);
+
+                if (relationship?.CoilRelationship != null)
+                {
+                    var parentCoil = await db.Set<InventoryItem>()
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(inv => inv.ItemId == relationship.CoilRelationship);
+
+                    if (parentCoil != null)
+                    {
+                        tagNumber = parentCoil.TagNumber ?? tagNumber;
+                        parentItemId = parentCoil.ItemId;
+                        parentItemDesc = parentCoil.Description;
+                        parentItemWeight = parentCoil.Snapshot;
+                    }
+                }
+            }
+            else if (machine.Category == MachineCategory.Slitter)
+            {
+                var coil = await db.Set<InventoryItem>()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(inv => inv.ItemId == firstItem.ItemId);
+
+                if (coil != null)
+                {
+                    tagNumber = coil.TagNumber ?? tagNumber;
+                    parentItemId = coil.ItemId;
+                    parentItemDesc = coil.Description;
+                    parentItemWeight = coil.Snapshot;
+                }
+            }
+
+            var wo = new WorkOrder
+            {
+                WorkOrderNumber = $"W{branchCode}{++woCounter:0000000}",
+                TagNumber = tagNumber,
+                BranchId = branchId,
+                MachineId = machineId,
+                MachineCategory = machine.Category,
+                DueDate = itemsInGroup.Min(i => i.ScheduledShipDate),
+                ParentItemId = parentItemId,
+                ParentItemDescription = parentItemDesc,
+                ParentItemWeight = parentItemWeight,
+                Instructions = "Seeded work order.",
+                CreatedBy = "SYSTEM",
+                LastUpdatedBy = "SYSTEM",
+                ScheduledStartDate = scheduleStart,
+                ScheduledEndDate = scheduleEnd,
+                Status = WorkOrderStatus.Pending,
+                Priority = WorkOrderPriority.Normal
+            };
+
+            foreach (var pli in itemsInGroup)
+            {
+                wo.Items.Add(new WorkOrderItem
+                {
+                    PickingListItemId = pli.Id,
+                    ItemCode = pli.ItemId,
+                    Description = pli.ItemDescription,
+                    SalesOrderNumber = pli.PickingList.SalesOrderNumber,
+                    CustomerName = pli.PickingList.SoldTo,
+                    OrderQuantity = pli.Quantity,
+                    OrderWeight = pli.Weight,
+                    Width = pli.Width,
+                    Length = pli.Length,
+                    Unit = pli.Unit,
+                    Status = WorkOrderItemStatus.Pending,
+                    IsStockItem = false
+                });
+            }
+            newWorkOrders.Add(wo);
+        }
+
+        if (newWorkOrders.Any())
+        {
+            db.WorkOrders.AddRange(newWorkOrders);
+            await db.SaveChangesAsync();
+        }
     }
 
     // ---------- helpers ----------
