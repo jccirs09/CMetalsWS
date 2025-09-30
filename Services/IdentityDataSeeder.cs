@@ -31,6 +31,7 @@ namespace CMetalsWS.Services
             await _context.Database.EnsureCreatedAsync();
 
             await SeedBranchesAsync();
+            await SeedShiftsAsync();
             await SeedCityCentroidsAsync();
             await SeedMachinesAsync();
             await SeedDestinationGroupsAsync();
@@ -554,6 +555,38 @@ namespace CMetalsWS.Services
 
             _context.Trucks.AddRange(trucks);
             await _context.SaveChangesAsync();
+        }
+
+        private async Task SeedShiftsAsync()
+        {
+            var surreyBranch = await _context.Branches.FirstOrDefaultAsync(b => b.Name == "SURREY");
+            if (surreyBranch == null)
+            {
+                _logger.LogError("Surrey branch not found, cannot seed shifts.");
+                return;
+            }
+
+            var shiftsToAdd = new List<Shift>
+            {
+                new Shift { Name = "AM SHIFT", StartTime = new TimeOnly(5, 0), EndTime = new TimeOnly(13, 30), BranchId = surreyBranch.Id },
+                new Shift { Name = "PM SHIFT", StartTime = new TimeOnly(13, 30), EndTime = new TimeOnly(0, 0), BranchId = surreyBranch.Id },
+                new Shift { Name = "0600 SHIFT", StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(14, 30), BranchId = surreyBranch.Id },
+                new Shift { Name = "0700 SHIFT", StartTime = new TimeOnly(7, 0), EndTime = new TimeOnly(15, 30), BranchId = surreyBranch.Id },
+            };
+
+            var existingShifts = await _context.Shifts
+                .Where(s => s.BranchId == surreyBranch.Id)
+                .ToDictionaryAsync(s => s.Name, StringComparer.OrdinalIgnoreCase);
+
+            var newShifts = shiftsToAdd
+                .Where(s => !existingShifts.ContainsKey(s.Name))
+                .ToList();
+
+            if (newShifts.Any())
+            {
+                _context.Shifts.AddRange(newShifts);
+                await _context.SaveChangesAsync();
+            }
         }
 
         private async Task CreateUserIfNotExists(string userName, string firstName, string lastName, string role, int branchId)
