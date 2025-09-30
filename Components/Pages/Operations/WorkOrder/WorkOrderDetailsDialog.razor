@@ -1,6 +1,8 @@
 @using CMetalsWS.Data
+@using CMetalsWS.Services
 @using MudBlazor
 @inject NavigationManager Navigation
+@inject InventoryService InventoryService
 
 <MudDialog>
     <TitleContent>
@@ -26,17 +28,39 @@
                 </MudItem>
             </MudGrid>
 
+            @if (_coil is not null)
+            {
+                <MudPaper Outlined="true" Class="pa-2 mt-2">
+                    <MudText Typo="Typo.subtitle2" GutterBottom="true">Coil Details</MudText>
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudText><b>Description:</b> @_coil.Description</MudText>
+                        </MudItem>
+                        <MudItem xs="6" sm="3">
+                            <MudText><b>Weight:</b> @_coil.Snapshot?.ToString("N2") lbs</MudText>
+                        </MudItem>
+                        <MudItem xs="6" sm="3">
+                            <MudText><b>Location:</b> @_coil.Location</MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            }
+
             <MudTable Items="@Model.Items" T="WorkOrderItem" Dense="true" Hover="true" Striped="true" Outlined="true" Class="mt-2">
                 <HeaderContent>
-                    <MudTh>Item Code</MudTh>
-                    <MudTh>Description</MudTh>
-                    <MudTh>Quantity</MudTh>
+                    <MudTh>Customer</MudTh>
+                    <MudTh>Sales Order</MudTh>
+                    <MudTh>Item</MudTh>
+                    <MudTh>Size</MudTh>
+                    <MudTh Style="text-align:right">Quantity</MudTh>
                     <MudTh Style="text-align:right">Weight (lbs)</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Item Code">@context.ItemCode</MudTd>
-                    <MudTd DataLabel="Description">@context.Description</MudTd>
-                    <MudTd DataLabel="Quantity">@context.OrderQuantity</MudTd>
+                    <MudTd DataLabel="Customer">@context.CustomerName</MudTd>
+                    <MudTd DataLabel="Sales Order">@context.SalesOrderNumber</MudTd>
+                    <MudTd DataLabel="Item">@context.Description</MudTd>
+                    <MudTd DataLabel="Size">@FormatSize(context)</MudTd>
+                    <MudTd DataLabel="Quantity" Style="text-align:right">@context.OrderQuantity?.ToString("N0") @context.Unit</MudTd>
                     <MudTd DataLabel="Weight" Style="text-align:right">@context.OrderWeight?.ToString("N2")</MudTd>
                 </RowTemplate>
                 <PagerContent>
@@ -58,6 +82,16 @@
     [Parameter]
     public WorkOrder Model { get; set; } = new();
 
+    private InventoryItem? _coil;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(Model.TagNumber))
+        {
+            _coil = await InventoryService.GetByTagNumberAsync(Model.TagNumber);
+        }
+    }
+
     private Color GetStatusColor(WorkOrderStatus status) => status switch
     {
         WorkOrderStatus.Draft => Color.Default,
@@ -75,4 +109,13 @@
     }
 
     private void Cancel() => MudDialog.Cancel();
+
+    private string FormatSize(WorkOrderItem item)
+    {
+        if (item.Width.HasValue && item.Length.HasValue)
+        {
+            return $"{item.Width.Value:G29} x {item.Length.Value:G29}";
+        }
+        return "N/A";
+    }
 }
