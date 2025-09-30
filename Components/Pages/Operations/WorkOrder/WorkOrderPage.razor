@@ -213,7 +213,7 @@
                                     <MudText Typo="Typo.body2">Rate (lbs/hr)</MudText>
                                 </MudItem>
                                 <MudItem xs="3">
-                                    <MudText Typo="Typo.h5">--:--</MudText>
+                                    <MudText Typo="Typo.h5">@_estCompleteDisplay</MudText>
                                     <MudText Typo="Typo.body2">Est. Complete</MudText>
                                 </MudItem>
                             </MudGrid>
@@ -320,6 +320,10 @@
     [Parameter]
     public int? Id { get; set; }
 
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public bool Start { get; set; }
+
     private bool IsLoading { get; set; } = true;
     private bool IsCreateMode => Id == null;
     private WorkOrder Model { get; set; } = new();
@@ -341,6 +345,7 @@
     private System.Timers.Timer? _timer;
     private TimeSpan _elapsed;
     private string _elapsedTimeDisplay = "00:00:00";
+private string _estCompleteDisplay = "--:--";
     private double _overallProgress = 0;
     private decimal _lbsPerHour = 0;
 
@@ -365,6 +370,22 @@
                 Navigation.NavigateTo("/operations/workorders");
                 return;
             }
+
+            // If the URL contains ?start=true, and the WO is in a startable state, start it.
+            if (Start && (Model.Status == WorkOrderStatus.Pending || Model.Status == WorkOrderStatus.Awaiting))
+            {
+                if (!string.IsNullOrEmpty(_userId))
+                {
+                    await WorkOrderService.StartWorkOrderAsync(Model.Id, _userId);
+                    // Reload the model to get the updated status before proceeding
+                    Model = await WorkOrderService.GetByIdAsync(Id.Value) ?? Model;
+                }
+                else
+                {
+                    Snackbar.Add("Cannot start work order: User not found.", Severity.Error);
+                }
+            }
+
             _events = await AuditEventService.GetEventsForTaskAsync(Id.Value, TaskType.WorkOrder);
             _events = _events.OrderByDescending(e => e.Timestamp).ToList();
 
@@ -669,6 +690,17 @@
         var producedWeight = Model.Items.Sum(i => i.ProducedWeight ?? 0);
         _overallProgress = totalWeight > 0 ? (double)(producedWeight / totalWeight * 100) : 0;
         _lbsPerHour = _elapsed.TotalHours > 0 ? (producedWeight / (decimal)_elapsed.TotalHours) : 0;
+
+        if (Model.Status == WorkOrderStatus.InProgress && Model.ScheduledStartDate.HasValue && Model.ScheduledEndDate.HasValue)
+        {
+            var plannedDuration = Model.ScheduledEndDate.Value - Model.ScheduledStartDate.Value;
+            var estCompletion = DateTime.UtcNow + plannedDuration;
+            _estCompleteDisplay = estCompletion.ToLocalTime().ToString("t"); // Short time format
+        }
+        else
+        {
+            _estCompleteDisplay = "--:--";
+        }
     }
 
     private double CalculateItemProgress(WorkOrderItem item)
