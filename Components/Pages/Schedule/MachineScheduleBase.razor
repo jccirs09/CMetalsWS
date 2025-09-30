@@ -141,7 +141,13 @@
 
         var parameters = new DialogParameters { ["Model"] = scheduleEvent.WorkOrder };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
-        await DialogService.ShowAsync<WorkOrderDetailsDialog>("Work Order Details", parameters, options);
+        var dialog = await DialogService.ShowAsync<WorkOrderDetailsDialog>("Work Order Details", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            NavigationManager.NavigateTo($"/operations/workorder/process/{scheduleEvent.WorkOrder.Id}");
+        }
     }
 
     private async Task OnItemChanged(CalendarItem item)
