@@ -90,7 +90,7 @@
                                     <MudStack Row="true" AlignItems="AlignItems.Start">
                                         <MudTextField @bind-Value="Model.TagNumber" Label="Coil Tag Number" Variant="Variant.Outlined" For="@(() => Model.TagNumber)"
                                                       Required="true" RequiredError="Tag number is required." Class="flex-grow-1" />
-                                        <MudButton OnClick="FetchPickingListItemsAsync" Variant="Variant.Filled" Color="Color.Primary"
+                                        <MudButton OnClick="@(() => FetchPickingListItemsAsync(true))" Variant="Variant.Filled" Color="Color.Primary"
                                                    Disabled="@(Model.MachineId == null || string.IsNullOrWhiteSpace(Model.TagNumber))"
                                                    Style="height: 56px;">
                                             Fetch
@@ -377,8 +377,9 @@ private string _estCompleteDisplay = "--:--";
                 if (!string.IsNullOrEmpty(_userId))
                 {
                     await WorkOrderService.StartWorkOrderAsync(Model.Id, _userId);
-                    // Reload the model to get the updated status before proceeding
-                    Model = await WorkOrderService.GetByIdAsync(Id.Value) ?? Model;
+                    // Navigate to a clean URL to prevent re-starting on reload/pause.
+                    Navigation.NavigateTo($"/operations/workorder/process/{Model.Id}", replace: true);
+                    return; // Stop execution, the page will reload cleanly.
                 }
                 else
                 {
@@ -391,7 +392,7 @@ private string _estCompleteDisplay = "--:--";
 
             if (!string.IsNullOrEmpty(Model.TagNumber) && Model.MachineId.HasValue)
             {
-                await FetchPickingListItemsAsync();
+                await FetchPickingListItemsAsync(false);
             }
 
             if (Model?.Status == WorkOrderStatus.InProgress)
@@ -426,7 +427,7 @@ private string _estCompleteDisplay = "--:--";
     }
 
 
-    private async Task FetchPickingListItemsAsync()
+    private async Task FetchPickingListItemsAsync(bool showSnackbar = false)
     {
         if (Model.MachineId == null || string.IsNullOrWhiteSpace(Model.TagNumber))
         {
@@ -452,7 +453,10 @@ private string _estCompleteDisplay = "--:--";
                 _remainingQuantities.Clear();
             }
 
-            Snackbar.Add($"Found {_allAvailablePickingListItems.Count} available order line(s).", Severity.Success);
+            if (showSnackbar)
+            {
+                Snackbar.Add($"Found {_allAvailablePickingListItems.Count} available order line(s).", Severity.Success);
+            }
         }
         catch (Exception ex)
         {
