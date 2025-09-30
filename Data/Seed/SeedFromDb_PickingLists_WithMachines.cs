@@ -6,7 +6,7 @@ namespace CMetalsWS.Data.Seed;
 
 public static class SeedFromDb_PickingLists_WithMachines
 {
-    private const int TargetPickingLists = 200;
+private const int PickingListsPerRun = 20;
     private const int MinLines = 2;
     private const int MaxLines = 6;
     private const int ShipHorizonDays = 60;
@@ -45,17 +45,17 @@ public static class SeedFromDb_PickingLists_WithMachines
             .Where(m => m.BranchId == branchId && m.Category == MachineCategory.Sheet)
             .Select(m => m.Id).ToListAsync();
 
-        // ----- Count and figure out how many to create -----
-        var existing = await db.PickingLists.Where(p => p.BranchId == branchId).CountAsync();
-        var toMake = Math.Max(0, TargetPickingLists - existing);
-        if (toMake == 0) return;
+    // ----- Figure out how many to create -----
+    const int toMake = PickingListsPerRun;
 
         var rng = new Random();
         var today = DateTime.Today;
         var reps = new[] { "CRAIG MUDIE", "DYLAN WILLIAMS", "SPENCER CHAPMAN", "NICOLE HARRIS", "JACK LAM" };
         var buyers = new[] { "JANE", "STEVE ARMITAGE", "ROBYN LOURENCO", "PROCUREMENT" };
 
-        int soBase = 39250000 + rng.Next(1000);
+    // Base SO number on existing count to avoid collisions on subsequent runs
+    var existingCount = await db.PickingLists.Where(p => p.BranchId == branchId).CountAsync();
+    int soBase = 39250000 + existingCount + rng.Next(1000);
         var ci = CultureInfo.InvariantCulture;
 
         for (int i = 0; i < toMake; i++)
