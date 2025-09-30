@@ -6,12 +6,12 @@
 @inject NavigationManager Nav
 
 <div class="pa-2">
-    <MudList Clickable="true">
+    <MudList T="ApplicationUser" Clickable="true">
         @if (_users.Any())
         {
             foreach (var user in _users)
             {
-                <MudListItem OnClick="() => StartChat(user)">
+                <MudListItem T="ApplicationUser" OnClick="() => StartChat(user)">
                     <ChildContent>
                         <MudAvatar>@GetInitials(user.UserName)</MudAvatar>
                         <MudText Class="ml-3">@user.UserName</MudText>
@@ -21,7 +21,7 @@
         }
         else
         {
-            <MudListItem>
+            <MudListItem T="ApplicationUser">
                 <MudText Class="mud-text-secondary">No contacts found.</MudText>
             </MudListItem>
         }

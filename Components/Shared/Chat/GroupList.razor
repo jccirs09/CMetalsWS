@@ -5,12 +5,12 @@
 @inject NavigationManager Nav
 
 <div class="pa-2">
-    <MudList Clickable="true">
+    <MudList T="ChatGroup" Clickable="true">
         @if (_groups.Any())
         {
             foreach (var group in _groups)
             {
-                <MudListItem OnClick="() => OpenGroupChat(group)">
+                <MudListItem T="ChatGroup" OnClick="() => OpenGroupChat(group)">
                     <ChildContent>
                         <MudAvatar>G</MudAvatar>
                         <MudText Class="ml-3">@group.Name</MudText>
@@ -20,7 +20,7 @@
         }
         else
         {
-            <MudListItem>
+            <MudListItem T="ChatGroup">
                 <MudText Class="mud-text-secondary">No groups found.</MudText>
             </MudListItem>
         }

@@ -20,12 +20,12 @@
                       Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search" />
 
-        <MudList Clickable="true" Class="mt-3">
+        <MudList T="ApplicationUser" Clickable="true" Class="mt-3">
             @if (_users.Any())
             {
                 foreach (var user in _users)
                 {
-                    <MudListItem OnClick="() => StartChat(user)">
+                    <MudListItem T="ApplicationUser" OnClick="() => StartChat(user)">
                         <ChildContent>
                             <MudAvatar>@GetInitials(user.UserName)</MudAvatar>
                             <MudText Class="ml-3">@user.UserName</MudText>
@@ -35,7 +35,7 @@
             }
             else
             {
-                <MudListItem>
+                <MudListItem T="ApplicationUser">
                     <MudText Class="mud-text-secondary">No users found.</MudText>
                 </MudListItem>
             }
@@ -47,7 +47,7 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
     private string _searchQuery = string.Empty;
     private List<ApplicationUser> _allUsers = new();
@@ -69,7 +69,7 @@
         else
         {
             _users = _allUsers
-                .Where(u => u.UserName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase))
+                .Where(u => u.UserName != null && u.UserName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase))
                 .ToList();
         }
         await InvokeAsync(StateHasChanged);
