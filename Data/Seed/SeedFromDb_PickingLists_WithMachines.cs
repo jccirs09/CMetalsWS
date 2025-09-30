@@ -254,8 +254,8 @@ public static class SeedFromDb_PickingLists_WithMachines
             }
         }
 
-        // Now, group by the actual parent coil object.
-        var groupedByParent = parentedItems.GroupBy(p => p.Parent.Id);
+        // Group by the combination of parent coil and the assigned machine.
+        var groupedByParentAndMachine = parentedItems.GroupBy(p => new { p.Parent.Id, p.Item.MachineId });
 
         var branch = await db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == branchId);
         var branchCode = branch?.Code ?? "00";
@@ -269,11 +269,12 @@ public static class SeedFromDb_PickingLists_WithMachines
             try
             {
                 var newWOs = new List<WorkOrder>();
-                foreach (var group in groupedByParent)
+                foreach (var group in groupedByParentAndMachine)
                 {
                     var parentCoil = group.First().Parent;
+                    var machine = group.First().Item.Machine!;
+                    var machineId = machine.Id;
                     var itemsForCoil = group.Select(g => g.Item).ToList();
-                    var machineId = itemsForCoil.First().MachineId!.Value;
 
                     if (!lastScheduleTimes.TryGetValue(machineId, out var lastEndTime))
                     {
