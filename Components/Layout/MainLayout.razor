@@ -1,5 +1,6 @@
 @inherits LayoutComponentBase
 @implements IDisposable
+@using CMetalsWS.Components.Shared.Chat
 
 <MudThemeProvider Theme="_customTheme" @bind-IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -49,10 +50,7 @@
     </MudMainContent>
 </MudLayout>
 
-@*@if (!ChatState.IsChatPageOpen)
-{
-    <ChatDockHost />
-}*@
+<MessagingCoordinator />
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.

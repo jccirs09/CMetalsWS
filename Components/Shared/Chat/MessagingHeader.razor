@@ -1,0 +1,39 @@
+@using System.Timers
+
+<div class="messaging-header">
+    <MudToolBar>
+        <MudText Typo="Typo.h5">Messages</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => OnNewChatClicked.InvokeAsync())" StartIcon="@Icons.Material.Filled.Add">New Chat</MudButton>
+    </MudToolBar>
+
+    <MudToolBar Dense="true" Class="mt-2">
+        <MudTextField @bind-Value="_searchQuery"
+                      Immediate="true"
+                      DebounceInterval="300"
+                      OnDebounceIntervalElapsed="HandleSearch"
+                      Placeholder="Search messages..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      HideDetails="true"
+                      Class="flex-grow-1" />
+    </MudToolBar>
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback<string> OnSearch { get; set; }
+
+    [Parameter]
+    public EventCallback OnNewChatClicked { get; set; }
+
+    private string _searchQuery = string.Empty;
+
+    private Task HandleSearch(string value)
+    {
+        _searchQuery = value;
+        return OnSearch.InvokeAsync(_searchQuery);
+    }
+}

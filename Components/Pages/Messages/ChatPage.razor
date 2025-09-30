@@ -2,50 +2,84 @@
 @page "/messages/{ThreadId}"
 @using CMetalsWS.Data.Chat
 @using CMetalsWS.Services
+@using CMetalsWS.Components.Shared.Chat
 @inject ChatStateService ChatState
 @inject NavigationManager Nav
+@inject IDialogService DialogService
 @implements IDisposable
 
-<MudGrid Class="pa-3" Style="height:calc(100vh - 128px);">
-  <MudItem xs="12" md="4" lg="3" Class="d-flex flex-column" Style="height:100%;">
-    <ChatThreadPanel OnThreadSelected="OpenThread" />
-  </MudItem>
+<MudGrid Justify="Justify.Center" Class="pa-4" Style="height: calc(100vh - 64px); overflow: hidden;">
+    <MudItem xs="12" sm="5" md="4" lg="3" Class="d-flex flex-column" Style="height: 100%;">
+        <div class="d-flex flex-column" style="height: 100%;">
+            <MessagingHeader OnSearch="HandleSearch" OnNewChatClicked="HandleNewChat" />
+            <div class="flex-grow-1 mt-3" style="overflow-y: auto;">
+                <MessagingSystem OnThreadSelected="OpenThread" SearchQuery="@_searchQuery" />
+            </div>
+        </div>
+    </MudItem>
 
-  <MudItem xs="12" md="8" lg="9" Class="d-flex flex-column" Style="height:100%;">
-    @if (!string.IsNullOrWhiteSpace(ChatState.ActiveThreadId))
-    {
-      <ChatConversation
-          @key="ChatState.ActiveThreadId"
-          ThreadId="@ChatState.ActiveThreadId" />
-    }
-    else
-    {
-      <MudPaper Class="d-flex align-center justify-center" Style="height:70vh;">
-        <MudText Typo="Typo.h6" Class="mud-text-secondary">
-          Select a conversation to start chatting
-        </MudText>
-      </MudPaper>
-    }
-  </MudItem>
+    <MudItem xs="12" sm="7" md="8" lg="9" Class="d-flex flex-column" Style="height: 100%;">
+        @if (!string.IsNullOrWhiteSpace(ChatState.ActiveThreadId))
+        {
+            <ChatConversation @key="ChatState.ActiveThreadId"
+                              ThreadId="@ChatState.ActiveThreadId" />
+        }
+        else
+        {
+            <MudPaper Class="d-flex align-center justify-center flex-grow-1" Elevation="0">
+                <div class="d-flex flex-column align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Message" Size="Size.Large" Class="mb-4" />
+                    <MudText Typo="Typo.h6" Class="mud-text-secondary">Welcome to Messages</MudText>
+                    <MudText Class="mud-text-secondary">Select a conversation from the sidebar to start messaging.</MudText>
+                </div>
+            </MudPaper>
+        }
+    </MudItem>
 </MudGrid>
 
 @code {
-  [Parameter] public string? ThreadId { get; set; }
+    [Parameter] public string? ThreadId { get; set; }
 
-  protected override void OnInitialized()
-  {
-    ChatState.OnChange += StateHasChanged;
-  }
+    private string _searchQuery = string.Empty;
 
-  protected override void OnParametersSet()
-  {
-    if (!string.IsNullOrWhiteSpace(ThreadId))
+    protected override void OnInitialized()
     {
-      ChatState.ActivateThread(ThreadId);
+        ChatState.OnChange += StateHasChanged;
     }
-  }
 
-  private void OpenThread(ThreadSummary t) => ChatState.HandleThreadClick(t);
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(ThreadId) && ThreadId != ChatState.ActiveThreadId)
+        {
+            ChatState.ActivateThread(ThreadId);
+        }
+    }
 
-  public void Dispose() => ChatState.OnChange -= StateHasChanged;
+    private void OpenThread(ThreadSummary t)
+    {
+        Nav.NavigateTo($"/messages/{t.Id}");
+    }
+
+    private void HandleSearch(string query)
+    {
+        _searchQuery = query;
+        StateHasChanged();
+    }
+
+    private async Task HandleNewChat()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = DialogService.Show<NewChatDialog>("New Chat", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is string userId)
+        {
+            Nav.NavigateTo($"/messages/{userId}");
+        }
+    }
+
+    public void Dispose()
+    {
+        ChatState.OnChange -= StateHasChanged;
+    }
 }

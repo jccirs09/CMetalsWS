@@ -1,0 +1,92 @@
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using MudBlazor
+
+@inject IUserService UserService
+@inject NavigationManager Nav
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">New Chat</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_searchQuery"
+                      Placeholder="Search for people..."
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Immediate="true"
+                      DebounceInterval="200"
+                      OnDebounceIntervalElapsed="SearchUsers"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" />
+
+        <MudList Clickable="true" Class="mt-3">
+            @if (_users.Any())
+            {
+                foreach (var user in _users)
+                {
+                    <MudListItem OnClick="() => StartChat(user)">
+                        <ChildContent>
+                            <MudAvatar>@GetInitials(user.UserName)</MudAvatar>
+                            <MudText Class="ml-3">@user.UserName</MudText>
+                        </ChildContent>
+                    </MudListItem>
+                }
+            }
+            else
+            {
+                <MudListItem>
+                    <MudText Class="mud-text-secondary">No users found.</MudText>
+                </MudListItem>
+            }
+        </MudList>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    private string _searchQuery = string.Empty;
+    private List<ApplicationUser> _allUsers = new();
+    private List<ApplicationUser> _users = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allUsers = (await UserService.GetUsersAsync()).ToList();
+        _users = _allUsers;
+    }
+
+    private async Task SearchUsers(string query)
+    {
+        _searchQuery = query;
+        if (string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            _users = _allUsers;
+        }
+        else
+        {
+            _users = _allUsers
+                .Where(u => u.UserName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void StartChat(ApplicationUser user)
+    {
+        // The thread ID for a direct message is simply the other user's ID.
+        MudDialog.Close(DialogResult.Ok(user.Id));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private string? GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 1 ? $"{parts[0][0]}{parts[1][0]}".ToUpper() : $"{name[0]}".ToUpper();
+    }
+}

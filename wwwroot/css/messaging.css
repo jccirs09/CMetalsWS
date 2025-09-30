@@ -1,0 +1,38 @@
+/* Styles for the new messaging components */
+
+.messaging-coordinator {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    z-index: 1300; /* Above most other content */
+    display: flex;
+    gap: 1rem;
+    padding: 0 1rem;
+}
+
+.chat-window {
+    width: 350px;
+    background-color: var(--mud-palette-surface);
+    border-radius: var(--mud-default-borderradius) var(--mud-default-borderradius) 0 0;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+}
+
+.message-bubble.mine {
+    background-color: var(--mud-palette-primary) !important;
+    color: var(--mud-palette-primary-text) !important;
+    border-radius: 1.25rem 1.25rem 0.25rem 1.25rem;
+    margin-left: auto;
+}
+
+.message-bubble.theirs {
+    background-color: var(--mud-palette-secondary) !important;
+    color: var(--mud-palette-secondary-text) !important;
+    border-radius: 1.25rem 1.25rem 1.25rem 0.25rem;
+    margin-right: auto;
+}
+
+.message-bubble .mud-card-content {
+    padding: 8px 12px;
+}

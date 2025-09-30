@@ -8,19 +8,17 @@
 @inject AuthenticationStateProvider AuthStateProvider
 
 <div class="chat-dock @(_isMinimized ? "minimized" : "")">
-    <MudPaper Elevation="4">
-        <MudAppBar Dense="true" Color="Color.Primary" OnClick="ToggleMinimize">
-            <MudText>@_threadTitle</MudText>
+    <MudPaper Elevation="4" Class="d-flex flex-column" Style="height: 400px; width: 350px;">
+        <MudAppBar Dense="true" Color="Color.Primary" OnClick="ToggleMinimize" Class="chat-dock-header" Style="cursor: pointer;">
+            <MudText Typo="Typo.subtitle1">@_threadTitle</MudText>
             <MudSpacer />
-            <MudIconButton Icon="@(_isMinimized ? Icons.Material.Filled.KeyboardArrowUp : Icons.Material.Filled.Minimize)" Size="Size.Small" OnClick="ToggleMinimize" />
-            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="() => ChatState.CloseDock(ThreadId!)" />
+            <MudIconButton Icon="@(_isMinimized ? Icons.Material.Filled.KeyboardArrowUp : Icons.Material.Filled.KeyboardArrowDown)" Size="Size.Small" OnClick="ToggleMinimize" OnClickStopPropagation="true" />
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="() => ChatState.CloseDock(ThreadId!)" OnClickStopPropagation="true"/>
         </MudAppBar>
-        @if (!_isMinimized)
-        {
-            <div class="pa-2" style="height: 300px;">
-                <ChatConversation ThreadId="@ThreadId" />
-            </div>
-        }
+
+        <div class="flex-grow-1" style="@(_isMinimized ? "display: none;" : "display: block; overflow: hidden;")">
+            <ChatConversation ThreadId="@ThreadId" />
+        </div>
     </MudPaper>
 </div>
 
@@ -28,29 +26,42 @@
     [Parameter] public string? ThreadId { get; set; }
 
     private bool _isMinimized;
-    private string? _threadTitle;
+    private string? _threadTitle = "Loading...";
 
     protected override async Task OnInitializedAsync()
     {
-        if (ThreadId != null)
+        if (string.IsNullOrEmpty(ThreadId)) return;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var currentUserId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(currentUserId)) return;
+
+        var summaries = await ChatRepository.GetThreadSummariesAsync(currentUserId);
+        var summary = summaries.FirstOrDefault(s => s.Id == ThreadId);
+
+        if (summary != null)
         {
-            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var currentUserId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var summaries = await ChatRepository.GetThreadSummariesAsync(currentUserId!);
-            var summary = summaries.FirstOrDefault(s => s.Id == ThreadId);
-            if (summary != null)
-            {
-                _threadTitle = summary.Title;
-            }
-            else
-            {
-                _threadTitle = "Chat";
-            }
+            _threadTitle = DisplayTitle(summary);
+        }
+        else
+        {
+            // Fallback for direct chats where a summary might not exist yet
+            var participants = await ChatRepository.GetThreadParticipantsAsync(ThreadId, currentUserId);
+            var otherUser = participants.FirstOrDefault(p => p.Id != currentUserId);
+            _threadTitle = otherUser?.UserName ?? "Chat";
         }
     }
 
     private void ToggleMinimize()
     {
         _isMinimized = !_isMinimized;
+    }
+
+    private static string DisplayTitle(ThreadSummary t)
+    {
+        var full = $"{t.FirstName} {t.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(full)
+            ? (string.IsNullOrWhiteSpace(t.Title) ? "Conversation" : t.Title!)
+            : full;
     }
 }

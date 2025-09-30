@@ -1,0 +1,37 @@
+@using CMetalsWS.Data.Chat
+@using CMetalsWS.Services
+
+<MudPaper Class="d-flex flex-column" Style="height: 100%;" Elevation="0">
+    <MudTabs @bind-ActivePanelIndex="_activeTab" Elevation="0" Centered="true" PanelClass="pa-0">
+        <MudTabPanel Text="Chats" />
+        <MudTabPanel Text="Contacts" />
+        <MudTabPanel Text="Groups" />
+    </MudTabs>
+
+    <div class="flex-grow-1" style="overflow-y: auto;">
+        @switch (_activeTab)
+        {
+            case 0: // Chats
+                <ChatThreadPanel OnThreadSelected="HandleThreadSelected" SearchQuery="@SearchQuery" />
+                break;
+            case 1: // Contacts
+                <ContactList SearchQuery="@SearchQuery" />
+                break;
+            case 2: // Groups
+                <GroupList SearchQuery="@SearchQuery" />
+                break;
+        }
+    </div>
+</MudPaper>
+
+@code {
+    [Parameter] public EventCallback<ThreadSummary> OnThreadSelected { get; set; }
+    [Parameter] public string SearchQuery { get; set; } = string.Empty;
+
+    private int _activeTab = 0;
+
+    private Task HandleThreadSelected(ThreadSummary summary)
+    {
+        return OnThreadSelected.InvokeAsync(summary);
+    }
+}

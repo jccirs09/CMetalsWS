@@ -15,20 +15,7 @@
 
 @implements IAsyncDisposable
 
-<MudPaper Class="d-flex flex-column" Style="height:100%;overflow:hidden;">
-    <MudToolBar Dense="true">
-        <MudTextField @bind-Value="_rawSearch"
-                      Immediate="true"
-                      DebounceInterval="300"
-                      OnDebounceIntervalElapsed="@(async (string v) => await OnSearchDebounced(v))"
-                      Placeholder="Search messages or people..."
-                      Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Filled.Search"
-                      Variant="Variant.Text"
-                      Margin="Margin.None"
-                      HideDetails="true" />
-    </MudToolBar>
-
+<MudPaper Class="d-flex flex-column" Style="height:100%;overflow:hidden;" Elevation="0">
     <div class="flex-grow-1" style="overflow-y:auto;">
         <MudList T="ThreadSummary" Dense="true" Class="py-0">
             <Virtualize TItem="ThreadSummary"
@@ -38,17 +25,17 @@
                         OverscanCount="4">
                 <ItemContent Context="t">
                     <MudListItem T="ThreadSummary"
-                                 Class="thread-item"
+                                 Class="px-3 py-2"
                                  Selected="@(t.Id == ChatState.ActiveThreadId)"
                                  OnClick="@(() => SelectThread(t))">
-                        <div class="thread-row">
-                            <!-- Avatar + unread dot -->
-                            <div class="thread-avatar">
+                        <div class="d-flex align-center">
+                            <div class="mr-3">
                                 <MudBadge Dot="true"
                                           Color="Color.Primary"
                                           Overlap="true"
+                                          Bordered="true"
                                           Visible="@(t.Id != null && Notifications.GetThreadUnread(t.Id) > 0)">
-                                    <MudAvatar Size="Size.Medium">
+                                    <MudAvatar Size="Size.Large">
                                         @if (!string.IsNullOrWhiteSpace(t.AvatarUrl))
                                         {
                                             <MudImage Src="@t.AvatarUrl" />
@@ -60,22 +47,11 @@
                                     </MudAvatar>
                                 </MudBadge>
                             </div>
-
-                            <!-- Name + preview -->
-                            <div class="thread-main">
-                                <MudText Class="name text-ellipsis">@DisplayTitle(t)</MudText>
-                                <MudText Typo="Typo.caption" Class="@GetPreviewClass(t)">
+                            <div class="flex-grow-1" style="min-width:0;">
+                                <MudText Class="text-ellipsis">@DisplayTitle(t)</MudText>
+                                <MudText Typo="Typo.caption" Class="@GetPreviewClass(t) text-ellipsis">
                                     @(!string.IsNullOrWhiteSpace(t.LastMessagePreview) ? t.LastMessagePreview : "Tap to start chat")
                                 </MudText>
-                            </div>
-
-                            <!-- Pin -->
-                            <div class="thread-pin">
-                                <span @onclick:stopPropagation>
-                                    <MudIconButton Icon="@(t.IsPinned? Icons.Material.Filled.PushPin : Icons.Material.Outlined.PushPin)"
-                                                   Color="@(t.IsPinned ? Color.Primary : Color.Default)"
-                                                   OnClick="@((MouseEventArgs _) => PinThread(t))" />
-                                </span>
                             </div>
                         </div>
                     </MudListItem>
@@ -94,9 +70,7 @@
 
 @code {
     [Parameter] public EventCallback<ThreadSummary> OnThreadSelected { get; set; }
-
-    private string _rawSearch = string.Empty;   // what user typed
-    private string _searchQuery = string.Empty; // debounced + min length 2
+    [Parameter] public string SearchQuery { get; set; } = string.Empty;
 
     private string? _currentUserId;
     private Virtualize<ThreadSummary>? _virt;
@@ -104,12 +78,11 @@
     private int _lastCount;
     private bool _autoSelected;
     private bool _refreshScheduled;
+    private string _previousSearchQuery = string.Empty;
 
-    // cache last successful page for canceled queries
     private IReadOnlyList<ThreadSummary> _cacheItems = Array.Empty<ThreadSummary>();
     private int _cacheTotal = 0;
 
-    // named handlers so we can unsubscribe cleanly
     private Func<Task>? _threadsUpdatedHandler;
     private Func<object, Task>? _threadReadHandler;
     private Action? _notificationsChangedHandler;
@@ -117,22 +90,14 @@
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var u = authState.User;
+        _currentUserId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        _currentUserId =
-            u.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? u.FindFirst("sub")?.Value
-            ?? u.FindFirst("oid")?.Value
-            ?? u.FindFirst("uid")?.Value;
-
-        // Hub-driven refresh (use named handlers)
         _threadsUpdatedHandler = OnThreadsUpdated;
         ChatHubClient.ThreadsUpdated += _threadsUpdatedHandler;
 
         _threadReadHandler = OnThreadRead;
         ChatHubClient.ThreadRead += _threadReadHandler;
 
-        // Local notifications (dot badges / total)
         _notificationsChangedHandler = OnNotificationsChanged;
         Notifications.Changed += _notificationsChangedHandler;
         await Notifications.InitializeAsync();
@@ -140,21 +105,19 @@
         await ChatHubClient.ConnectAsync();
     }
 
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SearchQuery != _previousSearchQuery)
+        {
+            _previousSearchQuery = SearchQuery;
+            await Refresh();
+        }
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && _virt != null)
             await _virt.RefreshDataAsync();
-    }
-
-    private Task OnSearchDebounced(string value)
-    {
-        _rawSearch = value ?? string.Empty;
-
-        // only trigger directory expansion at 2+ chars
-        var trimmed = _rawSearch.Trim();
-        _searchQuery = trimmed.Length >= 2 ? trimmed : string.Empty;
-
-        return Refresh();
     }
 
     private Task Refresh()
@@ -164,9 +127,10 @@
 
         _ = InvokeAsync(async () =>
         {
-            await Task.Delay(40); // coalesce bursts
+            await Task.Delay(50);
             _refreshScheduled = false;
             if (_virt != null) await _virt.RefreshDataAsync();
+            StateHasChanged();
         });
 
         return Task.CompletedTask;
@@ -179,16 +143,10 @@
     private async Task SelectThread(ThreadSummary t)
     {
         if (!string.IsNullOrEmpty(t.Id))
-            Notifications.ClearThread(t.Id); // drop local badge immediately
+            Notifications.ClearThread(t.Id);
 
         ChatState.ActivateThread(t.Id!);
         await OnThreadSelected.InvokeAsync(t);
-    }
-
-    private async Task PinThread(ThreadSummary thread)
-    {
-        await ChatHubClient.PinThreadAsync(thread.Id!, !thread.IsPinned);
-        await Refresh();
     }
 
     private async ValueTask<ItemsProviderResult<ThreadSummary>> LoadThreads(ItemsProviderRequest request)
@@ -201,7 +159,7 @@
         try
         {
             var (items, total) = await ChatRepository.GetThreadSummariesAsync(
-                _currentUserId, _searchQuery, request.StartIndex, request.Count, request.CancellationToken);
+                _currentUserId, SearchQuery, request.StartIndex, request.Count, request.CancellationToken);
 
             _lastCount = total;
             _cacheItems = items;
@@ -219,7 +177,6 @@
         }
         catch (OperationCanceledException)
         {
-            // Serve last good data to avoid a blank panel
             return new ItemsProviderResult<ThreadSummary>(_cacheItems, _cacheTotal);
         }
     }
@@ -244,7 +201,7 @@
     private static string GetPreviewClass(ThreadSummary t)
         => t.UnreadCount > 0
             ? "preview text-ellipsis mud-font-weight-semibold"
-            : "preview text-ellipsis";
+            : "preview text-ellipsis mud-text-secondary";
 
     public ValueTask DisposeAsync()
     {

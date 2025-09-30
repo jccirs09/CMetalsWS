@@ -1,0 +1,35 @@
+@using MudBlazor
+
+<div class="d-flex align-center">
+    <MudBadge Color="@StatusColor" Dot="true" />
+    <MudText Typo="Typo.caption" Class="ml-2">@StatusText</MudText>
+</div>
+
+@code {
+    [Parameter]
+    public UserStatus Status { get; set; }
+
+    private Color StatusColor => Status switch
+    {
+        UserStatus.Online => Color.Success,
+        UserStatus.Away => Color.Warning,
+        UserStatus.DoNotDisturb => Color.Error,
+        _ => Color.Default
+    };
+
+    private string StatusText => Status switch
+    {
+        UserStatus.Online => "Online",
+        UserStatus.Away => "Away",
+        UserStatus.DoNotDisturb => "Do Not Disturb",
+        _ => "Offline"
+    };
+
+    public enum UserStatus
+    {
+        Online,
+        Away,
+        DoNotDisturb,
+        Offline
+    }
+}

@@ -1,0 +1,71 @@
+@using CMetalsWS.Data.Chat
+@using MudBlazor
+
+@inject IChatRepository ChatRepository
+@inject NavigationManager Nav
+
+<div class="pa-2">
+    <MudList Clickable="true">
+        @if (_groups.Any())
+        {
+            foreach (var group in _groups)
+            {
+                <MudListItem OnClick="() => OpenGroupChat(group)">
+                    <ChildContent>
+                        <MudAvatar>G</MudAvatar>
+                        <MudText Class="ml-3">@group.Name</MudText>
+                    </ChildContent>
+                </MudListItem>
+            }
+        }
+        else
+        {
+            <MudListItem>
+                <MudText Class="mud-text-secondary">No groups found.</MudText>
+            </MudListItem>
+        }
+    </MudList>
+</div>
+
+@code {
+    [Parameter] public string SearchQuery { get; set; } = string.Empty;
+
+    private List<ChatGroup> _allGroups = new();
+    private List<ChatGroup> _groups = new();
+    private string _previousSearchQuery = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allGroups = (await ChatRepository.GetAllGroupsAsync()).ToList();
+        _groups = _allGroups;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (SearchQuery != _previousSearchQuery)
+        {
+            _previousSearchQuery = SearchQuery;
+            FilterGroups();
+        }
+    }
+
+    private void FilterGroups()
+    {
+        if (string.IsNullOrWhiteSpace(SearchQuery))
+        {
+            _groups = _allGroups;
+        }
+        else
+        {
+            _groups = _allGroups
+                .Where(g => g.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+        StateHasChanged();
+    }
+
+    private void OpenGroupChat(ChatGroup group)
+    {
+        Nav.NavigateTo($"/messages/{group.Id}");
+    }
+}

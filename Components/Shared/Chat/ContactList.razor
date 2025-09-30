@@ -1,0 +1,79 @@
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using MudBlazor
+
+@inject IUserService UserService
+@inject NavigationManager Nav
+
+<div class="pa-2">
+    <MudList Clickable="true">
+        @if (_users.Any())
+        {
+            foreach (var user in _users)
+            {
+                <MudListItem OnClick="() => StartChat(user)">
+                    <ChildContent>
+                        <MudAvatar>@GetInitials(user.UserName)</MudAvatar>
+                        <MudText Class="ml-3">@user.UserName</MudText>
+                    </ChildContent>
+                </MudListItem>
+            }
+        }
+        else
+        {
+            <MudListItem>
+                <MudText Class="mud-text-secondary">No contacts found.</MudText>
+            </MudListItem>
+        }
+    </MudList>
+</div>
+
+@code {
+    [Parameter] public string SearchQuery { get; set; } = string.Empty;
+
+    private List<ApplicationUser> _allUsers = new();
+    private List<ApplicationUser> _users = new();
+    private string _previousSearchQuery = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allUsers = (await UserService.GetUsersAsync()).ToList();
+        _users = _allUsers;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (SearchQuery != _previousSearchQuery)
+        {
+            _previousSearchQuery = SearchQuery;
+            FilterUsers();
+        }
+    }
+
+    private void FilterUsers()
+    {
+        if (string.IsNullOrWhiteSpace(SearchQuery))
+        {
+            _users = _allUsers;
+        }
+        else
+        {
+            _users = _allUsers
+                .Where(u => u.UserName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+        StateHasChanged();
+    }
+
+    private void StartChat(ApplicationUser user)
+    {
+        Nav.NavigateTo($"/messages/{user.Id}");
+    }
+
+    private string? GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 1 ? $"{parts[0][0]}{parts[1][0]}".ToUpper() : $"{name[0]}".ToUpper();
+    }
+}

@@ -1,61 +1,68 @@
-@using CMetalsWS.Data
 @using CMetalsWS.Data.Chat
 @using MudBlazor
 
-<div class="d-flex flex-row my-2 message-bubble @(IsMine ? "mine" : "theirs")">
+<div class="d-flex @(IsMine ? "flex-row-reverse" : "flex-row") align-start message-container">
     @if (!IsMine)
     {
-        <MudAvatar Size="Size.Medium" Class="mr-2">@GetInitials(Message?.SenderName)</MudAvatar>
+        <MudAvatar Size="Size.Medium" Class="mr-2 mt-1">@GetInitials(Message?.SenderName)</MudAvatar>
     }
-    <div class="d-flex flex-column">
-        <MudPaper Elevation="2" Class="pa-2 rounded-lg">
-            @if (!IsMine)
+
+    <div class="d-flex flex-column @(IsMine ? "align-end" : "align-start")" style="max-width: 75%;">
+        <MudPaper Class="@($"pa-2 message-bubble {(IsMine ? "mine" : "theirs")}")" Elevation="1">
+             @if (_isEditing)
             {
-                <MudText Typo="Typo.caption" Class="font-weight-bold">@Message?.SenderName</MudText>
-            }
-            @if (_isEditing)
-            {
-                <MudTextField T="string" Value="@_editedContent" ValueChanged="@((s) => _editedContent = s)" OnKeyDown="OnEditKeyDown" />
+                <MudTextField T="string"
+                              Value="@_editedContent"
+                              ValueChanged="@((s) => _editedContent = s)"
+                              OnKeyDown="OnEditKeyDown"
+                              AutoFocus="true"
+                              Variant="Variant.Text"
+                              HideDetails="true"/>
             }
             else
             {
                 <MudText>@Message?.Content</MudText>
             }
-            <div class="d-flex align-center justify-end mt-1">
-                @if (Message?.EditedAt != null)
-                {
-                    <MudText Typo="Typo.caption" Class="mr-1">(edited)</MudText>
-                }
-                <MudText Typo="Typo.caption" Class="mr-1">@Message?.CreatedAt.ToLocalTime().ToString("h:mm tt")</MudText>
-                @if (IsMine)
-                {
-                    <MudIcon Icon="@GetReadReceiptIcon()" Size="Size.Small" Style="@GetReadReceiptColor()" />
-                }
-            </div>
         </MudPaper>
-        <div class="reaction-bar mt-1">
-            @if (Message?.Reactions.Any() == true)
-            {
+
+        @if (Message?.Reactions.Any() == true)
+        {
+            <div class="d-flex flex-wrap mt-1" style="gap: 4px;">
                 @foreach (var reaction in Message.Reactions)
                 {
                     <MudTooltip Text="@GetReactionUsernames(reaction.Key)">
-                        <MudChip T="string" Size="Size.Small" OnClick="@(() => OnReactionClicked.InvokeAsync(reaction.Key))">
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 OnClick="@(() => OnReactionClicked.InvokeAsync(reaction.Key))"
+                                 Style="cursor: pointer;">
                             @reaction.Key @reaction.Value.Count
                         </MudChip>
                     </MudTooltip>
                 }
+            </div>
+        }
+
+        <div class="d-flex align-center mt-1 px-1">
+            @if (Message?.EditedAt != null)
+            {
+                <MudText Typo="Typo.caption" Class="mr-1 mud-text-secondary">(edited)</MudText>
+            }
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">@Message?.CreatedAt.ToLocalTime().ToString("h:mm tt")</MudText>
+            @if (IsMine)
+            {
+                <MudIcon Icon="@GetReadReceiptIcon()" Size="Size.Small" Style="@GetReadReceiptColor()" Class="ml-1" />
             }
         </div>
     </div>
-    <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" Class="message-actions">
-        <MudMenuItem OnClick="@(() => OnReactionClicked.InvokeAsync("👍"))">👍</MudMenuItem>
-        <MudMenuItem OnClick="@(() => OnReactionClicked.InvokeAsync("❤️"))">❤️</MudMenuItem>
-        <MudMenuItem OnClick="@(() => OnReactionClicked.InvokeAsync("😂"))">😂</MudMenuItem>
-        <MudMenuItem OnClick="@(() => OnReactionClicked.InvokeAsync("😮"))">😮</MudMenuItem>
-        <MudMenuItem OnClick="@(() => OnReactionClicked.InvokeAsync("😢"))">😢</MudMenuItem>
-        <MudMenuItem OnClick="@(() => OnReactionClicked.InvokeAsync("😡"))">😡</MudMenuItem>
-        <MudMenuItem OnClick="OnEditClicked">Edit</MudMenuItem>
-        <MudMenuItem OnClick="@(() => OnDeleteClicked.InvokeAsync())">Delete</MudMenuItem>
+
+    <MudMenu Icon="@Icons.Material.Filled.MoreHoriz" Size="Size.Small" Dense="true" Class="message-actions ml-1" IconClass="mud-text-secondary">
+        <MudMenuItem OnClick="@(() => OnReactionClicked.InvokeAsync("👍"))">React with 👍</MudMenuItem>
+        <MudMenuItem OnClick="@(() => OnReactionClicked.InvokeAsync("❤️"))">React with ❤️</MudMenuItem>
+        @if(IsMine)
+        {
+            <MudMenuItem OnClick="OnEditClicked">Edit</MudMenuItem>
+            <MudMenuItem OnClick="@(() => OnDeleteClicked.InvokeAsync())">Delete</MudMenuItem>
+        }
         <MudMenuItem OnClick="@(() => OnPinClicked.InvokeAsync())">@(Message?.IsPinned == true ? "Unpin" : "Pin")</MudMenuItem>
     </MudMenu>
 </div>
@@ -107,14 +114,14 @@
 
     private string? GetInitials(string? name)
     {
-        if (string.IsNullOrWhiteSpace(name)) return null;
+        if (string.IsNullOrWhiteSpace(name)) return "?";
         var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length > 1 ? $"{parts[0][0]}{parts[1][0]}".ToUpper() : $"{name[0]}".ToUpper();
+        return parts.Length == 1 ? parts[0].Substring(0, 1).ToUpperInvariant() : $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
     }
 
     private string GetReactionUsernames(string emoji)
     {
-        if (Message?.Reactions.TryGetValue(emoji, out var userIds) != true)
+        if (Message?.Reactions.TryGetValue(emoji, out var userIds) != true || Message.ReactionUsers == null)
             return string.Empty;
 
         var names = userIds
