@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CMetalsWS.Data.Chat
@@ -202,49 +203,8 @@ namespace CMetalsWS.Data.Chat
 
         public async Task<IEnumerable<ThreadSummary>> GetThreadSummariesAsync(string userId, string? searchQuery = null)
         {
-            await using var context = await _contextFactory.CreateDbContextAsync();
-            var groupIds = await context.ChatGroupUsers.AsNoTracking().Where(gu => gu.UserId == userId).Select(gu => gu.ChatGroupId).ToListAsync();
-            var groups = await context.ChatGroups.AsNoTracking().Where(g => groupIds.Contains(g.Id)).Select(g => new { g.Id, g.Name }).ToListAsync();
-            var lastGroupMsgs = await context.ChatMessages.AsNoTracking().Where(m => m.ChatGroupId.HasValue && groupIds.Contains(m.ChatGroupId.Value)).GroupBy(m => m.ChatGroupId!.Value).Select(g => new { GroupId = g.Key, Last = g.OrderByDescending(m => m.Timestamp).Select(m => new { m.Content, m.Timestamp }).FirstOrDefault() }).ToListAsync();
-            var unreadGroupRows = await context.ChatMessages.AsNoTracking().Where(m => m.ChatGroupId.HasValue && groupIds.Contains(m.ChatGroupId.Value) && m.SenderId != userId).Select(m => new { G = m.ChatGroupId!.Value, Seen = m.SeenBy.Any(s => s.UserId == userId) }).ToListAsync();
-            var unreadGroupCounts = unreadGroupRows.Where(x => !x.Seen).GroupBy(x => x.G).ToDictionary(g => g.Key, g => g.Count());
-            var groupParticipants = await context.ChatGroupUsers.AsNoTracking().Where(gu => groupIds.Contains(gu.ChatGroupId)).GroupBy(gu => gu.ChatGroupId).Select(g => new { GroupId = g.Key, UserIds = g.Select(gu => gu.UserId).ToList() }).ToListAsync();
-            var groupSummaries = groups.Select(g =>
-            {
-                var last = lastGroupMsgs.FirstOrDefault(x => x.GroupId == g.Id)?.Last;
-                var unread = unreadGroupCounts.TryGetValue(g.Id, out var c) ? c : 0;
-                var parts = groupParticipants.FirstOrDefault(x => x.GroupId == g.Id)?.UserIds ?? new List<string>();
-                return new ThreadSummary { Id = $"g:{g.Id}", Title = g.Name, AvatarUrl = null, LastMessagePreview = last?.Content, UnreadCount = unread, Participants = parts, LastActivityAt = last?.Timestamp ?? DateTime.MinValue };
-            }).ToList();
-            var dmOtherIds = await context.ChatMessages.AsNoTracking().Where(m => (m.SenderId == userId && m.RecipientId != null) || (m.RecipientId == userId && m.SenderId != null)).Select(m => m.SenderId == userId ? m.RecipientId! : m.SenderId!).Distinct().ToListAsync();
-            if (!string.IsNullOrWhiteSpace(searchQuery))
-            {
-                await using var uctxSearch = await _contextFactory.CreateDbContextAsync();
-                var more = await uctxSearch.Users.AsNoTracking().Where(u => u.Id != userId && ((u.UserName != null && u.UserName.Contains(searchQuery)) || (u.Email != null && u.Email.Contains(searchQuery)))).Select(u => u.Id).ToListAsync();
-                dmOtherIds = dmOtherIds.Union(more).Distinct().ToList();
-            }
-            var lastDmMsgs = await context.ChatMessages.AsNoTracking().Where(m => (m.SenderId == userId && m.RecipientId != null && dmOtherIds.Contains(m.RecipientId)) || (m.RecipientId == userId && m.SenderId != null && dmOtherIds.Contains(m.SenderId))).GroupBy(m => (m.SenderId == userId ? m.RecipientId! : m.SenderId!)).Select(g => new { OtherId = g.Key, Last = g.OrderByDescending(m => m.Timestamp).Select(m => new { m.Content, m.Timestamp }).FirstOrDefault() }).ToListAsync();
-            var unreadDmRows = await context.ChatMessages.AsNoTracking().Where(m => m.RecipientId == userId && m.SenderId != null && dmOtherIds.Contains(m.SenderId)).Select(m => new { Sender = m.SenderId!, Seen = m.SeenBy.Any(s => s.UserId == userId) }).ToListAsync();
-            var unreadDmCounts = unreadDmRows.Where(x => !x.Seen).GroupBy(x => x.Sender).ToDictionary(g => g.Key, g => g.Count());
-            await using var uctx = await _contextFactory.CreateDbContextAsync();
-            var dmUsers = await uctx.Users.AsNoTracking().Where(u => dmOtherIds.Contains(u.Id)).Select(u => new { u.Id, u.UserName, u.FirstName, u.LastName, u.Avatar }).ToListAsync();
-            var dmUserDict = dmUsers.ToDictionary(u => u.Id, u => new { u.UserName, u.FirstName, u.LastName, u.Avatar });
-            var dmSummaries = new List<ThreadSummary>(dmOtherIds.Count);
-            foreach (var otherId in dmOtherIds)
-            {
-                dmUserDict.TryGetValue(otherId, out var uinfo);
-                var last = lastDmMsgs.FirstOrDefault(x => x.OtherId == otherId)?.Last;
-                unreadDmCounts.TryGetValue(otherId, out var unread);
-                dmSummaries.Add(new ThreadSummary { Id = otherId, Title = uinfo?.UserName, FirstName = uinfo?.FirstName, LastName = uinfo?.LastName, AvatarUrl = uinfo?.Avatar, LastMessagePreview = last?.Content, UnreadCount = unread, Participants = new List<string> { userId, otherId }, LastActivityAt = last?.Timestamp ?? DateTime.MinValue });
-            }
-            var summaries = groupSummaries.Concat(dmSummaries).ToList();
-            if (!string.IsNullOrWhiteSpace(searchQuery))
-            {
-                summaries = summaries.Where(s => (s.Title?.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ?? false) || (s.LastMessagePreview?.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
-            }
-            var pinnedIds = await context.PinnedThreads.AsNoTracking().Where(p => p.UserId == userId).Select(p => p.ThreadId).ToListAsync();
-            foreach (var s in summaries) s.IsPinned = s.Id != null && pinnedIds.Contains(s.Id);
-            return summaries.OrderByDescending(s => s.IsPinned).ThenByDescending(s => s.LastActivityAt);
+            var (items, _) = await GetThreadSummariesAsync(userId, searchQuery, 0, 1000); // Call the paged version
+            return items;
         }
 
         public async Task MarkThreadAsReadAsync(string threadId, string userId)
@@ -396,171 +356,125 @@ namespace CMetalsWS.Data.Chat
                 return true;
             }
         }
+
         public async Task<(IReadOnlyList<ThreadSummary> Items, int Total)> GetThreadSummariesAsync(
-    string userId, string? searchQuery, int skip, int take, CancellationToken ct = default)
+            string userId, string? searchQuery, int skip, int take, CancellationToken ct = default)
         {
-            // Guard rails
             if (take <= 0) take = 25;
             if (skip < 0) skip = 0;
             ct.ThrowIfCancellationRequested();
 
             await using var db = await _contextFactory.CreateDbContextAsync();
 
-            // ----- Pinned map (cheap lookup) -----
-            var pinnedIds = await db.PinnedThreads
+            // 1. Get Pinned Threads
+            var pinnedThreadIds = await db.PinnedThreads
                 .AsNoTracking()
                 .Where(p => p.UserId == userId)
                 .Select(p => p.ThreadId)
-                .ToListAsync(ct);
+                .ToHashSetAsync(ct);
 
-            // ----- GROUPS the user belongs to -----
+            // 2. Get Group Summaries
             var myGroupIds = await db.ChatGroupUsers
                 .AsNoTracking()
                 .Where(gu => gu.UserId == userId)
                 .Select(gu => gu.ChatGroupId)
                 .ToListAsync(ct);
 
-            var groupAgg = await db.ChatMessages
-                .AsNoTracking()
-                .Where(m => m.ChatGroupId.HasValue && myGroupIds.Contains(m.ChatGroupId.Value))
-                .GroupBy(m => m.ChatGroupId!.Value)
-                .Select(g => new
-                {
-                    GroupId = g.Key,
-                    LastTs = g.Max(m => m.Timestamp),
-                    LastMsg = g.OrderByDescending(m => m.Timestamp).Select(m => m.Content).FirstOrDefault(),
-                    Unread = g.Count(m => m.SenderId != userId && !m.SeenBy.Any(s => s.UserId == userId))
-                })
-                .ToListAsync(ct);
-
-            var groupsMeta = await db.ChatGroups
-                .AsNoTracking()
-                .Where(g => myGroupIds.Contains(g.Id))
-                .Select(g => new { g.Id, g.Name })
-                .ToListAsync(ct);
-
-            var groupsMetaDict = groupsMeta.ToDictionary(x => x.Id, x => x.Name ?? "Group");
-
-            var groupSummaries = new List<ThreadSummary>(groupAgg.Count);
-            foreach (var g in groupAgg)
+            var groupSummaries = new List<ThreadSummary>();
+            if (myGroupIds.Any())
             {
-                groupsMetaDict.TryGetValue(g.GroupId, out var name);
-                groupSummaries.Add(new ThreadSummary
+                var groupDetails = await db.ChatGroups
+                    .AsNoTracking()
+                    .Where(g => myGroupIds.Contains(g.Id))
+                    .Select(g => new { g.Id, g.Name })
+                    .ToListAsync(ct);
+
+                foreach (var group in groupDetails)
                 {
-                    Id = $"g:{g.GroupId}",
-                    Title = name,
-                    AvatarUrl = null,
-                    LastMessagePreview = g.LastMsg,
-                    UnreadCount = g.Unread,
-                    Participants = null,
-                    LastActivityAt = g.LastTs,
-                    IsPinned = pinnedIds.Contains($"g:{g.GroupId}")
-                });
-            }
-
-            // ----- DMs aggregated by "other user" -----
-            var dmAgg = await db.ChatMessages
-                .AsNoTracking()
-                .Where(m =>
-                    (m.SenderId == userId && m.RecipientId != null) ||
-                    (m.RecipientId == userId && m.SenderId != null))
-                .GroupBy(m => m.SenderId == userId ? m.RecipientId! : m.SenderId!)
-                .Select(g => new
-                {
-                    OtherId = g.Key,
-                    LastTs = g.Max(m => m.Timestamp),
-                    LastMsg = g.OrderByDescending(m => m.Timestamp).Select(m => m.Content).FirstOrDefault(),
-                    Unread = g.Count(m => m.RecipientId == userId && !m.SeenBy.Any(s => s.UserId == userId))
-                })
-                .ToListAsync(ct);
-
-            var dmUserIds = dmAgg.Select(x => x.OtherId).Distinct().ToList();
-
-            var dmUsers = await db.Users
-                .AsNoTracking()
-                .Where(u => dmUserIds.Contains(u.Id))
-                .Select(u => new { u.Id, u.UserName, u.FirstName, u.LastName, u.Avatar })
-                .ToListAsync(ct);
-            var dmUsersDict = dmUsers.ToDictionary(u => u.Id, u => u);
-
-            var dmSummaries = new List<ThreadSummary>(dmAgg.Count);
-            foreach (var x in dmAgg)
-            {
-                dmUsersDict.TryGetValue(x.OtherId, out var u);
-                dmSummaries.Add(new ThreadSummary
-                {
-                    Id = x.OtherId,
-                    Title = u?.UserName,
-                    FirstName = u?.FirstName,
-                    LastName = u?.LastName,
-                    AvatarUrl = u?.Avatar,
-                    LastMessagePreview = x.LastMsg,
-                    UnreadCount = x.Unread,
-                    Participants = new List<string> { userId, x.OtherId },
-                    LastActivityAt = x.LastTs,
-                    IsPinned = pinnedIds.Contains(x.OtherId)
-                });
-            }
-
-            // --- Directory expansion: make search return users even without prior DM ---
-            if (!string.IsNullOrWhiteSpace(searchQuery))
-            {
-                var q = searchQuery.Trim();
-                if (q.Length >= 2)
-                {
-                    var qUpper = q.ToUpper();
-                    var existingDm = new HashSet<string>(dmAgg.Select(x => x.OtherId));
-
-                    var matches = await db.Users
+                    var lastMessage = await db.ChatMessages
                         .AsNoTracking()
-                        .Where(u => u.Id != userId &&
-                            (
-                                (u.NormalizedUserName != null && u.NormalizedUserName.Contains(qUpper)) ||
-                                (u.NormalizedEmail != null && u.NormalizedEmail.Contains(qUpper)) ||
-                                (u.FirstName != null && EF.Functions.Like(u.FirstName, $"%{q}%")) ||
-                                (u.LastName != null && EF.Functions.Like(u.LastName, $"%{q}%"))
-                            ))
-                        .Select(u => new { u.Id, u.UserName, u.FirstName, u.LastName, u.Avatar })
-                        .Take(50) 
-                        .ToListAsync(ct);
+                        .Where(m => m.ChatGroupId == group.Id)
+                        .OrderByDescending(m => m.Timestamp)
+                        .FirstOrDefaultAsync(ct);
 
-                    foreach (var m in matches)
+                    var unreadCount = await db.ChatMessages
+                        .AsNoTracking()
+                        .CountAsync(m => m.ChatGroupId == group.Id && m.SenderId != userId && !m.SeenBy.Any(s => s.UserId == userId), ct);
+
+                    groupSummaries.Add(new ThreadSummary
                     {
-                        if (existingDm.Contains(m.Id)) continue;
-                        dmSummaries.Add(new ThreadSummary
-                        {
-                            Id = m.Id,
-                            Title = m.UserName,
-                            FirstName = m.FirstName,
-                            LastName = m.LastName,
-                            AvatarUrl = m.Avatar,
-                            LastMessagePreview = null,
-                            UnreadCount = 0,
-                            Participants = new List<string> { userId, m.Id },
-                            LastActivityAt = DateTime.MinValue,
-                            IsPinned = pinnedIds.Contains(m.Id)
-                        });
-                    }
+                        Id = $"g:{group.Id}",
+                        Title = group.Name,
+                        LastMessagePreview = lastMessage?.Content,
+                        UnreadCount = unreadCount,
+                        LastActivityAt = lastMessage?.Timestamp ?? DateTime.MinValue,
+                        IsPinned = pinnedThreadIds.Contains($"g:{group.Id}")
+                    });
                 }
             }
 
-            // ----- Combine, optional in-memory filter, order, page -----
-            IEnumerable<ThreadSummary> combined = groupSummaries.Concat(dmSummaries);
+            // 3. Get DM Summaries
+            var dmPeers = await db.ChatMessages
+                .AsNoTracking()
+                .Where(m => m.SenderId == userId || m.RecipientId == userId)
+                .Select(m => m.SenderId == userId ? m.RecipientId : m.SenderId)
+                .Distinct()
+                .ToListAsync(ct);
+
+            var dmUserInfos = await db.Users
+                .AsNoTracking()
+                .Where(u => dmPeers.Contains(u.Id))
+                .Select(u => new { u.Id, u.UserName, u.FirstName, u.LastName, u.Avatar })
+                .ToDictionaryAsync(u => u.Id, u => u, ct);
+
+            var dmSummaries = new List<ThreadSummary>();
+            foreach (var peerId in dmPeers)
+            {
+                if (peerId == null) continue;
+
+                var lastMessage = await db.ChatMessages
+                    .AsNoTracking()
+                    .Where(m => (m.SenderId == userId && m.RecipientId == peerId) || (m.SenderId == peerId && m.RecipientId == userId))
+                    .OrderByDescending(m => m.Timestamp)
+                    .FirstOrDefaultAsync(ct);
+
+                var unreadCount = await db.ChatMessages
+                    .AsNoTracking()
+                    .CountAsync(m => m.SenderId == peerId && m.RecipientId == userId && !m.SeenBy.Any(s => s.UserId == userId), ct);
+
+                dmUserInfos.TryGetValue(peerId, out var userInfo);
+
+                dmSummaries.Add(new ThreadSummary
+                {
+                    Id = peerId,
+                    Title = userInfo?.UserName,
+                    FirstName = userInfo?.FirstName,
+                    LastName = userInfo?.LastName,
+                    AvatarUrl = userInfo?.Avatar,
+                    LastMessagePreview = lastMessage?.Content,
+                    UnreadCount = unreadCount,
+                    LastActivityAt = lastMessage?.Timestamp ?? DateTime.MinValue,
+                    IsPinned = pinnedThreadIds.Contains(peerId)
+                });
+            }
+
+            // 4. Combine and Filter
+            var allSummaries = groupSummaries.Concat(dmSummaries).ToList();
 
             if (!string.IsNullOrWhiteSpace(searchQuery))
             {
                 var q = searchQuery.Trim();
-                combined = combined.Where(s =>
+                allSummaries = allSummaries.Where(s =>
                     (s.Title?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (s.FirstName?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (s.LastName?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (s.LastMessagePreview?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false));
+                    (s.LastMessagePreview?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
+                ).ToList();
             }
 
-            var list = combined as IList<ThreadSummary> ?? combined.ToList();
-            var total = list.Count;
-
-            var page = list
+            // 5. Sort and Page
+            var total = allSummaries.Count;
+            var page = allSummaries
                 .OrderByDescending(s => s.IsPinned)
                 .ThenByDescending(s => s.LastActivityAt)
                 .Skip(skip)
@@ -569,8 +483,5 @@ namespace CMetalsWS.Data.Chat
 
             return (page, total);
         }
-
-
-
     }
 }
