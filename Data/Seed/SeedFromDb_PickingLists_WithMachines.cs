@@ -236,6 +236,9 @@ private const int PickingListsPerRun = 20;
 
         await db.SaveChangesAsync();
 
+        // Detach all tracked entities so the next query re-fetches from the DB with all navigation properties
+        db.ChangeTracker.Clear();
+
         await SeedWorkOrdersFromPickingListItems(db, branchId, rng);
     }
 
