@@ -456,8 +456,8 @@ namespace CMetalsWS.Services
                     foreach (var pli in plis)
                     {
                         var relatedWoItems = workOrder.Items.Where(i => i.PickingListItemId == pli.Id);
-                        pli.PulledQuantity = (pli.PulledQuantity ?? 0) + relatedWoItems.Sum(i => i.ProducedQuantity ?? 0);
-                        pli.PulledWeight = (pli.PulledWeight ?? 0) + relatedWoItems.Sum(i => i.ProducedWeight ?? 0);
+                        pli.PulledQuantity = (pli.PulledQuantity ?? 0m) + relatedWoItems.Sum(i => i.ProducedQuantity ?? 0m);
+                        pli.PulledWeight = (pli.PulledWeight ?? 0m) + relatedWoItems.Sum(i => i.ProducedWeight ?? 0m);
                     }
                 }
 
