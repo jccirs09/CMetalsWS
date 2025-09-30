@@ -348,12 +348,19 @@
     }
     private async Task OnMessagePinned(MessageDto message)
     {
-        var msg = _messages.FirstOrDefault(m => m.Id == message.Id);
-        if(msg != null)
+        var currentlyPinned = _messages.FirstOrDefault(m => m.IsPinned);
+        if (currentlyPinned != null)
         {
-            msg.IsPinned = message.IsPinned;
-            await InvokeAsync(StateHasChanged);
+            currentlyPinned.IsPinned = false;
         }
+
+        var msgToPin = _messages.FirstOrDefault(m => m.Id == message.Id);
+        if (msgToPin != null)
+        {
+            msgToPin.IsPinned = message.IsPinned;
+        }
+
+        await InvokeAsync(StateHasChanged);
     }
     private async Task OnMessageDeleted(int messageId)
     {
