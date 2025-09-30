@@ -180,7 +180,7 @@ namespace CMetalsWS.Services
             workOrder.LastUpdatedDate = workOrder.CreatedDate;
 
             if (workOrder.Status == 0)
-                workOrder.Status = WorkOrderStatus.Draft;
+                workOrder.Status = WorkOrderStatus.Pending;
 
             await ValidateSplitQuantities(db, workOrder);
             await AutoScheduleWorkOrder(db, workOrder);
@@ -531,8 +531,6 @@ namespace CMetalsWS.Services
             workOrder.ScheduledStartDate = start;
             workOrder.ScheduledEndDate = end ?? (start + originalDuration);
 
-            if (workOrder.Status == WorkOrderStatus.Draft)
-                workOrder.Status = WorkOrderStatus.Pending;
 
             workOrder.LastUpdatedDate = DateTime.UtcNow;
 
