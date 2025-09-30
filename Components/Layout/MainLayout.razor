@@ -9,7 +9,7 @@
 <MudSnackbarProvider />
 
 <MudLayout>
-    <MudAppBar Elevation="0" Color="Color.AppbarBackground" Class="px-4">
+    <MudAppBar Elevation="0" Style="@($"background-color:{_customTheme.PaletteLight.AppbarBackground}; color:{_customTheme.PaletteLight.AppbarText};")" Class="px-4">
         <MudTextField T="string"
                       Placeholder="Search orders, customers, products..."
                       Variant="Variant.Outlined"
