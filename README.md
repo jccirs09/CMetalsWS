@@ -69,7 +69,7 @@ Based on a review of the system's architecture and features, here are several su
 ## Getting Started
 
 ### Prerequisites
-- .NET 8 SDK
+- .NET 9 SDK or later (plan to upgrade to .NET 10 when available)
 - SQL Server (or SQL Server Express)
 - A tool to run `.sql` scripts or manage the database (e.g., SQL Server Management Studio, Azure Data Studio).
 
