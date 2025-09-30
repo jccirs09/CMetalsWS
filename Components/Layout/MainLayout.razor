@@ -28,12 +28,12 @@
                 <div class="px-4 pt-2 pb-1">
                     <MudText Typo="Typo.h6">Notifications</MudText>
                 </div>
-                <MudList Dense="true" Style="min-width: 300px; max-height: 400px; overflow-y: auto;">
+                <MudList T="NotificationItem" Dense="true" Style="min-width: 300px; max-height: 400px; overflow-y: auto;">
                     @if (NotificationService.Recent.Any())
                     {
                         @foreach (var notification in NotificationService.Recent.Take(10))
                         {
-                            <MudListItem OnClick="@(() => { ChatState.HandleThreadClick(new ThreadSummary { Id = notification.ThreadId }); })">
+                            <MudListItem T="NotificationItem" OnClick="@(() => { ChatState.HandleThreadClick(new ThreadSummary { Id = notification.ThreadId }); })">
                                 <div class="d-flex">
                                     <MudAvatar Size="Size.Medium" Class="mr-3">
                                         @if (!string.IsNullOrWhiteSpace(notification.AvatarUrl))
@@ -55,7 +55,7 @@
                     }
                     else
                     {
-                        <MudListItem>
+                        <MudListItem T="NotificationItem">
                             <MudText Class="mud-text-secondary">No new notifications</MudText>
                         </MudListItem>
                     }
