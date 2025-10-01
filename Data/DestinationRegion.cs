@@ -17,5 +17,9 @@ namespace CMetalsWS.Data
         [ForeignKey(nameof(CoordinatorId))]
         public virtual ApplicationUser? Coordinator { get; set; }
         public ICollection<Branch> Branches { get; set; } = new List<Branch>();
+        [MaxLength(128)]
+        public string Icon { get; set; } = string.Empty;
+        [MaxLength(128)]
+        public string Color { get; set; } = string.Empty;
     }
 }

@@ -28,7 +28,16 @@
                         <MudSelectItem T="int?" Value="@(null)">All Destinations</MudSelectItem>
                         @foreach (var destination in _destinations)
                         {
-                            <MudSelectItem T="int?" Value="@destination.Id">@destination.Name</MudSelectItem>
+                            <MudSelectItem T="int?" Value="@destination.Id">
+                                @if (!string.IsNullOrEmpty(destination.Color))
+                                {
+                                    <MudChip Icon="@destination.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), destination.Color, true))" Size="Size.Small">@destination.Name</MudChip>
+                                }
+                                else
+                                {
+                                    @destination.Name
+                                }
+                            </MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
@@ -64,7 +73,17 @@
                     </CardHeaderActions>
                 </MudCardHeader>
                 <MudCardContent>
-                    <MudText>Destination: @pickingList.DestinationRegion?.Name</MudText>
+                    <MudText>
+                        Destination:
+                        @if (pickingList.DestinationRegion != null && !string.IsNullOrEmpty(pickingList.DestinationRegion.Color))
+                        {
+                            <MudChip Tag="span" Icon="@pickingList.DestinationRegion.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), pickingList.DestinationRegion.Color, true))" Size="Size.Small" Class="ml-1">@pickingList.DestinationRegion.Name</MudChip>
+                        }
+                        else
+                        {
+                            <MudText Component="span">@pickingList.DestinationRegion?.Name</MudText>
+                        }
+                    </MudText>
                     <MudText>Ship Date: @pickingList.ShipDate?.ToShortDateString()</MudText>
                     <MudText><b>Total Line Items (Sheet/Coil):</b> @GetTotalLineItems(pickingList)</MudText>
                     <MudText><b>Total Weight (Sheet/Coil):</b> @GetTotalWeight(pickingList).ToString("N2") lbs</MudText>
@@ -90,7 +109,23 @@
                             <MudIcon Icon="@Icons.Material.Filled.QrCode2" Class="mr-2" />
                             <MudText Typo="Typo.h6">@pickingList.SalesOrderNumber - Picking Process</MudText>
                         </div>
-                        <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName • @pickingList.Branch?.Name • @pickingList.DestinationRegion?.Name</MudText>
+                        <div class="d-flex align-center" style="gap: 4px;">
+                            <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
+                            <MudText Typo="Typo.body2" Class="mx-1">•</MudText>
+                            <MudText Typo="Typo.body2">@pickingList.Branch?.Name</MudText>
+                            @if (pickingList.DestinationRegion != null)
+                            {
+                                <MudText Typo="Typo.body2" Class="mx-1">•</MudText>
+                                @if (!string.IsNullOrEmpty(pickingList.DestinationRegion.Color))
+                                {
+                                    <MudChip Icon="@pickingList.DestinationRegion.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), pickingList.DestinationRegion.Color, true))" Size="Size.Small">@pickingList.DestinationRegion.Name</MudChip>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.body2">@pickingList.DestinationRegion.Name</MudText>
+                                }
+                            }
+                        </div>
                     </div>
                     <div>
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SetActivePickingList(pickingList))" Disabled="@(ActivePickingListId == pickingList.Id || (pickingList.Status != PickingListStatus.Pending && pickingList.Status != PickingListStatus.InProgress))">
@@ -180,7 +215,23 @@
                             <MudIcon Icon="@Icons.Material.Filled.QrCode2" Class="mr-2" />
                             <MudText Typo="Typo.h6">@pickingList.SalesOrderNumber - Packing Process</MudText>
                         </div>
-                        <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName • @pickingList.Branch?.Name • @pickingList.DestinationRegion?.Name</MudText>
+                        <div class="d-flex align-center" style="gap: 4px;">
+                            <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
+                            <MudText Typo="Typo.body2" Class="mx-1">•</MudText>
+                            <MudText Typo="Typo.body2">@pickingList.Branch?.Name</MudText>
+                            @if (pickingList.DestinationRegion != null)
+                            {
+                                <MudText Typo="Typo.body2" Class="mx-1">•</MudText>
+                                @if (!string.IsNullOrEmpty(pickingList.DestinationRegion.Color))
+                                {
+                                    <MudChip Icon="@pickingList.DestinationRegion.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), pickingList.DestinationRegion.Color, true))" Size="Size.Small">@pickingList.DestinationRegion.Name</MudChip>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.body2">@pickingList.DestinationRegion.Name</MudText>
+                                }
+                            }
+                        </div>
                     </div>
                     <div>
                         <MudChip T="string" Color="@(GetStatusColor(pickingList.Status))">@pickingList.Status.ToString()</MudChip>

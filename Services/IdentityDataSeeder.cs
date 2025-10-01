@@ -402,56 +402,87 @@ namespace CMetalsWS.Services
             var plannerRole = await _roleManager.FindByNameAsync("Planner");
             if (plannerRole == null)
             {
-                // Cannot seed without a Planner role
+                _logger.LogWarning("Cannot seed destination regions without a 'Planner' role.");
                 return;
             }
 
             var planners = await _userManager.GetUsersInRoleAsync("Planner");
             if (!planners.Any())
             {
-                // Cannot seed without at least one planner
+                _logger.LogWarning("Cannot seed destination regions without at least one user in the 'Planner' role.");
                 return;
             }
+
             var surreyBranch = await _context.Branches.FirstOrDefaultAsync(b => b.Name == "SURREY");
-            if (surreyBranch == null)
+            var deltaBranch = await _context.Branches.FirstOrDefaultAsync(b => b.Name == "DELTA");
+            var allBranches = await _context.Branches.ToListAsync();
+
+            if (surreyBranch == null || deltaBranch == null)
             {
-                // Cannot seed without Surrey branch
+                _logger.LogError("Cannot seed destination regions because the 'SURREY' or 'DELTA' branch was not found.");
                 return;
             }
+
             var regions = new List<DestinationRegion>
             {
-                new() { Name = "Local Delivery", Type = "local", Description = "Same-day and next-day deliveries within metro area", RequiresPooling = false },
-                new() { Name = "Multi Out of Town Lanes", Type = "out-of-town", Description = "Regional deliveries to multiple towns and cities", RequiresPooling = true },
-                new() { Name = "Island Pool Trucks", Type = "island-pool", Description = "Consolidated ferry-dependent deliveries to Vancouver Island", RequiresPooling = true },
-                new() { Name = "Okanagan Pool Trucks", Type = "okanagan-pool", Description = "Pooled deliveries to Okanagan Valley region", RequiresPooling = true },
-                new() { Name = "Customer Pickup", Type = "customer-pickup", Description = "Customer self-pickup coordination and scheduling", RequiresPooling = false }
+                new() { Name = "LOCAL", Type = "local", Description = "Same-day and next-day deliveries within metro area", RequiresPooling = false, Icon = MudBlazor.Icons.Material.Filled.LocalShipping, Color = "info" },
+                new() { Name = "PICKUP", Type = "customer-pickup", Description = "Customer self-pickup coordination and scheduling", RequiresPooling = false, Icon = MudBlazor.Icons.Material.Filled.Person, Color = "default" },
+                new() { Name = "OUT OF TOWN", Type = "out-of-town", Description = "Regional deliveries to multiple towns and cities", RequiresPooling = true, Icon = MudBlazor.Icons.Material.Filled.Map, Color = "success" },
+                new() { Name = "ISLAND RUN", Type = "island-run", Description = "Consolidated ferry-dependent deliveries to Vancouver Island", RequiresPooling = true, Icon = MudBlazor.Icons.Material.Filled.DirectionsBoat, Color = "primary" },
+                new() { Name = "OKANAGAN RUN", Type = "okanagan-run", Description = "Pooled deliveries to Okanagan Valley region", RequiresPooling = true, Icon = MudBlazor.Icons.Material.Filled.FilterHdr, Color = "warning" }
             };
 
-            var existingRegions = await _context.DestinationRegions.Include(r => r.Branches).ToListAsync();
-            var rng = new System.Random();
+            var existingRegions = await _context.DestinationRegions.Include(r => r.Branches).ToDictionaryAsync(r => r.Name, StringComparer.OrdinalIgnoreCase);
+            var rng = new Random();
 
             foreach (var region in regions)
             {
-                var existingRegion = existingRegions.FirstOrDefault(r => r.Name == region.Name);
-                if (existingRegion == null)
+                if (!existingRegions.TryGetValue(region.Name, out var existingRegion))
                 {
-                    region.CoordinatorId = planners[rng.Next(planners.Count)].Id;
-                    region.Branches.Add(surreyBranch);
-                    _context.DestinationRegions.Add(region);
+                    existingRegion = region;
+                    existingRegion.CoordinatorId = planners[rng.Next(planners.Count)].Id;
+                    _context.DestinationRegions.Add(existingRegion);
                 }
                 else
                 {
                     existingRegion.Type = region.Type;
                     existingRegion.Description = region.Description;
                     existingRegion.RequiresPooling = region.RequiresPooling;
+                    existingRegion.Icon = region.Icon;
+                    existingRegion.Color = region.Color;
                     if (string.IsNullOrEmpty(existingRegion.CoordinatorId))
                     {
                         existingRegion.CoordinatorId = planners[rng.Next(planners.Count)].Id;
                     }
-                    if (!existingRegion.Branches.Any(b => b.Id == surreyBranch.Id))
-                    {
-                        existingRegion.Branches.Add(surreyBranch);
-                    }
+                }
+
+                // Determine which branches to associate with the region
+                var branchesToAssociate = new List<Branch>();
+                if (region.Name == "ISLAND RUN" || region.Name == "OKANAGAN RUN")
+                {
+                    branchesToAssociate.Add(surreyBranch);
+                    branchesToAssociate.Add(deltaBranch);
+                }
+                else
+                {
+                    branchesToAssociate.AddRange(allBranches);
+                }
+
+                // Sync the branches
+                var existingBranchIds = existingRegion.Branches.Select(b => b.Id).ToHashSet();
+                var requiredBranchIds = branchesToAssociate.Select(b => b.Id).ToHashSet();
+
+                var branchesToAdd = branchesToAssociate.Where(b => !existingBranchIds.Contains(b.Id)).ToList();
+                var branchesToRemove = existingRegion.Branches.Where(b => !requiredBranchIds.Contains(b.Id)).ToList();
+
+                foreach (var branch in branchesToAdd)
+                {
+                    existingRegion.Branches.Add(branch);
+                }
+
+                foreach (var branch in branchesToRemove)
+                {
+                    existingRegion.Branches.Remove(branch);
                 }
             }
 

@@ -68,7 +68,16 @@
             <MudTd DataLabel="Contact Number">@context.ContactNumber</MudTd>
             <MudTd DataLabel="Address">@context.FullAddress</MudTd>
             <MudTd DataLabel="Group">@context.DestinationGroup?.Name</MudTd>
-            <MudTd DataLabel="Region">@context.DestinationRegion?.Name</MudTd>
+            <MudTd DataLabel="Region">
+                @if (context.DestinationRegion != null && !string.IsNullOrEmpty(context.DestinationRegion.Color))
+                {
+                    <MudChip Icon="@context.DestinationRegion.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), context.DestinationRegion.Color, true))" Variant="Variant.Text">@context.DestinationRegion.Name</MudChip>
+                }
+                else
+                {
+                    @context.DestinationRegion?.Name
+                }
+            </MudTd>
             <MudTd DataLabel="Status">
                 <MudChip T="string" Color="@(context.Active ? Color.Success : Color.Error)" Size="Size.Small">@(context.Active ? "Active" : "Inactive")</MudChip>
             </MudTd>

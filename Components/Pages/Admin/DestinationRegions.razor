@@ -26,12 +26,18 @@
         <HeaderContent>
             <MudTh>Id</MudTh>
             <MudTh>Name</MudTh>
+            <MudTh>Type</MudTh>
+            <MudTh>Description</MudTh>
             <MudTh>Branches</MudTh>
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Id">@context.Id</MudTd>
-            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Name">
+                <MudChip Icon="@context.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), context.Color, true))" Variant="Variant.Text">@context.Name</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Type">@context.Type</MudTd>
+            <MudTd DataLabel="Description">@context.Description</MudTd>
             <MudTd DataLabel="Branches">
                 @string.Join(", ", context.Branches.Select(b => b.Name))
             </MudTd>
@@ -84,11 +90,15 @@
 
     private async Task OpenEditDialog(DestinationRegion region)
     {
-        // Clone the region to avoid modifying the original object in the table before saving
         var regionClone = new DestinationRegion
         {
             Id = region.Id,
             Name = region.Name,
+            Type = region.Type,
+            Description = region.Description,
+            RequiresPooling = region.RequiresPooling,
+            Icon = region.Icon,
+            Color = region.Color,
             Branches = new List<Branch>(region.Branches)
         };
 
