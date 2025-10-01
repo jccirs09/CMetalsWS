@@ -33,9 +33,15 @@
 
                                 <MudText Typo="Typo.body1" Class="mt-2">
                                     <span class="mr-4"><b>QTY:</b> @item.OrderQuantity?.ToString("N0")</span>
-                                    @if (item.Width.HasValue && item.Length.HasValue)
+                                    @{
+                                        var sizeParts = new List<string>();
+                                        if (item.Width.HasValue) { sizeParts.Add(item.Width.Value.ToString("F2")); }
+                                        if (item.Length.HasValue) { sizeParts.Add(item.Length.Value.ToString("F2")); }
+                                        var sizeString = string.Join(" x ", sizeParts);
+                                    }
+                                    @if (!string.IsNullOrEmpty(sizeString))
                                     {
-                                        <span class="mr-4"><b>SIZE:</b> @item.Width?.ToString("F2") x @item.Length?.ToString("F2")</span>
+                                        <span class="mr-4"><b>SIZE:</b> @sizeString</span>
                                     }
                                     <span class="mr-4"><b>WEIGHT:</b> @item.OrderWeight?.ToString("N0") lbs</span>
                                 </MudText>
