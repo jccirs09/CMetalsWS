@@ -37,7 +37,7 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
 
     [Parameter] public List<TruckInfo> AvailableTrucks { get; set; } = new();
     [Parameter] public int TotalSelectedWeight { get; set; }
