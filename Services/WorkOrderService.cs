@@ -78,7 +78,7 @@ namespace CMetalsWS.Services
             }
 
             IQueryable<PickingListItem> query = db.PickingListItems
-                .Include(p => p.PickingList).ThenInclude(p => p.Customer)
+                .Include(p => p.PickingList).ThenInclude(p => p!.Customer)
                 .Include(p => p.Machine);
 
             // Filter by the machine category selected in the first step.
@@ -146,7 +146,7 @@ namespace CMetalsWS.Services
             var plannedQuantities = await db.WorkOrderItems
                 .AsNoTracking()
                 .Where(wi => wi.PickingListItemId.HasValue && pickingListItemIds.Contains(wi.PickingListItemId.Value))
-                .GroupBy(wi => wi.PickingListItemId.Value)
+                .GroupBy(wi => wi.PickingListItemId!.Value)
                 .Select(g => new { PickingListItemId = g.Key, TotalPlanned = g.Sum(wi => wi.OrderQuantity) })
                 .ToDictionaryAsync(g => g.PickingListItemId, g => g.TotalPlanned ?? 0);
 
@@ -404,13 +404,13 @@ namespace CMetalsWS.Services
             if(user is null) throw new Exception("User not found for status update");
 
             workOrder.Status = status;
-            workOrder.LastUpdatedBy = user.UserName;
+            workOrder.LastUpdatedBy = user.UserName ?? "System";
             workOrder.LastUpdatedDate = DateTime.UtcNow;
 
             if (eventType == AuditEventType.Start)
             {
                 workOrder.ActualStartDate = DateTime.UtcNow;
-                workOrder.Operator = user.UserName;
+                workOrder.Operator = user.UserName ?? "System";
             }
             else if (eventType == AuditEventType.Complete)
             {
@@ -457,7 +457,7 @@ namespace CMetalsWS.Services
                     {
                         var relatedWoItems = workOrder.Items.Where(i => i.PickingListItemId == pli.Id);
                         pli.PulledQuantity = (pli.PulledQuantity ?? 0m) + relatedWoItems.Sum(i => i.ProducedQuantity ?? 0m);
-                        pli.PulledWeight = (pli.PulledWeight ?? 0m) + relatedWoItems.Sum(i => i.ProducedWeight ?? 0m);
+                        pli.PulledWeight += relatedWoItems.Sum(i => i.ProducedWeight ?? 0m);
                     }
                 }
 
