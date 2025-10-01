@@ -5,6 +5,7 @@
 @using MudBlazor
 @inject LoadService LoadService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @inject AuthenticationStateProvider AuthStateProvider
 
 <MudGrid Spacing="4">
@@ -101,7 +102,7 @@
 
     @* Create Load Column *@
     <MudItem xs="12" md="4">
-        <MudPaper Class="pa-4" Style="height: 100%;">
+        <MudPaper Class="pa-4" Style="height: 100%; display: flex; flex-direction: column;">
             <MudText Typo="Typo.h6" GutterBottom="true">Create Load</MudText>
 
             <MudCard Class="mb-4">
@@ -112,32 +113,28 @@
                 </MudCardContent>
             </MudCard>
 
-            <MudForm>
-                <MudDatePicker Label="Scheduled Ship Date" @bind-Date="ScheduledShipDate" Class="mb-4" />
-                <MudTextField @bind-Value="LoadNotes" Label="Load Notes (Optional)" T="string" Lines="3" Class="mb-4" />
+            <div style="flex-grow: 1;">
+                <MudForm>
+                    <MudDatePicker Label="Scheduled Ship Date" @bind-Date="ScheduledShipDate" Class="mb-4" />
+                    <MudTextField @bind-Value="LoadNotes" Label="Load Notes (Optional)" T="string" Lines="3" Class="mb-4" />
 
-                <MudSelect T="int?" Label="Select Truck" @bind-Value="SelectedTruckId" AnchorOrigin="Origin.BottomCenter" Class="@(SelectedTruckId.HasValue ? "mb-2" : "mb-4")">
-                    @foreach (var truck in AvailableTrucks)
+                    <MudButton OnClick="OpenTruckDialogAsync" Variant="Variant.Outlined" FullWidth="true" Class="@(SelectedTruckId.HasValue ? "mb-2" : "mb-4")">
+                        @(SelectedTruck is not null ? $"Selected: {SelectedTruck.Name}" : "Select Truck")
+                    </MudButton>
+
+                    @if (SelectedTruck is not null)
                     {
-                        @if (int.TryParse(truck.Id, out var truckIdAsInt))
-                        {
-                            <MudSelectItem T="int?" Value="@truckIdAsInt">@truck.Name (@truck.Driver)</MudSelectItem>
-                        }
+                        <MudCard Outlined="true" Class="mb-4">
+                            <MudCardContent>
+                                <MudText Typo="Typo.h6">@SelectedTruck.Name @(SelectedTruck.IsRecommended ? "(Recommended)" : "")</MudText>
+                                <MudText Typo="Typo.body2" GutterBottom="true">@SelectedTruck.Type - @SelectedTruck.Driver</MudText>
+                                <MudProgressLinear Value="@GetProjectedLoadPercentage(SelectedTruck)" Color="@GetProjectedLoadColor(SelectedTruck)" Class="my-1" />
+                                <MudText Typo="Typo.caption">Projected Load: @GetProjectedLoad(SelectedTruck).ToString("N0") / @SelectedTruck.Capacity.ToString("N0") lbs</MudText>
+                            </MudCardContent>
+                        </MudCard>
                     }
-                </MudSelect>
-
-                @if (SelectedTruck is not null)
-                {
-                    <MudCard Outlined="true" Class="mb-4">
-                        <MudCardContent>
-                            <MudText Typo="Typo.h6">@SelectedTruck.Name @(SelectedTruck.IsRecommended ? "(Recommended)" : "")</MudText>
-                            <MudText Typo="Typo.body2" GutterBottom="true">@SelectedTruck.Type - @SelectedTruck.Driver</MudText>
-                            <MudProgressLinear Value="@GetProjectedLoadPercentage(SelectedTruck)" Color="@GetProjectedLoadColor(SelectedTruck)" Class="my-1" />
-                            <MudText Typo="Typo.caption">Projected Load: @GetProjectedLoad(SelectedTruck).ToString("N0") / @SelectedTruck.Capacity.ToString("N0") lbs</MudText>
-                        </MudCardContent>
-                    </MudCard>
-                }
-            </MudForm>
+                </MudForm>
+            </div>
 
             <div class="mt-auto">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4" Disabled="@(!CanCreate)" OnClick="CreateLoadAsync">Create Load</MudButton>
@@ -194,6 +191,24 @@
     private int TotalSelectedWeight => AllAvailableOrders.SelectMany(o => o.Items)
         .Where(i => SelectedItemIds.Contains(i.Id))
         .Sum(i => i.Weight);
+
+    private async Task OpenTruckDialogAsync()
+    {
+        var parameters = new DialogParameters
+        {
+            ["AvailableTrucks"] = AvailableTrucks,
+            ["TotalSelectedWeight"] = TotalSelectedWeight
+        };
+
+        var dialog = await DialogService.ShowAsync<TruckSelectionDialog>("Select a Truck", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is int truckId)
+        {
+            SelectedTruckId = truckId;
+            StateHasChanged();
+        }
+    }
 
     private void OnSelectedShipDateChanged(DateTime? newDate)
     {
