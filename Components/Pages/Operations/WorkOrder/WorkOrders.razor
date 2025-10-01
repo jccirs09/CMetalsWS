@@ -80,6 +80,7 @@
                     </TemplateColumn>
                     <TemplateColumn Title="" StickyRight="true" >
                         <CellTemplate>
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Title="Edit" Size="Size.Small" OnClick="@(() => EditOrder(context.Item))" Disabled="@(context.Item.Status == WorkOrderStatus.Completed || context.Item.Status == WorkOrderStatus.Canceled)" />
                             <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Title="View/Process" Size="Size.Small" OnClick="@(() => ProcessOrder(context.Item))" />
                         </CellTemplate>
                     </TemplateColumn>
@@ -201,6 +202,11 @@
 
     private void ProcessOrder(WorkOrder order)
     {
-        Navigation.NavigateTo($"/operations/workorder/manage/{order.Id}");
+        Navigation.NavigateTo($"/operations/workorder/process/{order.Id}");
+    }
+
+    private void EditOrder(WorkOrder order)
+    {
+        Navigation.NavigateTo($"/operations/workorder/edit/{order.Id}");
     }
 }
