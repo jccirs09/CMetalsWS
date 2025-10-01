@@ -144,7 +144,6 @@
                                           PickingListItems="_allAvailablePickingListItems"
                                           WorkOrderItems="Model.Items"
                                           RemainingQuantities="_remainingQuantities"
-                                          OnPickingLineCheckedChanged="OnPickingLineCheckedChanged"
                                           OnPromptSplit="PromptSplitAndAddToWO" />
 
                         <MudPaper Class="pa-4">
@@ -484,59 +483,6 @@
             _isFetchingOrders = false;
             StateHasChanged();
         }
-    }
-
-    private void OnPickingLineCheckedChanged((PickingListItem pli, bool isChecked) args)
-    {
-        var (pli, isChecked) = args;
-        if (isChecked)
-        {
-            if (Model.Items.Any(i => i.PickingListItemId == pli.Id)) return;
-
-            var remainingQuantity = _remainingQuantities.GetValueOrDefault(pli.Id, 0);
-            if (remainingQuantity > 0)
-            {
-                var unitWeight = pli.Quantity > 0 ? pli.Weight / pli.Quantity : 0;
-                var workOrderItem = new WorkOrderItem
-                {
-                    PickingListItemId = pli.Id,
-                    ItemCode = pli.ItemId,
-                    Description = pli.ItemDescription,
-                    SalesOrderNumber = pli.PickingList?.SalesOrderNumber,
-                    CustomerName = pli.PickingList?.Customer?.CustomerName,
-                    OrderQuantity = remainingQuantity,
-                    OrderWeight = unitWeight * remainingQuantity,
-                    Width = pli.Width,
-                    Length = pli.Length,
-                    Unit = pli.Unit,
-                    OriginalOrderLineItemId = pli.Id.ToString(),
-                    Status = WorkOrderItemStatus.Pending
-                };
-                Model.Items.Add(workOrderItem);
-                _remainingQuantities[pli.Id] = 0;
-                Snackbar.Add($"Full remaining quantity for {pli.ItemDescription} added.", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add("No remaining quantity to add.", Severity.Info);
-            }
-        }
-        else // Unchecking
-        {
-            var itemsToRemove = Model.Items.Where(i => i.PickingListItemId == pli.Id).ToList();
-            if (itemsToRemove.Any())
-            {
-                decimal reAddedQuantity = 0;
-                foreach (var item in itemsToRemove)
-                {
-                    reAddedQuantity += item.OrderQuantity ?? 0;
-                    Model.Items.Remove(item);
-                }
-                _remainingQuantities[pli.Id] += reAddedQuantity;
-                Snackbar.Add($"{itemsToRemove.Count} split(s) removed.", Severity.Success);
-            }
-        }
-        StateHasChanged();
     }
 
 
