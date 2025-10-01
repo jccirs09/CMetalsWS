@@ -9,7 +9,7 @@
     }
     else if (PickingListItems.Any())
     {
-        <MudTable Items="@PickingListItems" Hover="true">
+        <MudTable Items="@FilteredPickingListItems" Hover="true">
             <HeaderContent>
                 <MudTh>Selected</MudTh>
                 <MudTh>Customer / SO</MudTh>
@@ -59,4 +59,9 @@
 
     [Parameter]
     public EventCallback<PickingListItem> OnPromptSplit { get; set; }
+
+    private List<PickingListItem> FilteredPickingListItems =>
+        PickingListItems
+            .Where(pli => WorkOrderItems.Any(woi => woi.PickingListItemId == pli.Id) || RemainingQuantities.GetValueOrDefault(pli.Id, 0) > 0)
+            .ToList();
 }

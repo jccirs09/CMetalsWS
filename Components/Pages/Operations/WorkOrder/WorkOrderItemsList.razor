@@ -27,7 +27,14 @@
                                 </MudText>
                                 <MudText><b>@item.CustomerName</b></MudText>
                                 <MudText>@item.Description</MudText>
-                                <MudText Typo="Typo.caption">Qty: @item.OrderQuantity?.ToString("N0") | Weight: @item.OrderWeight?.ToString("N0") lbs</MudText>
+                                <MudText Typo="Typo.body1">
+                                    <span class="mr-4"><b>QTY:</b> @item.OrderQuantity?.ToString("N0")</span>
+                                    <span class="mr-4"><b>WEIGHT:</b> @item.OrderWeight?.ToString("N0") lbs</span>
+                                    @if (item.Width.HasValue && item.Length.HasValue)
+                                    {
+                                        <span><b>SIZE:</b> @item.Width?.ToString("F2") x @item.Length?.ToString("F2")</span>
+                                    }
+                                </MudText>
                             </div>
                             <div class="d-flex align-center">
                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => OnRemoveItem.InvokeAsync(item))" />
