@@ -6,29 +6,30 @@
         <MudText Typo="Typo.h6">Select a Truck</MudText>
     </TitleContent>
     <DialogContent>
-        <MudRadioGroup T="int?" @bind-SelectedOption="SelectedTruckId">
-            <div class="d-flex flex-column gap-3" style="max-height: 60vh; overflow-y: auto; padding-right: 8px;">
-                @foreach (var truck in AvailableTrucks)
+        <div class="d-flex flex-column gap-3" style="max-height: 60vh; overflow-y: auto; padding-right: 8px;">
+            @foreach (var truck in AvailableTrucks)
+            {
+                @if (int.TryParse(truck.Id, out var truckIdAsInt))
                 {
-                    @if (int.TryParse(truck.Id, out var truckIdAsInt))
-                    {
-                        <MudCard Outlined="true">
-                            <MudCardContent>
-                                <div class="d-flex align-start">
-                                    <MudRadio T="int?" Value="@truckIdAsInt" Class="mt-1" />
-                                    <div class="flex-grow-1 ml-2">
-                                        <MudText><b>@truck.Name</b> @(truck.IsRecommended ? "(Recommended)" : "")</MudText>
-                                        <MudText Typo="Typo.body2">@truck.Type - @truck.Driver</MudText>
-                                        <MudProgressLinear Value="@GetProjectedLoadPercentage(truck)" Color="@GetProjectedLoadColor(truck)" Class="my-1" />
-                                        <MudText Typo="Typo.caption">@GetProjectedLoad(truck).ToString("N0") / @truck.Capacity.ToString("N0") lbs</MudText>
-                                    </div>
+                    <MudCard
+                        Outlined="@(SelectedTruckId == truckIdAsInt)"
+                        OutlinedColor="Color.Primary"
+                        @onclick="() => SelectedTruckId = truckIdAsInt"
+                        Style="cursor: pointer;">
+                        <MudCardContent>
+                            <div class="d-flex align-start">
+                                <div class="flex-grow-1">
+                                    <MudText><b>@truck.Name</b> @(truck.IsRecommended ? "(Recommended)" : "")</MudText>
+                                    <MudText Typo="Typo.body2">@truck.Type - @truck.Driver</MudText>
+                                    <MudProgressLinear Value="@GetProjectedLoadPercentage(truck)" Color="@GetProjectedLoadColor(truck)" Class="my-1" />
+                                    <MudText Typo="Typo.caption">@GetProjectedLoad(truck).ToString("N0") / @truck.Capacity.ToString("N0") lbs</MudText>
                                 </div>
-                            </MudCardContent>
-                        </MudCard>
-                    }
+                            </div>
+                        </MudCardContent>
+                    </MudCard>
                 }
-            </div>
-        </MudRadioGroup>
+            }
+        </div>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Cancel</MudButton>
