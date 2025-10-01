@@ -15,25 +15,29 @@
                     <MudCardContent>
                         <div class="d-flex justify-space-between">
                             <div>
-                                <MudText Typo="Typo.caption">
-                                    @if(item.IsStockItem)
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Info">STOCK</MudChip>
-                                    }
-                                    else
-                                    {
-                                        @($"SO: {item.SalesOrderNumber}")
-                                    }
-                                </MudText>
-                                <MudText><b>@item.CustomerName</b></MudText>
-                                <MudText>@item.Description</MudText>
-                                <MudText Typo="Typo.body1">
+                                <MudStack Row="true" Spacing="3">
+                                    <MudText Typo="Typo.caption">
+                                        @if(item.IsStockItem)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Info">STOCK</MudChip>
+                                        }
+                                        else
+                                        {
+                                            @($"SO: {item.SalesOrderNumber}")
+                                        }
+                                    </MudText>
+                                    <MudText><b>@item.CustomerName</b></MudText>
+                                </MudStack>
+
+                                <MudText Class="mt-1">@item.Description</MudText>
+
+                                <MudText Typo="Typo.body1" Class="mt-2">
                                     <span class="mr-4"><b>QTY:</b> @item.OrderQuantity?.ToString("N0")</span>
-                                    <span class="mr-4"><b>WEIGHT:</b> @item.OrderWeight?.ToString("N0") lbs</span>
                                     @if (item.Width.HasValue && item.Length.HasValue)
                                     {
-                                        <span><b>SIZE:</b> @item.Width?.ToString("F2") x @item.Length?.ToString("F2")</span>
+                                        <span class="mr-4"><b>SIZE:</b> @item.Width?.ToString("F2") x @item.Length?.ToString("F2")</span>
                                     }
+                                    <span class="mr-4"><b>WEIGHT:</b> @item.OrderWeight?.ToString("N0") lbs</span>
                                 </MudText>
                             </div>
                             <div class="d-flex align-center">
