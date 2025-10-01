@@ -9,9 +9,8 @@
     }
     else if (PickingListItems.Any())
     {
-        <MudTable Items="@PickingListItems" Hover="true">
+        <MudTable Items="@FilteredPickingListItems" Hover="true">
             <HeaderContent>
-                <MudTh>Selected</MudTh>
                 <MudTh>Customer / SO</MudTh>
                 <MudTh>Item</MudTh>
                 <MudTh>Total Qty</MudTh>
@@ -19,9 +18,6 @@
                 <MudTh>Actions</MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd>
-                    <MudCheckBox T="bool" Checked="@(WorkOrderItems.Any(i => i.PickingListItemId == context.Id))" CheckedChanged="@((bool isChecked) => OnPickingLineCheckedChanged.InvokeAsync((context, isChecked)))" />
-                </MudTd>
                 <MudTd DataLabel="Customer / SO">
                     @context.PickingList?.Customer?.CustomerName<br/>
                     <MudText Typo="Typo.caption">@context.PickingList?.SalesOrderNumber</MudText>
@@ -55,8 +51,10 @@
     public Dictionary<int, decimal> RemainingQuantities { get; set; } = new();
 
     [Parameter]
-    public EventCallback<(PickingListItem pli, bool isChecked)> OnPickingLineCheckedChanged { get; set; }
-
-    [Parameter]
     public EventCallback<PickingListItem> OnPromptSplit { get; set; }
+
+    private List<PickingListItem> FilteredPickingListItems =>
+        PickingListItems
+            .Where(pli => WorkOrderItems.Any(woi => woi.PickingListItemId == pli.Id) || RemainingQuantities.GetValueOrDefault(pli.Id, 0) > 0)
+            .ToList();
 }
