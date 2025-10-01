@@ -1,5 +1,5 @@
 @page "/operations/workorder/manage"
-@page "/operations/workorder/manage/{Id:int}"
+@page "/operations/workorder/edit/{Id:int}"
 @page "/operations/workorder/process/{Id:int}"
 @using CMetalsWS.Data
 @using CMetalsWS.Services
@@ -26,21 +26,25 @@
     }
     else
     {
-        @if (IsCreateMode)
+        @if (_mode == PageMode.Create || _mode == PageMode.Edit)
         {
             <div class="d-flex justify-space-between align-center mb-4">
                 <div>
                     <MudButton Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/operations/workorders"))" StartIcon="@Icons.Material.Filled.ArrowBack">Back to Work Orders</MudButton>
                     <MudText Typo="Typo.h5" Class="mt-2">
-                        @(IsCreateMode
+                        @(_mode == PageMode.Create
                             ? "Create Work Order"
-                            : $"Edit Work Order {Model?.WorkOrderNumber ?? "(unsaved)"}")
+                            : $"Edit Work Order {Model?.WorkOrderNumber ?? ""}")
                     </MudText>
-                    <MudText Color="Color.Dark">Create a new work order by selecting machine, coil, and customer orders.</MudText>
+                    <MudText Color="Color.Dark">
+                        @(_mode == PageMode.Create
+                            ? "Create a new work order by selecting machine, coil, and customer orders."
+                            : "Update the details of the work order.")
+                    </MudText>
                 </div>
             </div>
         }
-        else
+        else // Process Mode
         {
             <!-- Process Mode Header -->
             <div class="d-flex justify-space-between align-center mb-4">
@@ -69,9 +73,9 @@
         }
 
         <MudGrid Spacing="4">
-            @if (IsCreateMode)
+            @if (_mode == PageMode.Create || _mode == PageMode.Edit)
             {
-                <!-- CREATE MODE -->
+                <!-- CREATE / EDIT MODE -->
                 <MudItem xs="12" md="7">
                     <MudStack Spacing="3">
                         <MudPaper Outlined="true" Class="pa-4">
@@ -177,7 +181,7 @@
                                 </MudCardContent>
                                 <MudCardActions>
                                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitWorkOrderAsync" Disabled="@(Model.Items.Count == 0 || _isSaving)" FullWidth="true" Size="Size.Large">
-                                        @(IsCreateMode ? "Create Work Order" : "Update Work Order")
+                                        @(_mode == PageMode.Create ? "Create Work Order" : "Update Work Order")
                                     </MudButton>
                                 </MudCardActions>
                             </MudCard>
@@ -317,6 +321,9 @@
 </style>
 
 @code {
+    private enum PageMode { Create, Edit, Process }
+    private PageMode _mode;
+
     [Parameter]
     public int? Id { get; set; }
 
@@ -325,12 +332,11 @@
     public bool Start { get; set; }
 
     private bool IsLoading { get; set; } = true;
-    private bool IsCreateMode => Id == null;
     private WorkOrder Model { get; set; } = new();
     private string? _userId;
     private DateTime? _nullableDueDate;
 
-    // Create Mode specific properties
+    // Create & Edit Mode specific properties
     private List<Machine> _machines = new();
     private InventoryItem? _parentItem;
     private List<PickingListItem> _allAvailablePickingListItems = new();
@@ -345,70 +351,81 @@
     private System.Timers.Timer? _timer;
     private TimeSpan _elapsed;
     private string _elapsedTimeDisplay = "00:00:00";
-private string _estCompleteDisplay = "--:--";
+    private string _estCompleteDisplay = "--:--";
     private double _overallProgress = 0;
     private decimal _lbsPerHour = 0;
 
     protected override async Task OnInitializedAsync()
     {
+        var uri = Navigation.Uri;
+        if (uri.Contains("/process/"))
+        {
+            _mode = PageMode.Process;
+        }
+        else if (Id.HasValue && uri.Contains("/edit/"))
+        {
+            _mode = PageMode.Edit;
+        }
+        else
+        {
+            _mode = PageMode.Create;
+        }
+
         await LoadDataAsync();
     }
 
     private async Task LoadDataAsync()
     {
         IsLoading = true;
+        StateHasChanged();
+
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(authState.User);
         _userId = user?.Id;
 
-        if (Id.HasValue)
+        switch (_mode)
         {
-            Model = await WorkOrderService.GetByIdAsync(Id.Value);
-            if (Model == null)
-            {
-                Snackbar.Add("Work Order not found.", Severity.Error);
-                Navigation.NavigateTo("/operations/workorders");
-                return;
-            }
+            case PageMode.Create:
+                Model = new WorkOrder { DueDate = DateTime.Today.AddDays(7) };
+                _nullableDueDate = Model.DueDate;
+                _machines = (await MachineService.GetMachinesAsync())
+                    .Where(m => m.IsActive && (m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter))
+                    .ToList();
+                break;
 
-            // If the URL contains ?start=true, and the WO is in a startable state, start it.
-            if (Start && (Model.Status == WorkOrderStatus.Pending || Model.Status == WorkOrderStatus.Awaiting))
-            {
-                if (!string.IsNullOrEmpty(_userId))
+            case PageMode.Edit:
+                Model = await WorkOrderService.GetByIdAsync(Id.Value);
+                if (Model == null) { /* Error handling */ return; }
+                _nullableDueDate = Model.DueDate;
+                _machines = (await MachineService.GetMachinesAsync())
+                    .Where(m => m.IsActive && (m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter))
+                    .ToList();
+                if (!string.IsNullOrEmpty(Model.TagNumber) && Model.MachineId.HasValue)
                 {
-                    await WorkOrderService.StartWorkOrderAsync(Model.Id, _userId);
-                    // Navigate to a clean URL to prevent re-starting on reload/pause.
-                    Navigation.NavigateTo($"/operations/workorder/process/{Model.Id}", replace: true);
-                    return; // Stop execution, the page will reload cleanly.
+                    await FetchPickingListItemsAsync(false);
                 }
-                else
+                break;
+
+            case PageMode.Process:
+                Model = await WorkOrderService.GetByIdAsync(Id.Value);
+                if (Model == null) { /* Error handling */ return; }
+
+                if (Start && (Model.Status == WorkOrderStatus.Pending || Model.Status == WorkOrderStatus.Awaiting))
                 {
-                    Snackbar.Add("Cannot start work order: User not found.", Severity.Error);
+                    if (!string.IsNullOrEmpty(_userId))
+                    {
+                        await WorkOrderService.StartWorkOrderAsync(Model.Id, _userId);
+                        Navigation.NavigateTo($"/operations/workorder/process/{Model.Id}", replace: true);
+                        return;
+                    }
                 }
-            }
-
-            _events = await AuditEventService.GetEventsForTaskAsync(Id.Value, TaskType.WorkOrder);
-            _events = _events.OrderByDescending(e => e.Timestamp).ToList();
-
-            if (!string.IsNullOrEmpty(Model.TagNumber) && Model.MachineId.HasValue)
-            {
-                await FetchPickingListItemsAsync(false);
-            }
-
-            if (Model?.Status == WorkOrderStatus.InProgress)
-            {
-                StartTimer();
-            }
-            RecalculateProgress();
+                _events = await AuditEventService.GetEventsForTaskAsync(Id.Value, TaskType.WorkOrder);
+                _events = _events.OrderByDescending(e => e.Timestamp).ToList();
+                if (Model?.Status == WorkOrderStatus.InProgress) { StartTimer(); }
+                RecalculateProgress();
+                break;
         }
-        else
-        {
-            Model = new WorkOrder { DueDate = DateTime.Today.AddDays(7) };
-            _nullableDueDate = Model.DueDate;
-            _machines = (await MachineService.GetMachinesAsync())
-                .Where(m => m.IsActive && (m.Category == MachineCategory.CTL || m.Category == MachineCategory.Slitter))
-                .ToList();
-        }
+
         IsLoading = false;
         StateHasChanged();
     }
@@ -593,13 +610,13 @@ private string _estCompleteDisplay = "--:--";
 
         try
         {
-            if (IsCreateMode)
+            if (_mode == PageMode.Create)
             {
                 var createdWorkOrder = await WorkOrderService.CreateAsync(Model, _userId);
                 Snackbar.Add("Work Order Created Successfully!", Severity.Success);
-                Navigation.NavigateTo($"/operations/workorder/manage/{createdWorkOrder.Id}", replace: true);
+                Navigation.NavigateTo($"/operations/workorder/edit/{createdWorkOrder.Id}", replace: true);
             }
-            else
+            else // PageMode.Edit
             {
                 await WorkOrderService.UpdateAsync(Model, _userId);
                 Snackbar.Add("Work Order updated successfully.", Severity.Success);
