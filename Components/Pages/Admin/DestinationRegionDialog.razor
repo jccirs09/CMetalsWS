@@ -12,7 +12,7 @@
     <DialogContent>
         <MudForm Model="@Model" @ref="_form">
             <MudTextField @bind-Value="Model.Name" Label="Name" Required="true" />
-            <MudAutocomplete T="string" Label="Icon" @bind-Value="Model.Icon" SearchFunc="@SearchIcons" HelperText="Select a MudBlazor icon" />
+            <MudAutocomplete T="string" Label="Icon" @bind-Value="_selectedIconName" SearchFunc="@SearchIcons" HelperText="Select a MudBlazor icon" />
             <MudColorPicker Label="Color" @bind-Value="_color" PickerVariant="PickerVariant.Inline" HelperText="Select a color" />
             <MudSelect T="int" Label="Branches" MultiSelection="true" @bind-SelectedValues="_selectedBranchIds">
                 @foreach (var branch in Branches)
@@ -44,13 +44,22 @@
     private MudForm _form = default!;
     private IEnumerable<int> _selectedBranchIds = new List<int>();
     private MudColor _color = new MudColor("#424242"); // Default to grey so it's not empty
-    private List<string> _allIcons = new();
+    private Dictionary<string, string> _iconMap = new();
+    private string _selectedIconName = string.Empty;
 
     protected override void OnInitialized()
     {
+        // Populate the icon map with Name -> SVG Path
+        _iconMap = typeof(Icons.Material.Filled)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string))
+            .ToDictionary(f => f.Name, f => (string)f.GetValue(null));
+
         if (IsEdit)
         {
             _selectedBranchIds = Model.Branches.Select(b => b.Id).ToList();
+
+            // Safely set the color
             if (!string.IsNullOrEmpty(Model.Color))
             {
                 try
@@ -63,14 +72,17 @@
                     _color = new MudColor("#424242");
                 }
             }
-        }
 
-        _allIcons = typeof(Icons.Material.Filled)
-            .GetFields(BindingFlags.Public | BindingFlags.Static)
-            .Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string))
-            .Select(f => f.Name)
-            .OrderBy(s => s)
-            .ToList();
+            // Find the name for the existing icon SVG path
+            if (!string.IsNullOrEmpty(Model.Icon))
+            {
+                var entry = _iconMap.FirstOrDefault(kvp => kvp.Value == Model.Icon);
+                if (entry.Key != null)
+                {
+                    _selectedIconName = entry.Key;
+                }
+            }
+        }
     }
 
     private async Task<IEnumerable<string>> SearchIcons(string value, CancellationToken token)
@@ -78,9 +90,9 @@
         await Task.Delay(5, token);
         if (string.IsNullOrEmpty(value))
         {
-            return _allIcons.Take(20);
+            return _iconMap.Keys.OrderBy(k => k).Take(20);
         }
-        return _allIcons.Where(i => i.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        return _iconMap.Keys.Where(i => i.Contains(value, StringComparison.InvariantCultureIgnoreCase)).OrderBy(k => k);
     }
 
     private async Task Save()
@@ -88,6 +100,16 @@
         await _form.Validate();
         if (_form.IsValid)
         {
+            // Update Model.Icon with the SVG path from the map
+            if (!string.IsNullOrEmpty(_selectedIconName) && _iconMap.TryGetValue(_selectedIconName, out var iconValue))
+            {
+                Model.Icon = iconValue;
+            }
+            else
+            {
+                Model.Icon = string.Empty;
+            }
+
             Model.Color = _color.ToString(MudColorOutputFormats.Hex);
             var result = new Tuple<DestinationRegion, IEnumerable<int>>(Model, _selectedBranchIds);
             MudDialog.Close(DialogResult.Ok(result));
