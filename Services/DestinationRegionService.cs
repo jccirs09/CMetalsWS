@@ -43,6 +43,7 @@ namespace CMetalsWS.Services
             if (regionToUpdate != null)
             {
                 regionToUpdate.Name = destinationRegion.Name;
+                regionToUpdate.Type = destinationRegion.Type;
                 var branches = await db.Branches.Where(b => branchIds.Contains(b.Id)).ToListAsync();
                 regionToUpdate.Branches = branches;
                 await db.SaveChangesAsync();
@@ -62,7 +63,7 @@ namespace CMetalsWS.Services
 
         public DestinationRegionCategory GetDestinationRegionCategory(DestinationRegion region)
         {
-            return region.Name.ToUpper().Trim() switch
+            return region.Type.ToUpper().Trim() switch
             {
                 "LOCAL" => DestinationRegionCategory.LOCAL,
                 "ISLAND" => DestinationRegionCategory.ISLAND,
@@ -70,5 +71,6 @@ namespace CMetalsWS.Services
                 _ => DestinationRegionCategory.OUT_OF_TOWN,
             };
         }
+
     }
 }
