@@ -10,6 +10,8 @@
     <DialogContent>
         <MudForm Model="@Model" @ref="_form">
             <MudTextField @bind-Value="Model.Name" Label="Name" Required="true" />
+            <MudTextField @bind-Value="Model.Icon" Label="Icon" HelperText="Enter a MudBlazor icon name" />
+            <MudTextField @bind-Value="Model.Color" Label="Color" HelperText="Enter a color name or hex code (e.g., 'primary' or '#ff0000')" />
             <MudSelect T="int" Label="Branches" MultiSelection="true" @bind-SelectedValues="_selectedBranchIds">
                 @foreach (var branch in Branches)
                 {

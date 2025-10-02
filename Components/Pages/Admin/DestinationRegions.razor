@@ -26,12 +26,18 @@
         <HeaderContent>
             <MudTh>Id</MudTh>
             <MudTh>Name</MudTh>
+            <MudTh>Icon</MudTh>
+            <MudTh>Color</MudTh>
             <MudTh>Branches</MudTh>
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Id">@context.Id</MudTd>
             <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Icon"><MudIcon Icon="@context.Icon" /></MudTd>
+            <MudTd DataLabel="Color">
+                <MudChip T="string" Style="@($"background-color:{@context.Color}; color:white;")">@context.Color</MudChip>
+            </MudTd>
             <MudTd DataLabel="Branches">
                 @string.Join(", ", context.Branches.Select(b => b.Name))
             </MudTd>
@@ -89,6 +95,8 @@
         {
             Id = region.Id,
             Name = region.Name,
+            Icon = region.Icon,
+            Color = region.Color,
             Branches = new List<Branch>(region.Branches)
         };
 

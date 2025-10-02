@@ -43,8 +43,8 @@
                             <MudCard Class="d-flex flex-column region-card" Style="height:100%; cursor:pointer;" @onclick="@(() => ActivateTabWithRegion(region.Name))">
                                 <MudCardContent>
                                     <div class="d-flex justify-space-between align-start mb-2">
-                                        <MudAvatar Color="@GetRegionColor(region.Type)" Size="Size.Medium">
-                                            <MudIcon Icon="@GetRegionIcon(region.Type)" />
+                                        <MudAvatar Style="@($"background-color: {region.Color}")" Size="Size.Medium">
+                                            <MudIcon Icon="@region.Icon" />
                                         </MudAvatar>
                                         <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@region.Metrics.UtilizationRate%</MudChip>
                                     </div>
@@ -100,7 +100,7 @@
                                     var regionOrders = _availableOrders.Where(o => o.DeliveryRegion == region.Name).ToList();
                                     <div class="d-flex align-center justify-space-between pa-2 my-1 rounded-lg" style="background-color: var(--mud-palette-background-grey);">
                                         <div class="d-flex align-center gap-3">
-                                            <MudAvatar Color="@GetRegionColor(region.Type)" Size="Size.Small" />
+                                            <MudAvatar Style="@($"background-color: {region.Color}")" Size="Size.Small" />
                                             <div>
                                                 <MudText><b>@region.Name</b></MudText>
                                                 <MudText Typo="Typo.body2" Class="text-muted">@regionOrders.Sum(o => o.Weight).ToString("N0") lbs</MudText>
@@ -121,7 +121,7 @@
                                     var regionTrucks = _trucks.Where(t => t.Type == region.Name).ToList(); // Simplified logic
                                     <div class="d-flex align-center justify-space-between pa-2 my-1 rounded-lg" style="background-color: var(--mud-palette-background-grey);">
                                         <div class="d-flex align-center gap-3">
-                                            <MudAvatar Color="@GetRegionColor(region.Type)" Size="Size.Small" />
+                                            <MudAvatar Style="@($"background-color: {region.Color}")" Size="Size.Small" />
                                             <div>
                                                 <MudText><b>@region.Name</b></MudText>
                                                 <MudText Typo="Typo.body2" Class="text-muted">@regionTrucks.Count() active • @regionTrucks.Count(t => t.IsRecommended) pool trucks</MudText>
@@ -210,7 +210,7 @@
                                 <CardHeaderActions>
                                     <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(load.Priority)">@load.Priority</MudChip>
                                     <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(load.Status)">@load.Status</MudChip>
-                                    <MudChip T="string" Size="Size.Small" Color="@GetRegionColorForLoad(load)">@load.DeliveryRegion</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Style="@($"background-color: {GetRegionColorForLoad(load)}; color: white;")">@load.DeliveryRegion</MudChip>
                                 </CardHeaderActions>
                             </MudCardHeader>
                             <MudCardContent>
@@ -365,31 +365,11 @@
         _ => Color.Default
     };
 
-    private Color GetRegionColor(string regionType) => regionType.ToLower() switch
+    private string GetRegionColorForLoad(ShippingLoad load)
     {
-        "local" => Color.Success,
-        "out-of-town" => Color.Primary,
-        "island-pool" => Color.Secondary,
-        "okanagan-pool" => Color.Warning,
-        "customer-pickup" => Color.Info,
-        _ => Color.Default
-    };
-
-    private Color GetRegionColorForLoad(ShippingLoad load)
-    {
-        var regionType = _regions.FirstOrDefault(r => r.Name == load.DeliveryRegion)?.Type ?? "";
-        return GetRegionColor(regionType);
+        var region = _regions.FirstOrDefault(r => r.Name == load.DeliveryRegion);
+        return region?.Color ?? "grey";
     }
-
-    private string GetRegionIcon(string regionType) => regionType.ToLower() switch
-    {
-        "local" => Icons.Material.Filled.Business,
-        "out-of-town" => Icons.Material.Filled.Route,
-        "island-pool" => Icons.Material.Filled.DirectionsBoat,
-        "okanagan-pool" => Icons.Material.Filled.Map,
-        "customer-pickup" => Icons.Material.Filled.People,
-        _ => Icons.Material.Filled.Place
-    };
 
     private Severity GetAlertSeverity(string color) => color.ToLower() switch
     {

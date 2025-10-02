@@ -15,6 +15,9 @@ using Microsoft.AspNetCore.Mvc;
 using CMetalsWS.Hubs;
 using System.Security.Claims;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.Logging;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -193,6 +196,31 @@ app.MapAdditionalIdentityEndpoints();
 app.MapHub<ScheduleHub>("/hubs/schedule");
 //app.MapHub<ChatHub>("/chathub");
 
+// === EF MIGRATIONS DIAG (TEMP) ===
+using (var scope = app.Services.CreateScope())
+{
+    var sp = scope.ServiceProvider;
+    var log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("EFDiag");
+    try
+    {
+        var ctx = sp.GetRequiredService<CMetalsWS.Data.ApplicationDbContext>();
+        var migAsm = ctx.GetService<IMigrationsAssembly>();
+        var available = migAsm.Migrations.Keys.ToArray();
+        var applied = await ctx.Database.GetAppliedMigrationsAsync();
+        var pending = await ctx.Database.GetPendingMigrationsAsync();
 
+        log.LogInformation("DbContext Assembly: {DbAsm}", typeof(CMetalsWS.Data.ApplicationDbContext).Assembly.FullName);
+        log.LogInformation("Migrations Assembly: {MigAsm}", migAsm.Assembly.FullName);
+        log.LogInformation("Available migrations ({Count}): {List}", available.Length, string.Join(", ", available));
+        log.LogInformation("Applied migrations ({Count}): {List}", applied.Count(), string.Join(", ", applied));
+        log.LogInformation("Pending migrations ({Count}): {List}", pending.Count(), string.Join(", ", pending));
+    }
+    catch (Exception ex)
+    {
+        log.LogError(ex, "EFDiag failed.");
+        throw;
+    }
+}
+// === END EF MIGRATIONS DIAG ===
 
 app.Run();
