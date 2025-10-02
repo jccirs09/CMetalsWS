@@ -68,8 +68,7 @@
         _allIcons = typeof(Icons.Material.Filled)
             .GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string))
-            .Select(f => (string)f.GetValue(null))
-            .Where(s => !string.IsNullOrEmpty(s))
+            .Select(f => f.Name)
             .OrderBy(s => s)
             .ToList();
     }
