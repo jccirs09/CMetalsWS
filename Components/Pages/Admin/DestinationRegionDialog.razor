@@ -10,6 +10,12 @@
     <DialogContent>
         <MudForm Model="@Model" @ref="_form">
             <MudTextField @bind-Value="Model.Name" Label="Name" Required="true" />
+            <MudSelect @bind-Value="Model.Type" Label="Type" Required="true">
+                <MudSelectItem Value="@("local")">Local</MudSelectItem>
+                <MudSelectItem Value="@("island")">Island</MudSelectItem>
+                <MudSelectItem Value="@("okanagan")">Okanagan</MudSelectItem>
+                <MudSelectItem Value="@("out of town")">Out of Town</MudSelectItem>
+            </MudSelect>
             <MudSelect T="int" Label="Branches" MultiSelection="true" @bind-SelectedValues="_selectedBranchIds">
                 @foreach (var branch in Branches)
                 {

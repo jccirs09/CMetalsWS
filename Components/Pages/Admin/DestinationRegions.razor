@@ -26,12 +26,19 @@
         <HeaderContent>
             <MudTh>Id</MudTh>
             <MudTh>Name</MudTh>
+            <MudTh>Type</MudTh>
             <MudTh>Branches</MudTh>
             <MudTh>Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Id">@context.Id</MudTd>
             <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Type">
+                @{
+                    var (color, icon) = GetRegionStyling(context);
+                }
+                <MudChip T="string" Variant="Variant.Outlined" Color="@color" Icon="@icon" Size="Size.Small">@context.Type</MudChip>
+            </MudTd>
             <MudTd DataLabel="Branches">
                 @string.Join(", ", context.Branches.Select(b => b.Name))
             </MudTd>
@@ -89,6 +96,7 @@
         {
             Id = region.Id,
             Name = region.Name,
+            Type = region.Type,
             Branches = new List<Branch>(region.Branches)
         };
 
@@ -139,5 +147,17 @@
             Snackbar.Add("Region deleted successfully.", Severity.Success);
             await LoadData();
         }
+    }
+
+    private (Color color, string icon) GetRegionStyling(DestinationRegion region)
+    {
+        var category = DestinationRegionService.GetDestinationRegionCategory(region);
+        return category switch
+        {
+            DestinationRegionCategory.LOCAL => (Color.Success, Icons.Material.Filled.LocationCity),
+            DestinationRegionCategory.ISLAND => (Color.Info, Icons.Material.Filled.Anchor),
+            DestinationRegionCategory.OKANAGAN => (Color.Warning, Icons.Material.Filled.FilterHdr),
+            _ => (Color.Default, Icons.Material.Filled.Map),
+        };
     }
 }
