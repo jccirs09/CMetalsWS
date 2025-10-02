@@ -2,6 +2,8 @@
 @using MudBlazor
 @using System.Collections.Generic
 @using System.Linq
+@using System.Reflection
+@using MudBlazor.Utilities
 
 <MudDialog>
     <TitleContent>
@@ -10,8 +12,8 @@
     <DialogContent>
         <MudForm Model="@Model" @ref="_form">
             <MudTextField @bind-Value="Model.Name" Label="Name" Required="true" />
-            <MudTextField @bind-Value="Model.Icon" Label="Icon" HelperText="Enter a MudBlazor icon name" />
-            <MudTextField @bind-Value="Model.Color" Label="Color" HelperText="Enter a color name or hex code (e.g., 'primary' or '#ff0000')" />
+            <MudAutocomplete T="string" Label="Icon" @bind-Value="Model.Icon" SearchFunc="@SearchIcons" HelperText="Select a MudBlazor icon" />
+            <MudColorPicker Label="Color" @bind-Value="_color" PickerVariant="PickerVariant.Inline" HelperText="Select a color" />
             <MudSelect T="int" Label="Branches" MultiSelection="true" @bind-SelectedValues="_selectedBranchIds">
                 @foreach (var branch in Branches)
                 {
@@ -41,13 +43,37 @@
 
     private MudForm _form = default!;
     private IEnumerable<int> _selectedBranchIds = new List<int>();
+    private MudColor _color = new MudColor("#424242"); // Default to grey so it's not empty
+    private List<string> _allIcons = new();
 
     protected override void OnInitialized()
     {
         if (IsEdit)
         {
             _selectedBranchIds = Model.Branches.Select(b => b.Id).ToList();
+            if (!string.IsNullOrEmpty(Model.Color))
+            {
+                _color = new MudColor(Model.Color);
+            }
         }
+
+        _allIcons = typeof(Icons.Material.Filled)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string))
+            .Select(f => (string)f.GetValue(null))
+            .Where(s => !string.IsNullOrEmpty(s))
+            .OrderBy(s => s)
+            .ToList();
+    }
+
+    private async Task<IEnumerable<string>> SearchIcons(string value, CancellationToken token)
+    {
+        await Task.Delay(5, token);
+        if (string.IsNullOrEmpty(value))
+        {
+            return _allIcons.Take(20);
+        }
+        return _allIcons.Where(i => i.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 
     private async Task Save()
@@ -55,6 +81,7 @@
         await _form.Validate();
         if (_form.IsValid)
         {
+            Model.Color = _color.ToString(MudColorOutputFormats.Hex);
             var result = new Tuple<DestinationRegion, IEnumerable<int>>(Model, _selectedBranchIds);
             MudDialog.Close(DialogResult.Ok(result));
         }
