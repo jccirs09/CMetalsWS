@@ -53,7 +53,15 @@
             _selectedBranchIds = Model.Branches.Select(b => b.Id).ToList();
             if (!string.IsNullOrEmpty(Model.Color))
             {
-                _color = new MudColor(Model.Color);
+                try
+                {
+                    _color = new MudColor(Model.Color);
+                }
+                catch (FormatException)
+                {
+                    // Fallback for invalid color strings in the database
+                    _color = new MudColor("#424242");
+                }
             }
         }
 
