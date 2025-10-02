@@ -31,7 +31,7 @@
                             <MudSelectItem T="int?" Value="@destination.Id">
                                 @if (!string.IsNullOrEmpty(destination.Color))
                                 {
-                                    <MudChip Icon="@destination.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), destination.Color, true))" Size="Size.Small">@destination.Name</MudChip>
+                                    <MudChip T="string" Icon="@destination.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), destination.Color, true))" Size="Size.Small">@destination.Name</MudChip>
                                 }
                                 else
                                 {
@@ -75,14 +75,7 @@
                 <MudCardContent>
                     <MudText>
                         Destination:
-                        @if (pickingList.DestinationRegion != null && !string.IsNullOrEmpty(pickingList.DestinationRegion.Color))
-                        {
-                            <MudChip Tag="span" Icon="@pickingList.DestinationRegion.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), pickingList.DestinationRegion.Color, true))" Size="Size.Small" Class="ml-1">@pickingList.DestinationRegion.Name</MudChip>
-                        }
-                        else
-                        {
-                            <MudText Component="span">@pickingList.DestinationRegion?.Name</MudText>
-                        }
+                        @DisplayRegion(pickingList.DestinationRegion)
                     </MudText>
                     <MudText>Ship Date: @pickingList.ShipDate?.ToShortDateString()</MudText>
                     <MudText><b>Total Line Items (Sheet/Coil):</b> @GetTotalLineItems(pickingList)</MudText>
@@ -113,18 +106,8 @@
                             <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
                             <MudText Typo="Typo.body2" Class="mx-1">•</MudText>
                             <MudText Typo="Typo.body2">@pickingList.Branch?.Name</MudText>
-                            @if (pickingList.DestinationRegion != null)
-                            {
-                                <MudText Typo="Typo.body2" Class="mx-1">•</MudText>
-                                @if (!string.IsNullOrEmpty(pickingList.DestinationRegion.Color))
-                                {
-                                    <MudChip Icon="@pickingList.DestinationRegion.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), pickingList.DestinationRegion.Color, true))" Size="Size.Small">@pickingList.DestinationRegion.Name</MudChip>
-                                }
-                                else
-                                {
-                                    <MudText Typo="Typo.body2">@pickingList.DestinationRegion.Name</MudText>
-                                }
-                            }
+                            <MudText Typo="Typo.body2" Class="mx-1">•</MudText>
+                            @DisplayRegion(pickingList.DestinationRegion)
                         </div>
                     </div>
                     <div>
@@ -219,18 +202,8 @@
                             <MudText Typo="Typo.body2">@pickingList.Customer?.CustomerName</MudText>
                             <MudText Typo="Typo.body2" Class="mx-1">•</MudText>
                             <MudText Typo="Typo.body2">@pickingList.Branch?.Name</MudText>
-                            @if (pickingList.DestinationRegion != null)
-                            {
-                                <MudText Typo="Typo.body2" Class="mx-1">•</MudText>
-                                @if (!string.IsNullOrEmpty(pickingList.DestinationRegion.Color))
-                                {
-                                    <MudChip Icon="@pickingList.DestinationRegion.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), pickingList.DestinationRegion.Color, true))" Size="Size.Small">@pickingList.DestinationRegion.Name</MudChip>
-                                }
-                                else
-                                {
-                                    <MudText Typo="Typo.body2">@pickingList.DestinationRegion.Name</MudText>
-                                }
-                            }
+                            <MudText Typo="Typo.body2" Class="mx-1">•</MudText>
+                            @DisplayRegion(pickingList.DestinationRegion)
                         </div>
                     </div>
                     <div>
@@ -310,6 +283,20 @@
 </MudTabs>
 
 @code {
+    private RenderFragment DisplayRegion(DestinationRegion? region) =>
+        @<text>
+            @if (region != null)
+            {
+                if (!string.IsNullOrEmpty(region.Color))
+                {
+                    <MudChip T="string" Icon="@region.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), region.Color, true))" Size="Size.Small">@region.Name</MudChip>
+                }
+                else
+                {
+                    @region.Name
+                }
+            }
+        </text>;
     private List<PickingList> _pickingLists = new();
     private List<DestinationRegion> _destinations = new();
     private string? _userId;

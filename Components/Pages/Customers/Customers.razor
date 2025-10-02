@@ -71,7 +71,7 @@
             <MudTd DataLabel="Region">
                 @if (context.DestinationRegion != null && !string.IsNullOrEmpty(context.DestinationRegion.Color))
                 {
-                    <MudChip Icon="@context.DestinationRegion.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), context.DestinationRegion.Color, true))" Variant="Variant.Text">@context.DestinationRegion.Name</MudChip>
+                    <MudChip T="string" Icon="@context.DestinationRegion.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), context.DestinationRegion.Color, true))" Variant="Variant.Text">@context.DestinationRegion.Name</MudChip>
                 }
                 else
                 {

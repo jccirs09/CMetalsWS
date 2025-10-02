@@ -100,14 +100,7 @@ else
                         <MudText><strong>Destination Group:</strong> @_customer.DestinationGroup?.Name</MudText>
                         <MudText>
                             <strong>Destination Region:</strong>
-                            @if (_customer.DestinationRegion != null && !string.IsNullOrEmpty(_customer.DestinationRegion.Color))
-                            {
-                                <MudChip Tag="span" Icon="@_customer.DestinationRegion.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), _customer.DestinationRegion.Color, true))" Size="Size.Small" Class="ml-1">@_customer.DestinationRegion.Name</MudChip>
-                            }
-                            else
-                            {
-                                <MudText Component="span">@_customer.DestinationRegion?.Name</MudText>
-                            }
+                            @DisplayRegion(_customer.DestinationRegion)
                         </MudText>
                         <MudText><strong>Priority:</strong> @_customer.Priority</MudText>
                     </MudCardContent>
@@ -127,4 +120,19 @@ else
     {
         _customer = await CustomerService.GetByIdAsync(Id);
     }
+
+    private RenderFragment DisplayRegion(DestinationRegion? region) =>
+        @<text>
+            @if (region != null)
+            {
+                if (!string.IsNullOrEmpty(region.Color))
+                {
+                    <MudChip T="string" Icon="@region.Icon" Color="@((MudBlazor.Color)Enum.Parse(typeof(MudBlazor.Color), region.Color, true))" Size="Size.Small" Class="ml-1">@region.Name</MudChip>
+                }
+                else
+                {
+                    @region.Name
+                }
+            }
+        </text>;
 }

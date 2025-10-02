@@ -12,7 +12,7 @@
             <MudTextField @bind-Value="Model.Name" Label="Name" Required="true" For="@(() => Model.Name)" />
             <MudTextField @bind-Value="Model.Type" Label="Type" Required="true" For="@(() => Model.Type)" />
             <MudTextField @bind-Value="Model.Description" Label="Description" For="@(() => Model.Description)" Lines="3" />
-            <MudSwitch @bind-Checked="Model.RequiresPooling" Label="Requires Pooling" Color="Color.Primary" />
+            <MudSwitch T="bool" @bind-Checked="Model.RequiresPooling" Label="Requires Pooling" Color="Color.Primary" />
             <MudTextField @bind-Value="Model.Icon" Label="Icon" For="@(() => Model.Icon)" HelperText="Enter a MudBlazor icon name (e.g., Icons.Material.Filled.Map)" />
             <MudSelect T="string" @bind-Value="Model.Color" Label="Color" For="@(() => Model.Color)" Required="true">
                 <MudSelectItem Value="@("default")">Default</MudSelectItem>
