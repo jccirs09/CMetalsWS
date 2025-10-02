@@ -1,0 +1,68 @@
+@using CMetalsWS.Models
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Select a Truck</MudText>
+    </TitleContent>
+    <DialogContent>
+        <div class="d-flex flex-column gap-3" style="max-height: 60vh; overflow-y: auto; padding-right: 8px;">
+            @foreach (var truck in AvailableTrucks)
+            {
+                @if (int.TryParse(truck.Id, out var truckIdAsInt))
+                {
+                    <MudCard
+                         Outlined="@(SelectedTruckId == truckIdAsInt)"
+                         OutlinedColor="Color.Primary"
+                         @onclick="() => SelectedTruckId = truckIdAsInt"
+                         Style="@($"cursor: pointer; {(SelectedTruckId == truckIdAsInt ? "background-color: #e8f5e9;" : "")}")">
+                        <MudCardContent>
+                            <div class="d-flex align-start">
+                                <div class="flex-grow-1">
+                                    <MudText><b>@truck.Name</b> @(truck.IsRecommended ? "(Recommended)" : "")</MudText>
+                                    <MudText Typo="Typo.body2">@truck.Type - @truck.Driver</MudText>
+                                    <MudProgressLinear Value="@GetProjectedLoadPercentage(truck)" Color="@GetProjectedLoadColor(truck)" Class="my-1" />
+                                    <MudText Typo="Typo.body2">@GetProjectedLoad(truck).ToString("N0") / @truck.Capacity.ToString("N0") lbs</MudText>
+                                </div>
+                            </div>
+                        </MudCardContent>
+                    </MudCard>
+                }
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!SelectedTruckId.HasValue)">Select</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public List<TruckInfo> AvailableTrucks { get; set; } = new();
+    [Parameter] public int TotalSelectedWeight { get; set; }
+
+    private int? SelectedTruckId { get; set; }
+
+    private void Submit() => MudDialog.Close(DialogResult.Ok(SelectedTruckId));
+    private void Cancel() => MudDialog.Cancel();
+
+    private double GetProjectedLoadPercentage(TruckInfo truck)
+    {
+        if (truck.Capacity <= 0) return 0;
+        var pct = (GetProjectedLoad(truck) / (double)truck.Capacity) * 100;
+        return Math.Max(0, Math.Min(100, pct));
+    }
+
+    private int GetProjectedLoad(TruckInfo truck) => truck.CurrentLoad + TotalSelectedWeight;
+
+    private Color GetProjectedLoadColor(TruckInfo truck)
+    {
+        if (truck.Capacity <= 0) return Color.Default;
+        var percentage = GetProjectedLoadPercentage(truck);
+        if (percentage > 100) return Color.Error;
+        if (percentage > 90) return Color.Warning;
+        return Color.Primary;
+    }
+}
