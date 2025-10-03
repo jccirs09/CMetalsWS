@@ -4,6 +4,7 @@
 @using MudBlazor
 @using System.Collections.Generic
 @using System.Linq
+@using System.Reflection
 @attribute [Authorize(Policy = Permissions.Customers.Manage)]
 
 @inject DestinationRegionService DestinationRegionService
@@ -34,9 +35,9 @@
         <RowTemplate>
             <MudTd DataLabel="Id">@context.Id</MudTd>
             <MudTd DataLabel="Name">@context.Name</MudTd>
-            <MudTd DataLabel="Icon"><MudIcon Icon="@context.Icon" /></MudTd>
+            <MudTd DataLabel="Icon"><MudIcon Icon="@GetIcon(context.Icon)" /></MudTd>
             <MudTd DataLabel="Color">
-                <MudChip T="string" Style="@($"background-color:{@context.Color}; color:white;")">@context.Color</MudChip>
+                <MudChip T="string" Color="@GetColor(context.Color)">@context.Color</MudChip>
             </MudTd>
             <MudTd DataLabel="Branches">
                 @string.Join(", ", context.Branches.Select(b => b.Name))
@@ -52,10 +53,40 @@
 @code {
     private List<DestinationRegion> _regions = new();
     private List<Branch> _branches = new();
+    private Dictionary<string, string> _iconMap = new();
 
     protected override async Task OnInitializedAsync()
     {
+        _iconMap = typeof(Icons.Material.Filled)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(f => f.IsLiteral && f.FieldType == typeof(string))
+            .ToDictionary(f => f.Name, f => (string)f.GetValue(null));
+
         await LoadData();
+    }
+
+    private string GetIcon(string iconName)
+    {
+        if (string.IsNullOrEmpty(iconName))
+            return string.Empty;
+
+        // If the name exists in our map, return the SVG path
+        if (_iconMap.TryGetValue(iconName, out var iconValue))
+        {
+            return iconValue;
+        }
+
+        // Otherwise, assume it might be an old SVG path already
+        return iconName;
+    }
+
+    private Color GetColor(string colorName)
+    {
+        if (Enum.TryParse<Color>(colorName, true, out var color))
+        {
+            return color;
+        }
+        return Color.Default; // Fallback color
     }
 
     private async Task LoadData()

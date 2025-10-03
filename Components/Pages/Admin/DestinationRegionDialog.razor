@@ -3,7 +3,6 @@
 @using System.Collections.Generic
 @using System.Linq
 @using System.Reflection
-@using MudBlazor.Utilities
 
 <MudDialog>
     <TitleContent>
@@ -12,8 +11,16 @@
     <DialogContent>
         <MudForm Model="@Model" @ref="_form">
             <MudTextField @bind-Value="Model.Name" Label="Name" Required="true" />
-            <MudAutocomplete T="string" Label="Icon" @bind-Value="_selectedIconName" SearchFunc="@SearchIcons" HelperText="Select a MudBlazor icon" />
-            <MudColorPicker Label="Color" @bind-Value="_color" PickerVariant="PickerVariant.Inline" HelperText="Select a color" />
+            <MudAutocomplete T="string" Label="Icon" @bind-Value="_selectedIconName" SearchFunc="@SearchIcons" HelperText="Select an icon name" />
+            <MudSelect T="Color" Label="Color" @bind-Value="_selectedColor" HelperText="Select a color">
+                @foreach (Color color in Enum.GetValues(typeof(Color)))
+                {
+                    if (color != Color.Inherit && color != Color.Transparent)
+                    {
+                        <MudSelectItem T="Color" Value="@color">@color.ToString()</MudSelectItem>
+                    }
+                }
+            </MudSelect>
             <MudSelect T="int" Label="Branches" MultiSelection="true" @bind-SelectedValues="_selectedBranchIds">
                 @foreach (var branch in Branches)
                 {
@@ -43,13 +50,12 @@
 
     private MudForm _form = default!;
     private IEnumerable<int> _selectedBranchIds = new List<int>();
-    private MudColor _color = new MudColor("#424242"); // Default to grey so it's not empty
+    private Color _selectedColor = Color.Default;
     private Dictionary<string, string> _iconMap = new();
     private string _selectedIconName = string.Empty;
 
     protected override void OnInitialized()
     {
-        // Populate the icon map with Name -> SVG Path
         _iconMap = typeof(Icons.Material.Filled)
             .GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string))
@@ -59,27 +65,26 @@
         {
             _selectedBranchIds = Model.Branches.Select(b => b.Id).ToList();
 
-            // Safely set the color
             if (!string.IsNullOrEmpty(Model.Color))
             {
-                try
-                {
-                    _color = new MudColor(Model.Color);
-                }
-                catch (FormatException)
-                {
-                    // Fallback for invalid color strings in the database
-                    _color = new MudColor("#424242");
-                }
+                Enum.TryParse<Color>(Model.Color, true, out _selectedColor);
             }
 
-            // Find the name for the existing icon SVG path
             if (!string.IsNullOrEmpty(Model.Icon))
             {
-                var entry = _iconMap.FirstOrDefault(kvp => kvp.Value == Model.Icon);
-                if (entry.Key != null)
+                // The DB can contain either the full SVG path (old) or the name (new).
+                // This handles both for backward compatibility.
+                if (_iconMap.ContainsKey(Model.Icon))
                 {
-                    _selectedIconName = entry.Key;
+                    _selectedIconName = Model.Icon; // It's a name
+                }
+                else
+                {
+                    var entry = _iconMap.FirstOrDefault(kvp => kvp.Value == Model.Icon);
+                    if (entry.Key != null)
+                    {
+                        _selectedIconName = entry.Key; // It's a path, we found the name
+                    }
                 }
             }
         }
@@ -100,17 +105,9 @@
         await _form.Validate();
         if (_form.IsValid)
         {
-            // Update Model.Icon with the SVG path from the map
-            if (!string.IsNullOrEmpty(_selectedIconName) && _iconMap.TryGetValue(_selectedIconName, out var iconValue))
-            {
-                Model.Icon = iconValue;
-            }
-            else
-            {
-                Model.Icon = string.Empty;
-            }
+            Model.Icon = _selectedIconName; // Save the name
+            Model.Color = _selectedColor.ToString(); // Save the name
 
-            Model.Color = _color.ToString(MudColorOutputFormats.Hex);
             var result = new Tuple<DestinationRegion, IEnumerable<int>>(Model, _selectedBranchIds);
             MudDialog.Close(DialogResult.Ok(result));
         }
