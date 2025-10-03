@@ -11,7 +11,20 @@
     <DialogContent>
         <MudForm Model="@Model" @ref="_form">
             <MudTextField @bind-Value="Model.Name" Label="Name" Required="true" />
-            <MudAutocomplete T="string" Label="Icon" @bind-Value="_selectedIconName" SearchFunc="@SearchIcons" HelperText="Select an icon name" />
+
+            <MudAutocomplete T="string"
+                             Label="Icon"
+                             @bind-Value="_selectedIconName"
+                             SearchFunc="@SearchIcons"
+                             HelperText="Select an icon name"
+                             Adornment="Adornment.Start"
+                             AdornmentIcon="@(_iconMap.ContainsKey(_selectedIconName ?? string.Empty) ? _iconMap[_selectedIconName] : string.Empty)">
+                <ItemTemplate>
+                    <MudIcon Icon="@(_iconMap.ContainsKey(context) ? _iconMap[context] : string.Empty)" Class="mr-2" />
+                    <MudText>@context</MudText>
+                </ItemTemplate>
+            </MudAutocomplete>
+
             <MudSelect T="Color" Label="Color" @bind-Value="_selectedColor" HelperText="Select a color">
                 @foreach (Color color in Enum.GetValues(typeof(Color)))
                 {
@@ -59,7 +72,7 @@
         _iconMap = typeof(Icons.Material.Filled)
             .GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string))
-            .ToDictionary(f => f.Name, f => (string)f.GetValue(null));
+            .ToDictionary(f => f.Name, f => (string)f.GetValue(null) ?? string.Empty);
 
         if (IsEdit)
         {
