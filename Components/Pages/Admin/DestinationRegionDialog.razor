@@ -2,6 +2,7 @@
 @using MudBlazor
 @using System.Collections.Generic
 @using System.Linq
+@using System.Reflection
 
 <MudDialog>
     <TitleContent>
@@ -10,6 +11,29 @@
     <DialogContent>
         <MudForm Model="@Model" @ref="_form">
             <MudTextField @bind-Value="Model.Name" Label="Name" Required="true" />
+
+            <MudAutocomplete T="string"
+                             Label="Icon"
+                             @bind-Value="_selectedIconName"
+                             SearchFunc="@SearchIcons"
+                             HelperText="Select an icon name"
+                             Adornment="Adornment.Start"
+                             AdornmentIcon="@(_iconMap.ContainsKey(_selectedIconName ?? string.Empty) ? _iconMap[_selectedIconName] : string.Empty)">
+                <ItemTemplate>
+                    <MudIcon Icon="@(_iconMap.ContainsKey(context) ? _iconMap[context] : string.Empty)" Class="mr-2" />
+                    <MudText>@context</MudText>
+                </ItemTemplate>
+            </MudAutocomplete>
+
+            <MudSelect T="Color" Label="Color" @bind-Value="_selectedColor" HelperText="Select a color">
+                @foreach (Color color in Enum.GetValues(typeof(Color)))
+                {
+                    if (color != Color.Inherit && color != Color.Transparent)
+                    {
+                        <MudSelectItem T="Color" Value="@color">@color.ToString()</MudSelectItem>
+                    }
+                }
+            </MudSelect>
             <MudSelect T="int" Label="Branches" MultiSelection="true" @bind-SelectedValues="_selectedBranchIds">
                 @foreach (var branch in Branches)
                 {
@@ -39,13 +63,54 @@
 
     private MudForm _form = default!;
     private IEnumerable<int> _selectedBranchIds = new List<int>();
+    private Color _selectedColor = Color.Default;
+    private Dictionary<string, string> _iconMap = new();
+    private string _selectedIconName = string.Empty;
 
     protected override void OnInitialized()
     {
+        _iconMap = typeof(Icons.Material.Filled)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string))
+            .ToDictionary(f => f.Name, f => (string)f.GetValue(null) ?? string.Empty);
+
         if (IsEdit)
         {
             _selectedBranchIds = Model.Branches.Select(b => b.Id).ToList();
+
+            if (!string.IsNullOrEmpty(Model.Color))
+            {
+                Enum.TryParse<Color>(Model.Color, true, out _selectedColor);
+            }
+
+            if (!string.IsNullOrEmpty(Model.Icon))
+            {
+                // The DB can contain either the full SVG path (old) or the name (new).
+                // This handles both for backward compatibility.
+                if (_iconMap.ContainsKey(Model.Icon))
+                {
+                    _selectedIconName = Model.Icon; // It's a name
+                }
+                else
+                {
+                    var entry = _iconMap.FirstOrDefault(kvp => kvp.Value == Model.Icon);
+                    if (entry.Key != null)
+                    {
+                        _selectedIconName = entry.Key; // It's a path, we found the name
+                    }
+                }
+            }
         }
+    }
+
+    private async Task<IEnumerable<string>> SearchIcons(string value, CancellationToken token)
+    {
+        await Task.Delay(5, token);
+        if (string.IsNullOrEmpty(value))
+        {
+            return _iconMap.Keys.OrderBy(k => k).Take(20);
+        }
+        return _iconMap.Keys.Where(i => i.Contains(value, StringComparison.InvariantCultureIgnoreCase)).OrderBy(k => k);
     }
 
     private async Task Save()
@@ -53,6 +118,9 @@
         await _form.Validate();
         if (_form.IsValid)
         {
+            Model.Icon = _selectedIconName; // Save the name
+            Model.Color = _selectedColor.ToString(); // Save the name
+
             var result = new Tuple<DestinationRegion, IEnumerable<int>>(Model, _selectedBranchIds);
             MudDialog.Close(DialogResult.Ok(result));
         }

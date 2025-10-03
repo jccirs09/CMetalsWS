@@ -58,6 +58,8 @@ namespace CMetalsWS.Services
                     Name = r.Name,
                     Type = r.Type,
                     Description = r.Description,
+                    Icon = r.Icon,
+                    Color = r.Color,
                     Characteristics = new RegionCharacteristics
                     {
                         RequiresPooling = r.RequiresPooling

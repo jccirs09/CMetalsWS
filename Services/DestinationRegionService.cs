@@ -43,6 +43,8 @@ namespace CMetalsWS.Services
             if (regionToUpdate != null)
             {
                 regionToUpdate.Name = destinationRegion.Name;
+                regionToUpdate.Icon = destinationRegion.Icon;
+                regionToUpdate.Color = destinationRegion.Color;
                 var branches = await db.Branches.Where(b => branchIds.Contains(b.Id)).ToListAsync();
                 regionToUpdate.Branches = branches;
                 await db.SaveChangesAsync();
