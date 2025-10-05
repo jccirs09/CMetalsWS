@@ -20,6 +20,7 @@ namespace CMetalsWS.Models
     {
         public bool FerryDependent { get; set; }
         public bool RequiresPooling { get; set; }
+        public bool IsCustomerPickup { get; set; }
     }
 
     public class RegionOperationalInfo

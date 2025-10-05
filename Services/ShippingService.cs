@@ -62,7 +62,8 @@ namespace CMetalsWS.Services
                     Color = r.Color,
                     Characteristics = new RegionCharacteristics
                     {
-                        RequiresPooling = r.RequiresPooling
+                        RequiresPooling = r.RequiresPooling,
+                        IsCustomerPickup = r.IsCustomerPickup
                     },
                     OperationalInfo = new RegionOperationalInfo
                     {
