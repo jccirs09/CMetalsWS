@@ -1,13 +1,14 @@
 @using CMetalsWS.Models
 @using MudBlazor
+@inject IDialogService DialogService
 
 <MudPaper Class="pa-4" Style="height: 100%;">
-    <MudText Typo="Typo.h6" GutterBottom="true">Customer Pickup Management</MudText>
-    <MudText Typo="Typo.body2" Class="text-muted mb-4">Manage orders scheduled for self-pickup by customers.</MudText>
+    <MudText Typo="Typo.h6" GutterBottom="true">Customer Pickup Orders</MudText>
+    <MudText Typo="Typo.body2" Class="text-muted mb-4">Select an order to record a partial or full customer pickup.</MudText>
 
     @if (PickupOrders == null || !PickupOrders.Any())
     {
-        <MudAlert Severity="Severity.Info">There are no orders scheduled for customer pickup.</MudAlert>
+        <MudAlert Severity="Severity.Info">There are no orders scheduled for customer pickup in this region.</MudAlert>
     }
     else
     {
@@ -25,12 +26,13 @@
                             <MudText><b>@order.Weight.ToString("N0") lbs</b></MudText>
                             <MudText Typo="Typo.body2" Class="text-muted">@order.Pieces pcs</MudText>
                         </div>
-                        <div>
-                            <MudChip T="string" Color="@GetStatusColor(order.PickingStatus)">@order.PickingStatus</MudChip>
-                        </div>
                         <div class="ml-4">
-                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Class="mr-2">Mark as Ready</MudButton>
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">Mark as Picked Up</MudButton>
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       OnClick="@(() => OpenPickupDialog(order))">
+                                Record Pickup
+                            </MudButton>
                         </div>
                     </div>
                 </MudPaper>
@@ -43,11 +45,19 @@
     [Parameter]
     public List<AvailableOrder> PickupOrders { get; set; } = new();
 
-    private Color GetStatusColor(string status) => status.ToLower() switch
+    [Parameter]
+    public EventCallback OnPickupRecorded { get; set; }
+
+    private async Task OpenPickupDialog(AvailableOrder order)
     {
-        "ready" => Color.Success,
-        "pending" => Color.Warning,
-        "inprogress" => Color.Info,
-        _ => Color.Default
-    };
+        var parameters = new DialogParameters { ["Order"] = order };
+        var dialog = await DialogService.ShowAsync<RecordPickupDialog>("Record Customer Pickup", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is bool pickupWasRecorded && pickupWasRecorded)
+        {
+            // A pickup was recorded, so we should notify the parent to refresh data.
+            await OnPickupRecorded.InvokeAsync();
+        }
+    }
 }

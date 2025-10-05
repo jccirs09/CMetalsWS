@@ -130,6 +130,7 @@ builder.Services.AddScoped<ITaskAuditEventService, TaskAuditEventService>();
 builder.Services.AddScoped<DestinationGroupService>();
 builder.Services.AddScoped<DestinationRegionService>();
 builder.Services.AddScoped<WorkOrderService>();
+builder.Services.AddScoped<FulfillmentService>();
 builder.Services.AddSingleton<RegionAssignmentService>();
 builder.Services.AddSingleton<ShippingService>();
 

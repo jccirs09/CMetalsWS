@@ -23,6 +23,7 @@ namespace CMetalsWS.Data
         public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
         public DbSet<ItemRelationship> ItemRelationships => Set<ItemRelationship>();
         public DbSet<LoadItem> LoadItems => Set<LoadItem>();
+        public DbSet<OrderItemFulfillment> OrderItemFulfillments => Set<OrderItemFulfillment>();
         public DbSet<TruckRoute> TruckRoutes => Set<TruckRoute>();
         public DbSet<Customer> Customers => Set<Customer>();
         public DbSet<CityCentroid> CityCentroids => Set<CityCentroid>();
@@ -343,6 +344,27 @@ namespace CMetalsWS.Data
                 e.HasOne(i => i.Branch).WithMany().HasForeignKey(i => i.BranchId).OnDelete(DeleteBehavior.Cascade);
                 e.Property(i => i.Status).HasConversion<string>().HasMaxLength(32);
                 e.HasMany(i => i.PageImages).WithOne(p => p.Import).HasForeignKey(p => p.PickingListImportId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Order Item Fulfillment
+            modelBuilder.Entity<OrderItemFulfillment>(e =>
+            {
+                e.Property(f => f.FulfillmentType).HasConversion<string>().HasMaxLength(32);
+
+                e.HasOne(f => f.PickingListItem)
+                    .WithMany()
+                    .HasForeignKey(f => f.PickingListItemId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(f => f.RecordedBy)
+                    .WithMany()
+                    .HasForeignKey(f => f.RecordedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(f => f.Load)
+                    .WithMany()
+                    .HasForeignKey(f => f.LoadId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
         }
     }

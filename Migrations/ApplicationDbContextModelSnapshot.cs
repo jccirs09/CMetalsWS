@@ -576,9 +576,6 @@ namespace CMetalsWS.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
-                    b.Property<bool>("IsCustomerPickup")
-                        .HasColumnType("bit");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -809,6 +806,50 @@ namespace CMetalsWS.Migrations
                     b.HasIndex("BranchId");
 
                     b.ToTable("Machines");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.OrderItemFulfillment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("FulfilledQuantity")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime>("FulfillmentDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FulfillmentType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<int?>("LoadId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<int>("PickingListItemId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RecordedById")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LoadId");
+
+                    b.HasIndex("PickingListItemId");
+
+                    b.HasIndex("RecordedById");
+
+                    b.ToTable("OrderItemFulfillments");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.PickingList", b =>
@@ -1829,6 +1870,32 @@ namespace CMetalsWS.Migrations
                         .IsRequired();
 
                     b.Navigation("Branch");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.OrderItemFulfillment", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.Load", "Load")
+                        .WithMany()
+                        .HasForeignKey("LoadId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("CMetalsWS.Data.PickingListItem", "PickingListItem")
+                        .WithMany()
+                        .HasForeignKey("PickingListItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMetalsWS.Data.ApplicationUser", "RecordedBy")
+                        .WithMany()
+                        .HasForeignKey("RecordedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Load");
+
+                    b.Navigation("PickingListItem");
+
+                    b.Navigation("RecordedBy");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.PickingList", b =>

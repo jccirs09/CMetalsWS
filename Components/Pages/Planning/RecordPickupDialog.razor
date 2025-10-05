@@ -1,0 +1,139 @@
+@using System.Security.Claims
+@using CMetalsWS.Data
+@using CMetalsWS.Models
+@using CMetalsWS.Services
+@using MudBlazor
+@inject FulfillmentService FulfillmentService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Record Pickup for @Order.CustomerName (@Order.OrderNumber)</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_isLoading)
+        {
+            <MudProgressCircular Indeterminate="true" />
+        }
+        else
+        {
+            <MudStack Spacing="3" Class="mt-4">
+                @foreach (var item in Order.Items)
+                {
+                    <MudPaper Outlined="true" Class="pa-3">
+                        <MudGrid AlignItems="AlignItems.Center">
+                            <MudItem xs="12" sm="6">
+                                <MudText><b>@item.Description</b></MudText>
+                                <MudText Typo="Typo.caption">Item ID: @item.Id</MudText>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudText>Ordered: @item.Quantity.ToString("N2")</MudText>
+                                <MudText>Picked Up: @(_fulfilledQuantities.GetValueOrDefault(int.Parse(item.Id), 0).ToString("N2"))</MudText>
+                                <MudText Color="Color.Success"><b>Remaining: @(item.Quantity - _fulfilledQuantities.GetValueOrDefault(int.Parse(item.Id), 0))</b></MudText>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudNumericField @bind-Value="_pickupQuantities[int.Parse(item.Id)]"
+                                                 Label="Pickup Now"
+                                                 Variant="Variant.Outlined"
+                                                 Min="0"
+                                                 Max="@(item.Quantity - _fulfilledQuantities.GetValueOrDefault(int.Parse(item.Id), 0))"
+                                                 Step="1" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                }
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@_isSubmitting">
+            @if (_isSubmitting)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                <MudText Class="ms-2">Processing...</MudText>
+            }
+            else
+            {
+                <MudText>Record Pickup</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public AvailableOrder Order { get; set; } = new();
+
+    private Dictionary<int, decimal> _pickupQuantities = new();
+    private Dictionary<int, decimal> _fulfilledQuantities = new();
+    private bool _isLoading = true;
+    private bool _isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        foreach (var item in Order.Items)
+        {
+            if (int.TryParse(item.Id, out var itemId))
+            {
+                _pickupQuantities[itemId] = 0; // Initialize with 0
+                _fulfilledQuantities[itemId] = await FulfillmentService.GetFulfilledQuantityAsync(itemId);
+            }
+        }
+        _isLoading = false;
+    }
+
+    private async Task Submit()
+    {
+        _isSubmitting = true;
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            Snackbar.Add("Error: User not found. Please log in again.", Severity.Error);
+            _isSubmitting = false;
+            return;
+        }
+
+        var pickupsToRecord = _pickupQuantities.Where(kvp => kvp.Value > 0).ToList();
+
+        if (!pickupsToRecord.Any())
+        {
+            Snackbar.Add("No pickup quantities were entered.", Severity.Info);
+            _isSubmitting = false;
+            return;
+        }
+
+        try
+        {
+            foreach (var pickup in pickupsToRecord)
+            {
+                await FulfillmentService.RecordFulfillmentAsync(
+                    pickingListItemId: pickup.Key,
+                    fulfilledQuantity: pickup.Value,
+                    fulfillmentType: FulfillmentType.CustomerPickup,
+                    recordedById: userId,
+                    notes: $"Pickup recorded via dialog for order {Order.OrderNumber}."
+                );
+            }
+            Snackbar.Add("Pickup(s) recorded successfully!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

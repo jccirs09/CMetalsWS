@@ -57,6 +57,7 @@
     public enum LoadType { StandardDelivery, PoolTruck, BranchTransfer }
     public enum ShippingGroup { Standard, Pool, BranchTransfer }
     public enum LoadStatus { Pending, Loaded, Scheduled, InTransit, Delivered, Canceled }
+    public enum FulfillmentType { Delivery, CustomerPickup }
 }
 
 
