@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251005080755_AddOrderItemFulfillmentTable")]
-    partial class AddOrderItemFulfillmentTable
+    [Migration("20251005084501_AddOrderItemFulfillment")]
+    partial class AddOrderItemFulfillment
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -1,10 +1,16 @@
+@using System.Security.Claims
 @using CMetalsWS.Models
+@using CMetalsWS.Data
+@using CMetalsWS.Services
 @using MudBlazor
 @inject IDialogService DialogService
+@inject FulfillmentService FulfillmentService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
 
 <MudPaper Class="pa-4" Style="height: 100%;">
     <MudText Typo="Typo.h6" GutterBottom="true">Customer Pickup Orders</MudText>
-    <MudText Typo="Typo.body2" Class="text-muted mb-4">Select an order to record a partial or full customer pickup.</MudText>
+    <MudText Typo="Typo.body2" Class="text-muted mb-4">Select an order to record a customer pickup.</MudText>
 
     @if (PickupOrders == null || !PickupOrders.Any())
     {
@@ -30,8 +36,8 @@
                             <MudButton Variant="Variant.Filled"
                                        Color="Color.Primary"
                                        Size="Size.Small"
-                                       OnClick="@(() => OpenPickupDialog(order))">
-                                Record Pickup
+                                       OnClick="@(() => ManagePickup(order))">
+                                Manage Pickup
                             </MudButton>
                         </div>
                     </div>
@@ -48,16 +54,50 @@
     [Parameter]
     public EventCallback OnPickupRecorded { get; set; }
 
-    private async Task OpenPickupDialog(AvailableOrder order)
+    private async Task ManagePickup(AvailableOrder order)
     {
-        var parameters = new DialogParameters { ["Order"] = order };
-        var dialog = await DialogService.ShowAsync<RecordPickupDialog>("Record Customer Pickup", parameters);
-        var result = await dialog.Result;
+        var selectionDialog = await DialogService.ShowAsync<PickupTypeSelectionDialog>("Select Pickup Type");
+        var selectionResult = await selectionDialog.Result;
 
-        if (!result.Canceled && result.Data is bool pickupWasRecorded && pickupWasRecorded)
+        if (!selectionResult.Canceled && selectionResult.Data is bool isFullOrder)
         {
-            // A pickup was recorded, so we should notify the parent to refresh data.
-            await OnPickupRecorded.InvokeAsync();
+            if (isFullOrder)
+            {
+                // Full order pickup
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    Snackbar.Add("User not found.", Severity.Error);
+                    return;
+                }
+
+                if (int.TryParse(order.Id, out var orderId))
+                {
+                    try
+                    {
+                        await FulfillmentService.RecordFullOrderPickupAsync(orderId, userId);
+                        Snackbar.Add("Full order pickup recorded successfully!", Severity.Success);
+                        await OnPickupRecorded.InvokeAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Snackbar.Add($"Error recording full pickup: {ex.Message}", Severity.Error);
+                    }
+                }
+            }
+            else
+            {
+                // Partial pickup
+                var parameters = new DialogParameters { ["Order"] = order };
+                var pickupDialog = await DialogService.ShowAsync<RecordPickupDialog>("Record Partial Pickup", parameters);
+                var pickupResult = await pickupDialog.Result;
+
+                if (!pickupResult.Canceled && pickupResult.Data is bool pickupWasRecorded && pickupWasRecorded)
+                {
+                    await OnPickupRecorded.InvokeAsync();
+                }
+            }
         }
     }
 }

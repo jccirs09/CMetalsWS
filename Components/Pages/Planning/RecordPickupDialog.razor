@@ -9,7 +9,7 @@
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">Record Pickup for @Order.CustomerName (@Order.OrderNumber)</MudText>
+        <MudText Typo="Typo.h6">Record Partial Pickup for @Order.CustomerName (@Order.OrderNumber)</MudText>
     </TitleContent>
     <DialogContent>
         @if (_isLoading)
@@ -81,7 +81,7 @@
         {
             if (int.TryParse(item.Id, out var itemId))
             {
-                _pickupQuantities[itemId] = 0; // Initialize with 0
+                _pickupQuantities[itemId] = 0;
                 _fulfilledQuantities[itemId] = await FulfillmentService.GetFulfilledQuantityAsync(itemId);
             }
         }
@@ -119,7 +119,7 @@
                     fulfilledQuantity: pickup.Value,
                     fulfillmentType: FulfillmentType.CustomerPickup,
                     recordedById: userId,
-                    notes: $"Pickup recorded via dialog for order {Order.OrderNumber}."
+                    notes: $"Partial pickup recorded via dialog for order {Order.OrderNumber}."
                 );
             }
             Snackbar.Add("Pickup(s) recorded successfully!", Severity.Success);

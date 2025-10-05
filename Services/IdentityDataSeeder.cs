@@ -410,11 +410,11 @@ namespace CMetalsWS.Services
 
             var regions = new List<DestinationRegion>
             {
-                new() { Name = "Local Delivery", Type = "local", Description = "Same-day and next-day deliveries within metro area", RequiresPooling = false, Icon = "LocalShipping", Color = "Primary", IsCustomerPickup = false },
-                new() { Name = "Multi Out of Town Lanes", Type = "out-of-town", Description = "Regional deliveries to multiple towns and cities", RequiresPooling = true, Icon = "Map", Color = "Secondary", IsCustomerPickup = false },
-                new() { Name = "Island Pool Trucks", Type = "island-pool", Description = "Consolidated ferry-dependent deliveries to Vancouver Island", RequiresPooling = true, Icon = "Sailing", Color = "Info", IsCustomerPickup = false },
-                new() { Name = "Okanagan Pool Trucks", Type = "okanagan-pool", Description = "Pooled deliveries to Okanagan Valley region", RequiresPooling = true, Icon = "LocalShipping", Color = "Warning", IsCustomerPickup = false },
-                new() { Name = "Customer Pickup", Type = "customer-pickup", Description = "Customer self-pickup coordination and scheduling", RequiresPooling = false, Icon = "Store", Color = "Success", IsCustomerPickup = true }
+                new() { Name = "Local Delivery", Type = "local", Description = "Same-day and next-day deliveries within metro area", RequiresPooling = false, Icon = "LocalShipping", Color = "Primary" },
+                new() { Name = "Multi Out of Town Lanes", Type = "out-of-town", Description = "Regional deliveries to multiple towns and cities", RequiresPooling = true, Icon = "Map", Color = "Secondary" },
+                new() { Name = "Island Pool Trucks", Type = "island-pool", Description = "Consolidated ferry-dependent deliveries to Vancouver Island", RequiresPooling = true, Icon = "Sailing", Color = "Info" },
+                new() { Name = "Okanagan Pool Trucks", Type = "okanagan-pool", Description = "Pooled deliveries to Okanagan Valley region", RequiresPooling = true, Icon = "LocalShipping", Color = "Warning" },
+                new() { Name = "Customer Pickup", Type = "customer-pickup", Description = "Customer self-pickup coordination and scheduling", RequiresPooling = false, Icon = "Store", Color = "Success" }
             };
 
             var existingRegions = await _context.DestinationRegions.Include(r => r.Branches).ToListAsync();
@@ -434,7 +434,6 @@ namespace CMetalsWS.Services
                     existingRegion.Type = region.Type;
                     existingRegion.Description = region.Description;
                     existingRegion.RequiresPooling = region.RequiresPooling;
-                    existingRegion.IsCustomerPickup = region.IsCustomerPickup;
                     existingRegion.Icon = region.Icon; // Update icon
                     existingRegion.Color = region.Color; // Update color
 

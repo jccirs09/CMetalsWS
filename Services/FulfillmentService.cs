@@ -16,15 +16,6 @@ namespace CMetalsWS.Services
             _dbContextFactory = dbContextFactory;
         }
 
-        /// <summary>
-        /// Records a fulfillment event for a picking list item.
-        /// </summary>
-        /// <param name="pickingListItemId">The ID of the item being fulfilled.</param>
-        /// <param name="fulfilledQuantity">The quantity being fulfilled.</param>
-        /// <param name="fulfillmentType">The type of fulfillment (Delivery or CustomerPickup).</param>
-        /// <param name="recordedById">The ID of the user recording the event.</param>
-        /// <param name="loadId">The optional ID of the load if fulfillment is via delivery.</param>
-        /// <param name="notes">Optional notes for the fulfillment record.</param>
         public async Task RecordFulfillmentAsync(int pickingListItemId, decimal fulfilledQuantity, FulfillmentType fulfillmentType, string recordedById, int? loadId = null, string? notes = null)
         {
             await using var db = await _dbContextFactory.CreateDbContextAsync();
@@ -64,11 +55,48 @@ namespace CMetalsWS.Services
             await db.SaveChangesAsync();
         }
 
-        /// <summary>
-        /// Gets the fulfillment history for a specific picking list item.
-        /// </summary>
-        /// <param name="pickingListItemId">The ID of the picking list item.</param>
-        /// <returns>A list of fulfillment records for the item.</returns>
+        public async Task RecordFullOrderPickupAsync(int pickingListId, string recordedById)
+        {
+            await using var db = await _dbContextFactory.CreateDbContextAsync();
+
+            var pickingListItems = await db.PickingListItems
+                .Where(i => i.PickingListId == pickingListId)
+                .ToListAsync();
+
+            var fulfilledQuantities = await db.OrderItemFulfillments
+                .Where(f => pickingListItems.Select(i => i.Id).Contains(f.PickingListItemId))
+                .GroupBy(f => f.PickingListItemId)
+                .Select(g => new { PickingListItemId = g.Key, FulfilledQuantity = g.Sum(f => f.FulfilledQuantity) })
+                .ToDictionaryAsync(x => x.PickingListItemId, x => x.FulfilledQuantity);
+
+            var newFulfillmentRecords = new List<OrderItemFulfillment>();
+
+            foreach (var item in pickingListItems)
+            {
+                var alreadyFulfilled = fulfilledQuantities.GetValueOrDefault(item.Id, 0);
+                var remainingQuantity = item.Quantity - alreadyFulfilled;
+
+                if (remainingQuantity > 0)
+                {
+                    newFulfillmentRecords.Add(new OrderItemFulfillment
+                    {
+                        PickingListItemId = item.Id,
+                        FulfilledQuantity = remainingQuantity,
+                        FulfillmentType = FulfillmentType.CustomerPickup,
+                        RecordedById = recordedById,
+                        FulfillmentDate = DateTime.UtcNow,
+                        Notes = "Full order pickup recorded."
+                    });
+                }
+            }
+
+            if (newFulfillmentRecords.Any())
+            {
+                db.OrderItemFulfillments.AddRange(newFulfillmentRecords);
+                await db.SaveChangesAsync();
+            }
+        }
+
         public async Task<List<OrderItemFulfillment>> GetFulfillmentHistoryForItemAsync(int pickingListItemId)
         {
             await using var db = await _dbContextFactory.CreateDbContextAsync();
@@ -81,11 +109,6 @@ namespace CMetalsWS.Services
                 .ToListAsync();
         }
 
-        /// <summary>
-        /// Gets the total fulfilled quantity for a given picking list item.
-        /// </summary>
-        /// <param name="pickingListItemId">The ID of the picking list item.</param>
-        /// <returns>The sum of all fulfilled quantities for the item.</returns>
         public async Task<decimal> GetFulfilledQuantityAsync(int pickingListItemId)
         {
             await using var db = await _dbContextFactory.CreateDbContextAsync();

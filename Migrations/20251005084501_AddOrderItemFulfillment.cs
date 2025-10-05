@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CMetalsWS.Migrations
 {
     /// <inheritdoc />
-    public partial class AddOrderItemFulfillmentTable : Migration
+    public partial class AddOrderItemFulfillment : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
