@@ -3,6 +3,7 @@
 @using CMetalsWS.Services
 @using MudBlazor
 @using System.Linq
+@using System.Reflection
 @inject ShippingService ShippingService
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-8">
@@ -43,8 +44,8 @@
                             <MudCard Class="d-flex flex-column region-card" Style="height:100%; cursor:pointer;" @onclick="@(() => ActivateTabWithRegion(region.Name))">
                                 <MudCardContent>
                                     <div class="d-flex justify-space-between align-start mb-2">
-                                        <MudAvatar Style="@($"background-color: {region.Color}")" Size="Size.Medium">
-                                            <MudIcon Icon="@region.Icon" />
+                                        <MudAvatar Color="@GetColor(region.Color)" Size="Size.Medium">
+                                            <MudIcon Icon="@GetIcon(region.Icon)" />
                                         </MudAvatar>
                                         <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@region.Metrics.UtilizationRate%</MudChip>
                                     </div>
@@ -100,7 +101,7 @@
                                     var regionOrders = _availableOrders.Where(o => o.DeliveryRegion == region.Name).ToList();
                                     <div class="d-flex align-center justify-space-between pa-2 my-1 rounded-lg" style="background-color: var(--mud-palette-background-grey);">
                                         <div class="d-flex align-center gap-3">
-                                            <MudAvatar Style="@($"background-color: {region.Color}")" Size="Size.Small" />
+                                            <MudAvatar Color="@GetColor(region.Color)" Size="Size.Small" />
                                             <div>
                                                 <MudText><b>@region.Name</b></MudText>
                                                 <MudText Typo="Typo.body2" Class="text-muted">@regionOrders.Sum(o => o.Weight).ToString("N0") lbs</MudText>
@@ -121,7 +122,7 @@
                                     var regionTrucks = _trucks.Where(t => t.Type == region.Name).ToList(); // Simplified logic
                                     <div class="d-flex align-center justify-space-between pa-2 my-1 rounded-lg" style="background-color: var(--mud-palette-background-grey);">
                                         <div class="d-flex align-center gap-3">
-                                            <MudAvatar Style="@($"background-color: {region.Color}")" Size="Size.Small" />
+                                            <MudAvatar Color="@GetColor(region.Color)" Size="Size.Small" />
                                             <div>
                                                 <MudText><b>@region.Name</b></MudText>
                                                 <MudText Typo="Typo.body2" Class="text-muted">@regionTrucks.Count() active • @regionTrucks.Count(t => t.IsRecommended) pool trucks</MudText>
@@ -210,7 +211,7 @@
                                 <CardHeaderActions>
                                     <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(load.Priority)">@load.Priority</MudChip>
                                     <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(load.Status)">@load.Status</MudChip>
-                                    <MudChip T="string" Size="Size.Small" Style="@($"background-color: {GetRegionColorForLoad(load)}; color: white;")">@load.DeliveryRegion</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="@GetRegionColorForLoad(load)">@load.DeliveryRegion</MudChip>
                                 </CardHeaderActions>
                             </MudCardHeader>
                             <MudCardContent>
@@ -303,9 +304,15 @@
     private List<TruckInfo> _trucks = new();
     private List<RegionalAlert> _alerts = new();
     private bool _isLoading = true;
+    private Dictionary<string, string> _iconMap = new();
 
     protected override async Task OnInitializedAsync()
     {
+        _iconMap = typeof(Icons.Material.Filled)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(f => f.IsLiteral && f.FieldType == typeof(string))
+            .ToDictionary(f => f.Name, f => (string)f.GetValue(null) ?? string.Empty);
+
         await LoadData();
     }
 
@@ -347,6 +354,28 @@
         ActivateTab("Simple Planning");
     }
 
+    private string GetIcon(string iconName)
+    {
+        if (string.IsNullOrEmpty(iconName))
+            return string.Empty;
+
+        if (_iconMap.TryGetValue(iconName, out var iconValue))
+        {
+            return iconValue;
+        }
+
+        return iconName;
+    }
+
+    private Color GetColor(string colorName)
+    {
+        if (Enum.TryParse<Color>(colorName, true, out var color))
+        {
+            return color;
+        }
+        return Color.Default;
+    }
+
     private Color GetStatusColor(string status) => status.ToLower() switch
     {
         "in-transit" => Color.Warning,
@@ -365,10 +394,10 @@
         _ => Color.Default
     };
 
-    private string GetRegionColorForLoad(ShippingLoad load)
+    private Color GetRegionColorForLoad(ShippingLoad load)
     {
         var region = _regions.FirstOrDefault(r => r.Name == load.DeliveryRegion);
-        return region?.Color ?? "grey";
+        return GetColor(region?.Color);
     }
 
     private Severity GetAlertSeverity(string color) => color.ToLower() switch
