@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250929022333_InitialCreate")]
+    [Migration("20251005054931_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -562,11 +562,39 @@ namespace CMetalsWS.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("CoordinatorId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Icon")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<bool>("RequiresPooling")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CoordinatorId");
 
                     b.ToTable("DestinationRegions");
                 });
@@ -990,7 +1018,7 @@ namespace CMetalsWS.Migrations
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 
-                    b.Property<decimal>("PulledWeight")
+                    b.Property<decimal?>("PulledWeight")
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 
@@ -1315,7 +1343,7 @@ namespace CMetalsWS.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime>("DueDate")
+                    b.Property<DateTime?>("DueDate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Instructions")
@@ -1729,6 +1757,16 @@ namespace CMetalsWS.Migrations
                     b.Navigation("DestinationGroup");
 
                     b.Navigation("DestinationRegion");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.DestinationRegion", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.ApplicationUser", "Coordinator")
+                        .WithMany()
+                        .HasForeignKey("CoordinatorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Coordinator");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.Load", b =>
