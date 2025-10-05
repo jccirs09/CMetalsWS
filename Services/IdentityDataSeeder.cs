@@ -400,31 +400,21 @@ namespace CMetalsWS.Services
         private async Task SeedDestinationRegionsAsync()
         {
             var plannerRole = await _roleManager.FindByNameAsync("Planner");
-            if (plannerRole == null)
-            {
-                // Cannot seed without a Planner role
-                return;
-            }
+            if (plannerRole == null) return;
 
             var planners = await _userManager.GetUsersInRoleAsync("Planner");
-            if (!planners.Any())
-            {
-                // Cannot seed without at least one planner
-                return;
-            }
+            if (!planners.Any()) return;
+
             var surreyBranch = await _context.Branches.FirstOrDefaultAsync(b => b.Name == "SURREY");
-            if (surreyBranch == null)
-            {
-                // Cannot seed without Surrey branch
-                return;
-            }
+            if (surreyBranch == null) return;
+
             var regions = new List<DestinationRegion>
             {
-                new() { Name = "Local Delivery", Type = "local", Description = "Same-day and next-day deliveries within metro area", RequiresPooling = false },
-                new() { Name = "Multi Out of Town Lanes", Type = "out-of-town", Description = "Regional deliveries to multiple towns and cities", RequiresPooling = true },
-                new() { Name = "Island Pool Trucks", Type = "island-pool", Description = "Consolidated ferry-dependent deliveries to Vancouver Island", RequiresPooling = true },
-                new() { Name = "Okanagan Pool Trucks", Type = "okanagan-pool", Description = "Pooled deliveries to Okanagan Valley region", RequiresPooling = true },
-                new() { Name = "Customer Pickup", Type = "customer-pickup", Description = "Customer self-pickup coordination and scheduling", RequiresPooling = false }
+                new() { Name = "Local Delivery", Type = "local", Description = "Same-day and next-day deliveries within metro area", RequiresPooling = false, Icon = "LocalShipping", Color = "Primary" },
+                new() { Name = "Multi Out of Town Lanes", Type = "out-of-town", Description = "Regional deliveries to multiple towns and cities", RequiresPooling = true, Icon = "Map", Color = "Secondary" },
+                new() { Name = "Island Pool Trucks", Type = "island-pool", Description = "Consolidated ferry-dependent deliveries to Vancouver Island", RequiresPooling = true, Icon = "Sailing", Color = "Info" },
+                new() { Name = "Okanagan Pool Trucks", Type = "okanagan-pool", Description = "Pooled deliveries to Okanagan Valley region", RequiresPooling = true, Icon = "LocalShipping", Color = "Warning" },
+                new() { Name = "Customer Pickup", Type = "customer-pickup", Description = "Customer self-pickup coordination and scheduling", RequiresPooling = false, Icon = "Store", Color = "Success" }
             };
 
             var existingRegions = await _context.DestinationRegions.Include(r => r.Branches).ToListAsync();
@@ -444,6 +434,9 @@ namespace CMetalsWS.Services
                     existingRegion.Type = region.Type;
                     existingRegion.Description = region.Description;
                     existingRegion.RequiresPooling = region.RequiresPooling;
+                    existingRegion.Icon = region.Icon; // Update icon
+                    existingRegion.Color = region.Color; // Update color
+
                     if (string.IsNullOrEmpty(existingRegion.CoordinatorId))
                     {
                         existingRegion.CoordinatorId = planners[rng.Next(planners.Count)].Id;
