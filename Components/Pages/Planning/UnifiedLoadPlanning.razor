@@ -350,7 +350,7 @@
             .ToList();
 
         _customerPickupOrders = _availableOrders
-            .Where(o => customerPickupRegionNames.Contains(o.DeliveryRegion))
+            .Where(o => customerPickupRegionNames.Contains(o.DeliveryRegion) && o.Items.Any(i => i.RemainingQuantity > 0))
             .ToList();
 
         _isLoading = false;

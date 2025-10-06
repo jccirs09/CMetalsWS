@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMetalsWS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251005084501_AddOrderItemFulfillment")]
+    [Migration("20251005100331_AddOrderItemFulfillment")]
     partial class AddOrderItemFulfillment
     {
         /// <inheritdoc />

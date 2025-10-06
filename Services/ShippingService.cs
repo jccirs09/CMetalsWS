@@ -124,7 +124,7 @@ namespace CMetalsWS.Services
         {
             await using var db = await _dbContextFactory.CreateDbContextAsync();
 
-            var shippableStatuses = new[] { PickingListStatus.Pending, PickingListStatus.InProgress, PickingListStatus.ReadyToShip };
+            var shippableStatuses = new[] { PickingListStatus.Pending, PickingListStatus.InProgress, PickingListStatus.ReadyToShip, PickingListStatus.Ready };
 
             var orders = await db.PickingLists
                 .AsNoTracking()
@@ -134,6 +134,15 @@ namespace CMetalsWS.Services
                 .Include(pl => pl.Items)
                 .OrderByDescending(pl => pl.ShipDate)
                 .ToListAsync();
+
+            var allItemIds = orders.SelectMany(o => o.Items.Select(i => i.Id)).ToList();
+
+            var fulfilledQuantities = await db.OrderItemFulfillments
+                .AsNoTracking()
+                .Where(f => allItemIds.Contains(f.PickingListItemId))
+                .GroupBy(f => f.PickingListItemId)
+                .Select(g => new { PickingListItemId = g.Key, TotalFulfilled = g.Sum(f => f.FulfilledQuantity) })
+                .ToDictionaryAsync(x => x.PickingListItemId, x => x.TotalFulfilled);
 
             return orders.Select(o => new AvailableOrder
             {
@@ -152,9 +161,10 @@ namespace CMetalsWS.Services
                 {
                     Id = i.Id.ToString(),
                     Description = i.ItemDescription,
-                    Quantity = (int)i.Quantity,
+                    Quantity = i.Quantity,
                     Weight = (int)(i.Weight ?? 0),
-                    Status = i.Status.ToString()
+                    Status = i.Status.ToString(),
+                    FulfilledQuantity = fulfilledQuantities.GetValueOrDefault(i.Id, 0)
                 }).ToList()
             }).ToList();
         }

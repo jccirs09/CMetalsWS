@@ -10,11 +10,11 @@
 
 <MudPaper Class="pa-4" Style="height: 100%;">
     <MudText Typo="Typo.h6" GutterBottom="true">Customer Pickup Orders</MudText>
-    <MudText Typo="Typo.body2" Class="text-muted mb-4">Select an order to record a customer pickup.</MudText>
+    <MudText Typo="Typo.body2" Class="text-muted mb-4">Select an order to record a customer pickup. Completed orders will not be shown.</MudText>
 
     @if (PickupOrders == null || !PickupOrders.Any())
     {
-        <MudAlert Severity="Severity.Info">There are no orders scheduled for customer pickup in this region.</MudAlert>
+        <MudAlert Severity="Severity.Info">There are no pending orders scheduled for customer pickup.</MudAlert>
     }
     else
     {
@@ -59,45 +59,52 @@
         var selectionDialog = await DialogService.ShowAsync<PickupTypeSelectionDialog>("Select Pickup Type");
         var selectionResult = await selectionDialog.Result;
 
-        if (!selectionResult.Canceled && selectionResult.Data is bool isFullOrder)
+        if (selectionResult.Canceled) return;
+
+        if (selectionResult.Data is bool isFullOrder)
         {
             if (isFullOrder)
             {
-                // Full order pickup
-                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-                var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrEmpty(userId))
-                {
-                    Snackbar.Add("User not found.", Severity.Error);
-                    return;
-                }
-
-                if (int.TryParse(order.Id, out var orderId))
-                {
-                    try
-                    {
-                        await FulfillmentService.RecordFullOrderPickupAsync(orderId, userId);
-                        Snackbar.Add("Full order pickup recorded successfully!", Severity.Success);
-                        await OnPickupRecorded.InvokeAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        Snackbar.Add($"Error recording full pickup: {ex.Message}", Severity.Error);
-                    }
-                }
+                await HandleFullOrderPickup(order);
             }
             else
             {
-                // Partial pickup
-                var parameters = new DialogParameters { ["Order"] = order };
-                var pickupDialog = await DialogService.ShowAsync<RecordPickupDialog>("Record Partial Pickup", parameters);
-                var pickupResult = await pickupDialog.Result;
-
-                if (!pickupResult.Canceled && pickupResult.Data is bool pickupWasRecorded && pickupWasRecorded)
-                {
-                    await OnPickupRecorded.InvokeAsync();
-                }
+                await HandlePartialOrderPickup(order);
             }
+        }
+    }
+
+    private async Task HandleFullOrderPickup(AvailableOrder order)
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId) || !int.TryParse(order.Id, out var orderId))
+        {
+            Snackbar.Add("Error: Could not process the request due to invalid user or order ID.", Severity.Error);
+            return;
+        }
+
+        try
+        {
+            await FulfillmentService.RecordFullOrderPickupAsync(orderId, userId);
+            Snackbar.Add("Full order pickup recorded successfully!", Severity.Success);
+            await OnPickupRecorded.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error recording full pickup: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task HandlePartialOrderPickup(AvailableOrder order)
+    {
+        var parameters = new DialogParameters { ["Order"] = order };
+        var pickupDialog = await DialogService.ShowAsync<RecordPickupDialog>("Record Partial Pickup", parameters);
+        var pickupResult = await pickupDialog.Result;
+
+        if (!pickupResult.Canceled && pickupResult.Data is bool pickupWasRecorded && pickupWasRecorded)
+        {
+            await OnPickupRecorded.InvokeAsync();
         }
     }
 }
