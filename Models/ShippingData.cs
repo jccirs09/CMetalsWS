@@ -20,6 +20,7 @@ namespace CMetalsWS.Models
     {
         public bool FerryDependent { get; set; }
         public bool RequiresPooling { get; set; }
+        public bool IsCustomerPickup { get; set; }
     }
 
     public class RegionOperationalInfo
@@ -88,9 +89,11 @@ namespace CMetalsWS.Models
     {
         public string Id { get; set; }
         public string Description { get; set; }
-        public int Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public int Weight { get; set; }
         public string Status { get; set; }
+        public decimal FulfilledQuantity { get; set; }
+        public decimal RemainingQuantity => Quantity - FulfilledQuantity;
 
         public bool Equals(OrderItem? other)
         {

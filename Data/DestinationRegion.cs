@@ -13,6 +13,7 @@ namespace CMetalsWS.Data
         [MaxLength(256)]
         public string? Description { get; set; }
         public bool RequiresPooling { get; set; }
+        public bool IsCustomerPickup { get; set; }
         public string? CoordinatorId { get; set; }
         [ForeignKey(nameof(CoordinatorId))]
         public virtual ApplicationUser? Coordinator { get; set; }

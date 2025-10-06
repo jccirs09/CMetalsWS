@@ -277,7 +277,10 @@
                 </MudStack>
             </MudTabPanel>
             <MudTabPanel Text="Simple Planning" Icon="@Icons.Material.Filled.Add">
-                <LoadCreationSimplified AllAvailableOrders="_availableOrders" AvailableTrucks="_trucks" OnLoadCreated="LoadData" SelectedRegionName="@_selectedRegionName" />
+                <LoadCreationSimplified AllAvailableOrders="_ordersForDelivery" AvailableTrucks="_trucks" OnLoadCreated="LoadData" SelectedRegionName="@_selectedRegionName" />
+            </MudTabPanel>
+            <MudTabPanel Text="Pickup Management" Icon="@Icons.Material.Filled.Store">
+                <CustomerPickupManagement PickupOrders="_customerPickupOrders" OnPickupRecorded="LoadData" />
             </MudTabPanel>
             <MudTabPanel Text="Pool Management" Icon="@Icons.Material.Filled.Layers" Disabled="true">
                 <MudText>Pool Management coming soon.</MudText>
@@ -301,6 +304,8 @@
     private List<DeliveryRegion> _regions = new();
     private List<ShippingLoad> _loads = new();
     private List<AvailableOrder> _availableOrders = new();
+    private List<AvailableOrder> _ordersForDelivery = new();
+    private List<AvailableOrder> _customerPickupOrders = new();
     private List<TruckInfo> _trucks = new();
     private List<RegionalAlert> _alerts = new();
     private bool _isLoading = true;
@@ -319,6 +324,7 @@
     private async Task LoadData()
     {
         _isLoading = true;
+        await InvokeAsync(StateHasChanged);
 
         var regionsTask = ShippingService.GetRegionalDataAsync();
         var loadsTask = ShippingService.GetLoadsAsync();
@@ -334,8 +340,21 @@
         _trucks = await trucksTask;
         _alerts = await alertsTask;
 
+        var customerPickupRegionNames = _regions
+            .Where(r => r.Characteristics.IsCustomerPickup)
+            .Select(r => r.Name)
+            .ToHashSet();
+
+        _ordersForDelivery = _availableOrders
+            .Where(o => !customerPickupRegionNames.Contains(o.DeliveryRegion))
+            .ToList();
+
+        _customerPickupOrders = _availableOrders
+            .Where(o => customerPickupRegionNames.Contains(o.DeliveryRegion) && o.Items.Any(i => i.RemainingQuantity > 0))
+            .ToList();
+
         _isLoading = false;
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 
     private void ActivateTab(string tabName)
@@ -351,7 +370,16 @@
     private void ActivateTabWithRegion(string regionName)
     {
         _selectedRegionName = regionName;
-        ActivateTab("Simple Planning");
+        var selectedRegion = _regions.FirstOrDefault(r => r.Name == regionName);
+
+        if (selectedRegion != null && selectedRegion.Characteristics.IsCustomerPickup)
+        {
+            ActivateTab("Pickup Management");
+        }
+        else
+        {
+            ActivateTab("Simple Planning");
+        }
     }
 
     private string GetIcon(string iconName)

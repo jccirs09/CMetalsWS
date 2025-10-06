@@ -1,0 +1,46 @@
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Select Pickup Type</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText>How would you like to record this pickup?</MudText>
+        <div class="d-flex justify-center gap-4 mt-6 mb-2">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="@(() => SelectPickupType(true))"
+                       StartIcon="@Icons.Material.Filled.CheckCircleOutline"
+                       Size="Size.Large"
+                       Style="height:100px; width: 200px; flex-direction: column; text-transform: none;">
+                <MudText Typo="Typo.h6">Entire Order</MudText>
+                <MudText Typo="Typo.body2">Record all remaining items as picked up.</MudText>
+            </MudButton>
+
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Primary"
+                       OnClick="@(() => SelectPickupType(false))"
+                       StartIcon="@Icons.Material.Filled.Edit"
+                       Size="Size.Large"
+                       Style="height:100px; width: 200px; flex-direction: column; text-transform: none;">
+                <MudText Typo="Typo.h6">Partial Pickup</MudText>
+                <MudText Typo="Typo.body2">Record a specific quantity for each line item.</MudText>
+            </MudButton>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private void SelectPickupType(bool isFullOrder)
+    {
+        MudDialog.Close(DialogResult.Ok(isFullOrder));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
