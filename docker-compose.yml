@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  sql:
+    container_name: jules-sql
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${SA_PASSWORD}
+      - MSSQL_PID=Developer
+      - TZ=${TZ:-America/Vancouver}
+    ports:
+      - "${SQL_PORT:-1433}:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    restart: unless-stopped
+    # Tip: If you need containers to reach services on the host, keep this line:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  mssql_data:
