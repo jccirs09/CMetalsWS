@@ -57,7 +57,7 @@
                             <MudItem xs="6" sm="3">
                                 <MudNumericField T="decimal"
                                                  Value="_pickupQuantities[itemId]"
-                                                 ValueChanged="@(v => OnQtyChanged(v, itemId, remaining))"
+                                                 ValueChanged="@(v => OnQtyChanged((decimal)v, itemId, remaining))"
                                                  Label="Pickup Now"
                                                  Variant="Variant.Outlined"
                                                  Min="0"
