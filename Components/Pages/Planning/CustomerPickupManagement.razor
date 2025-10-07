@@ -56,6 +56,19 @@
 
     private async Task ManagePickup(AvailableOrder order)
     {
+        if (!int.TryParse(order.Id, out var orderId))
+        {
+            Snackbar.Add("Error: Invalid Order ID.", Severity.Error);
+            return;
+        }
+
+        var validationResult = await FulfillmentService.ValidateOrderForPickup(orderId);
+        if (!validationResult.IsValid)
+        {
+            Snackbar.Add(validationResult.ErrorMessage, Severity.Error, config => { config.VisibleStateDuration = 5000; });
+            return;
+        }
+
         var selectionDialog = await DialogService.ShowAsync<PickupTypeSelectionDialog>("Select Pickup Type");
         var selectionResult = await selectionDialog.Result;
 

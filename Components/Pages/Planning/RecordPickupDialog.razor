@@ -79,7 +79,7 @@
         else
         {
             <MudButton OnClick="Cancel">Cancel</MudButton>
-            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="ProceedToConfirm">Record Pickup</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="async () => await ProceedToConfirm()">Record Pickup</MudButton>
         }
     </DialogActions>
 </MudDialog>
@@ -121,8 +121,23 @@
         StateHasChanged();
     }
 
-    private void ProceedToConfirm()
+    private async Task ProceedToConfirm()
     {
+        if (!int.TryParse(Order.Id, out var orderId))
+        {
+            Snackbar.Add("Error: Invalid Order ID.", Severity.Error);
+            return;
+        }
+
+        var validationResult = await FulfillmentService.ValidateOrderForPickup(orderId);
+        if (!validationResult.IsValid)
+        {
+            Snackbar.Add(validationResult.ErrorMessage, Severity.Error, config => { config.VisibleStateDuration = 5000; });
+            // Optionally close the dialog if the order is fundamentally invalid now.
+            // MudDialog.Cancel();
+            return;
+        }
+
         _pickupsToConfirm = _pickupQuantities
             .Where(kvp => kvp.Value > 0)
             .ToDictionary(
@@ -136,15 +151,8 @@
             return;
         }
 
-        foreach (var pickup in _pickupsToConfirm)
-        {
-            var item = pickup.Key;
-            if (item.Status != "Packed" && item.Status != "Completed")
-            {
-                Snackbar.Add($"Item '{item.Description}' cannot be picked up. Status must be 'Packed' or 'Completed', but is '{item.Status}'.", Severity.Error);
-                return;
-            }
-        }
+        // The validation logic is now centralized in the service, but we can keep this as a secondary client-side check if desired.
+        // Or rely solely on the service call. For this implementation, we'll rely on the service call and remove the redundant loop.
 
         _isConfirming = true;
     }

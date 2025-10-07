@@ -116,5 +116,41 @@ namespace CMetalsWS.Services
                 .Where(f => f.PickingListItemId == pickingListItemId)
                 .SumAsync(f => f.FulfilledQuantity);
         }
+
+        public async Task<ValidationResult> ValidateOrderForPickup(int pickingListId)
+        {
+            await using var db = await _dbContextFactory.CreateDbContextAsync();
+            var items = await db.PickingListItems
+                .AsNoTracking()
+                .Where(i => i.PickingListId == pickingListId)
+                .ToListAsync();
+
+            if (!items.Any())
+            {
+                return new ValidationResult(false, "Order not found or contains no items.");
+            }
+
+            foreach (var item in items)
+            {
+                if (item.Status != PickingLineStatus.Packed && item.Status != PickingLineStatus.Completed)
+                {
+                    return new ValidationResult(false, $"Order cannot be picked up. Item '{item.ItemDescription}' has status '{item.Status}', but must be 'Packed' or 'Completed'.");
+                }
+            }
+
+            return new ValidationResult(true);
+        }
+    }
+
+    public class ValidationResult
+    {
+        public bool IsValid { get; }
+        public string ErrorMessage { get; }
+
+        public ValidationResult(bool isValid, string errorMessage = "")
+        {
+            IsValid = isValid;
+            ErrorMessage = errorMessage;
+        }
     }
 }
