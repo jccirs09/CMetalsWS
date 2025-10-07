@@ -135,6 +135,17 @@
             Snackbar.Add("No pickup quantities were entered.", Severity.Info);
             return;
         }
+
+        foreach (var pickup in _pickupsToConfirm)
+        {
+            var item = pickup.Key;
+            if (item.Status != "Packed" && item.Status != "Completed")
+            {
+                Snackbar.Add($"Item '{item.Description}' cannot be picked up. Status must be 'Packed' or 'Completed', but is '{item.Status}'.", Severity.Error);
+                return;
+            }
+        }
+
         _isConfirming = true;
     }
 
