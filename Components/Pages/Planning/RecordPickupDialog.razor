@@ -38,7 +38,7 @@
                             <MudItem xs="12" sm="6">
                                 <div class="d-flex align-center">
                                     <MudCheckBox T="bool"
-                                                 Checked="@(_pickupQuantities[itemId] == remaining && remaining > 0)"
+                                                 Checked="_itemCheckedState[itemId]"
                                                  CheckedChanged="@(async (bool isChecked) => await HandleCheckboxChanged(isChecked, itemId, remaining))"
                                                  Class="mr-2" />
                                     <div>
@@ -92,6 +92,7 @@
     public AvailableOrder Order { get; set; } = new();
 
     private Dictionary<int, decimal> _pickupQuantities = new();
+    private Dictionary<int, bool> _itemCheckedState = new();
     private Dictionary<OrderItem, decimal> _pickupsToConfirm = new();
     private bool _isConfirming = false;
     private bool _isSubmitting = false;
@@ -103,14 +104,16 @@
             if (int.TryParse(item.Id, out var itemId))
             {
                 _pickupQuantities[itemId] = 0;
+                _itemCheckedState[itemId] = false;
             }
         }
     }
 
     private async Task HandleCheckboxChanged(bool isChecked, int itemId, decimal remainingQuantity)
     {
+        _itemCheckedState[itemId] = isChecked;
         _pickupQuantities[itemId] = isChecked ? remainingQuantity : 0;
-        Snackbar.Add($"Remaining Qty for item {itemId}: {remainingQuantity}", Severity.Info);
+        Snackbar.Add($"Checkbox for item {itemId} changed. New value: {_pickupQuantities[itemId]}", Severity.Info);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -119,6 +122,7 @@
         if (v < 0) v = 0;
         if (v > remaining) v = remaining;
         _pickupQuantities[itemId] = v;
+        _itemCheckedState[itemId] = (v == remaining && v > 0);
         await InvokeAsync(StateHasChanged);
     }
 
