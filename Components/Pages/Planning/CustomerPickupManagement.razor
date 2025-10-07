@@ -99,7 +99,8 @@
     private async Task HandlePartialOrderPickup(AvailableOrder order)
     {
         var parameters = new DialogParameters { ["Order"] = order };
-        var pickupDialog = await DialogService.ShowAsync<RecordPickupDialog>("Record Partial Pickup", parameters);
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true };
+        var pickupDialog = await DialogService.ShowAsync<RecordPickupDialog>("Record Partial Pickup", parameters, options);
         var pickupResult = await pickupDialog.Result;
 
         if (!pickupResult.Canceled && pickupResult.Data is bool pickupWasRecorded && pickupWasRecorded)

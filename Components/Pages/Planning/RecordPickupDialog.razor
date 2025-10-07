@@ -30,36 +30,37 @@
                 @foreach (var item in Order.Items)
                 {
                     <MudPaper Outlined="true" Class="pa-3">
+                        @{
+                            var itemId = int.Parse(item.Id);
+                            var remaining = item.RemainingQuantity;
+                        }
                         <MudGrid AlignItems="AlignItems.Center">
                             <MudItem xs="12" sm="6">
-                                <MudText><b>@item.Description</b></MudText>
-                                <MudText Typo="Typo.caption">Item ID: @item.Id</MudText>
+                                <div class="d-flex align-center">
+                                    <MudCheckBox Checked="_itemCheckedState[itemId]"
+                                                 T="bool"
+                                                 CheckedChanged="@((bool isChecked) => OnCheckboxChanged(isChecked, itemId, remaining))"
+                                                 Class="mr-2" />
+                                    <div>
+                                        <MudText><b>@item.Description</b></MudText>
+                                        <MudText Typo="Typo.caption">Item ID: @item.Id</MudText>
+                                    </div>
+                                </div>
                             </MudItem>
                             <MudItem xs="6" sm="3">
                                 <MudText>Ordered: @item.Quantity.ToString("N2")</MudText>
                                 <MudText>Picked Up: @item.FulfilledQuantity.ToString("N2")</MudText>
-                                <MudText Color="Color.Success"><b>Remaining: @item.RemainingQuantity.ToString("N2")</b></MudText>
+                                <MudText Color="Color.Success"><b>Remaining: @remaining.ToString("N2")</b></MudText>
                             </MudItem>
                             <MudItem xs="6" sm="3">
-                                @{
-                                    var itemId = int.Parse(item.Id);
-                                    var remaining = item.RemainingQuantity;
-                                }
-                                <div class="d-flex align-center">
-                                    <MudCheckBox Checked="_itemCheckedState[itemId]"
-                                                 T="bool"
-                                                 Label="Full"
-                                                 CheckedChanged="@((bool isChecked) => OnCheckboxChanged(isChecked, itemId, remaining))"
-                                                 Class="mr-2" />
-                                    <MudNumericField T="decimal"
-                                                     Value="_pickupQuantities[itemId]"
-                                                     ValueChanged="@((newValue) => OnPickupQuantityChanged(newValue, itemId, remaining))"
-                                                     Label="Pickup Now"
-                                                     Variant="Variant.Outlined"
-                                                     Min="0"
-                                                     Max="@remaining"
-                                                     Step="1" />
-                                </div>
+                                <MudNumericField T="decimal"
+                                                 Value="_pickupQuantities[itemId]"
+                                                 ValueChanged="@((newValue) => OnPickupQuantityChanged(newValue, itemId, remaining))"
+                                                 Label="Pickup Now"
+                                                 Variant="Variant.Outlined"
+                                                 Min="0"
+                                                 Max="@remaining"
+                                                 Step="1" />
                             </MudItem>
                         </MudGrid>
                     </MudPaper>
