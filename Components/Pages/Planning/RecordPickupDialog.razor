@@ -46,12 +46,13 @@
                                     var remaining = item.RemainingQuantity;
                                 }
                                 <div class="d-flex align-center">
-                                    <MudCheckBox @bind-Value="_itemCheckedState[itemId]"
+                                    <MudCheckBox Checked="_itemCheckedState[itemId]"
                                                  T="bool"
                                                  Label="Full"
                                                  CheckedChanged="@((isChecked) => OnCheckboxChanged(isChecked, itemId, remaining))"
                                                  Class="mr-2" />
-                                    <MudNumericField Value="_pickupQuantities[itemId]"
+                                    <MudNumericField T="decimal"
+                                                     Value="_pickupQuantities[itemId]"
                                                      ValueChanged="@((newValue) => OnPickupQuantityChanged(newValue, itemId, remaining))"
                                                      Label="Pickup Now"
                                                      Variant="Variant.Outlined"
