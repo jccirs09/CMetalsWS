@@ -107,17 +107,18 @@
         }
     }
 
-    private void OnCheckboxChanged(bool isChecked, int itemId, decimal remainingQuantity)
+    private async Task OnCheckboxChanged(bool isChecked, int itemId, decimal remainingQuantity)
     {
         _itemCheckedState[itemId] = isChecked;
         _pickupQuantities[itemId] = isChecked ? remainingQuantity : 0;
-        StateHasChanged(); // Force update of the numeric field
+        await InvokeAsync(StateHasChanged);
     }
 
-    private void OnPickupQuantityChanged(decimal newValue, int itemId, decimal remainingQuantity)
+    private async Task OnPickupQuantityChanged(decimal newValue, int itemId, decimal remainingQuantity)
     {
         _pickupQuantities[itemId] = newValue;
         _itemCheckedState[itemId] = newValue == remainingQuantity && newValue > 0;
+        await InvokeAsync(StateHasChanged);
     }
 
     private void ProceedToConfirm()
