@@ -29,7 +29,7 @@
             <MudStack Spacing="3" Class="mt-4">
                 @foreach (var item in Order.Items)
                 {
-                    <MudPaper Outlined="true" Class="pa-3">
+                    <MudPaper Outlined="true" Class="pa-3" @key="item.Id">
                         @{
                             var itemId = int.Parse(item.Id);
                             var remaining = item.RemainingQuantity;
@@ -39,7 +39,7 @@
                                 <div class="d-flex align-center">
                                     <MudCheckBox T="bool"
                                                  Checked="@(_pickupQuantities[itemId] == remaining && remaining > 0)"
-                                                 CheckedChanged="@((bool isChecked) => HandleCheckboxChanged(isChecked, itemId, remaining))"
+                                                 CheckedChanged="@(isChecked => HandleCheckboxChanged(isChecked, itemId, remaining))"
                                                  Class="mr-2" />
                                     <div>
                                         <MudText><b>@item.Description</b></MudText>
@@ -47,19 +47,22 @@
                                     </div>
                                 </div>
                             </MudItem>
+
                             <MudItem xs="6" sm="3">
                                 <MudText>Ordered: @item.Quantity.ToString("N2")</MudText>
                                 <MudText>Picked Up: @item.FulfilledQuantity.ToString("N2")</MudText>
                                 <MudText Color="Color.Success"><b>Remaining: @remaining.ToString("N2")</b></MudText>
                             </MudItem>
+
                             <MudItem xs="6" sm="3">
-                                <MudNumericField @bind-Value="_pickupQuantities[itemId]"
-                                                 T="decimal"
+                                <MudNumericField T="decimal"
+                                                 Value="_pickupQuantities[itemId]"
+                                                 ValueChanged="@(v => OnQtyChanged(v, itemId, remaining))"
                                                  Label="Pickup Now"
                                                  Variant="Variant.Outlined"
                                                  Min="0"
                                                  Max="@remaining"
-                                                 Step="1" />
+                                                 Step="0.01" />
                             </MudItem>
                         </MudGrid>
                     </MudPaper>
@@ -107,6 +110,15 @@
     private void HandleCheckboxChanged(bool isChecked, int itemId, decimal remainingQuantity)
     {
         _pickupQuantities[itemId] = isChecked ? remainingQuantity : 0;
+        StateHasChanged();
+    }
+
+    private void OnQtyChanged(decimal v, int itemId, decimal remaining)
+    {
+        if (v < 0) v = 0;
+        if (v > remaining) v = remaining;
+        _pickupQuantities[itemId] = v;
+        StateHasChanged();
     }
 
     private void ProceedToConfirm()
