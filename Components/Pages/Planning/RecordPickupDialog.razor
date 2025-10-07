@@ -39,7 +39,7 @@
                                 <div class="d-flex align-center">
                                     <MudCheckBox T="bool"
                                                  Checked="@(_pickupQuantities[itemId] == remaining && remaining > 0)"
-                                                 CheckedChanged="@(isChecked => HandleCheckboxChanged(isChecked, itemId, remaining))"
+                                                 CheckedChanged="@((bool isChecked) => HandleCheckboxChanged(isChecked, itemId, remaining))"
                                                  Class="mr-2" />
                                     <div>
                                         <MudText><b>@item.Description</b></MudText>
