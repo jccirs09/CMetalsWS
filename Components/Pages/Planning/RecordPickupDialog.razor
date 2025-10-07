@@ -55,12 +55,14 @@
                             </MudItem>
 
                             <MudItem xs="6" sm="3">
-                                <MudTextField T="string"
-                                              Value="@_pickupQuantities[itemId].ToString("N2")"
-                                              ValueChanged="@(s => OnQtyChanged(s, itemId, remaining))"
-                                              Label="Pickup Now"
-                                              Variant="Variant.Outlined"
-                                              InputType="InputType.Number" />
+                                <MudNumericField T="decimal"
+                                                 Value="_pickupQuantities[itemId]"
+                                                 ValueChanged="@((decimal v) => OnQtyChanged(v, itemId, remaining))"
+                                                 Label="Pickup Now"
+                                                 Variant="Variant.Outlined"
+                                                 Min="0"
+                                                 Max="@remaining"
+                                                 Step="1" />
                             </MudItem>
                         </MudGrid>
                     </MudPaper>
@@ -108,21 +110,15 @@
     private void HandleCheckboxChanged(bool isChecked, int itemId, decimal remainingQuantity)
     {
         _pickupQuantities[itemId] = isChecked ? remainingQuantity : 0;
+        Snackbar.Add($"Remaining Qty for item {itemId}: {remainingQuantity}", Severity.Info);
         StateHasChanged();
     }
 
-    private void OnQtyChanged(string s, int itemId, decimal remaining)
+    private void OnQtyChanged(decimal v, int itemId, decimal remaining)
     {
-        if (decimal.TryParse(s, out var v))
-        {
-            if (v < 0) v = 0;
-            if (v > remaining) v = remaining;
-            _pickupQuantities[itemId] = v;
-        }
-        else
-        {
-            _pickupQuantities[itemId] = 0;
-        }
+        if (v < 0) v = 0;
+        if (v > remaining) v = remaining;
+        _pickupQuantities[itemId] = v;
         StateHasChanged();
     }
 
