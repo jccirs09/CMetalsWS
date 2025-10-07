@@ -49,7 +49,7 @@
                                     <MudCheckBox Checked="_itemCheckedState[itemId]"
                                                  T="bool"
                                                  Label="Full"
-                                                 CheckedChanged="@((isChecked) => OnCheckboxChanged(isChecked, itemId, remaining))"
+                                                 CheckedChanged="@((bool isChecked) => OnCheckboxChanged(isChecked, itemId, remaining))"
                                                  Class="mr-2" />
                                     <MudNumericField T="decimal"
                                                      Value="_pickupQuantities[itemId]"
