@@ -37,9 +37,9 @@
                         <MudGrid AlignItems="AlignItems.Center">
                             <MudItem xs="12" sm="6">
                                 <div class="d-flex align-center">
-                                    <MudCheckBox Checked="_itemCheckedState[itemId]"
-                                                 T="bool"
-                                                 CheckedChanged="@((bool isChecked) => OnCheckboxChanged(isChecked, itemId, remaining))"
+                                    <MudCheckBox T="bool"
+                                                 Checked="@(_pickupQuantities[itemId] == remaining && remaining > 0)"
+                                                 CheckedChanged="@((isChecked) => HandleCheckboxChanged(isChecked, itemId, remaining))"
                                                  Class="mr-2" />
                                     <div>
                                         <MudText><b>@item.Description</b></MudText>
@@ -53,9 +53,8 @@
                                 <MudText Color="Color.Success"><b>Remaining: @remaining.ToString("N2")</b></MudText>
                             </MudItem>
                             <MudItem xs="6" sm="3">
-                                <MudNumericField T="decimal"
-                                                 Value="_pickupQuantities[itemId]"
-                                                 ValueChanged="@((newValue) => OnPickupQuantityChanged(newValue, itemId, remaining))"
+                                <MudNumericField @bind-Value="_pickupQuantities[itemId]"
+                                                 T="decimal"
                                                  Label="Pickup Now"
                                                  Variant="Variant.Outlined"
                                                  Min="0"
@@ -90,7 +89,6 @@
     public AvailableOrder Order { get; set; } = new();
 
     private Dictionary<int, decimal> _pickupQuantities = new();
-    private Dictionary<int, bool> _itemCheckedState = new();
     private Dictionary<OrderItem, decimal> _pickupsToConfirm = new();
     private bool _isConfirming = false;
     private bool _isSubmitting = false;
@@ -102,23 +100,13 @@
             if (int.TryParse(item.Id, out var itemId))
             {
                 _pickupQuantities[itemId] = 0;
-                _itemCheckedState[itemId] = false;
             }
         }
     }
 
-    private async Task OnCheckboxChanged(bool isChecked, int itemId, decimal remainingQuantity)
+    private void HandleCheckboxChanged(bool isChecked, int itemId, decimal remainingQuantity)
     {
-        _itemCheckedState[itemId] = isChecked;
         _pickupQuantities[itemId] = isChecked ? remainingQuantity : 0;
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task OnPickupQuantityChanged(decimal newValue, int itemId, decimal remainingQuantity)
-    {
-        _pickupQuantities[itemId] = newValue;
-        _itemCheckedState[itemId] = newValue == remainingQuantity && newValue > 0;
-        await InvokeAsync(StateHasChanged);
     }
 
     private void ProceedToConfirm()
