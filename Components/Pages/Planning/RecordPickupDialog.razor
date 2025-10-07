@@ -41,12 +41,24 @@
                                 <MudText Color="Color.Success"><b>Remaining: @item.RemainingQuantity.ToString("N2")</b></MudText>
                             </MudItem>
                             <MudItem xs="6" sm="3">
-                                <MudNumericField @bind-Value="_pickupQuantities[int.Parse(item.Id)]"
-                                                 Label="Pickup Now"
-                                                 Variant="Variant.Outlined"
-                                                 Min="0"
-                                                 Max="@item.RemainingQuantity"
-                                                 Step="1" />
+                                @{
+                                    var itemId = int.Parse(item.Id);
+                                    var remaining = item.RemainingQuantity;
+                                }
+                                <div class="d-flex align-center">
+                                    <MudCheckBox @bind-Value="_itemCheckedState[itemId]"
+                                                 T="bool"
+                                                 Label="Full"
+                                                 CheckedChanged="@((isChecked) => OnCheckboxChanged(isChecked, itemId, remaining))"
+                                                 Class="mr-2" />
+                                    <MudNumericField Value="_pickupQuantities[itemId]"
+                                                     ValueChanged="@((newValue) => OnPickupQuantityChanged(newValue, itemId, remaining))"
+                                                     Label="Pickup Now"
+                                                     Variant="Variant.Outlined"
+                                                     Min="0"
+                                                     Max="@remaining"
+                                                     Step="1" />
+                                </div>
                             </MudItem>
                         </MudGrid>
                     </MudPaper>
@@ -76,6 +88,7 @@
     public AvailableOrder Order { get; set; } = new();
 
     private Dictionary<int, decimal> _pickupQuantities = new();
+    private Dictionary<int, bool> _itemCheckedState = new();
     private Dictionary<OrderItem, decimal> _pickupsToConfirm = new();
     private bool _isConfirming = false;
     private bool _isSubmitting = false;
@@ -87,8 +100,22 @@
             if (int.TryParse(item.Id, out var itemId))
             {
                 _pickupQuantities[itemId] = 0;
+                _itemCheckedState[itemId] = false;
             }
         }
+    }
+
+    private void OnCheckboxChanged(bool isChecked, int itemId, decimal remainingQuantity)
+    {
+        _itemCheckedState[itemId] = isChecked;
+        _pickupQuantities[itemId] = isChecked ? remainingQuantity : 0;
+        StateHasChanged(); // Force update of the numeric field
+    }
+
+    private void OnPickupQuantityChanged(decimal newValue, int itemId, decimal remainingQuantity)
+    {
+        _pickupQuantities[itemId] = newValue;
+        _itemCheckedState[itemId] = newValue == remainingQuantity && newValue > 0;
     }
 
     private void ProceedToConfirm()
