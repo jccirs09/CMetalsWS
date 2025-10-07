@@ -40,13 +40,18 @@
                                 <MudText>Picked Up: @item.FulfilledQuantity.ToString("N2")</MudText>
                                 <MudText Color="Color.Success"><b>Remaining: @item.RemainingQuantity.ToString("N2")</b></MudText>
                             </MudItem>
-                            <MudItem xs="6" sm="3">
-                                <MudNumericField @bind-Value="_pickupQuantities[int.Parse(item.Id)]"
+                            <MudItem xs="6" sm="3" Class="d-flex align-center">
+                                <MudCheckBox T="bool"
+                                             Checked="@IsFullySelected(item)"
+                                             CheckedChanged="@((bool a) => OnFullPickupChecked(a, item))"
+                                             Class="mr-2" />
+                                <MudNumericField Value="@_pickupQuantities[int.Parse(item.Id)]"
                                                  Label="Pickup Now"
                                                  Variant="Variant.Outlined"
                                                  Min="0"
                                                  Max="@item.RemainingQuantity"
-                                                 Step="1" />
+                                                 Step="1"
+                                                 ValueChanged="@((decimal v) => OnPickupQuantityChanged(v, item))" />
                             </MudItem>
                         </MudGrid>
                     </MudPaper>
@@ -147,4 +152,32 @@
     }
 
     private void Cancel() => MudDialog.Cancel();
+
+    private bool IsFullySelected(OrderItem item)
+    {
+        if (int.TryParse(item.Id, out var itemId) && _pickupQuantities.TryGetValue(itemId, out var pickupQuantity))
+        {
+            // Use a small tolerance for floating point comparison
+            return Math.Abs(pickupQuantity - item.RemainingQuantity) < 0.001m;
+        }
+        return false;
+    }
+
+    private void OnFullPickupChecked(bool isChecked, OrderItem item)
+    {
+        if (int.TryParse(item.Id, out var itemId))
+        {
+            _pickupQuantities[itemId] = isChecked ? item.RemainingQuantity : 0;
+        }
+    }
+
+    private void OnPickupQuantityChanged(decimal newValue, OrderItem item)
+    {
+        if (int.TryParse(item.Id, out var itemId))
+        {
+            _pickupQuantities[itemId] = newValue;
+        }
+        // StateHasChanged is implicitly called by the framework when an event handler is executed.
+        // The checkbox's `Checked` property will be re-evaluated on the next render.
+    }
 }
