@@ -343,6 +343,7 @@
 
         _customerPickupOrders = _availableOrders
             .Where(o => customerPickupRegionNames.Contains(o.DeliveryRegion) && o.Items.Any(i => i.RemainingQuantity > 0))
+            .OrderBy(o => o.ReadyDate)
             .ToList();
 
         _isLoading = false;

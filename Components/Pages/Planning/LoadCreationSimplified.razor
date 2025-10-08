@@ -195,7 +195,7 @@
     }
 
     private IEnumerable<AvailableOrder> OrdersForSelectedDate => SelectedShipDate.HasValue
-        ? OrdersByDate(SelectedShipDate.Value)
+        ? OrdersByDate(SelectedShipDate.Value).OrderBy(o => o.ReadyDate)
         : Enumerable.Empty<AvailableOrder>();
 
     private decimal TotalSelectedWeight => PartialWeights.Values.Sum();
