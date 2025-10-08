@@ -55,7 +55,7 @@
         return Math.Max(0, Math.Min(100, pct));
     }
 
-    private int GetProjectedLoad(TruckInfo truck) => truck.CurrentLoad + TotalSelectedWeight;
+    private int GetProjectedLoad(TruckInfo truck) => TotalSelectedWeight;
 
     private Color GetProjectedLoadColor(TruckInfo truck)
     {
