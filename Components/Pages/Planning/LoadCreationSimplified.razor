@@ -74,8 +74,8 @@
                                     <HeaderContent>
                                         <MudTh></MudTh>
                                         <MudTh>Description</MudTh>
-                                        <MudTh>Quantity</MudTh>
-                                        <MudTh>Weight</MudTh>
+                                        <MudTh>Total Weight / Qty</MudTh>
+                                        <MudTh>Load Weight</MudTh>
                                         <MudTh>Status</MudTh>
                                     </HeaderContent>
                                     <RowTemplate Context="item">
@@ -87,8 +87,17 @@
                                                          ValueChanged="@((bool val) => ToggleItemSelection(order, item, val))" />
                                         </MudTd>
                                         <MudTd DataLabel="Description">@item.Description</MudTd>
-                                        <MudTd DataLabel="Quantity">@item.Quantity</MudTd>
-                                        <MudTd DataLabel="Weight">@item.Weight.ToString("N0") lbs</MudTd>
+                                        <MudTd DataLabel="Total Weight / Qty">@item.Weight.ToString("N0") lbs / @item.Quantity.ToString("N0") pcs</MudTd>
+                                        <MudTd DataLabel="Load Weight">
+                                            <MudNumericField T="decimal"
+                                                             Value="PartialWeights.GetValueOrDefault(item.Id)"
+                                                             ValueChanged="@((decimal v) => { PartialWeights[item.Id] = v; StateHasChanged(); })"
+                                                             Disabled="@(!IsItemSelected(item))"
+                                                             Variant="Variant.Outlined"
+                                                             Min="0" Max="@item.Weight" Adornment="Adornment.End" AdornmentText="lbs"
+                                                             Style="width: 140px;"
+                                                             Class="pa-0 ma-0" Margin="Margin.Dense" />
+                                        </MudTd>
                                         <MudTd DataLabel="Status"><MudChip T="string" Size="Size.Small" Color="GetStatusColor(item.Status)">@item.Status</MudChip></MudTd>
                                     </RowTemplate>
                                 </MudTable>
@@ -109,7 +118,7 @@
                 <MudCardContent>
                     <MudText Typo="Typo.subtitle1"><b>Line Items:</b> @SelectedItemIds.Count</MudText>
                     <MudText Typo="Typo.subtitle1"><b>Orders:</b> @SelectedOrderIds.Count</MudText>
-                    <MudText Typo="Typo.h5" Class="mt-2"><b>@TotalSelectedWeight.ToString("N0") lbs</b></MudText>
+                    <MudText Typo="Typo.h5" Class="mt-2"><b>@TotalSelectedWeight.ToString("N2") lbs</b></MudText>
                 </MudCardContent>
             </MudCard>
 
@@ -161,6 +170,7 @@
 
     private HashSet<string> SelectedOrderIds { get; set; } = new();
     private HashSet<string> SelectedItemIds { get; set; } = new();
+    private Dictionary<string, decimal> PartialWeights { get; set; } = new();
 
     private List<AvailableOrder> FilteredAvailableOrders => string.IsNullOrEmpty(SelectedRegionName)
         ? AllAvailableOrders
@@ -185,19 +195,17 @@
     }
 
     private IEnumerable<AvailableOrder> OrdersForSelectedDate => SelectedShipDate.HasValue
-        ? OrdersByDate(SelectedShipDate.Value)
+        ? OrdersByDate(SelectedShipDate.Value).OrderBy(o => o.ReadyDate)
         : Enumerable.Empty<AvailableOrder>();
 
-    private int TotalSelectedWeight => AllAvailableOrders.SelectMany(o => o.Items)
-        .Where(i => SelectedItemIds.Contains(i.Id))
-        .Sum(i => i.Weight);
+    private decimal TotalSelectedWeight => PartialWeights.Values.Sum();
 
     private async Task OpenTruckDialogAsync()
     {
         var parameters = new DialogParameters
         {
             ["AvailableTrucks"] = AvailableTrucks,
-            ["TotalSelectedWeight"] = TotalSelectedWeight
+            ["TotalSelectedWeight"] = (int)TotalSelectedWeight
         };
 
         var dialog = await DialogService.ShowAsync<TruckSelectionDialog>("Select a Truck", parameters);
@@ -223,6 +231,7 @@
     {
         SelectedOrderIds.Clear();
         SelectedItemIds.Clear();
+        PartialWeights.Clear();
     }
 
     private void ToggleOrderSelection(AvailableOrder order, bool isSelected)
@@ -232,7 +241,10 @@
             SelectedOrderIds.Add(order.Id);
             foreach (var item in order.Items)
             {
-                SelectedItemIds.Add(item.Id);
+                if (SelectedItemIds.Add(item.Id))
+                {
+                    PartialWeights[item.Id] = item.Weight;
+                }
             }
         }
         else
@@ -240,7 +252,10 @@
             SelectedOrderIds.Remove(order.Id);
             foreach (var item in order.Items)
             {
-                SelectedItemIds.Remove(item.Id);
+                if (SelectedItemIds.Remove(item.Id))
+                {
+                    PartialWeights.Remove(item.Id);
+                }
             }
         }
         StateHasChanged();
@@ -251,10 +266,12 @@
         if (isSelected)
         {
             SelectedItemIds.Add(item.Id);
+            PartialWeights[item.Id] = item.Weight; // Default to full weight on selection
         }
         else
         {
             SelectedItemIds.Remove(item.Id);
+            PartialWeights.Remove(item.Id);
         }
 
         if (order.Items.All(i => SelectedItemIds.Contains(i.Id)))
@@ -281,11 +298,11 @@
     private double GetProjectedLoadPercentage(TruckInfo truck)
     {
         if (truck.Capacity <= 0) return 0;
-        var pct = (GetProjectedLoad(truck) / (double)truck.Capacity) * 100;
+        var pct = (double)GetProjectedLoad(truck) / truck.Capacity * 100;
         return Math.Max(0, Math.Min(100, pct));
     }
 
-    private int GetProjectedLoad(TruckInfo truck) => truck.CurrentLoad + TotalSelectedWeight;
+    private decimal GetProjectedLoad(TruckInfo truck) => truck.CurrentLoad + TotalSelectedWeight;
 
     private Color GetProjectedLoadColor(TruckInfo truck)
     {
@@ -364,12 +381,19 @@
                     continue;
                 }
 
+                var shippedWeight = PartialWeights.GetValueOrDefault(item.Id, 0);
+                if (shippedWeight <= 0) continue; // Don't add items with no weight
+
+                var shippedQuantity = (item.Weight > 0 && shippedWeight < item.Weight)
+                    ? Math.Round(item.Quantity * (shippedWeight / item.Weight), 2)
+                    : item.Quantity;
+
                 loadItems.Add(new Data.LoadItem
                 {
                     PickingListId = orderId,
                     PickingListItemId = itemId,
-                    ShippedWeight = item.Weight,
-                    ShippedQuantity = item.Quantity
+                    ShippedWeight = shippedWeight,
+                    ShippedQuantity = shippedQuantity
                 });
             }
         }
