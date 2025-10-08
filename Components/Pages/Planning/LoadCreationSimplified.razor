@@ -58,7 +58,7 @@
                         <MudExpansionPanel Text="@($"{order.CustomerName} ({order.OrderNumber})")">
                             <TitleContent>
                                 <div class="d-flex align-center pa-1" style="width:100%">
-                                    <MudCheckBox T="bool" Value="@(SelectedOrderIds.Contains(order.Id))" ValueChanged="@((bool val) => ToggleOrderSelection(order, val))" Class="mr-2" />
+                                    <MudCheckBox T="bool" Value="@(IsOrderFullySelected(order))" ValueChanged="@((bool val) => ToggleOrderSelection(order, val))" Class="mr-2" />
                                     <div class="flex-grow-1">
                                         <MudText><b>@order.CustomerName</b></MudText>
                                         <MudText Typo="Typo.body2" Class="text-muted">@order.OrderNumber</MudText>
@@ -221,9 +221,12 @@
     private void OnSelectedShipDateChanged(DateTime? newDate)
     {
         SelectedShipDate = newDate;
-        ScheduledShipDate = newDate;
-        ClearSelections();
-        _ordersByDateCache.Clear();
+        // Do not clear selections, allowing multi-date picking.
+        // If a scheduled date hasn't been set, default it to the first date picked.
+        if (ScheduledShipDate is null)
+        {
+            ScheduledShipDate = newDate;
+        }
         StateHasChanged();
     }
 
@@ -286,6 +289,8 @@
     }
 
     private bool IsItemSelected(OrderItem item) => SelectedItemIds.Contains(item.Id);
+
+    private bool IsOrderFullySelected(AvailableOrder order) => order.Items.All(i => SelectedItemIds.Contains(i.Id));
 
     private Color GetStatusColor(string status) => status switch
     {
