@@ -221,9 +221,12 @@
     private void OnSelectedShipDateChanged(DateTime? newDate)
     {
         SelectedShipDate = newDate;
-        ScheduledShipDate = newDate;
-        ClearSelections();
-        _ordersByDateCache.Clear();
+        // Do not clear selections, allowing multi-date picking.
+        // If a scheduled date hasn't been set, default it to the first date picked.
+        if (ScheduledShipDate is null)
+        {
+            ScheduledShipDate = newDate;
+        }
         StateHasChanged();
     }
 
