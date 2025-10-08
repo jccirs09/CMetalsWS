@@ -242,9 +242,9 @@
                                                 DropNumber = index + 1,
                                                 CustomerName = g.Key.CustomerName,
                                                 Destination = g.Key.Destination,
-                                                TotalWeight = g.Sum(i => i.ShippedWeight),
-                                                TotalPieces = g.Sum(i => i.ShippedQuantity),
-                                                SpecialInstructions = string.Join(" | ", g.Select(i => i.PickingListItem.PackingNotes).Where(s => !string.IsNullOrEmpty(s)).Distinct())
+                                                TotalWeight = g.Sum(i => i.Weight),
+                                                TotalPieces = g.Sum(i => i.Pieces),
+                                                SpecialInstructions = string.Join(" | ", g.Select(i => i.SpecialInstructions).Where(s => !string.IsNullOrEmpty(s)).Distinct())
                                             });
                                     }
                                     @foreach(var drop in drops)
@@ -261,7 +261,7 @@
                                             </div>
                                             <div class="text-right">
                                                 <MudText><b>@drop.TotalWeight.ToString("N0") lbs</b></MudText>
-                                                <MudText Typo="Typo.body2" Class="text-muted">@drop.TotalPieces.ToString("N0") pcs</MudText>
+                                                <MudText Typo="Typo.body2" Class="text-muted">@drop.TotalPieces pcs</MudText>
                                             </div>
                                         </MudPaper>
                                     }
