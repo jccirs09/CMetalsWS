@@ -133,8 +133,6 @@
         if (!validationResult.IsValid)
         {
             Snackbar.Add(validationResult.ErrorMessage, Severity.Error, config => { config.VisibleStateDuration = 5000; });
-            // Optionally close the dialog if the order is fundamentally invalid now.
-            // MudDialog.Cancel();
             return;
         }
 
@@ -150,9 +148,6 @@
             Snackbar.Add("No pickup quantities were entered.", Severity.Info);
             return;
         }
-
-        // The validation logic is now centralized in the service, but we can keep this as a secondary client-side check if desired.
-        // Or rely solely on the service call. For this implementation, we'll rely on the service call and remove the redundant loop.
 
         _isConfirming = true;
     }
