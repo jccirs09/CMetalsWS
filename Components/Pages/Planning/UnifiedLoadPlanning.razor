@@ -15,6 +15,14 @@
     }
     else
     {
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div>
+                <MudText Typo="Typo.h4">Loads & Shipping</MudText>
+                <MudText Typo="Typo.body1" Class="text-muted">Manage truck loads and shipping operations</MudText>
+            </div>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">New Load</MudButton>
+        </div>
+
         <MudTabs @ref="_mudTabs" Elevation="2" Rounded="true" PanelClass="mt-4">
             <MudTabPanel Text="Regional Overview" Icon="@Icons.Material.Filled.Map">
                 <div class="d-flex justify-space-between align-center mb-4">
@@ -227,21 +235,33 @@
 
                                 <MudText Typo="Typo.subtitle1" Class="mt-4">Route:</MudText>
                                 <MudStack Spacing="2" Class="mt-2">
-                                    @foreach(var item in load.Items)
+                                    @{
+                                        var drops = load.Items
+                                            .GroupBy(item => new { item.CustomerName, item.Destination })
+                                            .Select((g, index) => new {
+                                                DropNumber = index + 1,
+                                                CustomerName = g.Key.CustomerName,
+                                                Destination = g.Key.Destination,
+                                                TotalWeight = g.Sum(i => i.Weight),
+                                                TotalPieces = g.Sum(i => i.Pieces),
+                                                SpecialInstructions = string.Join(" | ", g.Select(i => i.SpecialInstructions).Where(s => !string.IsNullOrEmpty(s)).Distinct())
+                                            });
+                                    }
+                                    @foreach(var drop in drops)
                                     {
                                         <MudPaper Outlined="true" Class="pa-2 d-flex align-center gap-4">
-                                            <MudAvatar Color="Color.Primary" Size="Size.Small" Class="mr-2">@load.Items.IndexOf(item)+1</MudAvatar>
+                                            <MudAvatar Color="Color.Primary" Size="Size.Small" Class="mr-2">@drop.DropNumber</MudAvatar>
                                             <div class="flex-grow-1">
-                                                <MudText><b>@item.CustomerName</b></MudText>
-                                                <MudText Typo="Typo.body2" Class="text-muted">@item.Destination</MudText>
-                                                @if(!string.IsNullOrEmpty(item.SpecialInstructions))
+                                                <MudText><b>@drop.CustomerName</b></MudText>
+                                                <MudText Typo="Typo.body2" Class="text-muted">@drop.Destination</MudText>
+                                                @if(!string.IsNullOrEmpty(drop.SpecialInstructions))
                                                 {
-                                                    <MudText Typo="Typo.caption" Color="Color.Warning">⚠️ @item.SpecialInstructions</MudText>
+                                                    <MudText Typo="Typo.caption" Color="Color.Warning">⚠️ @drop.SpecialInstructions</MudText>
                                                 }
                                             </div>
                                             <div class="text-right">
-                                                <MudText><b>@item.Weight.ToString("N0") lbs</b></MudText>
-                                                <MudText Typo="Typo.body2" Class="text-muted">@item.Pieces pcs</MudText>
+                                                <MudText><b>@drop.TotalWeight.ToString("N0") lbs</b></MudText>
+                                                <MudText Typo="Typo.body2" Class="text-muted">@drop.TotalPieces pcs</MudText>
                                             </div>
                                         </MudPaper>
                                     }
@@ -343,7 +363,6 @@
 
         _customerPickupOrders = _availableOrders
             .Where(o => customerPickupRegionNames.Contains(o.DeliveryRegion) && o.Items.Any(i => i.RemainingQuantity > 0))
-            .OrderBy(o => o.ReadyDate)
             .ToList();
 
         _isLoading = false;
