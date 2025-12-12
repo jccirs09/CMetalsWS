@@ -1,0 +1,91 @@
+@page "/inventory/consumables/reorder"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IConsumablesService ConsumablesService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<MudText Typo="Typo.h5" Class="mb-4">Reorder List</MudText>
+
+@if (loading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else if (reorderItems.Count == 0)
+{
+    <MudAlert Severity="Severity.Success">No items need reordering.</MudAlert>
+}
+else
+{
+    <MudTable Items="@reorderItems" Dense="true" Hover="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Code</MudTh>
+            <MudTh>Name</MudTh>
+            <MudTh>Current</MudTh>
+            <MudTh>Min</MudTh>
+            <MudTh>Max</MudTh>
+            <MudTh>Suggested Order</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Code">@context.ItemCode</MudTd>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Current">
+                <MudChip T="string" Color="Color.Error" Size="Size.Small">@context.CurrentQuantity</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Min">@context.MinQuantity</MudTd>
+            <MudTd DataLabel="Max">@context.MaxQuantity</MudTd>
+            <MudTd DataLabel="Suggested Order">@(context.MaxQuantity - context.CurrentQuantity)</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => CreateRequest(context))">Request Order</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<ConsumableItem> reorderItems = new();
+    private bool loading = true;
+    private string currentUser = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentUser = authState.User.Identity?.Name ?? "Unknown";
+    }
+
+    private async Task LoadData()
+    {
+        loading = true;
+        reorderItems = await ConsumablesService.GetReorderListAsync();
+        loading = false;
+    }
+
+    private async Task CreateRequest(ConsumableItem item)
+    {
+        try
+        {
+            var request = new ProcurementRequest
+            {
+                ConsumableItemId = item.Id,
+                QuantityRequested = item.MaxQuantity - item.CurrentQuantity,
+                RequestedBy = currentUser
+            };
+
+            await ConsumablesService.CreateProcurementRequestAsync(request);
+            Snackbar.Add($"Procurement request created for {item.Name}", Severity.Success);
+
+            // Optionally remove from list or just refresh?
+            // The item still needs reordering until it is received, so it should stay on the list technically.
+            // But maybe we want to show it's already requested?
+            // The requirement says: "Allow creating procurement requests directly from this list."
+            // It doesn't say filter out pending requests.
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}

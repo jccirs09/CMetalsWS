@@ -43,6 +43,10 @@ namespace CMetalsWS.Data
         public DbSet<PickingListImport> PickingListImports => Set<PickingListImport>();
         public DbSet<PickingListPageImage> PickingListPageImages => Set<PickingListPageImage>();
 
+        public DbSet<ConsumableItem> ConsumableItems => Set<ConsumableItem>();
+        public DbSet<ConsumableTransaction> ConsumableTransactions => Set<ConsumableTransaction>();
+        public DbSet<ProcurementRequest> ProcurementRequests => Set<ProcurementRequest>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -366,6 +370,17 @@ namespace CMetalsWS.Data
                     .HasForeignKey(f => f.LoadId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
+
+            // Consumables Module
+            modelBuilder.Entity<ConsumableTransaction>()
+                .Property(t => t.TransactionType)
+                .HasConversion<string>()
+                .HasMaxLength(32);
+
+            modelBuilder.Entity<ProcurementRequest>()
+                .Property(r => r.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32);
         }
     }
 }

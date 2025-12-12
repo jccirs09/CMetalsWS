@@ -70,6 +70,14 @@
         </MudNavGroup>
     }
 
+    <MudNavGroup text="Inventory" Icon="@Icons.Material.Filled.Store" Title="Inventory">
+        <MudNavLink Href="/inventory/consumables" Icon="@Icons.Material.Filled.List">Consumables List</MudNavLink>
+        <MudNavLink Href="/inventory/consumables/usage" Icon="@Icons.Material.Filled.RemoveCircle">Record Usage</MudNavLink>
+        <MudNavLink Href="/inventory/consumables/receipt" Icon="@Icons.Material.Filled.AddCircle">Record Receipt</MudNavLink>
+        <MudNavLink Href="/inventory/consumables/reorder" Icon="@Icons.Material.Filled.ShoppingCart">Reorder List</MudNavLink>
+        <MudNavLink Href="/inventory/consumables/procurement" Icon="@Icons.Material.Filled.Assignment">Procurement Requests</MudNavLink>
+    </MudNavGroup>
+
     @if (canPickingLists)
     {
         <MudNavGroup text="Load Planning" Icon="@Icons.Material.Filled.LocalShipping" Title="Load Planning">

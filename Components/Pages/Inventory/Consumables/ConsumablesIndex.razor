@@ -1,0 +1,195 @@
+@page "/inventory/consumables"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using CMetalsWS.Components.Pages.Inventory.Consumables.Components
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IConsumablesService ConsumablesService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<MudText Typo="Typo.h5" Class="mb-4">Consumables Inventory</MudText>
+
+<MudTable Items="@Items" Filter="new Func<ConsumableItem,bool>(FilterFunc)" Dense="true" Hover="true" Striped="true">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Items</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-4" OnClick="CreateItem">Add Item</MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Code</MudTh>
+        <MudTh>Name</MudTh>
+        <MudTh>Description</MudTh>
+        <MudTh>UOM</MudTh>
+        <MudTh>Min</MudTh>
+        <MudTh>Max</MudTh>
+        <MudTh>Current</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Code">@context.ItemCode</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Description">@context.Description</MudTd>
+        <MudTd DataLabel="UOM">@context.UnitOfMeasure</MudTd>
+        <MudTd DataLabel="Min">@context.MinQuantity</MudTd>
+        <MudTd DataLabel="Max">@context.MaxQuantity</MudTd>
+        <MudTd DataLabel="Current">
+            <MudChip T="string" Color="@GetStatusColor(context)" Size="Size.Small">@context.CurrentQuantity</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Status">
+            <MudSwitch T="bool" Value="@context.IsActive" Color="Color.Success" ValueChanged="@((bool v) => ToggleActive(context))" />
+        </MudTd>
+        <MudTd DataLabel="Actions">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => EditItem(context))" Title="Edit" />
+            <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" OnClick="@(() => ViewHistory(context))" Title="History" />
+            <MudIconButton Icon="@Icons.Material.Filled.Exposure" Size="Size.Small" OnClick="@(() => AdjustStock(context))" Title="Adjust Stock" Color="Color.Warning" />
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    private List<ConsumableItem> Items = new();
+    private string searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadItems();
+    }
+
+    private async Task LoadItems()
+    {
+        Items = await ConsumablesService.GetItemsAsync();
+    }
+
+    private bool FilterFunc(ConsumableItem item)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (item.ItemCode.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (item.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (item.Description != null && item.Description.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    private Color GetStatusColor(ConsumableItem item)
+    {
+        if (item.CurrentQuantity <= item.MinQuantity) return Color.Error;
+        if (item.CurrentQuantity < item.MinQuantity * 1.2) return Color.Warning; // Lowish
+        return Color.Success;
+    }
+
+    private async Task CreateItem()
+    {
+        var parameters = new DialogParameters { ["Item"] = new ConsumableItem() };
+        var dialog = DialogService.Show<ConsumableFormDialog>("Create Item", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            try
+            {
+                var newItem = (ConsumableItem)result.Data;
+                await ConsumablesService.CreateItemAsync(newItem);
+                Snackbar.Add("Item created", Severity.Success);
+                await LoadItems();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
+    }
+
+    private async Task EditItem(ConsumableItem item)
+    {
+        var parameters = new DialogParameters { ["Item"] = new ConsumableItem
+        {
+            Id = item.Id,
+            ItemCode = item.ItemCode,
+            Name = item.Name,
+            Description = item.Description,
+            UnitOfMeasure = item.UnitOfMeasure,
+            MinQuantity = item.MinQuantity,
+            MaxQuantity = item.MaxQuantity,
+            CurrentQuantity = item.CurrentQuantity,
+            IsActive = item.IsActive
+        }};
+
+        var dialog = DialogService.Show<ConsumableFormDialog>("Edit Item", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            try
+            {
+                var updatedItem = (ConsumableItem)result.Data;
+                await ConsumablesService.UpdateItemAsync(updatedItem);
+                Snackbar.Add("Item updated", Severity.Success);
+                await LoadItems();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
+    }
+
+    private async Task ToggleActive(ConsumableItem item)
+    {
+        await ConsumablesService.ToggleItemActiveAsync(item.Id);
+        item.IsActive = !item.IsActive;
+        Snackbar.Add($"Item {(item.IsActive ? "activated" : "deactivated")}", Severity.Info);
+    }
+
+    private void ViewHistory(ConsumableItem item)
+    {
+         var parameters = new DialogParameters { ["ItemId"] = item.Id };
+         DialogService.Show<TransactionHistoryDialog>($"History: {item.Name}", parameters);
+    }
+
+    private async Task AdjustStock(ConsumableItem item)
+    {
+        var parameters = new DialogParameters
+        {
+            ["ItemId"] = item.Id,
+            ["ItemName"] = item.Name,
+            ["CurrentQuantity"] = item.CurrentQuantity
+        };
+        var dialog = DialogService.Show<AdjustStockDialog>("Adjust Stock", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is AdjustStockDialog.AdjustmentResult adjustment)
+        {
+            try
+            {
+                var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+                var currentUser = authState.User.Identity?.Name ?? "Unknown";
+
+                var transaction = new ConsumableTransaction
+                {
+                    ConsumableItemId = item.Id,
+                    TransactionType = ConsumableTransactionType.Adjustment,
+                    Quantity = adjustment.Delta,
+                    PerformedBy = currentUser,
+                    Notes = adjustment.Reason
+                };
+
+                await ConsumablesService.RecordTransactionAsync(transaction);
+                Snackbar.Add($"Stock adjusted for {item.Name}", Severity.Success);
+                await LoadItems();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
+    }
+}

@@ -1,0 +1,56 @@
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@inject IConsumablesService ConsumablesService
+
+<MudDialog>
+    <DialogContent>
+        <MudTable Items="@History" Dense="true" Hover="true" FixedHeader="true" Height="400px">
+            <HeaderContent>
+                <MudTh>Date</MudTh>
+                <MudTh>Type</MudTh>
+                <MudTh>Quantity</MudTh>
+                <MudTh>By</MudTh>
+                <MudTh>Ref</MudTh>
+                <MudTh>Notes</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Date">@context.Timestamp.ToLocalTime().ToString("g")</MudTd>
+                <MudTd DataLabel="Type">
+                    <MudChip T="string" Size="Size.Small" Color="@GetColor(context.TransactionType)">@context.TransactionType</MudChip>
+                </MudTd>
+                <MudTd DataLabel="Quantity">@context.Quantity</MudTd>
+                <MudTd DataLabel="By">@context.PerformedBy</MudTd>
+                <MudTd DataLabel="Ref">@context.Reference</MudTd>
+                <MudTd DataLabel="Notes">@context.Notes</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public int ItemId { get; set; }
+
+    private List<ConsumableTransaction> History = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        History = await ConsumablesService.GetItemHistoryAsync(ItemId);
+    }
+
+    private void Close() => MudDialog.Cancel();
+
+    private Color GetColor(ConsumableTransactionType type)
+    {
+        return type switch
+        {
+            ConsumableTransactionType.Usage => Color.Warning,
+            ConsumableTransactionType.Receipt => Color.Success,
+            ConsumableTransactionType.Adjustment => Color.Info,
+            _ => Color.Default
+        };
+    }
+}

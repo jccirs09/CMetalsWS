@@ -58,6 +58,22 @@
     public enum ShippingGroup { Standard, Pool, BranchTransfer }
     public enum LoadStatus { Pending, Loaded, Scheduled, InTransit, Delivered, Canceled }
     public enum FulfillmentType { Delivery, CustomerPickup }
+
+    public enum ConsumableTransactionType
+    {
+        Usage,
+        Receipt,
+        Adjustment
+    }
+
+    public enum ProcurementRequestStatus
+    {
+        Draft,
+        Requested,
+        Ordered,
+        Received,
+        Cancelled
+    }
 }
 
 
