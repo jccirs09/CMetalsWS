@@ -1,0 +1,95 @@
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body1" Class="mb-4">
+            Adjusting stock for <b>@ItemName</b>. <br/>
+            Current Quantity: <b>@CurrentQuantity</b>
+        </MudText>
+
+        <MudForm @ref="form" @bind-IsValid="@success">
+            <MudRadioGroup T="string" @bind-Value="adjustmentType">
+                <MudRadio T="string" Value="@("NewTotal")">Set New Total</MudRadio>
+                <MudRadio T="string" Value="@("Delta")">Add/Remove Quantity</MudRadio>
+            </MudRadioGroup>
+
+            @if (adjustmentType == "NewTotal")
+            {
+                <MudNumericField @bind-Value="newTotal" Label="New Total Quantity" Min="0" Required="true" Class="mt-2" />
+                <MudText Typo="Typo.caption" Color="Color.Info">
+                    Difference: @(newTotal - CurrentQuantity)
+                </MudText>
+            }
+            else
+            {
+                <MudNumericField @bind-Value="delta" Label="Adjustment Amount (+/-)" Required="true" Class="mt-2" HelperText="Use negative value to reduce stock" />
+                <MudText Typo="Typo.caption" Color="Color.Info">
+                    New Total: @(CurrentQuantity + delta)
+                </MudText>
+            }
+
+            <MudTextField @bind-Value="reason" Label="Reason / Notes" Lines="2" Required="true" RequiredError="Reason is required" Class="mt-2"/>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!success)">Adjust</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public int ItemId { get; set; }
+    [Parameter] public string ItemName { get; set; } = "";
+    [Parameter] public int CurrentQuantity { get; set; }
+
+    private bool success;
+    private MudForm form = default!;
+
+    private string adjustmentType = "NewTotal";
+    private int newTotal;
+    private int delta;
+    private string reason = "";
+
+    protected override void OnInitialized()
+    {
+        newTotal = CurrentQuantity;
+        delta = 0;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        form.Validate();
+        if (success)
+        {
+            int finalDelta = 0;
+            if (adjustmentType == "NewTotal")
+            {
+                finalDelta = newTotal - CurrentQuantity;
+            }
+            else
+            {
+                finalDelta = delta;
+            }
+
+            if (finalDelta == 0)
+            {
+                MudDialog.Cancel();
+                return;
+            }
+
+            // Return the delta and reason
+            MudDialog.Close(DialogResult.Ok(new AdjustmentResult { Delta = finalDelta, Reason = reason }));
+        }
+    }
+
+    public class AdjustmentResult
+    {
+        public int Delta { get; set; }
+        public string Reason { get; set; } = "";
+    }
+}

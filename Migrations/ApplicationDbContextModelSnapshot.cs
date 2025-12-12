@@ -17,7 +17,7 @@ namespace CMetalsWS.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.9")
+                .HasAnnotation("ProductVersion", "9.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -395,6 +395,97 @@ namespace CMetalsWS.Migrations
                     b.ToTable("CityCentroid", (string)null);
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.ConsumableItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CurrentQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("MaxQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("UnitOfMeasure")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("ItemCode")
+                        .IsUnique();
+
+                    b.ToTable("ConsumableItems");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.ConsumableTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ConsumableItemId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("PerformedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TransactionType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsumableItemId");
+
+                    b.ToTable("ConsumableTransactions");
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.Customer", b =>
                 {
                     b.Property<int>("Id")
@@ -575,6 +666,9 @@ namespace CMetalsWS.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("IsCustomerPickup")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1134,6 +1228,59 @@ namespace CMetalsWS.Migrations
                     b.HasIndex("PickingListImportId");
 
                     b.ToTable("PickingListPageImages");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.ProcurementRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ActualDeliveryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ConsumableItemId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ExpectedDeliveryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<int>("QuantityRequested")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RequestNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("RequestedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("SupplierName")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsumableItemId");
+
+                    b.ToTable("ProcurementRequests");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.Shift", b =>
@@ -1783,6 +1930,17 @@ namespace CMetalsWS.Migrations
                     b.Navigation("Sender");
                 });
 
+            modelBuilder.Entity("CMetalsWS.Data.ConsumableTransaction", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.ConsumableItem", "ConsumableItem")
+                        .WithMany()
+                        .HasForeignKey("ConsumableItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ConsumableItem");
+                });
+
             modelBuilder.Entity("CMetalsWS.Data.Customer", b =>
                 {
                     b.HasOne("CMetalsWS.Data.DestinationGroup", "DestinationGroup")
@@ -1990,6 +2148,17 @@ namespace CMetalsWS.Migrations
                         .IsRequired();
 
                     b.Navigation("Import");
+                });
+
+            modelBuilder.Entity("CMetalsWS.Data.ProcurementRequest", b =>
+                {
+                    b.HasOne("CMetalsWS.Data.ConsumableItem", "ConsumableItem")
+                        .WithMany()
+                        .HasForeignKey("ConsumableItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ConsumableItem");
                 });
 
             modelBuilder.Entity("CMetalsWS.Data.Shift", b =>

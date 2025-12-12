@@ -1,0 +1,98 @@
+@page "/inventory/consumables/usage"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IConsumablesService ConsumablesService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<MudText Typo="Typo.h5" Class="mb-4">Record Usage</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <MudForm @ref="form" @bind-IsValid="@success">
+            <MudAutocomplete T="ConsumableItem" Label="Select Item" @bind-Value="selectedItem" SearchFunc="@SearchItems"
+                             ToStringFunc="@(e => e == null ? null : $"{e.Name} ({e.ItemCode}) - Qty: {e.CurrentQuantity}")"
+                             Required="true" RequiredError="Item is required" ResetValueOnEmptyText="true" />
+
+            @if (selectedItem != null)
+            {
+                <MudText Typo="Typo.body2" Class="mt-2">Current Stock: <b>@selectedItem.CurrentQuantity @selectedItem.UnitOfMeasure</b></MudText>
+            }
+
+            <MudNumericField @bind-Value="quantity" Label="Quantity Used" Min="1" Required="true" Class="mt-4" />
+
+            <MudTextField @bind-Value="performedBy" Label="Used By" ReadOnly="true" Class="mt-4" />
+
+            <MudTextField @bind-Value="reference" Label="Reference (Optional)" Class="mt-4" />
+
+            <MudTextField @bind-Value="notes" Label="Notes (Optional)" Lines="3" Class="mt-4" />
+
+        </MudForm>
+    </MudCardContent>
+    <MudCardActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Submit" Disabled="@(!success || selectedItem == null)">Record Usage</MudButton>
+    </MudCardActions>
+</MudCard>
+
+@code {
+    private bool success;
+    private MudForm form = default!;
+    private ConsumableItem? selectedItem;
+    private int quantity = 1;
+    private string performedBy = "";
+    private string reference = "";
+    private string notes = "";
+    private List<ConsumableItem> allItems = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        allItems = (await ConsumablesService.GetItemsAsync()).Where(i => i.IsActive).ToList();
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        performedBy = authState.User.Identity?.Name ?? "Unknown";
+    }
+
+    private async Task<IEnumerable<ConsumableItem>> SearchItems(string value, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(value))
+            return allItems;
+        return allItems.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)
+                                || x.ItemCode.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        if (success && selectedItem != null)
+        {
+            try
+            {
+                var transaction = new ConsumableTransaction
+                {
+                    ConsumableItemId = selectedItem.Id,
+                    TransactionType = ConsumableTransactionType.Usage,
+                    Quantity = quantity,
+                    PerformedBy = performedBy,
+                    Reference = reference,
+                    Notes = notes
+                };
+
+                await ConsumablesService.RecordTransactionAsync(transaction);
+                Snackbar.Add($"Usage recorded: {quantity} {selectedItem.UnitOfMeasure} of {selectedItem.Name}", Severity.Success);
+
+                // Reset form
+                selectedItem = null;
+                quantity = 1;
+                reference = "";
+                notes = "";
+                // Refresh items to get updated quantities
+                allItems = (await ConsumablesService.GetItemsAsync()).Where(i => i.IsActive).ToList();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
+    }
+}

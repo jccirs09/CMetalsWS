@@ -1,0 +1,49 @@
+@using CMetalsWS.Data
+@using System.ComponentModel.DataAnnotations
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@success">
+            <MudTextField @bind-Value="Item.ItemCode" Label="Item Code" Required="true" RequiredError="Item Code is required!" />
+            <MudTextField @bind-Value="Item.Name" Label="Name" Required="true" RequiredError="Name is required!" />
+            <MudTextField @bind-Value="Item.Description" Label="Description" Lines="3" />
+            <MudTextField @bind-Value="Item.UnitOfMeasure" Label="Unit of Measure" Required="true" RequiredError="UOM is required!" />
+
+            <MudGrid>
+                <MudItem xs="6">
+                    <MudNumericField @bind-Value="Item.MinQuantity" Label="Min Quantity" Min="0" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField @bind-Value="Item.MaxQuantity" Label="Max Quantity" Min="0" />
+                </MudItem>
+            </MudGrid>
+
+            <MudSwitch @bind-Value="Item.IsActive" Color="Color.Success">Active</MudSwitch>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public ConsumableItem Item { get; set; } = new ConsumableItem();
+
+    private bool success;
+    private MudForm form = default!;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await form.Validate();
+
+        if (success)
+        {
+            MudDialog.Close(DialogResult.Ok(Item));
+        }
+    }
+}

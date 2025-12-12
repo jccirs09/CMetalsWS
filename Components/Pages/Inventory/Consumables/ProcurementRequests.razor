@@ -1,0 +1,100 @@
+@page "/inventory/consumables/procurement"
+@using CMetalsWS.Data
+@using CMetalsWS.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IConsumablesService ConsumablesService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<MudText Typo="Typo.h5" Class="mb-4">Procurement Requests</MudText>
+
+<MudTable Items="@requests" Dense="true" Hover="true" Striped="true" SortLabel="Sort By">
+    <HeaderContent>
+        <MudTh><MudTableSortLabel SortBy="new Func<ProcurementRequest, object>(x => x.RequestNumber)">Req #</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ProcurementRequest, object>(x => x.RequestedDate)">Date</MudTableSortLabel></MudTh>
+        <MudTh>Item</MudTh>
+        <MudTh>Qty</MudTh>
+        <MudTh>Requested By</MudTh>
+        <MudTh>Supplier</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Req #">@context.RequestNumber</MudTd>
+        <MudTd DataLabel="Date">@context.RequestedDate.ToLocalTime().ToString("g")</MudTd>
+        <MudTd DataLabel="Item">@context.ConsumableItem?.Name</MudTd>
+        <MudTd DataLabel="Qty">@context.QuantityRequested</MudTd>
+        <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
+        <MudTd DataLabel="Supplier">@context.SupplierName</MudTd>
+        <MudTd DataLabel="Status">
+            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">@context.Status</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Actions">
+            @if (context.Status != ProcurementRequestStatus.Received && context.Status != ProcurementRequestStatus.Cancelled)
+            {
+                <MudMenu Icon="@Icons.Material.Filled.MoreVert">
+                    @if (context.Status == ProcurementRequestStatus.Draft)
+                    {
+                        <MudMenuItem OnClick="@(() => UpdateStatus(context, ProcurementRequestStatus.Requested))">Mark Requested</MudMenuItem>
+                    }
+                    @if (context.Status == ProcurementRequestStatus.Requested)
+                    {
+                         <MudMenuItem OnClick="@(() => UpdateStatus(context, ProcurementRequestStatus.Ordered))">Mark Ordered</MudMenuItem>
+                    }
+                    @if (context.Status == ProcurementRequestStatus.Ordered)
+                    {
+                         <MudMenuItem OnClick="@(() => UpdateStatus(context, ProcurementRequestStatus.Received))">Mark Received</MudMenuItem>
+                    }
+                    <MudMenuItem OnClick="@(() => UpdateStatus(context, ProcurementRequestStatus.Cancelled))">Cancel</MudMenuItem>
+                </MudMenu>
+            }
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    private List<ProcurementRequest> requests = new();
+    private string currentUser = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentUser = authState.User.Identity?.Name ?? "Unknown";
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        requests = await ConsumablesService.GetProcurementRequestsAsync();
+    }
+
+    private Color GetStatusColor(ProcurementRequestStatus status)
+    {
+        return status switch
+        {
+            ProcurementRequestStatus.Draft => Color.Default,
+            ProcurementRequestStatus.Requested => Color.Info,
+            ProcurementRequestStatus.Ordered => Color.Primary,
+            ProcurementRequestStatus.Received => Color.Success,
+            ProcurementRequestStatus.Cancelled => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private async Task UpdateStatus(ProcurementRequest request, ProcurementRequestStatus status)
+    {
+        try
+        {
+            await ConsumablesService.UpdateProcurementRequestStatusAsync(request.Id, status, currentUser);
+            Snackbar.Add($"Request {request.RequestNumber} updated to {status}", Severity.Success);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}
